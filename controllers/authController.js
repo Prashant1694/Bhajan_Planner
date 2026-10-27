@@ -89,7 +89,7 @@ async function createAdminSession(req, admin) {
 
 exports.showLogin = (req, res) => {
   if (req.session && req.session.adminUserId) {
-    return res.redirect("/?tab=admin");
+    return res.redirect("/admin");
   }
 
   res.render("admin-login", {
@@ -148,9 +148,9 @@ exports.login = async (req, res) => {
           localStorage.setItem('bp_admin_role', ${safeJsonStringify(admin.role || "admin")});
         } catch(_) {}
         if (window.top && window.top !== window.self) {
-          window.top.location.href = '/?tab=admin&login_ts=' + Date.now();
+          window.top.location.href = '/admin';
         } else {
-          window.location.href = '/?tab=admin&login_ts=' + Date.now();
+          window.location.href = '/admin';
         }
       </script></body></html>`);
     });
@@ -261,7 +261,7 @@ exports.googleLogin = async (req, res) => {
 
       res.json({
         success: true,
-        redirect: "/?tab=admin"
+        redirect: "/admin"
       });
     });
   } catch (error) {

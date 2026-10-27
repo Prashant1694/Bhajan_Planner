@@ -7,6 +7,8 @@ const SessionMeta = require("../models/SessionMeta");
 const MasterBhajan = require("../models/MasterBhajan");
 const DeityRule = require("../models/DeityRule");
 const AdminUser = require("../models/AdminUser");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const bcrypt = require("bcrypt");
 const path = require("path");
 const {
@@ -334,6 +336,13 @@ exports.sessionView = async (req, res) => {
       else speedCounts.medium++;
     });
 
+    const uniqueDeities = Object.keys(deityCounts).length;
+    const speedBreakdown = {
+      med: speedCounts.medium,
+      fast: speedCounts.fast,
+      slow: speedCounts.slow
+    };
+
     const ganeshaOpening =
       enrichedSubmissions.length > 0 &&
       String(enrichedSubmissions[0].deity || "")
@@ -367,26 +376,23 @@ exports.sessionView = async (req, res) => {
     const livePlanUrl = `${protocol}://${host}/plan-view?session_date=${date}`;
 
     const whatsappItems = enrichedSubmissions.map((item, idx) => {
-      const numEmoji = getNumberEmoji(idx + 1);
-      const icon = item.deityIcon || "🕉️";
-      let wa = `${numEmoji} *${item.deity}* ${icon}\n🎵 *${item.title}*\n👤 ${item.singer_name}`;
-      if (item.partner_name) wa += ` (with ${item.partner_name})`;
       const scaleStr = item.scale
         ? `${item.scale}${item.westernScale && item.westernScale !== "-" ? ` (${item.westernScale})` : ""}`
         : "N/A";
       const speedStr = item.speed
         ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
         : "Medium";
-      wa += `\n🎹 Pitch: ${scaleStr} | 🥁 Tempo: ${speedStr}`;
-      return wa;
+      const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
+
+      return `${idx + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${speedStr}`;
     });
 
-    let whatsappText = `🕉️ *SRI SATHYA SAI SEVA ORGANISATION*\n📅 *BHAJAN PROGRAM – ${humanDate}*\nTotal Bhajans: ${enrichedSubmissions.length}\n──────────────────────────────\n\n`;
+    let whatsappText = `*SRI SATHYA SAI SEVA ORGANISATION*\n*BHAJAN PROGRAM – ${humanDate}*\nTotal Bhajans: ${enrichedSubmissions.length}\n--------------------------------------------------\n\n`;
     whatsappText +=
       whatsappItems.length > 0
         ? whatsappItems.join("\n\n") + "\n\n"
         : "No bhajans scheduled for this date yet.\n\n";
-    whatsappText += `──────────────────────────────\n🙏 *Sai Ram to all Accompanists & Devotees*\n🌐 *Live Plan:* ${livePlanUrl}`;
+    whatsappText += `--------------------------------------------------\nSai Ram to all Accompanists & Devotees\nLive Plan: ${livePlanUrl}`;
     const whatsappEncoded = encodeURIComponent(whatsappText);
 
     // Recent past sessions for quick copy
@@ -403,6 +409,23 @@ exports.sessionView = async (req, res) => {
 
     const isUpcoming = date >= getLocalDateStr();
 
+    // Session Audio Recording (if linked)
+    let sessionAudio = null;
+    try {
+      sessionAudio = await SessionAudio.findOne({
+        where: { session_date: date },
+        include: [
+          {
+            model: SessionAudioTimestamp,
+            as: "timestamps"
+          }
+        ],
+        order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
+      });
+    } catch (audioErr) {
+      console.warn("Could not load session audio:", audioErr.message);
+    }
+
     res.render("admin-session-view", {
       date,
       humanDate,
@@ -411,8 +434,11 @@ exports.sessionView = async (req, res) => {
       submissions: enrichedSubmissions,
       isLocked,
       isUpcoming,
+      sessionAudio,
       totalBhajans: enrichedSubmissions.length,
       uniqueSingers,
+      uniqueDeities,
+      speedBreakdown,
       deityCounts,
       speedCounts,
       ganeshaOpening,
@@ -486,16 +512,36 @@ exports.deleteSubmission = async (req, res) => {
 exports.showRules = async (req, res) => {
   try {
     const date = req.query.date || "default";
+
+    // Ensure all default deities including Narayana exist
+    const defaultDeities = DEITY_ORDER || [
+      "Ganesha", "Guru", "Mata", "SarvaDharma", "Sai",
+      "Shiva", "Krishna", "Rama", "Narayana", "Vitthala", "Hanuman"
+    ];
+    for (const deity of defaultDeities) {
+      await DeityRule.findOrCreate({
+        where: { session_date: "default", deity_name: deity },
+        defaults: {
+          session_date: "default",
+          deity_name: deity,
+          min_required: 0,
+          max_allowed: 2
+        }
+      });
+    }
+
     let rules = await DeityRule.findAll({
-      where: { session_date: date },
-      order: [["deity_name", "ASC"]]
+      where: { session_date: date }
     });
     if (rules.length === 0 && date !== "default") {
       rules = await DeityRule.findAll({
-        where: { session_date: "default" },
-        order: [["deity_name", "ASC"]]
+        where: { session_date: "default" }
       });
     }
+
+    // Sort by traditional Mandir flow order (Ganesha, Guru, Mata, etc.)
+    rules.sort((a, b) => deityOrderKey(a.deity_name) - deityOrderKey(b.deity_name));
+
     res.render("admin-rules", {
       rules,
       date,

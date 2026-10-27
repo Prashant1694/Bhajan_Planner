@@ -19,6 +19,7 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1155.0",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.2",
     "connect-session-sequelize": "^8.0.6",

@@ -1,23 +1,25 @@
 <div class="container container-xl">
   <div class="header">
-    <h1>📦 Archived Master Bhajans</h1>
+    <h1>Archived Master Bhajans</h1>
     <p>Historical legacy records preserved for referential integrity</p>
   </div>
 
   <div class="bank-body">
     <div class="page-toolbar">
       <div class="toolbar-heading">
-        <h1><%= bhajans.length %> Archived Bhajans</h1>
+        <h2><%= bhajans.length %> Archived Bhajans</h2>
         <p>These records are hidden from normal search, Thursday submissions, and Diwali module.</p>
       </div>
       <div class="toolbar-actions">
-        <a href="/master-bank" class="button secondary">📖 Active Master Bank</a>
-        <a href="/admin" class="button secondary">⬅️ Admin Dashboard</a>
+        <a href="/master-bank" class="button secondary">Active Master Bank</a>
+        <a href="/admin" class="button secondary">Admin Dashboard</a>
       </div>
     </div>
 
     <div class="search-field">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
       <input
         type="search"
         id="filterArchivedTitle"
@@ -31,9 +33,9 @@
       <table id="archivedTable">
         <thead>
           <tr>
-            <th>ID ↕</th>
-            <th>Title ↕</th>
-            <th>Deity ↕</th>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Deity</th>
             <th>Status</th>
             <th>Historical References</th>
             <th>Tempo</th>
@@ -55,7 +57,7 @@
                 <td data-label="Historical References">
                   <% if (b.refCount > 0) { %>
                     <span class="badge-pill" style="background: rgba(40, 167, 69, 0.15); color: #28a745; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                      🔒 <%= b.refCount %> Active Reference(s)
+                      <%= b.refCount %> Active Reference(s)
                     </span>
                   <% } else { %>
                     <span style="color: var(--muted); font-size: 12px;">0 (Unreferenced)</span>
@@ -78,9 +80,9 @@
 function filterArchivedTable() {
   const query = (document.getElementById('filterArchivedTitle')?.value || '').trim().toLowerCase();
   const rows = document.querySelectorAll('#archivedTable tbody tr.archived-row');
-  rows.forEach(r => {
-    const text = r.textContent.toLowerCase();
-    r.style.display = (!query || text.includes(query)) ? '' : 'none';
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = (!query || text.includes(query)) ? '' : 'none';
   });
 }
 </script>

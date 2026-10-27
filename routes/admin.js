@@ -32,7 +32,14 @@ router.get(
   requireSuperAdmin,
   adminController.showDangerResetHistory
 );
-router.post("/admin/danger-reset-history", requireSuperAdmin, adminController.dangerResetHistory);
 router.get("/admin/download-backup", requireSuperAdmin, adminController.downloadBackup);
+
+// Session Audio & Cloudflare R2 Management
+const sessionAudioController = require("../controllers/sessionAudioController");
+router.get("/admin/api/sessions/:date/audio", requireLogin, sessionAudioController.getSessionAudioData);
+router.post("/admin/api/sessions/:date/audio", requireLogin, sessionAudioController.saveSessionAudio);
+router.post("/admin/api/sessions/:date/audio/timestamps", requireLogin, sessionAudioController.saveAudioTimestamps);
+router.delete("/admin/api/sessions/:date/audio", requireLogin, sessionAudioController.deleteSessionAudio);
+router.get("/admin/api/cloudflare/audio-files", requireLogin, sessionAudioController.getCloudflareAudioFiles);
 
 module.exports = router;

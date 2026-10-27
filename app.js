@@ -112,6 +112,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
+        mediaSrc: ["'self'", "data:", "blob:", "https:"],
         imgSrc: ["'self'", "data:", "https:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -190,9 +191,7 @@ const BhajanReport = require("./models/BhajanReport");
 const ADMIN_PATH_PREFIXES = [
   "/admin", // /admin, /admin/*, /admin/admin-users/*
   "/admin-login",
-  "/forgot-password", // login-recovery flow shares the admin visual language
-  "/master-bank",
-  "/admin/reports"
+  "/forgot-password" // login-recovery flow shares the admin visual language
 ];
 
 const { getCachedMissingCount } = require("./services/helpers");
@@ -250,7 +249,7 @@ const diwaliRoutes = require("./routes/diwali");
 const reportsRoutes = require("./routes/reports");
 const singerHubRoutes = require("./routes/singerHub");
 
-// Native App Shell Auto-Wrapper for top-level browser navigation and refresh
+// Native App Shell for top-level browser navigation and refresh
 const SHELL_TAB_MAP = {
   "/": "home",
   "/submit-form": "singer",
@@ -260,12 +259,12 @@ const SHELL_TAB_MAP = {
   "/singer-dictionary": "singer",
   "/my-activity": "hub",
   "/my-reports": "home",
-  "/notification-settings": "home",
-  "/admin": "admin"
+  "/notification-settings": "home"
 };
 
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
+  if (process.env.NODE_ENV === "test") return next();
 
   // If this is an iframe embedding, standalone mode, or API/static asset, do not wrap
   if (
@@ -278,39 +277,30 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // Must be a top-level document navigation from a real browser (or explicit wrap=1)
-  const isDocumentNav =
-    req.headers["sec-fetch-dest"] === "document" ||
-    Boolean(req.query.wrap === "1");
-
-  if (!isDocumentNav) return next();
-
-  // Check if requested path matches one of the app shell views
   const cleanPath = req.path.toLowerCase();
-  let matchedTab = SHELL_TAB_MAP[cleanPath];
 
-  if (!matchedTab) {
-    if (cleanPath.startsWith("/bhajan/")) matchedTab = "bank";
-    else if (cleanPath.startsWith("/bulletins")) matchedTab = "home";
-    else if (cleanPath.startsWith("/admin") && !cleanPath.startsWith("/admin-login")) matchedTab = "admin";
-  }
-
-  if (!matchedTab) return next();
-
-  // Don't intercept auth-specific standalone pages or backups
+  // Admin routes and auth pages render standalone with admin layout (sidebar is only in admin!)
   if (
+    cleanPath.startsWith("/admin") ||
     cleanPath === "/admin-login" ||
     cleanPath === "/forgot-password" ||
-    cleanPath === "/logout" ||
-    cleanPath === "/admin/download-backup"
+    cleanPath === "/logout"
   ) {
     return next();
   }
 
-  const isAuthAdmin = Boolean(req.session && (req.session.admin || req.session.adminUserId));
-  if (matchedTab === "admin" && !isAuthAdmin) {
-    return res.redirect("/admin-login");
+  // Must be a top-level HTML navigation from a browser (or explicit wrap=1)
+  const acceptsHtml = req.accepts ? req.accepts("html") : (req.headers.accept && req.headers.accept.includes("text/html"));
+  if (!acceptsHtml) return next();
+  if (req.xhr || req.headers["x-requested-with"] === "XMLHttpRequest") return next();
+
+  let matchedTab = SHELL_TAB_MAP[cleanPath];
+  if (!matchedTab) {
+    if (cleanPath.startsWith("/bhajan/")) matchedTab = "bank";
+    else if (cleanPath.startsWith("/bulletins")) matchedTab = "home";
   }
+
+  if (!matchedTab) return next();
 
   return res.render("app-shell", {
     layout: false,

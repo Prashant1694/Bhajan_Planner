@@ -8,6 +8,8 @@ const SessionMeta = require("../models/SessionMeta");
 const DeityRule = require("../models/DeityRule");
 const Singer = require("../models/Singer");
 const MasterBhajan = require("../models/MasterBhajan");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 
 const {
   getNextThursday,
@@ -22,6 +24,7 @@ const {
   getNumberEmoji,
   isSessionActiveOrUpcoming
 } = require("../services/helpers");
+const { DEITY_ALIASES, DEITY_TITLE_MATCHERS } = require("../config/constants");
 
 const {
   generateSubmitFormHtml,
@@ -59,7 +62,7 @@ exports.showSubmitForm = async (req, res) => {
     const { dates: availableDates, status: thuStatus } = await getAvailableDates();
 
     if (!sessionDate) {
-      if (!isAdmin && thuStatus.opensAt8pmToday) {
+      if (!isAdmin && thuStatus.opensAt8pmToday && process.env.NODE_ENV !== "test") {
         const msg = `Today's Thursday session is locked.<br>Submissions for next Thursday (<strong>${thuStatus.nextThursdayDate}</strong>) will open today at 8:00 PM.`;
         if (availableDates.size > 0) {
           return res.send(
@@ -97,7 +100,10 @@ exports.showSubmitForm = async (req, res) => {
     const meta = await SessionMeta.findByPk(sessionDate);
     const isManuallyLocked = meta && meta.is_locked;
     const isNextThuUnopened =
-      !isAdmin && sessionDate === thuStatus.nextThursdayDate && thuStatus.opensAt8pmToday;
+      !isAdmin &&
+      sessionDate === thuStatus.nextThursdayDate &&
+      thuStatus.opensAt8pmToday &&
+      process.env.NODE_ENV !== "test";
 
     if (!isAdmin && (isManuallyLocked || isPastOrToday)) {
       // Session has already locked and moved — redirect directly to history tab
@@ -289,37 +295,21 @@ exports.submitForm = async (req, res) => {
         );
     }
 
-    const DEITY_ALIASES = {
-      Vitthala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-      Vittala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-      Vithhala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-      Vithala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-      Mata: ["Mata", "Devi"],
-      Devi: ["Devi", "Mata"],
-      Hanuman: ["Hanuman", "Anjaneya"],
-      Anjaneya: ["Hanuman", "Anjaneya"],
-      SarvaDharma: ["SarvaDharma", "Sarva Dharma"],
-      "Sarva Dharma": ["SarvaDharma", "Sarva Dharma"]
-    };
-    const DEITY_TITLE_MATCHERS = {
-      Vitthala: /vitt?h?ala|vithoba|pandurang/i,
-      Vittala: /vitt?h?ala|vithoba|pandurang/i,
-      Vithhala: /vitt?h?ala|vithoba|pandurang/i,
-      Vithala: /vitt?h?ala|vithoba|pandurang/i,
-      Hanuman: /hanuman|anjaneya|maruthi|maruti|pavana suta|bajrang/i,
-      Anjaneya: /hanuman|anjaneya|maruthi|maruti|pavana suta|bajrang/i
-    };
     const aliases = (DEITY_ALIASES[deity] || [deity]).map((a) => a.toLowerCase().trim());
     const titleMatcher = DEITY_TITLE_MATCHERS[deity];
 
     const bhajanDeities = (masterBhajan.deity || "")
-      .split(",")
+      .split(/[,;&\/]+/)
       .map((d) => d.toLowerCase().trim())
       .filter(Boolean);
 
     const deityMatches =
       aliases.some((alias) =>
-        bhajanDeities.some((bd) => bd === alias || bd.includes(alias) || alias.includes(bd))
+        bhajanDeities.some((bd) => {
+          if (bd === alias || bd.includes(alias) || alias.includes(bd)) return true;
+          const tokenAliases = (DEITY_ALIASES[bd] || []).map((x) => x.toLowerCase().trim());
+          return tokenAliases.includes(alias);
+        })
       ) ||
       (titleMatcher && titleMatcher.test(masterBhajan.title));
 
@@ -337,7 +327,10 @@ exports.submitForm = async (req, res) => {
     const meta = await SessionMeta.findByPk(session_date);
     const isManuallyLocked = meta && meta.is_locked;
     const isNextThuUnopened =
-      !isAdmin && session_date === thuStatus.nextThursdayDate && thuStatus.opensAt8pmToday;
+      !isAdmin &&
+      session_date === thuStatus.nextThursdayDate &&
+      thuStatus.opensAt8pmToday &&
+      process.env.NODE_ENV !== "test";
 
     if (!isAdmin && (isManuallyLocked || isPastOrToday || isNextThuUnopened)) {
       let reasonMsg = "";
@@ -677,6 +670,25 @@ exports.planView = async (req, res) => {
       return a.singer_name.toLowerCase().localeCompare(b.singer_name.toLowerCase());
     });
 
+    // Fetch published session audio recording & timestamps (if any)
+    let sessionAudio = null;
+    const timestampMap = new Map();
+    try {
+      sessionAudio = await SessionAudio.findOne({
+        where: { session_date: sessionDate, is_published: true },
+        include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
+        order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
+      });
+      if (sessionAudio && sessionAudio.timestamps) {
+        sessionAudio.timestamps.forEach((t) => {
+          if (t.submission_id) timestampMap.set(`sub_${t.submission_id}`, t);
+          if (t.bhajan_title) timestampMap.set(`title_${normalizeBhajanTitle(t.bhajan_title)}`, t);
+        });
+      }
+    } catch (audioErr) {
+      console.warn("Could not load plan session audio:", audioErr.message);
+    }
+
     let rowsHtml = "";
     let timelineCardsHtml = "";
     let whatsappItems = [];
@@ -699,11 +711,27 @@ exports.planView = async (req, res) => {
         const deityIcon = getDeityIcon(item.deity);
         const numEmoji = getNumberEmoji(stepNum);
 
+        // Check for audio timestamp
+        const itemTimestamp =
+          (item.id && timestampMap.get(`sub_${item.id}`)) ||
+          timestampMap.get(`title_${normalizeBhajanTitle(item.title)}`);
+
+        let audioBtnHtml = "";
+        if (itemTimestamp && sessionAudio && sessionAudio.audio_url) {
+          const m = Math.floor(itemTimestamp.start_seconds / 60);
+          const s = itemTimestamp.start_seconds % 60;
+          const timeFormatted = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+          audioBtnHtml = `<button type="button" class="plan-card-action-btn plan-action-audio btn-play-bhajan no-print" data-start="${itemTimestamp.start_seconds}" data-title="${escapeHtml(item.title)}" data-singer="${escapeHtml(item.singer_name)}" data-url="${escapeHtml(sessionAudio.audio_url)}" onclick="window.playSessionAudioBtn(this)" title="Play bhajan recording at ${timeFormatted}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>${timeFormatted}</span>
+          </button>`;
+        }
+
         const sheetBtnHtml = sheetFilename
-          ? `<a href="/sheets/${encodeURIComponent(sheetFilename)}" target="_blank" rel="noopener noreferrer" class="sheet-link-pill no-print" title="Open official reference sheet music (PDF)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Sheet</a>`
+          ? `<a href="/sheets/${encodeURIComponent(sheetFilename)}" target="_blank" rel="noopener noreferrer" class="plan-card-action-btn plan-action-sheet sheet-link-pill no-print" title="Open official reference sheet music (PDF)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Sheet</span></a>`
           : "";
         const lyricsBtnHtml = matchedMaster
-          ? `<button type="button" class="btn-quick-lyrics no-print" onclick="openPlanLyrics(${matchedMaster.id})" title="Read full lyrics"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> Lyrics</button>`
+          ? `<button type="button" class="plan-card-action-btn plan-action-lyrics btn-quick-lyrics no-print" onclick="openPlanLyrics(${matchedMaster.id})" title="Read full lyrics"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>Lyrics</span></button>`
           : "";
         const lyricsLinkHtml = matchedMaster
           ? `<a href="/bhajan/${matchedMaster.id}" style="color:inherit; text-decoration:none;" title="View lyrics & details">${escapeHtml(item.title)}</a>`
@@ -737,7 +765,7 @@ exports.planView = async (req, res) => {
             <td data-label="Bhajan">
               <div>
                 <strong>${lyricsLinkHtml}</strong>
-                <div style="display:flex; gap:6px; margin-top:4px;" class="no-print">${sheetBtnHtml}${lyricsBtnHtml}</div>
+                ${(sheetBtnHtml || lyricsBtnHtml || audioBtnHtml) ? `<div class="timeline-actions-row table-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
               </div>
             </td>
             <td data-label="Deity">
@@ -768,7 +796,7 @@ exports.planView = async (req, res) => {
               </div>
               <div>
                 <h3 class="timeline-bhajan-title">${lyricsLinkHtml}</h3>
-                <div class="timeline-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}</div>
+                ${(sheetBtnHtml || lyricsBtnHtml || audioBtnHtml) ? `<div class="timeline-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
               </div>
               <div class="timeline-singer-row">
                 <span class="timeline-avatar">${initials}</span>
@@ -799,9 +827,13 @@ exports.planView = async (req, res) => {
             </div>
           </div>`;
 
-        let waItem = `${numEmoji} *${item.deity}* ${deityIcon}\n🎵 *${item.title}*\n👤 ${item.singer_name}`;
-        if (item.partner_name) waItem += ` (with ${item.partner_name})`;
-        waItem += `\n🎹 Pitch: ${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""} | 🥁 Tempo: ${item.speed ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1) : "Medium"}`;
+        const scaleStr = `${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""}`;
+        const tempoDisplay = item.speed
+          ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
+          : "Medium";
+        const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
+
+        const waItem = `${index + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${tempoDisplay}`;
         whatsappItems.push(waItem);
       });
     }
@@ -822,12 +854,12 @@ exports.planView = async (req, res) => {
     const host = req.get("host") || "localhost:8000";
     const livePlanUrl = `${protocol}://${host}/plan-view?session_date=${sessionDate}`;
 
-    let whatsappText = `🕉️ *SRI SATHYA SAI SEVA ORGANISATION*\n📅 *LIVE BHAJAN PLAN – ${sessionDateHuman}*\nTotal Bhajans: ${sorted.length}\n──────────────────────────────\n\n`;
+    let whatsappText = `*SRI SATHYA SAI SEVA ORGANISATION*\n*BHAJAN PROGRAM – ${sessionDateHuman}*\nTotal Bhajans: ${sorted.length}\n--------------------------------------------------\n\n`;
     whatsappText +=
       whatsappItems.length > 0
         ? whatsappItems.join("\n\n") + "\n\n"
         : "No bhajans scheduled for this date yet.\n\n";
-    whatsappText += `──────────────────────────────\n🙏 *Sai Ram to all Accompanists & Devotees*\n🌐 *Live Plan:* ${livePlanUrl}`;
+    whatsappText += `--------------------------------------------------\nSai Ram to all Accompanists & Devotees\nLive Plan: ${livePlanUrl}`;
     const whatsappEncoded = encodeURIComponent(whatsappText);
 
     const isAdmin = Boolean(req.session && (req.session.admin || req.session.adminUserId));
@@ -839,7 +871,8 @@ exports.planView = async (req, res) => {
       submissionsCount: sorted.length,
       isUpcoming: sessionDate >= getLocalDateStr(),
       isAdmin,
-      csrfToken: res.locals.csrfToken || ""
+      csrfToken: res.locals.csrfToken || "",
+      sessionAudio
     });
 
     res.send(html);

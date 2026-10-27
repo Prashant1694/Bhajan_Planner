@@ -1,0 +1,1248 @@
+
+  <!DOCTYPE html>
+  <html lang="en">
+
+  <head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#fbf8f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
+    <meta name="csrf-token" content="09b50e48781296fd1c59b35c98b4bc79bd6a10802de3e8d530756f3e1ccacc65.f6c2b45158fb434e7d879c31ad5426144687bee38a437f1aa39df1703bf8cf3c">
+    <script>window.csrfToken = "09b50e48781296fd1c59b35c98b4bc79bd6a10802de3e8d530756f3e1ccacc65.f6c2b45158fb434e7d879c31ad5426144687bee38a437f1aa39df1703bf8cf3c";</script>
+
+    <title>
+      Bhajan Planner
+    </title>
+    <!-- Google Fonts Direct Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Global CSS with Cache Busting -->
+    <link rel="stylesheet" href="/css/style.css?v=5.5">
+    <link rel="stylesheet" href="/css/pwa.css?v=5.5">
+    <link rel="stylesheet" href="/css/notifications.css?v=5.5">
+    <link rel="stylesheet" href="/css/bulletin.css?v=5.5">
+
+    
+
+    
+
+    <!-- Optional page-specific CSS -->
+    
+
+
+                <!-- Critical Anti-FOUC for Floating Theme Toggle & Absolute Print Elimination -->
+                <style>
+                  @media screen {
+                    .floating-theme-toggle {
+                      position: fixed !important;
+                      bottom: 88px !important;
+                      right: 24px !important;
+                      z-index: 9995 !important;
+                      width: 52px !important;
+                      height: 52px !important;
+                      border-radius: 50% !important;
+                      display: flex !important;
+                      align-items: center !important;
+                      justify-content: center !important;
+                    }
+
+                    @media (max-width: 768px) {
+                      .floating-theme-toggle {
+                        width: 44px !important;
+                        height: 44px !important;
+                        bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+                        right: 14px !important;
+                        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+                      }
+                    }
+
+                    body:has(.modal.show) .floating-theme-toggle,
+                    body.modal-open .floating-theme-toggle {
+                      display: none !important;
+                      pointer-events: none !important;
+                    }
+                  }
+
+                  @media print {
+
+                    .theme-toggle,
+                    #themeToggle,
+                    .notif-bell-btn,
+                    #notifBellBtn,
+                    .notif-badge,
+                    .notif-panel,
+                    .notif-overlay,
+                    .notif-prompt-overlay,
+                    .pwa-install-overlay,
+                    #pwaInstallOverlay,
+                    .notification-bell-container {
+                      display: none !important;
+                      visibility: hidden !important;
+                      opacity: 0 !important;
+                      position: fixed !important;
+                      left: -9999px !important;
+                      top: -9999px !important;
+                      width: 0 !important;
+                      height: 0 !important;
+                      pointer-events: none !important;
+                    }
+                  }
+                </style>
+
+                <!-- Dark mode & Native Shell Router: early script to prevent flash -->
+                <script>
+                  (function () {
+                    try {
+                      var t = localStorage.getItem('bp-theme');
+                      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+                    } catch (e) { }
+
+                    try {
+                      // Tag embedded iframes immediately before render to suppress duplicate navigation chrome
+                      if (window.self !== window.top) {
+                        document.documentElement.classList.add('in-iframe');
+
+                        // Notify parent shell of current clean URL (stripping _embed)
+                        var cleanUrl = (function() {
+                          try {
+                            var u = new URL(window.location.href);
+                            u.searchParams.delete('_embed');
+                            u.searchParams.delete('embed');
+                            var qs = u.searchParams.toString();
+                            return u.pathname + (qs ? ('?' + qs) : '');
+                          } catch (_) {
+                            return window.location.pathname;
+                          }
+                        })();
+
+                        try {
+                          sessionStorage.setItem('bp_current_path', cleanUrl);
+                        } catch (_) {}
+
+                        if (window.top && typeof window.top.onFrameNavigated === 'function') {
+                          window.top.onFrameNavigated(cleanUrl, window.location.pathname);
+                        } else if (window.top && window.top.history && window.top.history.replaceState) {
+                          window.top.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                        }
+
+                        // Seamless cross-tab link delegator
+                        document.addEventListener('click', function (e) {
+                          var a = e.target && e.target.closest('a');
+                          if (!a || !a.href) return;
+                          if (a.target === '_blank' || a.hasAttribute('download')) return;
+                          var rawHref = a.getAttribute('href') || '';
+                          if (rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+
+                          try {
+                            var dest = new URL(a.href, window.location.origin);
+                            if (dest.origin !== window.location.origin) return; // external
+
+                            var path = dest.pathname.toLowerCase();
+                            if (path.startsWith('/admin')) {
+                              // Direct top-level navigation to admin portal
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.top.location.href = dest.pathname + dest.search;
+                              return;
+                            }
+
+                            var targetTab = null;
+                            if (path === '/' || path === '') targetTab = 'home';
+                            else if (path.startsWith('/submit-form')) targetTab = 'singer';
+                            else if (path.startsWith('/master-bank')) targetTab = 'bank';
+                            else if (path.startsWith('/plan-view')) targetTab = 'plan';
+                            else if (path.startsWith('/my-hub')) targetTab = 'hub';
+
+                            var frameId = (window.frameElement && window.frameElement.id) || '';
+                            var myTab = frameId.replace('frame-', '');
+
+                            // If this link leads to a different shell tab, delegate smoothly to parent shell
+                            if (targetTab && myTab && targetTab !== myTab && window.top && typeof window.top.switchTab === 'function') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              var cleanDest = dest.pathname + dest.search;
+                              window.top.switchTab(targetTab, cleanDest);
+                            }
+                          } catch (_) {}
+                        }, true);
+                      }
+                    } catch (e) { }
+                  })();
+                </script>
+                <style>
+                  /* In any embedded frame, unconditionally hide duplicate bottom nav, top bars, and floating widgets */
+                  .in-iframe #appBottomNav,
+                  .in-iframe .app-bottom-nav,
+                  .in-iframe .native-bottom-nav,
+                  .in-iframe #nativeTopBar,
+                  .in-iframe .native-top-bar,
+                  .in-iframe #themeToggle,
+                  .in-iframe .floating-theme-toggle,
+                  .in-iframe #notifBellBtn,
+                  .in-iframe .notif-bell-btn,
+                  .in-iframe .topbar-quick-link,
+                  .in-iframe .outer-shell-only-bottom-nav,
+                  .in-iframe .pwa-install-overlay,
+                  .in-iframe #pwaInstallOverlay,
+                  body.embed-page .pwa-install-overlay,
+                  body.embed-page #pwaInstallOverlay {
+                    display: none !important;
+                    visibility: hidden !important;
+                    height: 0 !important;
+                    max-height: 0 !important;
+                    overflow: hidden !important;
+                    pointer-events: none !important;
+                    opacity: 0 !important;
+                  }
+
+                  html.in-iframe,
+                  html.embed-page {
+                    width: 100% !important;
+                    height: 100% !important;
+                    overflow-y: auto !important;
+                    overflow-x: hidden !important;
+                    -webkit-overflow-scrolling: touch !important;
+                  }
+
+                  body.in-iframe,
+                  body.embed-page,
+                  .in-iframe body {
+                    width: 100% !important;
+                    min-height: 100% !important;
+                    height: auto !important;
+                    overflow-y: visible !important;
+                    overflow-x: hidden !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    box-sizing: border-box !important;
+                    padding-bottom: 48px !important;
+                  }
+                </style>
+  </head>
+
+  <body
+    class=" embed-page in-iframe">
+
+    <!-- Universal SSSO Print Letterhead for every printable page -->
+    <!-- Universal SSSO Gandhinagar Print Letterhead -->
+<div class="universal-print-letterhead" aria-hidden="true">
+  <div class="letterhead-top-row">
+    <div class="letterhead-logo-wrap">
+      <img src="/images/logo.png" alt="Sri Sathya Sai Seva Organisation" class="letterhead-logo" />
+    </div>
+    <div class="letterhead-center-text">
+      <div class="letterhead-invoc">|| AUM SRI SAI RAM ||</div>
+      <div class="letterhead-org-title">SRI SATHYA SAI SEVA ORGANISATION, GANDHINAGAR</div>
+      <div class="letterhead-samiti-address">Satyadeep, 20, Gayatri Society, Vasna Hadmatiya, Sargasan, Gandhinagar - 382015</div>
+      <div class="letterhead-contact-line">Email: ssso.gandhinagar@gmail.com &bull; Helpline: +91 9265056242</div>
+    </div>
+    <div class="letterhead-spacer" aria-hidden="true"></div>
+  </div>
+  <div class="letterhead-divider">
+    <div class="divider-primary"></div>
+    <div class="divider-secondary"></div>
+  </div>
+</div>
+
+      <div id="top-nav-bar" class="top-nav-progress" aria-hidden="true">
+        <div id="top-nav-fill" class="top-nav-fill">
+          <div class="top-nav-glow"></div>
+        </div>
+      </div>
+
+      
+
+      
+
+            
+              
+
+                      
+                        <!-- Google Fonts: Inter, Outfit & Cinzel -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Lucide Icons CDN -->
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          display: ['Outfit', 'sans-serif'],
+          serif: ['Cinzel', 'serif']
+        },
+        colors: {
+          saffron: {
+            50: '#fffbf0',
+            100: '#fef3c7',
+            200: '#fde68a',
+            300: '#fcd34d',
+            400: '#fbbf24',
+            500: '#f59e0b',
+            600: '#d97706',
+            700: '#b45309',
+            800: '#92400e',
+            900: '#78350f',
+            950: '#451a03'
+          },
+          maroon: {
+            50: '#fdf2f4',
+            100: '#fce7eb',
+            600: '#9e1c3f',
+            700: '#7d1830',
+            800: '#5c0f22',
+            900: '#420b18'
+          }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  /* Prasanthi top border line matching mandir sanctum aesthetic */
+  .prasanthi-border {
+    height: 4px;
+    background: linear-gradient(90deg, #7d1830 0%, #d97706 30%, #fbbf24 50%, #d97706 70%, #7d1830 100%);
+    width: 100%;
+  }
+
+  /* Ambient glass canvas with subtle animated devotional aura */
+  body {
+    background-color: #F8F5F0;
+    overflow-x: hidden;
+  }
+  .dark body,
+  [data-theme="dark"] body {
+    background-color: #0c0d12;
+  }
+
+  /* Floating Sacred Light Orbs */
+  .sacred-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.65;
+    animation: floatAura 18s ease-in-out infinite alternate;
+  }
+  .dark .sacred-orb,
+  [data-theme="dark"] .sacred-orb {
+    opacity: 0.35;
+    filter: blur(100px);
+  }
+
+  @keyframes floatAura {
+    0% { transform: translate(0px, 0px) scale(1); }
+    50% { transform: translate(30px, -25px) scale(1.08); }
+    100% { transform: translate(-25px, 20px) scale(0.95); }
+  }
+
+  /* Master Glassmorphism Classes */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 
+      0 14px 40px -10px rgba(217, 119, 6, 0.08),
+      0 2px 10px -2px rgba(125, 24, 48, 0.04),
+      inset 0 1px 2px rgba(255, 255, 255, 0.95);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dark .glass-panel,
+  [data-theme="dark"] .glass-panel {
+    background: rgba(18, 20, 28, 0.65);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 20px 48px -12px rgba(0, 0, 0, 0.55),
+      inset 0 1px 1px rgba(251, 191, 36, 0.15);
+  }
+
+  /* Subtle Glass Card Pill & Highlights */
+  .glass-chip {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+  }
+  .dark .glass-chip,
+  [data-theme="dark"] .glass-chip {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Glass Action Buttons with Shimmer */
+  .glass-btn-primary {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  }
+  .glass-btn-primary:hover {
+    background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+    box-shadow: 0 10px 24px -2px rgba(234, 88, 12, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  }
+
+  .glass-btn-secondary {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  }
+  .glass-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(217, 119, 6, 0.35);
+    transform: translateY(-1px);
+  }
+  .dark .glass-btn-secondary,
+  [data-theme="dark"] .glass-btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+  .dark .glass-btn-secondary:hover,
+  [data-theme="dark"] .glass-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(251, 191, 36, 0.4);
+    transform: translateY(-1px);
+  }
+
+  /* Bottom Navbar active indicator */
+  .nav-item-active {
+    color: #b45309 !important;
+  }
+  .dark .nav-item-active,
+  [data-theme="dark"] .nav-item-active {
+    color: #fbbf24 !important;
+  }
+
+  /* Subtle fine grid texture overlay */
+  .sacred-grid-texture {
+    background-image: 
+      radial-gradient(rgba(217, 119, 6, 0.07) 1px, transparent 1px),
+      linear-gradient(to right, rgba(217, 119, 6, 0.015) 1px, transparent 1px);
+    background-size: 28px 28px, 112px 112px;
+  }
+  .dark .sacred-grid-texture,
+  [data-theme="dark"] .sacred-grid-texture {
+    background-image: 
+      radial-gradient(rgba(251, 191, 36, 0.05) 1px, transparent 1px),
+      linear-gradient(to right, rgba(251, 191, 36, 0.02) 1px, transparent 1px);
+    background-size: 28px 28px, 112px 112px;
+  }
+</style>
+
+<div class="text-stone-800 dark:text-stone-200 min-h-screen flex flex-col font-sans selection:bg-amber-200 selection:text-amber-950 pb-20 relative">
+
+  <!-- ================= AMBIENT SACRED GLOW ORBS (BACKGROUND) ================= -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <!-- Orb 1: Saffron Core (Top Left) -->
+    <div class="sacred-orb w-[540px] h-[540px] bg-gradient-to-br from-amber-400/40 via-amber-500/20 to-transparent top-[-100px] left-[-80px]"></div>
+    <!-- Orb 2: Deep Prasanthi Maroon/Rose (Top Right) -->
+    <div class="sacred-orb w-[620px] h-[620px] bg-gradient-to-bl from-rose-400/25 via-maroon-700/15 to-transparent top-[10%] right-[-120px]" style="animation-delay: -6s;"></div>
+    <!-- Orb 3: Radiant Golden Aura (Center Mid) -->
+    <div class="sacred-orb w-[700px] h-[700px] bg-gradient-to-tr from-amber-300/20 via-yellow-500/15 to-transparent top-[45%] left-[20%]" style="animation-delay: -11s;"></div>
+    <!-- Orb 4: Sanctum Amber (Bottom Right) -->
+    <div class="sacred-orb w-[580px] h-[580px] bg-gradient-to-t from-amber-600/20 via-orange-400/10 to-transparent bottom-[-150px] right-[5%]" style="animation-delay: -3s;"></div>
+    <!-- Subtle Grid Overlay -->
+    <div class="absolute inset-0 sacred-grid-texture opacity-70"></div>
+  </div>
+
+  <!-- Content Layer Wrapper -->
+  <div class="relative z-10 flex flex-col min-h-screen">
+
+    <!-- ================= 1. PRASANTHI TOP STRIP ================= -->
+    <div class="prasanthi-border sticky top-0 z-50 shadow-sm"></div>
+
+    <!-- ================= 2. EXECUTIVE GLOBAL TOP HEADER ================= -->
+    <!-- Shown in standalone mode; hidden inside app-shell iframe to prevent duplicate headers -->
+    <div id="standaloneHeaderWrap">
+      <header class="w-full bg-white/40 dark:bg-black/35 backdrop-blur-2xl border-b border-white/60 dark:border-white/10 sticky top-1 z-40 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.03)]">
+        <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          
+          <!-- Left: Logo & Organisation Brand -->
+          <a href="/" class="flex items-center gap-3.5 group">
+            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 flex items-center justify-center shadow-[0_6px_16px_rgba(217,119,6,0.25)] text-white group-hover:scale-105 transition-transform border border-amber-300/40">
+              <!-- Sacred Lotus Emblem SVG -->
+              <svg class="w-6 h-6 drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2C9.5 6 4 9 4 14a8 8 0 0 0 16 0c0-5-5.5-8-8-12Z" fill="currentColor" fill-opacity="0.25"/>
+                <path d="M12 7c-2 3-5 5-5 8a5 5 0 0 0 10 0c0-3-3-5-5-8Z" fill="currentColor" fill-opacity="0.55"/>
+                <circle cx="12" cy="16" r="1.5" fill="#FFFFFF"/>
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-display font-extrabold text-lg text-stone-900 dark:text-white tracking-tight">Bhajan Planner</span>
+                <span class="text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-400/30 backdrop-blur-md">
+                  SSSO • Gandhinagar
+                </span>
+              </div>
+              <p class="text-[11px] text-stone-500 dark:text-stone-400 font-medium">Sri Sathya Sai Seva Organisations, Gujarat</p>
+            </div>
+          </a>
+
+          <!-- Right: User Avatar & Theme Controls -->
+          <div class="flex items-center gap-2.5 sm:gap-3">
+            <!-- Dark Mode Toggle Button -->
+            <button id="themeToggleBtn" aria-label="Toggle Night Mode" class="p-2.5 rounded-xl text-stone-600 dark:text-stone-300 hover:text-amber-700 dark:hover:text-amber-300 glass-chip hover:bg-white/80 dark:hover:bg-white/10 transition shadow-xs">
+              <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+              <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+            </button>
+
+            <!-- Notification Bell -->
+            <button onclick="triggerToast('Coordinating mandir schedule is up to date')" class="p-2.5 rounded-xl text-stone-600 dark:text-stone-300 hover:text-amber-700 dark:hover:text-amber-300 glass-chip hover:bg-white/80 dark:hover:bg-white/10 transition shadow-xs">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+            </button>
+
+            <!-- User Profile Pill -->
+            <div class="flex items-center gap-2.5 pl-3 border-l border-stone-300/40 dark:border-stone-700/60">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-600 to-amber-800 text-white font-bold text-xs flex items-center justify-center shadow-md border border-white/50" id="headerAvatarDot">
+                
+                  P
+                
+              </div>
+              <span class="text-xs font-semibold text-stone-800 dark:text-stone-200 hidden sm:inline" id="headerAvatarName">
+                
+                  Prashant
+                
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </header>
+    </div>
+
+    <!-- ================= 3. FULL-WIDTH HERO STAGE WITH GLASSMORPHISM ================= -->
+    <section class="w-full border-b border-white/40 dark:border-white/5">
+      <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-8 md:py-12">
+        
+        <!-- Large Frosted Glass Hero Banner -->
+        <div class="glass-panel rounded-[2rem] px-6 sm:px-10 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+          
+          <!-- Subtle Inner Golden Sheen -->
+          <div class="absolute -top-24 -left-24 w-80 h-80 bg-gradient-to-br from-amber-300/20 to-transparent rounded-full blur-2xl pointer-events-none"></div>
+
+          <!-- Left: Sri Sathya Sai Lotus Emblem with Glass Badge -->
+          <div class="shrink-0 flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl glass-chip p-2.5 shadow-md group border border-white/80 dark:border-white/15" title="Sri Sathya Sai Lotus Emblem">
+            <img src="/images/logo.png" alt="Sri Sathya Sai Lotus Emblem" class="w-full h-full object-contain group-hover:scale-105 transition-transform" onerror="this.style.display='none'">
+          </div>
+
+          <!-- Center: Headline & Organisation Pill -->
+          <div class="text-center md:flex-1 space-y-3 z-10">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-chip border border-amber-300/60 dark:border-amber-700/50 text-amber-900 dark:text-amber-300 text-xs font-semibold shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+              <span>Sri Sathya Sai Seva Organisations, Gandhinagar</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-display font-extrabold text-stone-900 dark:text-white tracking-tight drop-shadow-sm">
+              Bhajan Planner
+            </h1>
+            <p class="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-medium max-w-xl mx-auto leading-relaxed">
+              Mandir Bhajan Sequence Protocol, Verified Songbook &amp; Live Devotional Synchronization
+            </p>
+          </div>
+
+          <!-- Right: 100th Birthday Emblem with Glass Badge -->
+          <div class="shrink-0 flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-2xl glass-chip p-2.5 shadow-md border border-white/80 dark:border-white/15" title="Sri Sathya Sai 100th Birthday Emblem">
+            <img src="/images/logo_birthday.png" alt="Sri Sathya Sai 100th Birthday Emblem" class="w-full h-full object-contain" onerror="this.style.display='none'">
+          </div>
+
+        </div>
+
+        <!-- Devotee Command Status Bar -->
+        <div class="mt-4 flex justify-center">
+          
+            <div class="inline-flex items-center gap-2.5 px-5 py-2 rounded-full glass-panel text-xs font-medium border border-white/80 dark:border-white/10 shadow-xs" id="devoteeGreetingBar" style="display:none;">
+              <div class="w-6 h-6 rounded-full bg-gradient-to-r from-amber-500 to-amber-700 text-white font-bold text-[11px] flex items-center justify-center shadow-xs" id="devoteeAvatarChar">
+                S
+              </div>
+              <span class="text-stone-700 dark:text-stone-300" id="devoteeGreetingText">Sai Ram, Devotee</span>
+              <span class="text-stone-300 dark:text-stone-600">•</span>
+              <a href="/my-hub" class="text-amber-700 dark:text-amber-400 font-bold hover:underline inline-flex items-center gap-1 group" data-haptic="light">
+                <span>My Hub</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform"></i>
+              </a>
+            </div>
+            <script>
+              (function () {
+                try {
+                  var bar = document.getElementById('devoteeGreetingBar');
+                  var txt = document.getElementById('devoteeGreetingText');
+                  var av = document.getElementById('devoteeAvatarChar');
+                  var sName = localStorage.getItem('bp_singer_name');
+                  var aName = localStorage.getItem('bp_admin_name');
+                  var name = sName || aName;
+                  if (bar && txt && name) {
+                    txt.innerHTML = 'Sai Ram, <strong class="text-stone-900 dark:text-white font-semibold">' + name + '</strong>';
+                    if (av) av.textContent = name.charAt(0).toUpperCase();
+                    bar.style.display = 'inline-flex';
+                  }
+                } catch (_) { }
+              })();
+            </script>
+          
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= 4. FULL-WIDTH CONTENT BODY ================= -->
+    <main class="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-8 space-y-10 flex-grow">
+      
+      
+
+      <!-- 4.1 UPCOMING SESSION SPOTLIGHT (Glassmorphic Wide Showcase) -->
+      
+        <section id="session-spotlight" class="glass-panel rounded-[2rem] overflow-hidden relative">
+          <!-- Amber radiant glass accent strip at top -->
+          <div class="h-1.5 w-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 shadow-sm"></div>
+
+          <div class="p-6 sm:p-9 space-y-6">
+            
+            <!-- Header Row -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-2.5">
+                
+                  <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-400/40 backdrop-blur-md">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Submissions Open
+                  </span>
+                
+                <span class="text-xs font-semibold text-stone-500 dark:text-stone-400">Official Samiti Congregation</span>
+              </div>
+
+              <div class="inline-flex items-center gap-2 text-xs font-semibold text-stone-800 dark:text-stone-200 glass-chip px-4 py-2 rounded-xl shadow-xs">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+                <span>Thu 29 Oct &bull; 7:30 PM &ndash; 8:30 PM</span>
+              </div>
+            </div>
+
+            <!-- Title & Session Details -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-stone-200/50 dark:border-white/10">
+              <div>
+                <h2 class="text-2xl sm:text-3xl font-display font-extrabold text-stone-900 dark:text-white tracking-tight">Thursday Mandir Bhajan</h2>
+                <p class="text-sm text-stone-600 dark:text-stone-300 mt-1.5">
+                  
+                    Official Mandir bhajan session. <strong class="text-stone-900 dark:text-white font-bold">0 bhajans</strong> currently registered for this slot sequence.
+                  
+                </p>
+              </div>
+
+              <!-- CTAs -->
+              <div class="flex flex-wrap items-center gap-3">
+                
+                  <a href="/submit-form?session_date=2026-10-29" class="glass-btn-primary px-6 py-2.5 rounded-xl text-white font-bold text-xs sm:text-sm active:scale-95 transition flex items-center gap-2" data-haptic="light">
+                    <i data-lucide="mic" class="w-4 h-4"></i>
+                    <span>Mark Bhajan Slot</span>
+                  </a>
+                
+                <a href="/plan-view?session_date=2026-10-29" class="glass-btn-secondary px-6 py-2.5 rounded-xl text-stone-800 dark:text-stone-200 font-semibold text-xs sm:text-sm transition flex items-center gap-2" data-haptic="light">
+                  <i data-lucide="list-ordered" class="w-4 h-4"></i>
+                  <span>Follow Live Sequence</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Metrics Chips & Capacity Bar -->
+            <div class="space-y-4">
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl glass-chip text-xs font-medium text-stone-700 dark:text-stone-300">
+                  <i data-lucide="gauge" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+                  <span>3-Speed Prashanti Format</span>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl glass-chip text-xs font-medium text-stone-700 dark:text-stone-300">
+                  <i data-lucide="music" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+                  <span>Harmonium Pitch Guides</span>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs font-bold text-amber-900 dark:text-amber-300 backdrop-blur-md">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+                  <span>0 / 8 Registered (8 Open Slots)</span>
+                </div>
+              </div>
+
+              <!-- Capacity Progress Bar -->
+              <div class="w-full bg-stone-200/50 dark:bg-white/10 rounded-full h-2 overflow-hidden backdrop-blur-xs">
+                <div class="bg-gradient-to-r from-amber-500 to-amber-600 h-full rounded-full transition-all duration-500" style="width: 8%;"></div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      
+
+      <!-- 4.2 ANNOUNCEMENTS & BULLETINS (Full-width Linear Glass List) -->
+      
+        <section class="glass-panel rounded-[2rem] p-6 sm:p-9 space-y-6">
+          <div class="flex items-center justify-between border-b border-stone-200/50 dark:border-white/10 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-800 dark:text-amber-300 flex items-center justify-center shadow-xs">
+                <i data-lucide="megaphone" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="font-display font-bold text-lg text-stone-900 dark:text-white">Announcements &amp; Bulletins</h3>
+                <p class="text-xs text-stone-500 dark:text-stone-400">Official circulars from Gandhinagar Samiti coordinators</p>
+              </div>
+            </div>
+            <a href="/bulletins" class="text-xs font-bold text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1 group">
+              <span>View All</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </a>
+          </div>
+
+          <!-- Linear Feed -->
+          <div class="divide-y divide-stone-200/40 dark:divide-white/5">
+            
+              
+              <a href="/bulletins/4" class="py-4.5 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-white/40 dark:hover:bg-white/5 px-4 -mx-4 rounded-2xl transition" data-haptic="light">
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-300/40 uppercase tracking-wider">Event</span>
+                    
+                      <span class="text-xs text-stone-400 dark:text-stone-500 font-medium">2 Sept</span>
+                    
+                  </div>
+                  <h4 class="font-bold text-sm sm:text-base text-stone-900 dark:text-stone-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                    Special Ganesh Chaturthi Session Announced
+                  </h4>
+                  
+                    <p class="text-xs text-stone-600 dark:text-stone-400 line-clamp-1">
+                      A special Ganesh Chaturthi bhajan session has been scheduled. All devotees are requested to arrive 15 minutes ...
+                    </p>
+                  
+                </div>
+                <div class="shrink-0 flex items-center gap-2 text-stone-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">
+                  <span class="text-xs font-semibold hidden sm:inline">Read Bulletin</span>
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </div>
+              </a>
+            
+              
+              <a href="/bulletins/2" class="py-4.5 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:bg-white/40 dark:hover:bg-white/5 px-4 -mx-4 rounded-2xl transition" data-haptic="light">
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-300/40 uppercase tracking-wider">Event</span>
+                    
+                      <span class="text-xs text-stone-400 dark:text-stone-500 font-medium">2 Sept</span>
+                    
+                  </div>
+                  <h4 class="font-bold text-sm sm:text-base text-stone-900 dark:text-stone-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                    Special Ganesh Chaturthi Session Announced
+                  </h4>
+                  
+                    <p class="text-xs text-stone-600 dark:text-stone-400 line-clamp-1">
+                      A special Ganesh Chaturthi bhajan session has been scheduled. All devotees are requested to arrive 15 minutes ...
+                    </p>
+                  
+                </div>
+                <div class="shrink-0 flex items-center gap-2 text-stone-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition">
+                  <span class="text-xs font-semibold hidden sm:inline">Read Bulletin</span>
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </div>
+              </a>
+            
+          </div>
+        </section>
+      
+
+      <!-- 4.3 THE SPIRIT OF BHAJAN (Wide Devotional Wisdom Sanctuary) -->
+      <section class="glass-panel rounded-[2rem] p-6 sm:p-10 space-y-8 relative overflow-hidden">
+        
+        <!-- Subtle sacred background watermarks -->
+        <div class="absolute -right-20 -bottom-20 w-96 h-96 bg-amber-400/10 dark:bg-amber-600/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Bhagawan's Sacred Quote -->
+        <div class="max-w-4xl mx-auto text-center space-y-3 relative z-10">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl glass-chip text-amber-700 dark:text-amber-400 mx-auto shadow-xs">
+            <i data-lucide="quote" class="w-6 h-6"></i>
+          </div>
+          <blockquote class="font-serif text-lg sm:text-xl md:text-2xl text-stone-900 dark:text-amber-100 italic leading-relaxed">
+            &ldquo;A tune without feeling is an infliction. The heart of singing lies in the union of Bhava (Feeling), Raga (Melody), and Taala (Rhythm). One voice, one beat &ndash; oneness with Bhagawan.&rdquo;
+          </blockquote>
+          <div class="font-sans font-bold text-xs uppercase tracking-widest text-amber-800 dark:text-amber-400">
+            &mdash; Bhagwan Sri Sathya Sai Baba
+          </div>
+        </div>
+
+        <!-- The 3 Pillars (BHA - RA - TA) with Frosted Layering -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-stone-200/50 dark:border-white/10 relative z-10">
+          
+          <div class="p-5 rounded-2xl glass-chip flex items-start gap-4 hover:border-amber-400/60 transition shadow-xs">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold text-xs flex items-center justify-center shrink-0 tracking-wider shadow-sm">
+              BHA
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-sm text-stone-900 dark:text-white">Bhava (Feeling)</h4>
+              <p class="text-xs text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
+                Heartfelt love and sacred devotion vibrating from the core of the soul.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-2xl glass-chip flex items-start gap-4 hover:border-amber-400/60 transition shadow-xs">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold text-xs flex items-center justify-center shrink-0 tracking-wider shadow-sm">
+              RA
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-sm text-stone-900 dark:text-white">Raga (Melody)</h4>
+              <p class="text-xs text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
+                Sweet, uplifting notes in faithful alignment with authentic mandir scales.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-2xl glass-chip flex items-start gap-4 hover:border-amber-400/60 transition shadow-xs">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white font-bold text-xs flex items-center justify-center shrink-0 tracking-wider shadow-sm">
+              TA
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-sm text-stone-900 dark:text-white">Taala (Rhythm)</h4>
+              <p class="text-xs text-stone-600 dark:text-stone-400 mt-1 leading-relaxed">
+                Synchronized steady beat uniting the whole congregation as one prayer.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Singer's Code of Conduct Grid -->
+        <div class="space-y-4 pt-2 relative z-10">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 text-center">
+            Singer&rsquo;s Code of Conduct &amp; Mandir Discipline
+          </h4>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">Punctuality</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">Singers seated and ready before Veda recitation concludes.</div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="users" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">Harmonious Seating</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">Instrumentalists and lead vocalists positioned for seamless eye-contact.</div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="gauge" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">3-Speed Format</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">1st speed twice, 2nd speed once (last line twice), 3rd speed drut tempo.</div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="music-2" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">Pitch &amp; Sruti</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">Select a scale comfortable for the entire hall to chant along effortlessly.</div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="hand" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">Synchronized Claps</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">Rhythmic hand clapping dispels dullness and elevates devotional vibration.</div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3.5 p-4 rounded-2xl glass-chip">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-800 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <i data-lucide="bell-off" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="font-bold text-xs text-stone-900 dark:text-stone-100">Silence &amp; Sanctity</div>
+                <div class="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">Phones on complete silent mode; uphold tranquility within the mandir hall.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- 4.4 QUICK ACCESS GLASS PORTALS (Bhajan Archives & Control Tower) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        <!-- Archives Portal -->
+        <a href="/database" class="glass-panel p-6 rounded-[1.75rem] flex items-center justify-between hover:border-amber-400 dark:hover:border-amber-500 transition group shadow-xs" data-haptic="light">
+          <div class="flex items-center gap-4">
+            <div class="w-13 h-13 p-3.5 rounded-2xl glass-chip text-stone-700 dark:text-stone-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition shadow-xs">
+              <i data-lucide="archive" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-base text-stone-900 dark:text-white">Bhajan Archives</h4>
+              <p class="text-xs text-stone-600 dark:text-stone-400 mt-0.5">Search archived Gandhinagar schedules, sequences &amp; past records</p>
+            </div>
+          </div>
+          <div class="w-9 h-9 rounded-full glass-chip flex items-center justify-center text-stone-400 group-hover:text-amber-600 group-hover:translate-x-1 transition shadow-xs">
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </div>
+        </a>
+
+        <!-- Control Tower (Admin) Portal -->
+        <a href="/admin-login" class="glass-panel p-6 rounded-[1.75rem] flex items-center justify-between hover:border-maroon-400 dark:hover:border-maroon-500 transition group shadow-xs" data-haptic="light">
+          <div class="flex items-center gap-4">
+            <div class="w-13 h-13 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-300/30 text-rose-800 dark:text-rose-300 group-hover:scale-105 transition shadow-xs">
+              <i data-lucide="shield" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-base text-stone-900 dark:text-white">Control Tower</h4>
+              <p class="text-xs text-stone-600 dark:text-stone-400 mt-0.5">
+                Samiti Coordinator &amp; Lead Portal (PIN Security Active)
+              </p>
+            </div>
+          </div>
+          <div class="w-9 h-9 rounded-full glass-chip flex items-center justify-center text-stone-400 group-hover:text-rose-600 group-hover:translate-x-1 transition shadow-xs">
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </div>
+        </a>
+
+      </div>
+
+    </main>
+
+    <!-- ================= 5. FOOTER (Protocol Strip & Site Footer) ================= -->
+    <footer class="w-full border-t border-white/50 dark:border-white/5 bg-white/40 dark:bg-black/30 backdrop-blur-2xl py-6 text-xs text-stone-500 dark:text-stone-400">
+      <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span>Sri Sathya Sai Seva Organisations &bull; Gandhinagar Samiti</span>
+        </div>
+        <div class="flex items-center gap-4 text-[11px] text-stone-400">
+          <span>Prasanthi Nilayam Protocol</span>
+          <span>&bull;</span>
+          <span>Love All &bull; Serve All</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Home Page Contact & Support Footer -->
+    <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-8 mt-4">
+      <!-- Home Page Contact & Support Footer -->
+<div class="home-footer-wrapper">
+  <div class="footer-card">
+    <div class="footer-grid">
+      <!-- Col 1: Organisation & Help Info -->
+      <div class="footer-col footer-col-brand">
+        <div class="footer-brand-header">
+          <img src="/images/logo.png" alt="Sri Sathya Sai Seva Organisation" class="footer-logo"
+            onerror="this.style.display='none'">
+          <div>
+            <h4 class="footer-brand-title">Sri Sathya Sai Seva Organisation</h4>
+            <p class="footer-brand-subtitle">Gandhinagar Samiti &bull; Bhajan Scheduler</p>
+          </div>
+        </div>
+        <p class="footer-desc">
+          Dedicated to organizing devotional sessions with sanctity, discipline, and unity. Singers and devotees are
+          warmly encouraged to reach out for any scheduling or technical assistance.
+        </p>
+        <div class="footer-quote">
+          <span>&ldquo;Love All, Serve All &bull; Help Ever, Hurt Never&rdquo;</span>
+        </div>
+      </div>
+
+      <!-- Col 2: Contact Card & Support -->
+      <div class="footer-col footer-col-contact">
+        <h4 class="footer-heading">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Contact &amp; Support
+        </h4>
+        <p class="footer-help-note">Reach out to the Samiti coordination team for any assistance or inquiries:</p>
+        <div class="contact-card">
+          <a href="tel:+919265056242" class="contact-item">
+            <span class="contact-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </span>
+            <div>
+              <span class="contact-label">Helpline / Coordinator 1</span>
+              <strong class="contact-val">+91 9265056242</strong>
+            </div>
+          </a>
+          <a href="tel:+919624888795" class="contact-item">
+            <span class="contact-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </span>
+            <div>
+              <span class="contact-label">Helpline / Coordinator 2</span>
+              <strong class="contact-val">+91 9624888795</strong>
+            </div>
+          </a>
+          <a href="mailto:ssso.gandhinagar@gmail.com" class="contact-item">
+            <span class="contact-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </span>
+            <div>
+              <span class="contact-label">Official Email</span>
+              <strong class="contact-val">ssso.gandhinagar@gmail.com</strong>
+            </div>
+          </a>
+          <a href="https://maps.app.goo.gl/DEn3bQ5FbULzEQEE7" target="_blank" rel="noopener noreferrer"
+            class="contact-item contact-item-address" title="Open location in Google Maps">
+            <span class="contact-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            <div>
+              <span class="contact-label">Centre Address</span>
+              <span class="contact-val contact-address">Satyadeep, 20, Gayatri Society, Vasna Hadmatiya, Sargasan,
+                Gandhinagar - 382015</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Col 3: PWA App Download -->
+      <div class="footer-col footer-col-pwa">
+        <h4 class="footer-heading">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          Install Bhajan Planner App
+        </h4>
+        <p class="footer-pwa-desc">
+          Install the web app on your phone or tablet for offline schedule access, fast loading, and native full-screen
+          experience.
+        </p>
+        <div class="footer-pwa-card">
+          <div class="footer-pwa-badges">
+            <span class="pwa-badge">Apple iOS</span>
+            <span class="pwa-badge">Android</span>
+            <span class="pwa-badge">Desktop Web</span>
+          </div>
+          <button type="button" id="footerPwaInstallBtn" class="footer-btn-install">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Install Bhajan Planner App
+          </button>
+          <div class="footer-pwa-subtext">No app store download needed &bull; Instant &amp; Lightweight (&lt; 2 MB)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Copyright Bar -->
+    <div class="footer-bottom-bar">
+      <div class="footer-copyright">
+        &copy; 2026 Sri Sathya Sai Seva Organisation, Gandhinagar.
+        <span id="footerAdminLinkWrap" style="display:none;">
+          &bull; <a href="/admin" class="footer-admin-link" style="color: inherit; text-decoration: underline;">Admin Portal</a>
+        </span>
+      </div>
+      <script>
+        try {
+          if (localStorage.getItem('bp_is_admin') === 'true') {
+            var el = document.getElementById('footerAdminLinkWrap');
+            if (el) el.style.display = 'inline';
+          }
+        } catch (_) {}
+      </script>
+    </div>
+  </div>
+</div>
+    </div>
+
+    <!-- ================= 6. BOTTOM NAVIGATION PANEL (Standalone Mode) ================= -->
+    <div id="standaloneNavWrap">
+      <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white/70 dark:bg-[#11131a]/80 backdrop-blur-2xl border-t border-white/80 dark:border-white/10 shadow-[0_-8px_32px_rgba(0,0,0,0.06)]">
+        <div class="max-w-md md:max-w-xl mx-auto px-4 py-2 flex items-center justify-between">
+          
+          <!-- 1. Home (Active) -->
+          <a href="/" class="flex flex-col items-center justify-center py-1 px-3 nav-item-active font-semibold group">
+            <i data-lucide="home" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px] tracking-tight">Home</span>
+          </a>
+
+          <!-- 2. Songbook -->
+          <a href="/master-bank" class="flex flex-col items-center justify-center py-1 px-3 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 font-medium group transition">
+            <i data-lucide="book-open" class="w-5 h-5 mb-0.5 group-hover:scale-105 transition-transform"></i>
+            <span class="text-[10px] tracking-tight">Songbook</span>
+          </a>
+
+          <!-- 3. Mark -->
+          <a href="/submit-form" class="flex flex-col items-center justify-center py-1 px-3 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 font-medium group transition">
+            <i data-lucide="mic" class="w-5 h-5 mb-0.5 group-hover:scale-105 transition-transform"></i>
+            <span class="text-[10px] tracking-tight">Mark</span>
+          </a>
+
+          <!-- 4. Plan -->
+          <a href="/plan-view" class="flex flex-col items-center justify-center py-1 px-3 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 font-medium group transition">
+            <i data-lucide="calendar" class="w-5 h-5 mb-0.5 group-hover:scale-105 transition-transform"></i>
+            <span class="text-[10px] tracking-tight">Plan</span>
+          </a>
+
+          <!-- 5. Hub -->
+          <a href="/my-hub" class="flex flex-col items-center justify-center py-1 px-3 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 font-medium group transition">
+            <i data-lucide="user" class="w-5 h-5 mb-0.5 group-hover:scale-105 transition-transform"></i>
+            <span class="text-[10px] tracking-tight">Hub</span>
+          </a>
+
+          <!-- 6. Admin -->
+          <a href="/admin-login" class="flex flex-col items-center justify-center py-1 px-3 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 font-medium group transition">
+            <i data-lucide="layout-grid" class="w-5 h-5 mb-0.5 group-hover:scale-105 transition-transform"></i>
+            <span class="text-[10px] tracking-tight">Admin</span>
+          </a>
+
+        </div>
+      </nav>
+    </div>
+
+    <!-- ================= 7. FLOATING INTERACTION GLASS TOAST ================= -->
+    <div id="toastNotification" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 glass-panel border border-white/90 dark:border-white/20 text-stone-900 dark:text-white px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 text-xs font-semibold translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+      <i data-lucide="check-circle" class="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0"></i>
+      <span id="toastMsg">Ready</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- Scripts -->
+<script>
+  // Hide standalone navigation and header when running inside the app-shell iframe
+  (function () {
+    if (window.self !== window.top) {
+      var sh = document.getElementById('standaloneHeaderWrap');
+      var sn = document.getElementById('standaloneNavWrap');
+      if (sh) sh.style.display = 'none';
+      if (sn) sn.style.display = 'none';
+    }
+  })();
+
+  // Initialize Lucide Icons
+  function initIcons() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  }
+  window.addEventListener('DOMContentLoaded', initIcons);
+  setTimeout(initIcons, 100);
+
+  // Theme synchronization with parent shell and localStorage
+  (function () {
+    try {
+      var t = localStorage.getItem('bp-theme');
+      if (t === 'dark' || document.documentElement.getAttribute('data-theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (_) {}
+  })();
+
+  var themeBtn = document.getElementById('themeToggleBtn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', function () {
+      document.documentElement.classList.toggle('dark');
+      var isDark = document.documentElement.classList.contains('dark');
+      try {
+        localStorage.setItem('bp-theme', isDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        if (window.top && window.top !== window.self) {
+          window.top.document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+          window.top.document.documentElement.classList.toggle('dark', isDark);
+        }
+      } catch (_) {}
+      triggerToast(isDark ? 'Switched to Night Velvet Glass' : 'Switched to Ivory Prasanthi Glass');
+    });
+  }
+
+  // Toast Notification Dispatcher
+  var toastTimeout;
+  function triggerToast(message) {
+    clearTimeout(toastTimeout);
+    var toast = document.getElementById('toastNotification');
+    var msgSpan = document.getElementById('toastMsg');
+    if (!toast || !msgSpan) return;
+    msgSpan.textContent = message;
+    
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+
+    toastTimeout = setTimeout(function () {
+      toast.classList.remove('translate-y-0', 'opacity-100');
+      toast.classList.add('translate-y-20', 'opacity-0');
+    }, 3000);
+  }
+</script>
+                      
+
+                                  <!-- Universal SSSO Print Footer for every printable page -->
+                                  <!-- Universal SSSO Gandhinagar Print Footer -->
+<div class="universal-print-footer" aria-hidden="true">
+  <div class="print-footer-rule"></div>
+  <div class="print-footer-quote">"Love All, Serve All &bull; Help Ever, Hurt Never"</div>
+  <div class="print-footer-row">
+    <div class="footer-center-text">Sri Sathya Sai Seva Organisation, Gandhinagar</div>
+  </div>
+</div>
+
+
+                                    <!-- Global JS -->
+                                    <script src="/js/haptics.js"></script>
+                                    <script src="/js/script.js?v=3.1"></script>
+                                    
+                                    <script>
+                                      (function () {
+                                        try {
+                                          var hasDots = document.getElementById('homeReportDot') || document.getElementById('bankReportDot') || document.getElementById('unreadReplyDot');
+                                          if (!hasDots) return;
+                                          var storedTickets = JSON.parse(localStorage.getItem('bp_my_report_tickets') || '[]');
+                                          var devId = localStorage.getItem('bp_device_id') || '';
+                                          if (storedTickets.length === 0 && !devId) return;
+
+                                          var p = [];
+                                          if (storedTickets.length > 0) p.push('tickets=' + encodeURIComponent(storedTickets.join(',')));
+                                          if (devId) p.push('visitor_id=' + encodeURIComponent(devId));
+
+                                          fetch('/api/reports/my-reports?' + p.join('&'))
+                                            .then(function (r) { return r.json(); })
+                                            .then(function (data) {
+                                              if (data && data.has_unread_reply) {
+                                                ['homeReportDot', 'bankReportDot', 'unreadReplyDot'].forEach(function (id) {
+                                                  var el = document.getElementById(id);
+                                                  if (el) el.style.display = 'block';
+                                                });
+                                              }
+                                            })
+                                            .catch(function () { });
+                                        } catch (e) { }
+                                      })();
+                                    </script>
+
+                                    
+
+                                        <!-- Optional page-specific JS -->
+                                        
+
+  </body>
+
+  </html>

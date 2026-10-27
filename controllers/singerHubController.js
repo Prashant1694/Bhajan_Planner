@@ -6,6 +6,8 @@ const BhajanReport = require("../models/BhajanReport");
 const MasterBhajan = require("../models/MasterBhajan");
 const SingerBookmark = require("../models/SingerBookmark");
 const AdminUser = require("../models/AdminUser");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const { NINETY_DAYS_MS, resolveSingerForAdmin } = require("../middleware/singerAuth");
 const { getLocalDateStr } = require("../services/helpers");
 const { safeRedirect, DUMMY_BCRYPT_HASH } = require("../services/securityHelpers");
@@ -257,6 +259,48 @@ exports.showHubPage = async (req, res) => {
       order: [["session_date", "DESC"]],
       limit: 30
     });
+
+    // Fetch published audio recordings / timestamps for this singer (both lead and partner bhajans)
+    try {
+      const pastSubIds = pastSubmissions.map((s) => s.id).filter(Boolean);
+      const orConditions = [{ singer_name: singer.name }];
+      if (pastSubIds.length > 0) {
+        orConditions.push({ submission_id: { [Op.in]: pastSubIds } });
+      }
+
+      const singerTimestamps = await SessionAudioTimestamp.findAll({
+        where: { [Op.or]: orConditions },
+        include: [
+          {
+            model: SessionAudio,
+            as: "sessionAudio",
+            where: { is_published: true }
+          }
+        ]
+      });
+
+      const audioMap = new Map();
+      singerTimestamps.forEach((st) => {
+        if (st.submission_id) audioMap.set(`sub_${st.submission_id}`, st);
+        if (st.sessionAudio && st.sessionAudio.session_date && st.bhajan_title) {
+          audioMap.set(
+            `${st.sessionAudio.session_date}_${st.bhajan_title.trim().toLowerCase()}`,
+            st
+          );
+        }
+      });
+
+      pastSubmissions.forEach((sub) => {
+        const matched =
+          (sub.id && audioMap.get(`sub_${sub.id}`)) ||
+          audioMap.get(`${sub.session_date}_${(sub.title || "").trim().toLowerCase()}`);
+        if (matched) {
+          sub.setDataValue("audioTimestamp", matched);
+        }
+      });
+    } catch (audioErr) {
+      console.warn("Could not load singer audio timestamps:", audioErr.message);
+    }
 
     const myBookmarks = await SingerBookmark.findAll({
       where: { singer_id: singer.id },

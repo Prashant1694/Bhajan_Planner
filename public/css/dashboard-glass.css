@@ -1,0 +1,1099 @@
+/* ==========================================================================
+   BHAJAN PLANNER — Glassmorphic Dashboard Design System
+   Sri Sathya Sai Seva Organisations, Gandhinagar
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+/* --- Reset & Layout Base --- */
+.zen-glass-stage {
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+  overflow-x: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #292524;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .zen-glass-stage,
+.dark .zen-glass-stage {
+  color: #e7e5e4;
+  background-color: #0c0d12;
+}
+
+/* Prasanthi Sanctum Top Border */
+.prasanthi-border {
+  height: 4px;
+  background: linear-gradient(90deg, #7d1830 0%, #d97706 30%, #fbbf24 50%, #d97706 70%, #7d1830 100%);
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+/* Floating Sacred Light Orbs */
+.sacred-orbs-canvas {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sacred-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.65;
+  animation: floatAura 18s ease-in-out infinite alternate;
+}
+
+[data-theme="dark"] .sacred-orb,
+.dark .sacred-orb {
+  opacity: 0.35;
+  filter: blur(100px);
+}
+
+.sacred-orb-1 {
+  width: 540px;
+  height: 540px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.35) 0%, rgba(245, 158, 11, 0.18) 50%, transparent 70%);
+  top: -100px;
+  left: -80px;
+}
+.sacred-orb-2 {
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.22) 0%, rgba(125, 24, 48, 0.12) 50%, transparent 70%);
+  top: 10%;
+  right: -120px;
+  animation-delay: -6s;
+}
+.sacred-orb-3 {
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.18) 0%, rgba(234, 179, 8, 0.12) 50%, transparent 70%);
+  top: 45%;
+  left: 20%;
+  animation-delay: -11s;
+}
+.sacred-orb-4 {
+  width: 580px;
+  height: 580px;
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.18) 0%, rgba(251, 146, 60, 0.1) 50%, transparent 70%);
+  bottom: -150px;
+  right: 5%;
+  animation-delay: -3s;
+}
+
+@keyframes floatAura {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(30px, -25px) scale(1.08); }
+  100% { transform: translate(-25px, 20px) scale(0.95); }
+}
+
+.sacred-grid-texture {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(rgba(217, 119, 6, 0.07) 1px, transparent 1px),
+    linear-gradient(to right, rgba(217, 119, 6, 0.015) 1px, transparent 1px);
+  background-size: 28px 28px, 112px 112px;
+  opacity: 0.7;
+}
+
+[data-theme="dark"] .sacred-grid-texture,
+.dark .sacred-grid-texture {
+  background-image: 
+    radial-gradient(rgba(251, 191, 36, 0.05) 1px, transparent 1px),
+    linear-gradient(to right, rgba(251, 191, 36, 0.02) 1px, transparent 1px);
+}
+
+/* Master Glassmorphism Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    0 14px 40px -10px rgba(217, 119, 6, 0.08),
+    0 2px 10px -2px rgba(125, 24, 48, 0.04),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95);
+  border-radius: 2rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .glass-panel,
+.dark .glass-panel {
+  background: rgba(18, 20, 28, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 20px 48px -12px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(251, 191, 36, 0.15);
+}
+
+.glass-chip {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 1rem;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .glass-chip,
+.dark .glass-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Buttons */
+.glass-btn-primary {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+.glass-btn-primary:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  box-shadow: 0 10px 24px -2px rgba(234, 88, 12, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.glass-btn-secondary {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  color: #1c1917 !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.glass-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(217, 119, 6, 0.35);
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .glass-btn-secondary,
+.dark .glass-btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e7e5e4 !important;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .glass-btn-secondary:hover,
+.dark .glass-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+/* --- Container Wrappers --- */
+.zen-stage-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.zen-max-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+@media (max-width: 640px) {
+  .zen-max-container {
+    padding: 0 16px;
+  }
+}
+
+/* --- Hero Banner Section --- */
+.zen-hero-wrap {
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 32px 0 24px;
+}
+[data-theme="dark"] .zen-hero-wrap,
+.dark .zen-hero-wrap {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.zen-hero-banner {
+  padding: 36px 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  position: relative;
+  overflow: hidden;
+}
+@media (max-width: 860px) {
+  .zen-hero-banner {
+    flex-direction: column;
+    padding: 28px 20px;
+    text-align: center;
+    gap: 20px;
+  }
+}
+
+/* Free-standing, unboxed larger emblems */
+.zen-free-emblem-wrap {
+  width: 130px !important;
+  height: 130px !important;
+  min-width: 130px !important;
+  min-height: 130px !important;
+  max-width: 140px !important;
+  max-height: 140px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.zen-free-emblem {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 130px !important;
+  max-height: 130px !important;
+  object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 8px 18px rgba(217, 119, 6, 0.15)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.06));
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+}
+
+.zen-free-emblem-wrap:hover .zen-free-emblem {
+  transform: scale(1.06);
+  filter: drop-shadow(0 12px 26px rgba(217, 119, 6, 0.28)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.1));
+}
+
+[data-theme="dark"] .zen-free-emblem,
+.dark .zen-free-emblem {
+  filter: drop-shadow(0 8px 20px rgba(245, 158, 11, 0.22)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+}
+[data-theme="dark"] .zen-free-emblem-wrap:hover .zen-free-emblem,
+.dark .zen-free-emblem-wrap:hover .zen-free-emblem {
+  filter: drop-shadow(0 12px 30px rgba(245, 158, 11, 0.38)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.7));
+}
+
+@media (max-width: 860px) {
+  .zen-free-emblem-wrap {
+    width: 95px !important;
+    height: 95px !important;
+    min-width: 95px !important;
+    min-height: 95px !important;
+    max-width: 95px !important;
+    max-height: 95px !important;
+  }
+  .zen-free-emblem {
+    max-width: 95px !important;
+    max-height: 95px !important;
+  }
+}
+
+/* Backward compatibility for badge container if needed */
+.zen-badge-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.zen-hero-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 2;
+}
+
+.zen-org-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  margin-bottom: 12px;
+}
+[data-theme="dark"] .zen-org-badge,
+.dark .zen-org-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.zen-beacon-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #d97706;
+  box-shadow: 0 0 6px #d97706;
+  display: inline-block;
+  animation: pulseDot 2s infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.zen-hero-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(30px, 4.4vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1c1917;
+  margin: 0 0 8px;
+  line-height: 1.15;
+}
+[data-theme="dark"] .zen-hero-title,
+.dark .zen-hero-title {
+  color: #ffffff;
+}
+
+.zen-hero-subtitle {
+  font-size: 13.5px;
+  color: #57534e;
+  max-width: 600px;
+  margin: 0;
+  line-height: 1.6;
+}
+[data-theme="dark"] .zen-hero-subtitle,
+.dark .zen-hero-subtitle {
+  color: #a8a29e;
+}
+
+/* Devotee Command Status Bar */
+.devotee-bar-wrap {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+.devotee-greeting-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.devotee-avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
+}
+
+/* --- Main Content Sections Stack --- */
+.zen-main-stack {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  box-sizing: border-box;
+}
+@media (max-width: 640px) {
+  .zen-main-stack {
+    padding: 24px 16px;
+    gap: 20px;
+  }
+}
+
+/* Section 1: Upcoming Session Spotlight */
+.zen-spotlight-card {
+  overflow: hidden;
+  position: relative;
+}
+.zen-spotlight-accent-strip {
+  height: 5px;
+  width: 100%;
+  background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #b45309 100%);
+}
+.zen-spotlight-body {
+  padding: 32px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+@media (max-width: 640px) {
+  .zen-spotlight-body {
+    padding: 22px 18px;
+    gap: 18px;
+  }
+}
+
+.zen-spotlight-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.zen-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.status-open {
+  background: rgba(16, 185, 129, 0.14);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+[data-theme="dark"] .status-open,
+.dark .status-open {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+.status-live {
+  background: rgba(244, 63, 94, 0.14);
+  color: #9f1239;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+[data-theme="dark"] .status-live,
+.dark .status-live {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+}
+
+.status-wait {
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+[data-theme="dark"] .status-wait,
+.dark .status-wait {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+}
+
+.status-closed {
+  background: rgba(120, 113, 108, 0.14);
+  color: #44403c;
+  border: 1px solid rgba(120, 113, 108, 0.35);
+}
+[data-theme="dark"] .status-closed,
+.dark .status-closed {
+  background: rgba(120, 113, 108, 0.2);
+  color: #d6d3d1;
+}
+
+.zen-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #292524;
+}
+[data-theme="dark"] .zen-date-pill,
+.dark .zen-date-pill {
+  color: #e7e5e4;
+}
+
+.zen-session-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+[data-theme="dark"] .zen-session-info-row,
+.dark .zen-session-info-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.zen-session-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(24px, 3.2vw, 32px);
+  font-weight: 700;
+  color: #7d2f45;
+  margin: 0 0 6px;
+  letter-spacing: -0.015em;
+}
+[data-theme="dark"] .zen-session-title,
+.dark .zen-session-title {
+  color: #fda4af;
+}
+
+.zen-session-desc {
+  font-size: 13.5px;
+  color: #57534e;
+  margin: 0;
+}
+[data-theme="dark"] .zen-session-desc,
+.dark .zen-session-desc {
+  color: #a8a29e;
+}
+
+.zen-session-ctas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Metrics and Capacity bar */
+.zen-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.zen-metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #44403c;
+}
+[data-theme="dark"] .zen-metric-chip,
+.dark .zen-metric-chip {
+  color: #d6d3d1;
+}
+
+.zen-capacity-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+[data-theme="dark"] .zen-capacity-track,
+.dark .zen-capacity-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+.zen-capacity-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Section 2: Bulletins */
+.zen-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 14px;
+}
+[data-theme="dark"] .zen-card-header,
+.dark .zen-card-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.zen-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.zen-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-theme="dark"] .zen-icon-box,
+.dark .zen-icon-box {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.zen-card-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: #1c1917;
+  margin: 0;
+}
+[data-theme="dark"] .zen-card-title,
+.dark .zen-card-title {
+  color: #ffffff;
+}
+.zen-card-subtitle {
+  font-size: 12px;
+  color: #78716c;
+  margin: 2px 0 0;
+}
+[data-theme="dark"] .zen-card-subtitle,
+.dark .zen-card-subtitle {
+  color: #a8a29e;
+}
+
+.zen-bulletin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 14px;
+  border-radius: 16px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.zen-bulletin-item:last-child {
+  border-bottom: none;
+}
+.zen-bulletin-item:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+[data-theme="dark"] .zen-bulletin-item:hover,
+.dark .zen-bulletin-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.zen-bulletin-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: #1c1917;
+  margin: 4px 0 2px;
+  transition: color 0.2s ease;
+}
+.zen-bulletin-item:hover .zen-bulletin-title {
+  color: #b45309;
+}
+[data-theme="dark"] .zen-bulletin-title,
+.dark .zen-bulletin-title {
+  color: #f5f5f4;
+}
+[data-theme="dark"] .zen-bulletin-item:hover .zen-bulletin-title,
+.dark .zen-bulletin-item:hover .zen-bulletin-title {
+  color: #fbbf24;
+}
+
+.zen-bulletin-desc {
+  font-size: 12px;
+  color: #57534e;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+[data-theme="dark"] .zen-bulletin-desc,
+.dark .zen-bulletin-desc {
+  color: #a8a29e;
+}
+
+/* Section 3: The Spirit of Bhajan */
+.zen-quote-box {
+  max-width: 860px;
+  margin: 0 auto 28px;
+  text-align: center;
+}
+.zen-quote-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  color: #b45309;
+}
+[data-theme="dark"] .zen-quote-icon,
+.dark .zen-quote-icon {
+  color: #fcd34d;
+}
+
+.zen-quote-text {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(17px, 2.2vw, 22px);
+  line-height: 1.7;
+  color: #1c1917;
+  font-style: italic;
+  margin: 0 0 10px;
+}
+[data-theme="dark"] .zen-quote-text,
+.dark .zen-quote-text {
+  color: #fef3c7;
+}
+
+.zen-quote-author {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #92400e;
+}
+[data-theme="dark"] .zen-quote-author,
+.dark .zen-quote-author {
+  color: #fbbf24;
+}
+
+/* 3 Pillars Grid */
+.zen-pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 28px;
+}
+@media (max-width: 768px) {
+  .zen-pillars-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zen-pillar-card {
+  padding: 18px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.zen-pillar-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.25);
+}
+.zen-pillar-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1917;
+  margin: 0 0 4px;
+}
+[data-theme="dark"] .zen-pillar-title,
+.dark .zen-pillar-title {
+  color: #ffffff;
+}
+.zen-pillar-desc {
+  font-size: 12px;
+  color: #57534e;
+  margin: 0;
+  line-height: 1.5;
+}
+[data-theme="dark"] .zen-pillar-desc,
+.dark .zen-pillar-desc {
+  color: #a8a29e;
+}
+
+/* 6-Rule Singer's Code of Conduct */
+.zen-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .zen-rules-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 540px) {
+  .zen-rules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zen-rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+}
+.zen-rule-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .zen-rule-icon,
+.dark .zen-rule-icon {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+.zen-rule-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1c1917;
+}
+[data-theme="dark"] .zen-rule-title,
+.dark .zen-rule-title {
+  color: #ffffff;
+}
+.zen-rule-desc {
+  font-size: 11.5px;
+  color: #57534e;
+  margin-top: 2px;
+  line-height: 1.45;
+}
+[data-theme="dark"] .zen-rule-desc,
+.dark .zen-rule-desc {
+  color: #a8a29e;
+}
+
+/* Section 4: Quick Access Glass Portals */
+.zen-portals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .zen-portals-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zen-portal-card {
+  padding: 24px;
+  border-radius: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zen-portal-card:hover {
+  transform: translateY(-2px);
+}
+.portal-archives:hover {
+  border-color: rgba(217, 119, 6, 0.6);
+}
+.portal-admin:hover {
+  border-color: rgba(244, 63, 94, 0.6);
+}
+
+.zen-portal-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.zen-portal-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #44403c;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .zen-portal-icon-box,
+.dark .zen-portal-icon-box {
+  color: #d6d3d1;
+}
+
+.portal-admin .zen-portal-icon-box {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #be123c;
+}
+[data-theme="dark"] .portal-admin .zen-portal-icon-box,
+.dark .portal-admin .zen-portal-icon-box {
+  color: #fda4af;
+}
+
+.zen-portal-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c1917;
+  margin: 0;
+}
+[data-theme="dark"] .zen-portal-title,
+.dark .zen-portal-title {
+  color: #ffffff;
+}
+
+.zen-portal-desc {
+  font-size: 12px;
+  color: #57534e;
+  margin: 3px 0 0;
+}
+[data-theme="dark"] .zen-portal-desc,
+.dark .zen-portal-desc {
+  color: #a8a29e;
+}
+
+.zen-portal-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #78716c;
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+.zen-portal-card:hover .zen-portal-arrow {
+  transform: translateX(3px);
+  color: #b45309;
+}
+.portal-admin:hover .zen-portal-arrow {
+  color: #be123c;
+}
+
+/* Universal SVG Icon Sizing */
+.zen-svg-icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Shanti Bhajan Quote Card Glass Styling */
+.shanti-footer.glass-panel {
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+[data-theme="dark"] .shanti-footer .shanti-baba-quote,
+.dark .shanti-footer .shanti-baba-quote {
+  color: #f5f5f4 !important;
+}
+[data-theme="dark"] .shanti-footer .motto,
+.dark .shanti-footer .motto {
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] .shanti-footer .prayer,
+.dark .shanti-footer .prayer {
+  color: #fde68a !important;
+}
+[data-theme="dark"] .shanti-footer .shanti-main,
+.dark .shanti-footer .shanti-main {
+  border-bottom-color: rgba(251, 191, 36, 0.2) !important;
+}
+
+/* --- Smooth Divine Quotes Running Ticker Strip --- */
+.zen-quotes-ticker-wrap {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+}
+
+.zen-quotes-ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: zenTickerScroll 50s linear infinite;
+  gap: 36px;
+  will-change: transform;
+}
+
+.zen-quotes-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.zen-quote-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  color: #78716c;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] .zen-quote-ticker-item,
+.dark .zen-quote-ticker-item {
+  color: #d6d3d1;
+}
+
+.zen-quote-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  display: inline-block;
+  opacity: 0.85;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  flex-shrink: 0;
+}
+
+@keyframes zenTickerScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+

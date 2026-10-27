@@ -5,7 +5,7 @@
   <!-- Header Banner & Event Selector -->
   <div class="diwali-header-banner">
     <div class="diwali-title-group">
-      <h1>🪔 Diwali Bhajans Management</h1>
+      <h1>Diwali Bhajans Management</h1>
       <p>Auditions, Selected Bhajans &amp; Fair Session Planning</p>
     </div>
 
@@ -21,19 +21,19 @@
         <% }) %>
       </select>
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalAddYear')" title="Create New Diwali Year">
-        ➕ New Year
+        New Year
       </button>
     </div>
   </div>
 
   <% if (typeof successMsg !== 'undefined' && successMsg) { %>
     <div class="alert alert-success" style="margin-bottom:20px; padding:12px 16px; border-radius:8px; background:#e8f1e9; color:#4f7a5b; font-weight:600;">
-      ✅ <%= successMsg %>
+      <%= successMsg %>
     </div>
   <% } %>
   <% if (typeof errorMsg !== 'undefined' && errorMsg) { %>
     <div class="alert alert-danger" style="margin-bottom:20px; padding:12px 16px; border-radius:8px; background:#fbeae8; color:#b23b32; font-weight:600;">
-      ❌ <%= errorMsg %>
+      <%= errorMsg %>
     </div>
   <% } %>
 
@@ -73,35 +73,35 @@
   <!-- Action Bar -->
   <div class="diwali-action-bar">
     <a href="/admin/diwali/entry" class="btn-diwali btn-diwali-primary">
-      ➕ Add Diwali Entry
+      Add Diwali Entry
     </a>
 
     <a href="/admin/diwali/import" class="btn-diwali btn-diwali-secondary">
-      📥 Import Excel
+      Import Excel
     </a>
 
     <!-- Direct 1-Click Yearly Data Download -->
     <a href="/admin/diwali/export/yearly?format=excel&category=Both" class="btn-diwali btn-diwali-secondary" title="Download Complete Yearly Audition Data in Excel (.xlsx)">
-      📊 Download Yearly Data (.xlsx)
+      Download Yearly Data (.xlsx)
     </a>
 
     <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportYearly')" title="More export options">
-      📤 More Export Options
+      More Export Options
     </button>
 
     <button type="button" class="btn-diwali btn-diwali-maroon" onclick="diwaliOpenModal('modalMakeSequence')">
-      🎛️ Make Sequence
+      Make Sequence
     </button>
 
     <% if (stats.generatedSequences > 0) { %>
       <a href="/admin/diwali/sequence/editor" class="btn-diwali btn-diwali-secondary">
-        📝 Sequence Editor
+        Sequence Editor
       </a>
       <a href="/admin/diwali/export/sequence?format=pdf&category=Both" class="btn-diwali btn-diwali-secondary" style="border-color:var(--diwali-maroon); color:var(--diwali-maroon); font-weight:700;" title="Print Sequence PDF directly">
-        🖨️ Print Sequence (PDF)
+        Print Sequence (PDF)
       </a>
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportSequence')">
-        📋 Export Sequences
+        Export Sequences
       </button>
     <% } %>
   </div>
@@ -109,19 +109,19 @@
   <!-- Tabs Navigation -->
   <div class="diwali-tabs">
     <button type="button" class="diwali-tab active" data-tab="gents">
-      👔 Gents Bhajans <span class="diwali-tab-badge"><%= gentsBhajans.length %></span>
+      Gents Bhajans <span class="diwali-tab-badge"><%= gentsBhajans.length %></span>
     </button>
     <button type="button" class="diwali-tab" data-tab="ladies">
-      👗 Ladies Bhajans <span class="diwali-tab-badge"><%= ladiesBhajans.length %></span>
+      Ladies Bhajans <span class="diwali-tab-badge"><%= ladiesBhajans.length %></span>
     </button>
     <button type="button" class="diwali-tab" data-tab="sequences">
-      🎼 Generated Sequences <span class="diwali-tab-badge"><%= sequences.length %></span>
+      Generated Sequences <span class="diwali-tab-badge"><%= sequences.length %></span>
     </button>
   </div>
 
   <!-- Filter Toolbar -->
   <div class="diwali-filter-toolbar">
-    <input type="text" id="diwaliTableSearch" class="diwali-search-input" placeholder="🔍 Search Lead, Partner, Bhajan, Deity, Scale...">
+    <input type="text" id="diwaliTableSearch" class="diwali-search-input" placeholder="Search Lead, Partner, Bhajan, Deity, Scale...">
 
     <select id="diwaliDeityFilter" class="diwali-select-filter">
       <option value="">All Deities</option>
@@ -188,11 +188,11 @@
                   <td style="text-align:right; white-space:nowrap;">
                     <% if (b.participant) { %>
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
-                        ✏️ Edit
+                        Edit
                       </button>
                       <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Delete participant pair <%= b.participant.lead_name %> & <%= b.participant.partner_name %> and all their bhajans?');">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
-                          ❌
+                          Delete
                         </button>
                       </form>
                     <% } %>
@@ -252,11 +252,11 @@
                   <td style="text-align:right; white-space:nowrap;">
                     <% if (b.participant) { %>
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
-                        ✏️ Edit
+                        Edit
                       </button>
                       <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Delete participant pair <%= b.participant.lead_name %> & <%= b.participant.partner_name %> and all their bhajans?');">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
-                          ❌
+                          Delete
                         </button>
                       </form>
                     <% } %>
@@ -279,7 +279,7 @@
           When the number of Diwali sessions is decided, click "Make Sequence" to automatically and fairly distribute all selected bhajans.
         </p>
         <button type="button" class="btn-diwali btn-diwali-primary" onclick="diwaliOpenModal('modalMakeSequence')">
-          🎛️ Make Sequence Now
+          Make Sequence Now
         </button>
       </div>
     <% } else { %>
@@ -289,10 +289,10 @@
         </h3>
         <div style="display:flex; gap:10px;">
           <a href="/admin/diwali/sequence/editor" class="btn-diwali btn-diwali-primary">
-            📝 Open Interactive Sequence Editor
+            Open Interactive Sequence Editor
           </a>
           <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportSequence')">
-            📋 Export Sequences
+            Export Sequences
           </button>
         </div>
       </div>
@@ -345,10 +345,13 @@
 <!-- ============================================================
      MODAL 1: EXPORT YEARLY DATA
      ============================================================ -->
+<!-- ============================================================
+     MODAL 1: EXPORT YEARLY DATA
+     ============================================================ -->
 <div id="modalExportYearly" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>📤 Export Yearly Diwali Data</h3>
+      <h3>Export Yearly Diwali Data</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalExportYearly')">&times;</button>
     </div>
     <div class="diwali-modal-body">
@@ -389,7 +392,7 @@
     </div>
     <div class="diwali-modal-footer">
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliCloseModal('modalExportYearly')">Cancel</button>
-      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerYearlyExport()">📥 Download Export</button>
+      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerYearlyExport()">Download Export</button>
     </div>
   </div>
 </div>
@@ -400,7 +403,7 @@
 <div id="modalMakeSequence" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>🎛️ Make Diwali Sequences</h3>
+      <h3>Make Diwali Sequences</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalMakeSequence')">&times;</button>
     </div>
     <div class="diwali-modal-body">
@@ -428,7 +431,7 @@
       </div>
 
       <div style="background:var(--diwali-gold-light); padding:12px 14px; border-radius:8px; font-size:12.5px; color:var(--diwali-amber); line-height:1.4;">
-        ✨ <strong>Fair Distribution Guarantee:</strong><br>
+        <strong>Fair Distribution Guarantee:</strong><br>
         &bull; Every selected bhajan appears exactly once.<br>
         &bull; Multi-bhajans from the same pair are spread across different sessions.<br>
         &bull; Avoids placing the same pair back-to-back in any sequence.
@@ -447,7 +450,7 @@
 <div id="modalFairnessSummary" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box" style="max-width:560px;">
     <div class="diwali-modal-header">
-      <h3>⚖️ Sequence Fairness Summary</h3>
+      <h3>Sequence Fairness Summary</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalFairnessSummary'); window.location.reload();">&times;</button>
     </div>
     <div class="diwali-modal-body" id="fairnessSummaryContent">
@@ -466,7 +469,7 @@
 <div id="modalExportSequence" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>📋 Export Final Sequences</h3>
+      <h3>Export Final Sequences</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalExportSequence')">&times;</button>
     </div>
     <div class="diwali-modal-body">
@@ -512,7 +515,7 @@
     </div>
     <div class="diwali-modal-footer">
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliCloseModal('modalExportSequence')">Cancel</button>
-      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerSequenceExport()">📥 Download Sequence</button>
+      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerSequenceExport()">Download Sequence</button>
     </div>
   </div>
 </div>
@@ -523,7 +526,7 @@
 <div id="modalEditParticipant" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box" style="max-width:760px; max-height:90vh; display:flex; flex-direction:column;">
     <div class="diwali-modal-header">
-      <h3>✏️ Edit Participant Pair &amp; Bhajans</h3>
+      <h3>Edit Participant Pair &amp; Bhajans</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalEditParticipant')">&times;</button>
     </div>
     <div class="diwali-modal-body" style="overflow-y:auto; flex:1;">
@@ -556,7 +559,7 @@
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 10px 0;">
         <h4 style="margin:0; color:var(--diwali-maroon);">Selected Bhajans</h4>
-        <button type="button" class="btn-diwali btn-diwali-secondary" style="font-size:12px; padding:4px 10px;" onclick="addBhajanToEditModal()">➕ Add Bhajan</button>
+        <button type="button" class="btn-diwali btn-diwali-secondary" style="font-size:12px; padding:4px 10px;" onclick="addBhajanToEditModal()">Add Bhajan</button>
       </div>
       <div id="editBhajansContainer">
         <!-- Injected via diwali.js -->
@@ -575,7 +578,7 @@
 <div id="modalAddYear" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>➕ Create New Diwali Event Year</h3>
+      <h3>Create New Diwali Event Year</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalAddYear')">&times;</button>
     </div>
     <form action="/admin/diwali/event/create" method="POST">

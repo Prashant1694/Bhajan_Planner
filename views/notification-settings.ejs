@@ -1,19 +1,19 @@
 <div class="prasanthi-border"></div>
 <div class="notif-settings-container">
-  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleSettingsBack(event)">← Back to Home</a>
+  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleSettingsBack(event)">&larr; Back to Home</a>
 
   <div class="notif-settings-card">
-    <h2>🔔 Notification Settings</h2>
+    <h2>Notification Settings</h2>
     <p class="subtitle">Stay updated on submission deadlines, partner additions, and bhajan schedules</p>
 
     <!-- Notification Benefits Callout -->
     <div class="notif-benefits-box">
-      <div class="notif-benefits-title">✨ Why enable notifications?</div>
+      <div class="notif-benefits-title">Why enable notifications?</div>
       <ul class="notif-benefits-list">
-        <li>⏰ <strong>Deadline Reminders:</strong> Get alerted before submissions close so you never miss adding a bhajan.</li>
-        <li>🤝 <strong>Partner Alerts:</strong> Know instantly when someone adds a bhajan partnering with you.</li>
-        <li>📋 <strong>Finalized Schedules:</strong> Instant access the moment the session sequence is published.</li>
-        <li>📢 <strong>Samiti Updates:</strong> Important announcements and rehearsal timings directly from coordinators.</li>
+        <li><strong>Deadline Reminders:</strong> Get alerted before submissions close so you never miss adding a bhajan.</li>
+        <li><strong>Partner Alerts:</strong> Know instantly when someone adds a bhajan partnering with you.</li>
+        <li><strong>Finalized Schedules:</strong> Instant access the moment the session sequence is published.</li>
+        <li><strong>Samiti Updates:</strong> Important announcements and rehearsal timings directly from coordinators.</li>
       </ul>
     </div>
 
@@ -29,13 +29,13 @@
     <div id="notifEnableSection">
       <label for="singerSelect">Select your name:</label>
       <select id="singerSelect" class="notif-singer-select">
-        <option value="">— Select your name —</option>
+        <option value="">&mdash; Select your name &mdash;</option>
       </select>
 
       <!-- Dynamic 4-Digit Security PIN Section -->
       <div id="settingsPinSection" class="notif-pin-section" style="display:none;">
         <div id="settingsPinNotice" class="notif-pin-security-notice">
-          <div class="notif-pin-notice-header">🔒 <strong>Securing Your Notifications</strong></div>
+          <div class="notif-pin-notice-header"><strong>Securing Your Notifications</strong></div>
           <p class="notif-pin-notice-desc" id="settingsPinDesc">
             This 4-digit PIN secures your profile and prevents anyone else from claiming your name and receiving your partner notifications.
           </p>
@@ -48,7 +48,9 @@
           <label id="settingsPinLabel" for="settingsPinInput" class="notif-pin-label">Create a 4-Digit Security PIN:</label>
           <div class="notif-pin-field-wrap">
             <input type="password" id="settingsPinInput" class="notif-pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••" autocomplete="off">
-            <button type="button" id="settingsPinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">👁️</button>
+            <button type="button" id="settingsPinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
           </div>
           <div id="settingsPinHelp" class="notif-pin-help">Enter 4 numeric digits (e.g. 1234)</div>
           <div id="settingsPinError" class="notif-pin-error"></div>
@@ -64,13 +66,13 @@
     <div id="notifManageSection" style="display:none;">
       <label for="singerChangeSelect">Change identity:</label>
       <select id="singerChangeSelect" class="notif-singer-select">
-        <option value="">— Select your name —</option>
+        <option value="">&mdash; Select your name &mdash;</option>
       </select>
 
       <!-- PIN Section for changing identity -->
       <div id="settingsChangePinSection" class="notif-pin-section" style="display:none;">
         <div id="settingsChangePinNotice" class="notif-pin-security-notice">
-          <div class="notif-pin-notice-header">🔒 <strong>Identity Security Check</strong></div>
+          <div class="notif-pin-notice-header"><strong>Identity Security Check</strong></div>
           <p class="notif-pin-notice-desc" id="settingsChangePinDesc">
             Enter the 4-digit PIN for this profile to switch identity.
           </p>
@@ -80,7 +82,9 @@
           <label id="settingsChangePinLabel" for="settingsChangePinInput" class="notif-pin-label">4-Digit PIN:</label>
           <div class="notif-pin-field-wrap">
             <input type="password" id="settingsChangePinInput" class="notif-pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••" autocomplete="off">
-            <button type="button" id="settingsChangePinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">👁️</button>
+            <button type="button" id="settingsChangePinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
           </div>
           <div id="settingsChangePinError" class="notif-pin-error"></div>
         </div>
@@ -91,7 +95,7 @@
       </button>
 
       <button id="notifDisableBtn" class="notif-btn-disable">
-        🔕 Disable Notifications
+        Disable Notifications
       </button>
     </div>
 
@@ -102,8 +106,8 @@
 
   <!-- Premium Haptic Feedback & Tactile Engine Card -->
   <div class="notif-settings-card" style="margin-top: 24px;">
-    <h2>📳 Haptic Feedback & Tactile Engine</h2>
-    <p class="subtitle">Experience native Apple Taptic & Android Linear Actuator tactile sensations across tabs, buttons, and submissions</p>
+    <h2>Haptic Feedback &amp; Tactile Engine</h2>
+    <p class="subtitle">Experience native Apple Taptic &amp; Android Linear Actuator tactile sensations across tabs, buttons, and submissions</p>
 
     <!-- Toggles Row -->
     <div style="display: flex; flex-direction: column; gap: 14px; margin: 20px 0 24px 0;">
@@ -123,8 +127,8 @@
       <!-- Toggle 2: Acoustic Transient -->
       <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);">
         <div>
-          <div style="font-weight: 700; font-size: 14.5px; color: var(--ink);">Acoustic Tactile Click (iOS & Audio Feel)</div>
-          <div style="font-size: 12px; color: var(--ink-soft); margin-top: 2px;">Sub-bass speaker transient for physical mechanical feel on iPhones & Android</div>
+          <div style="font-weight: 700; font-size: 14.5px; color: var(--ink);">Acoustic Tactile Click (iOS &amp; Audio Feel)</div>
+          <div style="font-size: 12px; color: var(--ink-soft); margin-top: 2px;">Sub-bass speaker transient for physical mechanical feel on iPhones &amp; Android</div>
         </div>
         <label style="position: relative; display: inline-block; width: 48px; height: 26px; cursor: pointer;">
           <input type="checkbox" id="hapticSoundToggle" style="opacity: 0; width: 0; height: 0;" checked>
@@ -137,32 +141,32 @@
     <!-- Live Tactile Test Palette -->
     <div style="margin-top: 20px;">
       <div style="font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--saffron-dk); margin-bottom: 12px;">
-        🎮 Test Tactile Profiles
+        Test Tactile Profiles
       </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
         <button type="button" class="button secondary" onclick="testHaptic('selection')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600;">
-          🔘 Tick (Tabs)
+          Tick (Tabs)
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('light')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600;">
-          🎯 Light Tap
+          Light Tap
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('medium')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600;">
-          ⚡ Medium Snap
+          Medium Snap
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('heavy')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600;">
-          💥 Rigid Impact
+          Rigid Impact
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('toggle')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600;">
-          🔄 Toggle Click
+          Toggle Click
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('success')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600; color: #16a34a; border-color: rgba(22, 163, 74, 0.3);">
-          🎉 Success
+          Success
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('warning')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600; color: #d97706; border-color: rgba(217, 119, 6, 0.3);">
-          ⚠️ Warning
+          Warning
         </button>
         <button type="button" class="button secondary" onclick="testHaptic('error')" style="padding: 10px 8px; font-size: 12.5px; font-weight: 600; color: #dc2626; border-color: rgba(220, 38, 38, 0.3);">
-          🚫 Error Knock
+          Error Knock
         </button>
       </div>
     </div>

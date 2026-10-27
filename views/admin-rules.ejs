@@ -1,17 +1,17 @@
 <div class="session-unified-page">
 
-  <!-- ═══ EXECUTIVE HEADER ═══ -->
+  <!-- EXECUTIVE HEADER -->
   <header class="session-unified-header">
     <div class="session-header-top-row">
       <div class="session-header-identity">
-        <div class="session-date-tile" style="background:linear-gradient(135deg, rgba(217, 138, 43, 0.2), rgba(125, 47, 69, 0.15)); border-color:var(--primary);">
-          <span style="font-size:22px;">🎼</span>
+        <div class="session-date-tile" style="background:#eef2ff; border-color:#4f46e5; color:#4f46e5; display:flex; align-items:center; justify-content:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
         </div>
         <div class="session-title-block">
-          <h1><%= date === 'default' ? '⚙️ Default Deity Rules' : `⚙️ Rules for ${date}` %></h1>
+          <h1><%= date === 'default' ? 'Default Deity Rules' : `Rules for ${date}` %></h1>
           <div class="session-tags-row">
             <span class="session-tag <%= date === 'default' ? 'session-tag-festival' : 'session-tag-special' %>">
-              <%= date === 'default' ? '🌐 Global Mandir Defaults' : `📅 Session-Specific: ${date}` %>
+              <%= date === 'default' ? 'Global Mandir Defaults' : `Session-Specific: ${date}` %>
             </span>
             <span class="session-tag session-tag-regular"><%= rules.length %> Deities Configured</span>
           </div>
@@ -21,10 +21,10 @@
       <!-- Quick Action Buttons -->
       <div class="session-primary-actions" style="max-width:320px;">
         <button type="button" class="cmd-btn cmd-btn-share" onclick="saveDeityRules()" id="topSaveBtn">
-          <span>💾</span> Save Rules
+          Save Rules
         </button>
         <a href="<%= date === 'default' ? '/admin' : `/admin/date/${date}` %>" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;">
-          <span>⬅️</span>
+          <span>&larr;</span>
           <span>Back</span>
         </a>
       </div>
@@ -34,17 +34,17 @@
     <div class="session-metrics-deck" style="margin-top:14px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <div style="font-size:12.5px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px;">
-          <span>🎛️</span> Quick Presets:
+          Quick Presets:
         </div>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button type="button" class="sec-tool-btn" style="width:auto; min-height:34px; padding:0 12px; flex-direction:row; gap:4px;" onclick="applyPreset('traditional')">
-            <span>🪔</span> Traditional Mandir
+            Traditional Mandir
           </button>
           <button type="button" class="sec-tool-btn" style="width:auto; min-height:34px; padding:0 12px; flex-direction:row; gap:4px;" onclick="applyPreset('open')">
-            <span>🎉</span> Festival Open
+            Festival Open
           </button>
           <button type="button" class="sec-tool-btn" style="width:auto; min-height:34px; padding:0 12px; flex-direction:row; gap:4px;" onclick="applyPreset('strict')">
-            <span>⚖️</span> 1-Per-Deity Strict
+            1-Per-Deity Strict
           </button>
         </div>
       </div>
@@ -53,14 +53,14 @@
 
   <input type="hidden" id="ruleDate" value="<%= date %>">
 
-  <!-- ═══ MAIN WORKSPACE ═══ -->
+  <!-- MAIN WORKSPACE -->
   <main class="session-unified-workspace view-mode-table">
 
     <!-- Workspace Controls Bar -->
     <div class="workspace-header-bar">
       <div class="workspace-filter-box">
         <input type="text" id="ruleSearchInput" class="workspace-search-input" 
-               placeholder="🔍 Search deity name..." 
+               placeholder="Search deity name..." 
                oninput="filterRulesTable(this.value)" 
                aria-label="Filter deities">
         
@@ -83,18 +83,8 @@
           </tr>
         </thead>
         <tbody id="rulesTableBody">
-          <% 
-            const DEITY_ICONS = {
-              ganesha: '🐘', guru: '🙏', mata: '🌸', devi: '🌸', sarvadharma: '🕉️',
-              sai: '🪔', shiva: '🔱', krishna: '🦚', rama: '🏹', narayana: '☀️',
-              vitthala: '🪘', vithala: '🪘', hanuman: '🐵', anjaneya: '🐵'
-            };
-          %>
           <% rules.forEach((r, idx) => { %>
-            <% 
-              const key = (r.deity_name || '').toLowerCase().trim();
-              const icon = DEITY_ICONS[key] || '🕉️';
-            %>
+            <% const key = (r.deity_name || '').toLowerCase().trim(); %>
             <tr data-deity="<%= key %>" class="rule-row">
               
               <td style="text-align:center; color:var(--text-light); font-weight:700;">
@@ -103,7 +93,9 @@
 
               <td>
                 <div style="display:flex; align-items:center; gap:10px;">
-                  <span style="font-size:22px;"><%= icon %></span>
+                  <div style="width:28px; height:28px; border-radius:6px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#475569;">
+                    <%= (r.deity_name || 'D').charAt(0).toUpperCase() %>
+                  </div>
                   <div>
                     <strong style="font-size:14.5px; color:var(--text);"><%= r.deity_name %></strong>
                     <input type="hidden" class="rule-deity" value="<%= r.deity_name %>">
@@ -113,7 +105,7 @@
 
               <td style="text-align:center;">
                 <div style="display:inline-flex; align-items:center; gap:6px;">
-                  <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 9)">−</button>
+                  <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 9)">&minus;</button>
                   <input type="number" class="rule-min workspace-search-input" value="<%= r.min_required %>" min="0" max="9" style="width:54px; text-align:center; padding:4px 6px; font-weight:700;" onchange="updateRuleStatus(this)">
                   <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, 1, 0, 9)">+</button>
                 </div>
@@ -121,7 +113,7 @@
 
               <td style="text-align:center;">
                 <div style="display:inline-flex; align-items:center; gap:6px;">
-                  <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 99)">−</button>
+                  <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 99)">&minus;</button>
                   <input type="number" class="rule-max workspace-search-input" value="<%= r.max_allowed %>" min="0" max="99" style="width:54px; text-align:center; padding:4px 6px; font-weight:700;" onchange="updateRuleStatus(this)">
                   <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, 1, 0, 99)">+</button>
                 </div>
@@ -129,7 +121,7 @@
 
               <td style="text-align:center;">
                 <span class="rule-status-chip diag-chip <%= r.max_allowed === 0 ? 'warn' : (r.min_required > 0 ? 'pass' : '') %>" style="font-size:11px;">
-                  <%= r.max_allowed === 0 ? '🚫 Blocked' : (r.min_required > 0 ? '✅ Guaranteed' : '✨ Flexible') %>
+                  <%= r.max_allowed === 0 ? 'Blocked' : (r.min_required > 0 ? 'Guaranteed' : 'Flexible') %>
                 </span>
               </td>
 
@@ -141,18 +133,17 @@
 
   </main>
 
-  <!-- ═══ FLOATING SAVE BAR ═══ -->
+  <!-- FLOATING SAVE BAR -->
   <aside id="rulesSaveBar" class="sequencer-save-bar" role="region" aria-label="Rule changes bar">
     <div class="save-bar-info">
-      <span>⚠️</span>
       <span>Unsaved rule changes</span>
     </div>
     <div class="save-bar-actions">
       <button type="button" class="save-bar-btn save-bar-btn-cancel" onclick="location.reload()">
-        <span>↩</span> Discard
+        Discard
       </button>
       <button type="button" class="save-bar-btn save-bar-btn-save" onclick="saveDeityRules()">
-        <span>💾</span> Save Deity Rules
+        Save Deity Rules
       </button>
     </div>
   </aside>
@@ -194,13 +185,13 @@
 
     if (maxVal === 0) {
       statusChip.className = 'rule-status-chip diag-chip warn';
-      statusChip.textContent = '🚫 Blocked';
+      statusChip.textContent = 'Blocked';
     } else if (minVal > 0) {
       statusChip.className = 'rule-status-chip diag-chip pass';
-      statusChip.textContent = '✅ Guaranteed';
+      statusChip.textContent = 'Guaranteed';
     } else {
       statusChip.className = 'rule-status-chip diag-chip';
-      statusChip.textContent = '✨ Flexible';
+      statusChip.textContent = 'Flexible';
     }
     markDirty();
   }
@@ -268,16 +259,16 @@
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        alert('✅ Deity rules saved successfully!');
+        alert('Deity rules saved successfully!');
         location.reload();
       } else {
-        alert('⚠️ Error saving rules: ' + (data.message || 'Server error'));
-        if (topBtn) topBtn.innerHTML = '<span>💾</span> Save Rules';
+        alert('Error saving rules: ' + (data.message || 'Server error'));
+        if (topBtn) topBtn.textContent = 'Save Rules';
       }
     })
     .catch(() => {
       alert('Network error saving deity rules.');
-      if (topBtn) topBtn.innerHTML = '<span>💾</span> Save Rules';
+      if (topBtn) topBtn.textContent = 'Save Rules';
     });
   }
 </script>

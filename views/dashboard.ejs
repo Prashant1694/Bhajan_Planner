@@ -1,315 +1,814 @@
-<div class="prasanthi-border"></div>
+<!-- Google Fonts: Inter, Plus Jakarta Sans & Fraunces (Matching App Typography) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+  rel="stylesheet">
 
-<div class="container dashboard-container app-dashboard">
+<!-- Dedicated Glass Dashboard Stylesheet -->
+<link rel="stylesheet" href="/css/dashboard-glass.css?v=2.2">
 
-  <!-- Hero Banner with Authentic Unclipped Logos -->
-  <div class="hero-banner app-hero-banner">
-    <div class="hero-img-container">
-      <img src="/images/logo.png" alt="Sri Sathya Sai Lotus Emblem" class="hero-image">
-    </div>
-    <div class="hero-text">
-      <h2 class="hero-subtitle">Sri Sathya Sai Seva Organisations, Gandhinagar</h2>
-      <h1 class="hero-title">Bhajan Planner</h1>
-    </div>
-    <div class="hero-img-container">
-      <img src="/images/logo_birthday.png" alt="Sri Sathya Sai 100th Birthday Emblem" class="hero-image">
-    </div>
+<div class="zen-glass-stage">
+
+  <!-- ================= AMBIENT SACRED GLOW ORBS (BACKGROUND) ================= -->
+  <div class="sacred-orbs-canvas">
+    <!-- Orb 1: Saffron Core (Top Left) -->
+    <div class="sacred-orb sacred-orb-1"></div>
+    <!-- Orb 2: Deep Prasanthi Maroon/Rose (Top Right) -->
+    <div class="sacred-orb sacred-orb-2"></div>
+    <!-- Orb 3: Radiant Golden Aura (Center Mid) -->
+    <div class="sacred-orb sacred-orb-3"></div>
+    <!-- Orb 4: Sanctum Amber (Bottom Right) -->
+    <div class="sacred-orb sacred-orb-4"></div>
+    <!-- Subtle Grid Overlay -->
+    <div class="sacred-grid-texture"></div>
   </div>
 
-  <!-- Devotee Greeting Bar (Strict single line, clean Sai Ram + Full Name) -->
-  <% if (typeof currentSinger !=='undefined' && currentSinger) { %>
-    <div class="devotee-greeting-bar" id="devoteeGreetingBar">
-      <span class="greeting-sparkle">🌸</span>
-      <span class="greeting-text">Sai Ram, <strong>
-          <%= currentSinger.name %>
-        </strong></span>
-    </div>
-    <% } else if (typeof currentAdmin !=='undefined' && currentAdmin) { %>
-      <div class="devotee-greeting-bar" id="devoteeGreetingBar">
-        <span class="greeting-sparkle">👑</span>
-        <span class="greeting-text">Sai Ram, <strong>
-            <%= currentAdmin.display_name || currentAdmin.displayName || 'Admin' %>
-          </strong></span>
-      </div>
-      <% } else { %>
-        <div class="devotee-greeting-bar" id="devoteeGreetingBar" style="display:none;">
-          <span class="greeting-sparkle" id="greetingSparkle">🌸</span>
-          <span class="greeting-text" id="devoteeGreetingText"></span>
-        </div>
-        <script>
-          (function () {
-            try {
-              var bar = document.getElementById('devoteeGreetingBar');
-              var txt = document.getElementById('devoteeGreetingText');
-              var sprk = document.getElementById('greetingSparkle');
-              var sName = localStorage.getItem('bp_singer_name');
-              var aName = localStorage.getItem('bp_admin_name');
-              var isAdmin = localStorage.getItem('bp_is_admin') === 'true';
-              var name = sName || aName;
-              if (bar && txt && name) {
-                if (isAdmin && sprk) sprk.textContent = '👑';
-                txt.innerHTML = 'Sai Ram, <strong>' + name + '</strong>';
-                bar.style.display = 'inline-flex';
-              }
-            } catch (_) { }
-          })();
-        </script>
-        <% } %>
+  <!-- Content Layer Wrapper -->
+  <div class="zen-stage-content">
 
-          <!-- Upcoming Sessions Widget -->
-          <% const sessionList = (typeof upcomingSessions !== 'undefined' && Array.isArray(upcomingSessions) && upcomingSessions.length > 0) 
-               ? upcomingSessions 
-               : (typeof upcomingSession !== 'undefined' && upcomingSession ? [upcomingSession] : []); %>
+    <!-- ================= 1. PRASANTHI TOP STRIP ================= -->
+    <div class="prasanthi-border"></div>
 
-          <% if (sessionList.length > 0) { %>
-            <div class="upcoming-sessions-container">
-              <div class="session-section-header">
-                <div class="section-title-row" style="margin-bottom:0;">
-                  <h3 class="app-section-title">
-                    <span>✨</span>
-                    <span><%= sessionList.length > 1 ? 'Upcoming Sessions (' + sessionList.length + ')' : 'Upcoming Session' %></span>
-                  </h3>
-                </div>
-                <% if (sessionList.length > 1) { %>
-                  <span class="multi-sessions-note">Available for submissions & plan</span>
-                <% } %>
-              </div>
+    <!-- ================= 2. EXECUTIVE GLOBAL TOP HEADER (Standalone Mode) ================= -->
+    <% if (typeof isEmbed==='undefined' || !isEmbed) { %>
+      <div id="standaloneHeaderWrap"
+        style="background: rgba(255,255,255,0.45); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,0.6); position: sticky; top: 4px; z-index: 40;">
+        <div class="zen-max-container"
+          style="padding-top: 12px; padding-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
 
-              <div class="upcoming-sessions-grid <%= sessionList.length > 1 ? 'multi-sessions-layout' : 'single-session-layout' %>">
-                <% sessionList.forEach(function(s) { %>
-                  <div class="session-live-card <%= s.isLiveNow ? 'session-card-live' : '' %>">
-                    <div class="session-live-header">
-                      <div class="session-status-badge <%= s.isLiveNow ? 'badge-live' : (s.isOpen ? 'badge-open' : 'badge-soon') %>">
-                        <span class="session-pulse-dot"></span>
-                        <span>
-                          <% if (s.isLiveNow) { %>
-                            🔴 Live Plan Active
-                          <% } else if (s.isOpen) { %>
-                            Submissions Open
-                          <% } else if (s.opensAt8pmToday) { %>
-                            Opens 8:00 PM Today
-                          <% } else { %>
-                            Submissions Closed
-                          <% } %>
-                        </span>
-                      </div>
-                      <div class="session-date-pill">
-                        <span>📅</span>
-                        <%= s.formattedDate %>
-                      </div>
-                    </div>
-
-                    <div class="session-live-body">
-                      <div class="session-live-info">
-                        <div class="session-title-wrap">
-                          <h3 class="session-live-title"><%= s.label %></h3>
-                          <% if (s.tag) { %>
-                            <span class="session-type-pill"><%= s.tag %></span>
-                          <% } %>
-                        </div>
-                        <p class="session-live-subtitle">
-                          <% if (s.isLiveNow) { %>
-                            Bhajan sequence finalized. Follow live schedule during the session (7:30 PM - 8:30 PM).
-                          <% } else if (s.opensAt8pmToday) { %>
-                            Submissions for this session will open today at <strong>8:00 PM</strong>.
-                          <% } else { %>
-                            <strong class="count-highlight"><%= s.submissionCount %></strong> bhajan<%= s.submissionCount === 1 ? '' : 's' %> registered for this session.
-                          <% } %>
-                        </p>
-                      </div>
-                      <div class="session-live-actions">
-                        <% if (!s.isClosedForSubmissions && s.isOpen) { %>
-                          <a href="/submit-form?session_date=<%= s.date %>" class="btn-live primary-live-btn" data-haptic="light">
-                            <span>🎤</span> Mark Your Bhajan
-                          </a>
-                        <% } %>
-                        <a href="/plan-view?session_date=<%= s.date %>" class="btn-live <%= (!s.isClosedForSubmissions && s.isOpen) ? 'secondary-live-btn' : 'primary-live-btn' %>" data-haptic="light">
-                          <span>📊</span> View Live Plan
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                <% }); %>
-              </div>
+          <!-- Left: Logo & Organisation Brand -->
+          <a href="/" style="display: flex; align-items: center; gap: 14px; text-decoration: none;">
+            <div
+              style="width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(217,119,6,0.3); flex-shrink: 0;">
+              <img src="/images/logo.png" alt="Lotus Logo" style="width: 30px; height: 30px; object-fit: contain;">
             </div>
-          <% } %>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span
+                  style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 19px; letter-spacing: -0.01em; color: inherit;">Bhajan
+                  Planner</span>
+                <span
+                  style="font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; padding: 2px 10px; border-radius: 9999px; background: rgba(245,158,11,0.15); color: #b45309; border: 1px solid rgba(245,158,11,0.3);">
+                  SSSO • Gandhinagar
+                </span>
+              </div>
+              <p style="font-size: 11px; margin: 2px 0 0; color: #78716c; font-weight: 500;">Sri Sathya Sai Seva
+                Organisations, Gujarat</p>
+            </div>
+          </a>
 
-          <!-- Bulletin / Latest Updates Section -->
-          <% if (typeof bulletins !== 'undefined' && bulletins && bulletins.length > 0) { %>
-            <div class="bulletin-section app-bulletin-section">
-              <div class="bulletin-section-header">
-                <div class="section-title-row" style="margin-bottom:0;">
-                  <h3 class="app-section-title">
-                    <span>📢</span>
-                    <span>Announcements & Updates</span>
-                  </h3>
+          <!-- Right: Profile & Actions -->
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <!-- Dark Mode Toggle Button -->
+            <button id="themeToggleBtn" aria-label="Toggle Night Mode" class="glass-chip"
+              style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.7); cursor: pointer; color: inherit; background: transparent;">
+              <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+              </svg>
+            </button>
+
+            <!-- User Profile Pill -->
+            <div
+              style="display: flex; align-items: center; gap: 10px; padding-left: 12px; border-left: 1px solid rgba(0,0,0,0.08);">
+              <div class="devotee-avatar-circle">
+                <% if (typeof currentSinger !=='undefined' && currentSinger) { %>
+                  <%= (currentSinger.name || 'S' ).charAt(0).toUpperCase() %>
+                    <% } else if (typeof currentAdmin !=='undefined' && currentAdmin) { %>
+                      <%= (currentAdmin.display_name || currentAdmin.username || 'A' ).charAt(0).toUpperCase() %>
+                        <% } else { %>
+                          B
+                          <% } %>
+              </div>
+              <span style="font-size: 12.5px; font-weight: 600;">
+                <% if (typeof currentSinger !=='undefined' && currentSinger) { %>
+                  <%= currentSinger.name.split(' ')[0] %>
+              <% } else if (typeof currentAdmin !== ' undefined' && currentAdmin) { %>
+                    <%= (currentAdmin.display_name || currentAdmin.username || 'Admin'
+                      ).split(' ')[0] %>
+              <% } else { %>
+                Bangaru
+              <% } %>
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <% } %>
+
+    <!-- ================= 3. HERO STAGE WITH ORIGINAL EMBLEMS ================= -->
+    <section class="zen-hero-wrap">
+      <div class="zen-max-container">
+        
+        <!-- Large Frosted Glass Hero Banner -->
+        <div class="glass-panel zen-hero-banner">
+          
+          <!-- Subtle Inner Golden Sheen -->
+          <div style="position: absolute; top: -100px; left: -100px; width: 320px; height: 320px; background: radial-gradient(circle, rgba(251,191,36,0.2), transparent 70%); border-radius: 50%; pointer-events: none;"></div>
+
+          <!-- Left: Original Sri Sathya Sai Lotus Emblem (Free-Standing & Larger) -->
+          <div class="zen-free-emblem-wrap" title="Sri Sathya Sai Lotus Emblem">
+            <img src="/images/logo.png" alt="Sri Sathya Sai Lotus Emblem" class="zen-free-emblem" onerror="this.style.display=' none'">
+            </div>
+
+            <!-- Center: Headline & Organisation Pill -->
+            <div class="zen-hero-center">
+              <div class="zen-org-badge">
+                <span class="zen-beacon-pulse"></span>
+                <span>Sri Sathya Sai Seva Organisations, Gandhinagar</span>
+              </div>
+              <h1 class="zen-hero-title">
+                Bhajan Planner
+              </h1>
+              <p class="zen-hero-subtitle" style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: clamp(13px, 1.8vw, 15px); color: #78716c; max-width: 680px; line-height: 1.55; margin-top: 6px;">
+                &ldquo;Bhajan must spread good-will, love, ecstasy; it must cleanse the polluted atmosphere; it must invite all to share in the joy and peace.&rdquo;
+                <span style="font-style: normal; font-weight: 600; font-size: 11.5px; opacity: 0.85; margin-left: 6px; white-space: nowrap;">&mdash; Baba</span>
+              </p>
+            </div>
+
+            <!-- Right: Original 100th Birthday Emblem (Free-Standing & Larger) -->
+            <div class="zen-free-emblem-wrap" title="Sri Sathya Sai 100th Birthday Emblem">
+              <img src="/images/logo_birthday.png" alt="Sri Sathya Sai 100th Birthday Emblem" class="zen-free-emblem"
+                onerror="this.style.display='none'">
+            </div>
+
+          </div>
+
+          <!-- Devotee Command Status Bar -->
+          <div class="devotee-bar-wrap">
+            <% if (typeof currentSinger !=='undefined' && currentSinger) { %>
+              <div class="glass-panel devotee-greeting-pill" id="devoteeGreetingBar">
+                <div class="devotee-avatar-circle">
+                  <%= (currentSinger.name || 'S' ).charAt(0).toUpperCase() %>
                 </div>
-                <a href="/bulletins<%= (typeof _embed !== 'undefined' && _embed) ? '?_embed=1' : '' %>" class="bulletin-view-all-pill" data-haptic="light">
-                  View All (<%= bulletins.length %>) →
+                <span>Sai Ram, <strong>
+                    <%= currentSinger.name %>
+                  </strong></span>
+                <span style="opacity: 0.4;">•</span>
+                <a href="/my-hub"
+                  style="color: #b45309; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                  data-haptic="light">
+                  <span>My Hub</span>
+                  <svg class="zen-svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
                 </a>
               </div>
-
-              <div class="app-bulletin-grid">
-                <% bulletins.forEach(function(b) { %>
-                  <% 
-                    const catInfo = (typeof CATEGORY_INFO !== 'undefined' && CATEGORY_INFO[b.category]) 
-                      ? CATEGORY_INFO[b.category] 
-                      : { label: 'Update', icon: '📢', color: '#4dabf7' };
-                    const isNew = b.published_at && (Date.now() - new Date(b.published_at).getTime()) < 5 * 24 * 60 * 60 * 1000;
-                    const previewText = b.content ? b.content.replace(/<[^>]*>?/gm, '').trim().substring(0, 95) : '';
-                  %>
-                  <a href="/bulletins/<%= b.id %><%= (typeof _embed !== 'undefined' && _embed) ? '?_embed=1' : '' %>" class="app-bulletin-card" data-cat="<%= b.category %>" data-haptic="light">
-                    <div class="app-bulletin-card-top">
-                      <div class="app-bulletin-badges">
-                        <span class="app-bulletin-chip" style="--chip-color: <%= catInfo.color %>;">
-                          <span><%= catInfo.icon %></span>
-                          <span><%= catInfo.label %></span>
-                        </span>
-                        <% if (b.is_pinned) { %>
-                          <span class="app-bulletin-pinned-badge">📌 Pinned</span>
-                        <% } %>
-                        <% if (isNew) { %>
-                          <span class="app-bulletin-new-badge">✨ NEW</span>
-                        <% } %>
-                      </div>
-                      <div class="app-bulletin-date">
-                        <% if (b.published_at) { %>
-                          <span>🗓️</span>
-                          <span><%= new Date(b.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) %></span>
-                        <% } %>
-                      </div>
-                    </div>
-
-                    <h4 class="app-bulletin-title"><%= b.title %></h4>
-                    
-                    <% if (previewText) { %>
-                      <p class="app-bulletin-excerpt"><%= previewText %>...</p>
-                    <% } %>
-
-                    <div class="app-bulletin-footer">
-                      <span class="app-bulletin-link-text">Read announcement</span>
-                      <span class="app-bulletin-arrow">→</span>
-                    </div>
+              <% } else if (typeof currentAdmin !=='undefined' && currentAdmin) { %>
+                <div class="glass-panel devotee-greeting-pill" id="devoteeGreetingBar">
+                  <div class="devotee-avatar-circle">A</div>
+                  <span>Sai Ram, <strong>
+                      <%= currentAdmin.display_name || currentAdmin.displayName || 'Admin' %>
+                    </strong></span>
+                  <span style="opacity: 0.4;">•</span>
+                  <a href="/admin"
+                    style="color: #b45309; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                    data-haptic="light">
+                    <span>Control Tower</span>
+                    <svg class="zen-svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
                   </a>
-                <% }); %>
-              </div>
-            </div>
-          <% } %>
-
-                  <!-- Sai Bhajan Wisdom & Singer's Code of Conduct -->
-                  <div class="sai-quote-card app-devotional-card">
-                    <div class="devotional-card-header">
-                      <span class="devotional-om-badge">ॐ</span>
-                      <h3 class="quote-header" style="margin: 0;">The Spirit of Bhajan</h3>
-                    </div>
-
-                    <p class="quote-text-para"><strong>BHARAT:</strong> The heart of singing lies in the union of
-                      <em>Bha</em> (Bhava/Feeling), <em>Ra</em> (Raga/Melody), and <em>Ta</em> (Taala/Rhythm). Remember:
-                      <em>"A tune without feeling is an infliction."</em>
-                    </p>
-                    <p class="quote-text-para"><strong>Unity in Unison:</strong> We strive to merge our individual
-                      voices into a single wave of sacred vibration. One voice, one beat—oneness with Bhagawan.</p>
-                    <p class="quote-text-para"><strong>Global Purification:</strong> Sacred sound waves act as spiritual
-                      "antibiotics," destroying negative thoughts in the air and purifying the environment for all
-                      beings.</p>
-
-                    <div class="conduct-section-divider"></div>
-
-                    <h3 class="quote-header conduct-header">📋 Singer's Code of Conduct</h3>
-                    <div class="conduct-list">
-                      <div class="conduct-item conduct-item--saffron">
-                        <strong class="conduct-label">⏳ Punctuality</strong>
-                        <p class="conduct-body">Singers must be seated and ready before Veda Recitation concludes.</p>
-                      </div>
-                      <div class="conduct-item conduct-item--sky">
-                        <strong class="conduct-label">🎹 Seating</strong>
-                        <p class="conduct-body">All instrumentalists sit together to ensure perfect synchronization.</p>
-                      </div>
-                      <div class="conduct-item conduct-item--sage">
-                        <strong class="conduct-label">🎵 The Format</strong>
-                        <ol class="conduct-format-list">
-                          <li>1st Speed: Sing each line twice.</li>
-                          <li>2nd Speed: Sing lines once; repeat the last line twice.</li>
-                          <li>3rd Speed: (If applicable) Sing with increased tempo.</li>
-                        </ol>
-                      </div>
-                      <div class="conduct-item conduct-item--maroon">
-                        <strong class="conduct-label">🔉 Pitch (Sruti)</strong>
-                        <p class="conduct-body">Select a pitch comfortable for your range to preserve sweetness.</p>
-                      </div>
-                      <div class="conduct-item conduct-item--gold">
-                        <strong class="conduct-label">👏 Hand Claps</strong>
-                        <p class="conduct-body">Clap in rhythm to dispel negativity and recharge divine energy.</p>
-                      </div>
-                      <div class="conduct-item conduct-item--clay">
-                        <strong class="conduct-label">🔕 Silence</strong>
-                        <p class="conduct-body">Mobile phones on Silent Mode to maintain sanctuary sanctity.</p>
-                      </div>
-                    </div>
-                    <div class="conduct-footer">— Bhagwan Sri Sathya Sai Baba</div>
+                </div>
+                <% } else { %>
+                  <div class="glass-panel devotee-greeting-pill" id="devoteeGreetingBar" style="display:none;">
+                    <div class="devotee-avatar-circle" id="devoteeAvatarChar">S</div>
+                    <span id="devoteeGreetingText">Sai Ram, Devotee</span>
+                    <span style="opacity: 0.4;">•</span>
+                    <a href="/my-hub"
+                      style="color: #b45309; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"
+                      data-haptic="light">
+                      <span>My Hub</span>
+                      <svg class="zen-svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </a>
                   </div>
+                  <script>
+                    (function () {
+                      try {
+                        var bar = document.getElementById('devoteeGreetingBar');
+                        var txt = document.getElementById('devoteeGreetingText');
+                        var av = document.getElementById('devoteeAvatarChar');
+                        var sName = localStorage.getItem('bp_singer_name');
+                        var aName = localStorage.getItem('bp_admin_name');
+                        var name = sName || aName;
+                        if (bar && txt && name) {
+                          txt.innerHTML = 'Sai Ram, <strong>' + name + '</strong>';
+                          if (av) av.textContent = name.charAt(0).toUpperCase();
+                          bar.style.display = 'inline-flex';
+                        }
+                      } catch (_) { }
+                    })();
+                  </script>
+                  <% } %>
+          </div>
 
-                  <!-- Samiti Archive & Coordinator Portal (Positioned below info cards as requested) -->
-                  <div class="app-launcher-section home-admin-records-section">
-                    <div class="section-title-row">
-                      <h3 class="app-section-title">🏛️ Archive & Administration</h3>
-                    </div>
+        </div>
+        </section>
 
-                    <div class="app-launcher-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
-                      <!-- 1. Bhajan Archives -->
-                      <a href="/database<%= (typeof _embed !== 'undefined' && _embed) ? '?_embed=1' : '' %>" class="launcher-card card-history" data-haptic="light">
-                        <div class="launcher-icon-wrap">
-                          <span class="launcher-icon">🏛️</span>
-                        </div>
-                        <div class="launcher-info">
-                          <div class="launcher-header-row">
-                            <h4 class="launcher-title">Bhajan Archives</h4>
-                            <span class="launcher-arrow">→</span>
-                          </div>
-                          <p class="launcher-desc">Search archived Gandhinagar bhajan schedules, sequences & past records</p>
-                        </div>
-                      </a>
+        <!-- ================= 4. MAIN CONTENT BODY ================= -->
+        <main class="zen-main-stack">
 
-                      <!-- 2. Control Tower / Administration -->
-                      <% if (typeof currentAdmin !=='undefined' && currentAdmin) { %>
-                        <a href="/admin"
-                          onclick="if(window.top && window.top.switchTab){ window.top.switchTab('admin'); return false; }"
-                          class="launcher-card card-admin">
-                          <div class="launcher-badge badge-admin-active">Active</div>
-                          <% } else { %>
-                            <a href="/admin-login" target="_top" class="launcher-card card-admin">
+          <% const sessionList=(typeof upcomingSessions !=='undefined' && Array.isArray(upcomingSessions) &&
+            upcomingSessions.length> 0)
+            ? upcomingSessions
+            : (typeof upcomingSession !== 'undefined' && upcomingSession ? [upcomingSession] : []);
+            const primarySession = sessionList[0] || null;
+            const subCount = primarySession ? (primarySession.submissionCount || 0) : 0;
+            const openSlots = Math.max(0, 8 - subCount);
+            const slotPercent = Math.min(100, Math.round((subCount / 8) * 100));
+            %>
+
+            <!-- 4.1 UPCOMING SESSION SPOTLIGHT -->
+            <% if (primarySession) { %>
+              <section id="session-spotlight" class="glass-panel zen-spotlight-card">
+                <div class="zen-spotlight-accent-strip"></div>
+
+                <div class="zen-spotlight-body">
+
+                  <!-- Header Row -->
+                  <div class="zen-spotlight-top-row">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                      <% if (primarySession.isLiveNow) { %>
+                        <span class="zen-status-badge status-live">
+                          <span class="zen-beacon-pulse"
+                            style="background: #f43f5e; box-shadow: 0 0 6px #f43f5e;"></span>
+                          Live Plan Active
+                        </span>
+                        <% } else if (primarySession.isOpen) { %>
+                          <span class="zen-status-badge status-open">
+                            <span class="zen-beacon-pulse"
+                              style="background: #10b981; box-shadow: 0 0 6px #10b981;"></span>
+                            Submissions Open
+                          </span>
+                          <% } else if (primarySession.opensAt8pmToday) { %>
+                            <span class="zen-status-badge status-wait">
+                              <span class="zen-beacon-pulse"></span>
+                              Opens 8:00 PM Today
+                            </span>
+                            <% } else { %>
+                              <span class="zen-status-badge status-closed">
+                                Submissions Closed
+                              </span>
                               <% } %>
-                                <div class="launcher-icon-wrap">
-                                  <span class="launcher-icon">🔐</span>
-                                </div>
-                                <div class="launcher-info">
-                                  <div class="launcher-header-row">
-                                    <h4 class="launcher-title">Control Tower</h4>
-                                    <span class="launcher-arrow">→</span>
-                                  </div>
-                                  <p class="launcher-desc">
-                                    <%= (typeof currentAdmin !=='undefined' && currentAdmin) ?
-                                      (currentAdmin.display_name || 'Admin Center' )
-                                      : 'Samiti Coordinator & Lead Portal' %>
-                                  </p>
-                                </div>
-                            </a>
+                                <span style="font-size: 12.5px; font-weight: 600; color: #78716c;">Official Samiti
+                                  Congregation</span>
+                    </div>
+
+                    <div class="glass-chip zen-date-pill">
+                      <svg class="zen-svg-icon" style="width: 15px; height: 15px; color: #d97706;" viewBox="0 0 24 24">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                        <line x1="16" x2="16" y1="2" y2="6" />
+                        <line x1="8" x2="8" y1="2" y2="6" />
+                        <line x1="3" x2="21" y1="10" y2="10" />
+                      </svg>
+                      <span>
+                        <%= primarySession.formattedDate %> &bull; 7:30 PM &ndash; 8:30 PM
+                      </span>
                     </div>
                   </div>
 
-                  <!-- Shanti Footer Prayer -->
-                  <div class="shanti-footer">
-                    <div class="shanti-main">
-                      <div class="motto">"Love All • Serve All"</div>
-                      <div class="shanti-baba-quote">
-                        "Bhajan must spread good-will, love, ecstasy; it must cleanse the polluted atmosphere; it must
-                        invite all to share in the joy and peace" — Baba
+                  <!-- Title & Session Details -->
+                  <div class="zen-session-info-row">
+                    <div>
+                      <h2 class="zen-session-title">
+                        <%= primarySession.label %>
+                      </h2>
+                      <p class="zen-session-desc">
+                        <% if (primarySession.isLiveNow) { %>
+                          Bhajan sequence finalized. Follow live schedule during the session.
+                          <% } else if (primarySession.opensAt8pmToday) { %>
+                            Submissions for this session will open today at <strong>8:00 PM</strong>.
+                            <% } else { %>
+                              Official Mandir bhajan session. <strong>
+                                <%= subCount %> bhajans
+                              </strong> currently registered for this slot sequence.
+                              <% } %>
+                      </p>
+                    </div>
+
+                    <!-- CTAs -->
+                    <div class="zen-session-ctas">
+                      <% if (!primarySession.isClosedForSubmissions && primarySession.isOpen) { %>
+                        <a href="/submit-form?session_date=<%= primarySession.date %>" class="glass-btn-primary"
+                          data-haptic="light">
+                          <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" x2="12" y1="19" y2="22"></line>
+                          </svg>
+                          <span>Mark Bhajan Slot</span>
+                        </a>
+                        <% } %>
+                          <a href="/plan-view?session_date=<%= primarySession.date %>" class="glass-btn-secondary"
+                            data-haptic="light">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <line x1="10" x2="21" y1="6" y2="6" />
+                              <line x1="10" x2="21" y1="12" y2="12" />
+                              <line x1="10" x2="21" y1="18" y2="18" />
+                              <polyline points="3 6 4 7 6 5" />
+                              <polyline points="3 12 4 13 6 11" />
+                              <polyline points="3 18 4 19 6 17" />
+                            </svg>
+                            <span>Follow Live Sequence</span>
+                          </a>
+                    </div>
+                  </div>
+
+
+                </div>
+              </section>
+              <% } else { %>
+                <section class="glass-panel" style="padding: 32px 36px;">
+                  <div
+                    style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 9999px; font-size: 11.5px; font-weight: 700; background: rgba(120,113,108,0.15); color: #57534e;">
+                    No Active Session
+                  </div>
+                  <h2
+                    style="font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 700; margin: 12px 0 6px;">
+                    Next Session Scheduling Soon</h2>
+                  <p style="font-size: 13.5px; color: #78716c; margin: 0 0 16px;">Upcoming Thursday and special festival
+                    schedules will appear here automatically.</p>
+                  <a href="/plan-view" class="glass-btn-secondary" style="display: inline-flex;">
+                    <span>View Latest Plan</span>
+                  </a>
+                </section>
+                <% } %>
+
+                  <!-- 4.2 ANNOUNCEMENTS & BULLETINS -->
+                  <section class="glass-panel" style="padding: 32px 36px;">
+                    <div class="zen-card-header">
+                      <div class="zen-card-header-left">
+                        <div class="zen-icon-box">
+                          <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                            <path d="m3 11 18-5v12L3 14v-3z" />
+                            <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 class="zen-card-title">Announcements &amp; Bulletins</h3>
+                          <p class="zen-card-subtitle">Official circulars from Gandhinagar Samiti coordinators</p>
+                        </div>
+                      </div>
+                      <a href="/bulletins"
+                        style="font-size: 12.5px; font-weight: 700; color: #b45309; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>View All</span>
+                        <svg class="zen-svg-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    </div>
+
+                    <!-- Bulletins Feed -->
+                    <div>
+                      <% if (typeof bulletins !=='undefined' && bulletins && bulletins.length> 0) { %>
+                        <% bulletins.slice(0, 3).forEach(function(b) { %>
+                          <a href="/bulletins/<%= b.id %>" class="zen-bulletin-item" data-haptic="light">
+                            <div style="flex: 1;">
+                              <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                  style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 9999px; background: rgba(245,158,11,0.15); color: #92400e; border: 1px solid rgba(245,158,11,0.3);">
+                                  <%= (typeof CATEGORY_INFO !=='undefined' && CATEGORY_INFO[b.category]) ?
+                                    CATEGORY_INFO[b.category].label : (b.category || 'Event' ) %>
+                                </span>
+                                <span style="font-size: 11.5px; color: #a8a29e; font-weight: 500;">
+                                  <%= b.formattedDate || 'Recent' %>
+                                </span>
+                              </div>
+                              <h4 class="zen-bulletin-title">
+                                <%= b.title %>
+                              </h4>
+                              <p class="zen-bulletin-desc">
+                                <%= b.summary || (b.body ? b.body.substring(0, 140) + '...' : '' ) %>
+                              </p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 4px; color: #a8a29e; flex-shrink: 0;">
+                              <span style="font-size: 12px; font-weight: 600;">Read</span>
+                              <svg class="zen-svg-icon" style="width: 15px; height: 15px;" viewBox="0 0 24 24">
+                                <path d="m9 18 6-6-6-6" />
+                              </svg>
+                            </div>
+                          </a>
+                          <% }); %>
+                            <% } else { %>
+                              <!-- Seeded Devotional Bulletins -->
+                              <a href="/bulletins" class="zen-bulletin-item">
+                                <div style="flex: 1;">
+                                  <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                      style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 9999px; background: rgba(245,158,11,0.15); color: #92400e; border: 1px solid rgba(245,158,11,0.3);">Event</span>
+                                    <span style="font-size: 11.5px; color: #a8a29e; font-weight: 500;">2 Sept</span>
+                                  </div>
+                                  <h4 class="zen-bulletin-title">Special Birthday Sadhana Saptah &amp; Akhanda Bhajan
+                                    Schedule</h4>
+                                  <p class="zen-bulletin-desc">Devotees and lead singers are requested to review the
+                                    special slot allocation norms for the centenary celebrations.</p>
+                                </div>
+                                <div
+                                  style="display: flex; align-items: center; gap: 4px; color: #a8a29e; flex-shrink: 0;">
+                                  <span style="font-size: 12px; font-weight: 600;">Read</span>
+                                  <svg class="zen-svg-icon" style="width: 15px; height: 15px;" viewBox="0 0 24 24">
+                                    <path d="m9 18 6-6-6-6" />
+                                  </svg>
+                                </div>
+                              </a>
+                              <a href="/bulletins" class="zen-bulletin-item">
+                                <div style="flex: 1;">
+                                  <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span
+                                      style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 9999px; background: rgba(16,185,129,0.15); color: #065f46; border: 1px solid rgba(16,185,129,0.3);">Protocol</span>
+                                    <span style="font-size: 11.5px; color: #a8a29e; font-weight: 500;">28 Aug</span>
+                                  </div>
+                                  <h4 class="zen-bulletin-title">Harmonium Scale Consistency for Prashanti Mandir
+                                    Bhajans</h4>
+                                  <p class="zen-bulletin-desc">Please ensure your registered singing key matches
+                                    standard Safed/Kali scales to allow comfortable chorus accompaniment.</p>
+                                </div>
+                                <div
+                                  style="display: flex; align-items: center; gap: 4px; color: #a8a29e; flex-shrink: 0;">
+                                  <span style="font-size: 12px; font-weight: 600;">Read</span>
+                                  <svg class="zen-svg-icon" style="width: 15px; height: 15px;" viewBox="0 0 24 24">
+                                    <path d="m9 18 6-6-6-6" />
+                                  </svg>
+                                </div>
+                              </a>
+                              <% } %>
+                    </div>
+                  </section>
+
+                  <!-- 4.3 THE SPIRIT OF BHAJAN (Wisdom Sanctuary) -->
+                  <section class="glass-panel" style="padding: 36px 40px; position: relative; overflow: hidden;">
+
+                    <!-- Bhagawan's Sacred Quote -->
+                    <div class="zen-quote-box">
+                      <div class="glass-chip zen-quote-icon">
+                        <svg class="zen-svg-icon" style="width: 22px; height: 22px;" viewBox="0 0 24 24">
+                          <path
+                            d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h4c0 4-2 6-5 7v1zM15 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h4c0 4-2 6-5 7v1z" />
+                        </svg>
+                      </div>
+                      <blockquote class="zen-quote-text">
+                        &ldquo;A tune without feeling is an infliction. The heart of singing lies in the union of Bhava
+                        (Feeling), Raga (Melody), and Taala (Rhythm). One voice, one beat &ndash; oneness with
+                        Bhagawan.&rdquo;
+                      </blockquote>
+                      <div class="zen-quote-author">
+                        &mdash; Bhagwan Sri Sathya Sai Baba
                       </div>
                     </div>
-                    <div class="prayer">Samastha Loka Sukhino Bhavantu</div>
+
+                    <!-- The 3 Pillars (BHA - RA - TA) -->
+                    <div class="zen-pillars-grid">
+
+                      <div class="glass-chip zen-pillar-card">
+                        <div class="zen-pillar-badge">BHA</div>
+                        <div>
+                          <h4 class="zen-pillar-title">Bhava (Feeling)</h4>
+                          <p class="zen-pillar-desc">Heartfelt love and sacred devotion vibrating from the core of the
+                            soul.</p>
+                        </div>
+                      </div>
+
+                      <div class="glass-chip zen-pillar-card">
+                        <div class="zen-pillar-badge">RA</div>
+                        <div>
+                          <h4 class="zen-pillar-title">Raga (Melody)</h4>
+                          <p class="zen-pillar-desc">Sweet, uplifting notes in faithful alignment with authentic mandir
+                            scales.</p>
+                        </div>
+                      </div>
+
+                      <div class="glass-chip zen-pillar-card">
+                        <div class="zen-pillar-badge">TA</div>
+                        <div>
+                          <h4 class="zen-pillar-title">Taala (Rhythm)</h4>
+                          <p class="zen-pillar-desc">Synchronized steady beat uniting the whole congregation as one
+                            prayer.</p>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <!-- Singer's Code of Conduct Grid -->
+                    <div>
+                      <h4
+                        style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #a8a29e; text-align: center; margin: 0 0 16px;">
+                        Singer's Code of Conduct &amp; Mandir Discipline
+                      </h4>
+
+                      <div class="zen-rules-grid">
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">Punctuality</div>
+                            <div class="zen-rule-desc">Singers seated and ready before Veda recitation concludes.</div>
+                          </div>
+                        </div>
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                              <circle cx="9" cy="7" r="4" />
+                              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">Harmonious Seating</div>
+                            <div class="zen-rule-desc">Instrumentalists and lead vocalists positioned for seamless
+                              eye-contact.</div>
+                          </div>
+                        </div>
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <path d="m12 14 4-4" />
+                              <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">3-Speed Format</div>
+                            <div class="zen-rule-desc">1st speed twice, 2nd speed once (last line twice), 3rd speed drut
+                              tempo.</div>
+                          </div>
+                        </div>
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <path d="M9 18V5l12-2v13" />
+                              <circle cx="6" cy="18" r="3" />
+                              <circle cx="18" cy="16" r="3" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">Pitch &amp; Sruti</div>
+                            <div class="zen-rule-desc">Select a scale comfortable for the entire hall to chant along
+                              effortlessly.</div>
+                          </div>
+                        </div>
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+                              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+                              <path
+                                d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">Synchronized Claps</div>
+                            <div class="zen-rule-desc">Rhythmic hand clapping dispels dullness and elevates devotional
+                              vibration.</div>
+                          </div>
+                        </div>
+
+                        <div class="glass-chip zen-rule-item">
+                          <div class="zen-rule-icon">
+                            <svg class="zen-svg-icon" viewBox="0 0 24 24">
+                              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                              <path d="m13.73 21a2 2 0 0 1-3.46 0" />
+                              <line x1="2" x2="22" y1="2" y2="22" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="zen-rule-title">Silence &amp; Sanctity</div>
+                            <div class="zen-rule-desc">Phones on complete silent mode; uphold tranquility within the
+                              mandir hall.</div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                  </section>
+
+                  <!-- 4.4 QUICK ACCESS GLASS PORTALS -->
+                  <div class="zen-portals-grid">
+
+                    <!-- Archives Portal -->
+                    <a href="/master-bank" class="glass-panel zen-portal-card portal-archives" data-haptic="light">
+                      <div class="zen-portal-left">
+                        <div class="glass-chip zen-portal-icon-box">
+                          <svg class="zen-svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                            <rect width="20" height="5" x="2" y="3" rx="1" />
+                            <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+                            <path d="M10 12h4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="zen-portal-title">Bhajan Archives</h4>
+                          <p class="zen-portal-desc">Search archived Gandhinagar schedules, sequences &amp; past records
+                          </p>
+                        </div>
+                      </div>
+                      <div class="glass-chip zen-portal-arrow">
+                        <svg class="zen-svg-icon" style="width: 18px; height: 18px;" viewBox="0 0 24 24">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </a>
+
+                    <!-- Control Tower (Admin) Portal -->
+                    <a href="<%= (typeof currentAdmin !== 'undefined' && currentAdmin) ? '/admin' : '/admin-login' %>"
+                      class="glass-panel zen-portal-card portal-admin" data-haptic="light">
+                      <div class="zen-portal-left">
+                        <div class="zen-portal-icon-box">
+                          <svg class="zen-svg-icon" style="width: 24px; height: 24px;" viewBox="0 0 24 24">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 class="zen-portal-title">Control Tower</h4>
+                          <p class="zen-portal-desc">
+                            <%= (typeof currentAdmin !=='undefined' && currentAdmin) ? (currentAdmin.display_name
+                              || 'Admin Center Active' ) : 'Samiti Coordinator & Lead Portal (PIN Security Active)' %>
+                          </p>
+                        </div>
+                      </div>
+                      <div class="glass-chip zen-portal-arrow">
+                        <svg class="zen-svg-icon" style="width: 18px; height: 18px;" viewBox="0 0 24 24">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </a>
+
                   </div>
 
-</div>
+                  <!-- 4.5 BHAGAWAN'S SACRED BHAJAN QUOTE & SHANTI PRAYER -->
+                  <div class="glass-panel shanti-footer"
+                    style="padding: 28px 32px; text-align: center; margin: 36px auto 0; max-width: 860px; box-sizing: border-box; position: relative; overflow: hidden;">
+                    <!-- Ambient Inner Golden Sheen -->
+                    <div
+                      style="position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 240px; height: 120px; background: radial-gradient(circle, rgba(251,191,36,0.18), transparent 70%); border-radius: 50%; pointer-events: none;">
+                    </div>
 
-<!-- Home Page Contact & Support Footer -->
-<%- include('partials/site-footer') %>
+                    <div class="shanti-main"
+                      style="border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 18px; margin-bottom: 16px; position: relative;">
+                      <div class="motto"
+                        style="font-family: 'Fraunces', Georgia, serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #b45309; margin-bottom: 10px;">
+                        Love All &bull; Serve All
+                      </div>
+                      <blockquote class="shanti-baba-quote"
+                        style="font-family: 'Fraunces', Georgia, serif; font-size: clamp(15px, 2.2vw, 18px); font-style: italic; color: #1c1917; margin: 0 auto 10px; line-height: 1.65; max-width: 680px;">
+                        &ldquo;Bhajan must spread good-will, love, ecstasy; it must cleanse the polluted atmosphere; it
+                        must invite all to share in the joy and peace.&rdquo;
+                      </blockquote>
+                      <div style="font-size: 13px; font-weight: 600; color: #78716c; letter-spacing: 0.02em;">
+                        &mdash; Bhagwan Sri Sathya Sai Baba
+                      </div>
+                    </div>
+                    <div class="prayer"
+                      style="font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 600; color: #92400e; letter-spacing: 0.04em;">
+                      Samastha Loka Sukhino Bhavantu
+                    </div>
+                  </div>
+
+        </main>
+
+        <!-- ================= 5. FOOTER (Divine Quotes Running Ticker & Site Footer) ================= -->
+        <footer
+          style="border-top: 1px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.35); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 14px 0; overflow: hidden;">
+          <div class="zen-quotes-ticker-wrap">
+            <div class="zen-quotes-ticker-track">
+              <!-- Set 1 -->
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Life is a Song &bull; Sing It to Bhagawan&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Bhajans purify the mind and cleanse the atmosphere&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Where there is Faith, there is Love; Where there is Love, there is Peace&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Start the Day with Love &bull; Fill the Day with Love &bull; End the Day with Love&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Let the heart sing, not merely the lips&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Love All &bull; Serve All &mdash; Help Ever &bull; Hurt Never&rdquo;</span>
+              </span>
+
+              <!-- Set 2 (Seamless loop repeat) -->
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Life is a Song &bull; Sing It to Bhagawan&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Bhajans purify the mind and cleanse the atmosphere&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Where there is Faith, there is Love; Where there is Love, there is Peace&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Start the Day with Love &bull; Fill the Day with Love &bull; End the Day with Love&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Let the heart sing, not merely the lips&rdquo;</span>
+              </span>
+              <span class="zen-quote-ticker-item">
+                <span class="zen-quote-bullet"></span>
+                <span>&ldquo;Love All &bull; Serve All &mdash; Help Ever &bull; Hurt Never&rdquo;</span>
+              </span>
+            </div>
+          </div>
+        </footer>
+
+        <!-- Home Page Contact & Support Footer -->
+        <div class="zen-max-container" style="margin-top: 16px;">
+          <%- include('partials/site-footer') %>
+        </div>
+
+        <!-- ================= 6. FLOATING INTERACTION GLASS TOAST ================= -->
+        <div id="toastNotification" class="glass-panel"
+          style="position: fixed; bottom: 84px; left: 50%; transform: translate(-50%, 80px); opacity: 0; z-index: 9999; padding: 10px 22px; border-radius: 9999px; box-shadow: 0 16px 36px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+          <svg class="zen-svg-icon" style="width: 16px; height: 16px; color: #d97706;" viewBox="0 0 24 24">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span id="toastMsg">Ready</span>
+        </div>
+
+      </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Hide standalone navigation and header when running inside the app-shell iframe
+    (function () {
+      if (window.self !== window.top) {
+        var sh = document.getElementById('standaloneHeaderWrap');
+        if (sh) sh.style.display = 'none';
+      }
+    })();
+
+    // Theme synchronization with parent shell and localStorage
+    (function () {
+      try {
+        var t = localStorage.getItem('bp-theme');
+        if (t === 'dark' || document.documentElement.getAttribute('data-theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (_) { }
+    })();
+
+    var themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', function () {
+        var isDark = document.documentElement.classList.toggle('dark');
+        try {
+          var mode = isDark ? 'dark' : 'light';
+          localStorage.setItem('bp-theme', mode);
+          document.documentElement.setAttribute('data-theme', mode);
+          if (window.top && window.top !== window.self) {
+            window.top.document.documentElement.setAttribute('data-theme', mode);
+            window.top.document.documentElement.classList.toggle('dark', isDark);
+          }
+        } catch (_) { }
+        triggerToast(isDark ? 'Switched to Night Velvet Glass' : 'Switched to Ivory Prasanthi Glass');
+      });
+    }
+
+    // Toast Notification Dispatcher
+    var toastTimeout;
+    function triggerToast(message) {
+      clearTimeout(toastTimeout);
+      var toast = document.getElementById('toastNotification');
+      var msgSpan = document.getElementById('toastMsg');
+      if (!toast || !msgSpan) return;
+      msgSpan.textContent = message;
+
+      toast.style.transform = 'translate(-50%, 0)';
+      toast.style.opacity = '1';
+
+      toastTimeout = setTimeout(function () {
+        toast.style.transform = 'translate(-50%, 80px)';
+        toast.style.opacity = '0';
+      }, 3000);
+    }
+  </script>

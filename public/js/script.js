@@ -94,7 +94,7 @@ window.escapeHTML = escapeHTML;
 (function initGlobalTheme() {
   function syncAllThemeToggles() {
     var isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    var btns = document.querySelectorAll(".theme-toggle");
+    var btns = document.querySelectorAll(".theme-toggle, #themeToggle, #topbarThemeToggle, #shellThemeToggle, .admin-theme-toggle-btn");
     btns.forEach(function (btn) {
       btn.setAttribute("data-tooltip", isDark ? "Switch to Light" : "Switch to Dark");
       btn.setAttribute("aria-pressed", isDark ? "true" : "false");
@@ -104,7 +104,8 @@ window.escapeHTML = escapeHTML;
   function handleToggleClick(e) {
     if (e && e.preventDefault) e.preventDefault();
     var isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    if (isDark) {
+    var next = isDark ? "light" : "dark";
+    if (next === "light") {
       document.documentElement.removeAttribute("data-theme");
       try {
         localStorage.setItem("bp-theme", "light");
@@ -115,6 +116,31 @@ window.escapeHTML = escapeHTML;
         localStorage.setItem("bp-theme", "dark");
       } catch (err) {}
     }
+
+    // Sync to window.top if inside an iframe
+    try {
+      if (window.top && window.top !== window && window.top.document && window.top.document.documentElement) {
+        if (next === "dark") {
+          window.top.document.documentElement.setAttribute("data-theme", "dark");
+        } else {
+          window.top.document.documentElement.removeAttribute("data-theme");
+        }
+      }
+    } catch (_) {}
+
+    // Sync to any child iframes
+    try {
+      document.querySelectorAll("iframe").forEach(function(f) {
+        if (f.contentDocument && f.contentDocument.documentElement) {
+          if (next === "dark") {
+            f.contentDocument.documentElement.setAttribute("data-theme", "dark");
+          } else {
+            f.contentDocument.documentElement.removeAttribute("data-theme");
+          }
+        }
+      });
+    } catch (_) {}
+
     syncAllThemeToggles();
   }
 
@@ -122,7 +148,7 @@ window.escapeHTML = escapeHTML;
 
   function bindThemeButtons() {
     syncAllThemeToggles();
-    var btns = document.querySelectorAll(".theme-toggle");
+    var btns = document.querySelectorAll(".theme-toggle, #themeToggle, #topbarThemeToggle, #shellThemeToggle, .admin-theme-toggle-btn");
     btns.forEach(function (btn) {
       if (!btn._themeAttached) {
         btn._themeAttached = true;
@@ -153,19 +179,23 @@ function switchTab(tabName, element) {
 
 function showDetails(deity, singer, bhajan, scale, speed) {
   const mDeity = document.getElementById("modalDeityName");
-  if (mDeity) mDeity.textContent = deity + " Bhajan";
+  if (mDeity) mDeity.textContent = (deity || "Deity") + " Bhajan Slot Details";
   const mSinger = document.getElementById("modalSinger");
-  if (mSinger) mSinger.textContent = singer;
+  if (mSinger) mSinger.textContent = singer || "---";
   const mBhajan = document.getElementById("modalBhajan");
-  if (mBhajan) mBhajan.textContent = bhajan;
+  if (mBhajan) mBhajan.textContent = bhajan || "---";
   const mScale = document.getElementById("modalScale");
   if (mScale) mScale.textContent = scale || "Not specified";
-  const formattedSpeed = speed ? speed.charAt(0).toUpperCase() + speed.slice(1) : "";
+  const formattedSpeed = speed ? speed.charAt(0).toUpperCase() + speed.slice(1) : "Not specified";
   const mSpeed = document.getElementById("modalSpeed");
   if (mSpeed) mSpeed.textContent = formattedSpeed;
   const modal = document.getElementById("detailsModal");
-  if (modal) modal.classList.add("show");
+  if (modal) {
+    modal.classList.add("show");
+    modal.style.display = "flex";
+  }
 }
+window.showDetails = showDetails;
 
 function closeModal(modalId) {
   if (modalId) {
@@ -177,8 +207,12 @@ function closeModal(modalId) {
     }
   }
   const modal = document.getElementById("detailsModal");
-  if (modal) modal.classList.remove("show");
+  if (modal) {
+    modal.classList.remove("show");
+    modal.style.display = "none";
+  }
 }
+window.closeModal = closeModal;
 
 function closeConfirmModal() {
   const modal = document.getElementById("confirmSubmitModal");
@@ -492,60 +526,78 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   // Deity card selection
-  document.querySelectorAll(".deity-card.available").forEach((card) => {
-    card.addEventListener("click", function () {
-      document.querySelectorAll(".deity-card").forEach((c) => c.classList.remove("selected"));
-      this.classList.add("selected");
-      selectedDeity = this.dataset.deity;
+  function handleDeityCardSelect(card) {
+    if (!card || !card.classList.contains("available")) return;
+    document.querySelectorAll(".deity-card").forEach((c) => c.classList.remove("selected"));
+    card.classList.add("selected");
+    selectedDeity = card.dataset.deity;
 
-      document.getElementById("selectedDeity").value = selectedDeity;
-      document.getElementById("deityDisplay").textContent = selectedDeity;
-      document.getElementById("bhajanDetails").classList.add("show");
+    const selInput = document.getElementById("selectedDeity");
+    if (selInput) selInput.value = selectedDeity;
+    const disp = document.getElementById("deityDisplay");
+    if (disp) disp.textContent = selectedDeity;
+    const details = document.getElementById("bhajanDetails");
+    if (details) {
+      details.classList.add("show");
+      details.style.display = "block";
+    }
 
-      // Reset fields
-      if (titleInput) {
-        titleInput.value = "";
-        titleInput.placeholder = `Loading ${selectedDeity} bhajans...`;
-        // Immediately focus search/type field on deity tap so keyboard & cursor appear
-        titleInput.focus();
-      }
-      const masterIdInput = document.getElementById("selectedMasterBhajanId");
-      if (masterIdInput) masterIdInput.value = "";
-      const badge = document.getElementById("masterDataBadge");
-      if (badge) badge.style.display = "none";
+    // Reset fields
+    if (titleInput) {
+      titleInput.value = "";
+      titleInput.placeholder = `Loading ${selectedDeity} bhajans...`;
+      // Immediately focus search/type field on deity tap so keyboard & cursor appear
+      titleInput.focus();
+    }
+    const masterIdInput = document.getElementById("selectedMasterBhajanId");
+    if (masterIdInput) masterIdInput.value = "";
+    const badge = document.getElementById("masterDataBadge");
+    if (badge) badge.style.display = "none";
 
-      // Pre-fill singer's preferred default pitch if configured
-      const prefScaleEl = document.getElementById("singerPreferredScale");
-      const scaleInputEl = document.getElementById("scaleInput");
-      if (prefScaleEl && prefScaleEl.value && scaleInputEl && !scaleInputEl.value) {
-        scaleInputEl.value = prefScaleEl.value;
-        scaleInputEl.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+    // Pre-fill singer's preferred default pitch if configured
+    const prefScaleEl = document.getElementById("singerPreferredScale");
+    const scaleInputEl = document.getElementById("scaleInput");
+    if (prefScaleEl && prefScaleEl.value && scaleInputEl && !scaleInputEl.value) {
+      scaleInputEl.value = prefScaleEl.value;
+      scaleInputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    }
 
-      // Fetch Master Bhajans
-      fetch(`/api/master-bhajans/${selectedDeity}`)
-        .then((response) => response.json())
-        .then((data) => {
-          currentMasterBhajans = data; // Save data globally for this session
-          if (titleInput) {
-            titleInput.placeholder = `Search ${data.length} ${selectedDeity} bhajans...`;
-            // Keep cursor in search field and display loaded suggestions
-            titleInput.focus();
-          }
-          renderBhajanSuggestions();
-        })
-        .catch((err) => {
-          if (titleInput) titleInput.placeholder = "Type bhajan name here...";
-        });
-
-      setTimeout(() => {
-        const details = document.getElementById("bhajanDetails");
-        if (details) details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // Fetch Master Bhajans
+    fetch(`/api/master-bhajans/${encodeURIComponent(selectedDeity)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        currentMasterBhajans = data || []; // Save data globally for this session
         if (titleInput) {
+          titleInput.placeholder = `Search ${currentMasterBhajans.length} ${selectedDeity} bhajans...`;
           titleInput.focus();
         }
-      }, 100);
+        renderBhajanSuggestions();
+      })
+      .catch((err) => {
+        if (titleInput) titleInput.placeholder = "Type bhajan name here...";
+      });
+
+    setTimeout(() => {
+      const details = document.getElementById("bhajanDetails");
+      if (details) details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (titleInput) {
+        titleInput.focus();
+      }
+    }, 100);
+  }
+
+  document.querySelectorAll(".deity-card.available").forEach((card) => {
+    card.addEventListener("click", function () {
+      handleDeityCardSelect(this);
     });
+  });
+
+  // Delegated fallback for mobile touch / dynamic DOM
+  document.addEventListener("click", function (e) {
+    const card = e.target && e.target.closest && e.target.closest(".deity-card.available");
+    if (card) {
+      handleDeityCardSelect(card);
+    }
   });
 
   // Phase 4 Integration: Check for Songbook / Master Bank prefill query params
@@ -559,9 +611,21 @@ document.addEventListener("DOMContentLoaded", function () {
       const masterId = params.get("master_id");
 
       if (prefillDeity) {
+        const prefillDeities = prefillDeity
+          .split(/[,;&\/]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
         const deityCard = Array.from(document.querySelectorAll(".deity-card.available")).find(
           (c) => {
-            return c.dataset.deity && c.dataset.deity.toLowerCase() === prefillDeity.toLowerCase();
+            const cardDeity = (c.dataset.deity || "").toLowerCase();
+            return prefillDeities.some(
+              (pd) =>
+                pd === cardDeity ||
+                (pd === "mata" && cardDeity === "devi") ||
+                (pd === "devi" && cardDeity === "mata") ||
+                (pd === "hanuman" && cardDeity === "anjaneya") ||
+                (pd === "anjaneya" && cardDeity === "hanuman")
+            );
           }
         );
         if (deityCard) {
@@ -674,7 +738,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (data && warningDiv) {
               const safeSinger = (window.escapeHTML || escapeHTML)(data.singer_name);
               const safeDate = (window.escapeHTML || escapeHTML)(data.session_date);
-              warningDiv.innerHTML = `⚠️ <strong>Cool-down warning:</strong> This bhajan was last sung by <strong>${safeSinger}</strong> on <strong>${safeDate}</strong>.`;
+              warningDiv.innerHTML = `<strong>Cool-down warning:</strong> This bhajan was last sung by <strong>${safeSinger}</strong> on <strong>${safeDate}</strong>.`;
               warningDiv.style.display = "block";
             } else if (warningDiv) {
               warningDiv.style.display = "none";
@@ -815,7 +879,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (!document.getElementById("selectedDeity").value) {
-        alert("⚠️ Please select a deity first");
+        alert("Please select a deity first");
         return;
       }
 
@@ -1040,7 +1104,7 @@ function updatePermission(type) {
   const description = document.getElementById("permDescription").value.trim();
 
   if (type !== "clear" && !description) {
-    alert("⚠️ Description is mandatory for Special/Festival sessions.");
+    alert("Description is mandatory for Special/Festival sessions.");
     return;
   }
 
@@ -1108,7 +1172,7 @@ function reconcileBhajan(submittedTitle, action, masterBhajanId) {
       if (data.success) {
         if (action === "link") {
           alert(
-            `✅ Done! Updated ${data.updatedCount} session record(s) to use master title:\n"${data.masterTitle}"`
+            `Done! Updated ${data.updatedCount} session record(s) to use master title:\n"${data.masterTitle}"`
           );
           // Hide this reconcile card
           const cardId = "card-" + encodeURIComponent(submittedTitle);
@@ -1139,7 +1203,7 @@ function saveMissingBhajan() {
     .then((res) => res.json())
     .then((result) => {
       if (result.success) {
-        alert("✅ Successfully added to Master Database!");
+        alert("Successfully added to Master Database!");
         location.reload();
       } else {
         alert("Error adding to Master DB: " + result.error);
@@ -1171,7 +1235,7 @@ function saveDeityRules() {
     .then((res) => res.json())
     .then((data) => {
       if (data.success) {
-        alert("✅ " + data.message);
+        alert(data.message);
         window.location.href = date === "default" ? "/admin" : "/admin/date/" + date;
       } else {
         alert("Error: " + data.error);
@@ -1206,8 +1270,11 @@ function getWesternScale(indianScale) {
   return ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][index];
 }
 
-// Master Bhajan Inline Edit
+// Master Bhajan Edit & Delete
 function editMasterRow(id) {
+  if (typeof window.openAdminEditBhajanModal === "function") {
+    return window.openAdminEditBhajanModal(id);
+  }
   const row = document.getElementById(`row-${id}`);
   if (!row) return;
   const cells = row.querySelectorAll(".edit-cell");
@@ -1222,7 +1289,7 @@ function editMasterRow(id) {
 
   const actionCell = row.querySelector(".action-cell");
   if (actionCell) {
-    actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#28a745; border:none;" onclick="saveMasterRow(${id})">💾 Save</button>`;
+    actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#28a745; border:none;" onclick="saveMasterRow(${id})">Save</button>`;
   }
 }
 
@@ -1237,9 +1304,14 @@ function saveMasterRow(id) {
     level: document.getElementById(`input-${id}-level`)?.value.trim() || ""
   };
 
+  const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
   fetch(`/api/admin/update-master-bhajan/${id}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrf
+    },
     body: JSON.stringify(updatedData)
   })
     .then((res) => res.json())
@@ -1253,7 +1325,7 @@ function saveMasterRow(id) {
             const fieldName = cell.getAttribute("data-field");
             const val = updatedData[fieldName] || "-";
             if (fieldName === "deity") {
-              cell.innerHTML = `<span class="deity-pill">${escapeHTML ? escapeHTML(val) : val}</span>`;
+              cell.innerHTML = `<span class="deity-pill">${typeof escapeHTML === "function" ? escapeHTML(val) : val}</span>`;
             } else {
               cell.textContent = val;
             }
@@ -1268,7 +1340,7 @@ function saveMasterRow(id) {
 
         const actionCell = row.querySelector(".action-cell");
         if (actionCell) {
-          actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#4dabf7; border:none; margin-right:4px;" onclick="editMasterRow(${id})">✏️ Edit</button><button class="button" style="padding:6px 12px; font-size:12px; background:#e03131; border:none;" onclick="deleteMasterRow(${id})">❌ Del</button>`;
+          actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#4dabf7; border:none; margin-right:4px;" onclick="editMasterRow(${id})">Edit</button><button class="button" style="padding:6px 12px; font-size:12px; background:#e03131; border:none;" onclick="deleteMasterRow(${id})">Del</button>`;
         }
       } else {
         alert("Error: " + response.error);
@@ -1281,19 +1353,29 @@ function saveMasterRow(id) {
 }
 
 function deleteMasterRow(id) {
+  if (typeof window.deleteMasterRow === "function" && window.deleteMasterRow !== deleteMasterRow) {
+    return window.deleteMasterRow(id);
+  }
   if (
-    !confirm("🚨 Are you sure you want to permanently delete this bhajan from the Master Database?")
+    !confirm("Are you sure you want to permanently delete this bhajan from the Master Database?")
   )
     return;
+  const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
   fetch(`/api/admin/delete-master-bhajan/${id}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrf
+    }
   })
     .then((res) => res.json())
     .then((response) => {
       if (response.success) {
         const row = document.getElementById(`row-${id}`);
         if (row) row.remove();
+        const card = document.getElementById(`card-${id}`);
+        if (card) card.remove();
       } else {
         alert("Error: " + response.error);
       }
@@ -1514,7 +1596,7 @@ function submitCopySession() {
   const source_date = document.getElementById("copySourceDate").value;
   const target_date = document.getElementById("copyTargetDate").value;
   if (!source_date || !target_date) {
-    alert("⚠️ Please choose both dates.");
+    alert("Please choose both dates.");
     return;
   }
   const form = document.createElement("form");
@@ -1710,9 +1792,11 @@ document.addEventListener("click", function (e) {
       if (bookmarks.length === 0) {
         listContainer.innerHTML = `
           <div style="background:var(--bg); border:1px dashed var(--border); border-radius:12px; padding:28px 16px; text-align:center;">
-            <div style="font-size:32px; margin-bottom:8px;">📖</div>
+            <div style="width:40px; height:40px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center; background:rgba(79,70,229,0.1); border-radius:10px; color:var(--primary);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            </div>
             <h4 style="margin:0 0 6px 0; color:var(--ink);">Your Songbook is Empty</h4>
-            <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px 0;">Visit the Master Bhajan Bank and tap "⭐ Songbook" on any bhajan to save it here with your custom singing pitch.</p>
+            <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px 0;">Visit the Master Bhajan Bank and click "Songbook" on any bhajan to save it here with your custom singing pitch.</p>
             <a href="/master-bank" class="button secondary" style="font-size:12px; padding:6px 12px; text-decoration:none;">Browse Bhajan Bank</a>
           </div>
         `;
@@ -1733,14 +1817,14 @@ document.addEventListener("click", function (e) {
         row.innerHTML = `
           <div style="flex:1; min-width:0;">
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
-              <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:2px 7px; border-radius:5px;">
-                🕉️ ${b.deity}
+              <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:2px 7px; border-radius:5px; text-transform:uppercase;">
+                ${b.deity}
               </span>
               ${
                 effectiveScale
                   ? `
                 <span style="background:#fdf4ff; color:#a21caf; border:1px solid #fae8ff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:5px;">
-                  🎵 ${effectiveScale}
+                  Scale: ${effectiveScale}
                 </span>
               `
                   : ""
@@ -1753,7 +1837,7 @@ document.addEventListener("click", function (e) {
               item.notes
                 ? `
               <div style="font-size:11.5px; color:var(--ink-soft); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                📝 <em>${item.notes}</em>
+                <em>${item.notes}</em>
               </div>
             `
                 : ""
@@ -1768,16 +1852,22 @@ document.addEventListener("click", function (e) {
 
         row.querySelector(".sb-pick-btn").addEventListener("click", function () {
           // 1. Match and select deity card
-          const bDeities = (b.deity || "").split(",").map((s) => s.trim());
+          const bDeities = (b.deity || "").split(/[,;&\/]+/).map((s) => s.trim()).filter(Boolean);
           let matchedCard = null;
+          const availableCards = Array.from(document.querySelectorAll(".deity-card.available"));
           for (const d of bDeities) {
-            matchedCard = document.querySelector(`.deity-card.available[data-deity="${d}"]`);
+            const dLower = d.toLowerCase();
+            matchedCard = availableCards.find((c) => {
+              const cardDeity = (c.dataset.deity || "").toLowerCase();
+              return (
+                cardDeity === dLower ||
+                (dLower === "mata" && cardDeity === "devi") ||
+                (dLower === "devi" && cardDeity === "mata") ||
+                (dLower === "hanuman" && cardDeity === "anjaneya") ||
+                (dLower === "anjaneya" && cardDeity === "hanuman")
+              );
+            });
             if (matchedCard) break;
-          }
-          if (!matchedCard) {
-            matchedCard = document.querySelector(
-              `.deity-card.available[data-deity="${bDeities[0]}"]`
-            );
           }
 
           if (matchedCard) {

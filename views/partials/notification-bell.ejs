@@ -12,12 +12,16 @@
 <!-- Notification Panel -->
 <div class="notif-panel" id="notifPanel">
   <div class="notif-panel-header">
-    <h3>🔔 Notifications</h3>
+    <h3>Notifications</h3>
     <div class="notif-panel-actions">
-      <a href="/my-reports" class="notif-settings-link" title="My Reported Bhajan Tickets" style="text-decoration: none; font-size: 13px;">🚩</a>
-      <button class="notif-mark-all" id="notifMarkAllRead" title="Mark all as read">✓ All</button>
-      <a href="/notification-settings" class="notif-settings-link" title="Notification Settings">⚙️</a>
-      <button class="notif-close-btn" id="notifCloseBtn" aria-label="Close">✕</button>
+      <a href="/my-reports" class="notif-settings-link" title="My Reported Bhajan Tickets" style="text-decoration: none; display: flex; align-items: center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      </a>
+      <button class="notif-mark-all" id="notifMarkAllRead" title="Mark all as read">Mark All</button>
+      <a href="/notification-settings" class="notif-settings-link" title="Notification Settings" style="display: flex; align-items: center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </a>
+      <button class="notif-close-btn" id="notifCloseBtn" aria-label="Close">&times;</button>
     </div>
   </div>
   <div class="notif-panel-body" id="notifPanelBody">
@@ -31,7 +35,9 @@
 <div class="notif-prompt-overlay" id="notifPromptOverlay" style="display:none;">
   <div class="notif-prompt-modal">
     <div class="notif-prompt-header">
-      <div class="notif-prompt-icon">🔔</div>
+      <div class="notif-prompt-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      </div>
       <div class="notif-prompt-titles">
         <h3 class="notif-prompt-title">Enable Bhajan Notifications</h3>
         <p class="notif-prompt-subtitle">Sri Sathya Sai Seva Organisation, Gandhinagar</p>
@@ -40,26 +46,26 @@
 
     <!-- Notification Benefits Callout -->
     <div class="notif-benefits-box">
-      <div class="notif-benefits-title">✨ Why enable notifications?</div>
+      <div class="notif-benefits-title">Why enable notifications?</div>
       <ul class="notif-benefits-list">
-        <li>⏰ <strong>Deadline Reminders:</strong> Get alerted before submissions close so you never miss adding a bhajan.</li>
-        <li>🤝 <strong>Partner Alerts:</strong> Know instantly when someone adds a bhajan partnering with you.</li>
-        <li>📋 <strong>Finalized Schedules:</strong> Instant access the moment the session sequence is published.</li>
-        <li>📢 <strong>Samiti Updates:</strong> Important announcements and practice timings directly from coordinators.</li>
+        <li><strong>Deadline Reminders:</strong> Get alerted before submissions close so you never miss adding a bhajan.</li>
+        <li><strong>Partner Alerts:</strong> Know instantly when someone adds a bhajan partnering with you.</li>
+        <li><strong>Finalized Schedules:</strong> Instant access the moment the session sequence is published.</li>
+        <li><strong>Samiti Updates:</strong> Important announcements and practice timings directly from coordinators.</li>
       </ul>
     </div>
     
     <div class="notif-prompt-form">
       <label for="notifPromptSingerSelect" class="notif-prompt-label">Select your name:</label>
       <select id="notifPromptSingerSelect" class="notif-prompt-select">
-        <option value="">— Select your name —</option>
+        <option value="">&mdash; Select your name &mdash;</option>
       </select>
     </div>
 
     <!-- 4-Digit Security PIN Section -->
     <div id="notifPromptPinSection" class="notif-pin-section" style="display:none;">
       <div id="notifPromptPinNotice" class="notif-pin-security-notice">
-        <div class="notif-pin-notice-header">🔒 <strong>Securing Your Notifications</strong></div>
+        <div class="notif-pin-notice-header"><strong>Securing Your Notifications</strong></div>
         <p class="notif-pin-notice-desc" id="notifPromptPinDesc">
           This 4-digit PIN secures your profile and prevents anyone else from claiming your name and receiving your partner notifications.
         </p>
@@ -72,7 +78,9 @@
         <label id="notifPromptPinLabel" for="notifPromptPinInput" class="notif-pin-label">Create a 4-Digit Security PIN:</label>
         <div class="notif-pin-field-wrap">
           <input type="password" id="notifPromptPinInput" class="notif-pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••" autocomplete="off">
-          <button type="button" id="notifPromptPinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">👁️</button>
+          <button type="button" id="notifPromptPinToggleBtn" class="notif-pin-toggle-btn" title="Show/Hide PIN">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
         <div id="notifPromptPinHelp" class="notif-pin-help">Enter 4 numeric digits (e.g. 1234)</div>
         <div id="notifPromptPinError" class="notif-pin-error"></div>
@@ -88,7 +96,7 @@
       </button>
     </div>
     <div class="notif-prompt-footer">
-      This is a one-time request. You can change your identity or update your device anytime via notification settings (⚙️).
+      This is a one-time request. You can change your identity or update your device anytime via notification settings.
     </div>
   </div>
 </div>

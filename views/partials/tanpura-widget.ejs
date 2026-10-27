@@ -1,0 +1,304 @@
+<!-- Floating Tanpura Practice Widget (Scoped to Master Bank, Submit Form & Bhajan Details) -->
+<link rel="stylesheet" href="/css/tanpura.css?v=2.2">
+<div class="tanpura-floating-widget" id="tanpuraFloatingWidget" aria-label="Tanpura Drone Practice Player">
+  
+  <!-- Expanded Control Drawer Panel -->
+  <div class="tanpura-drawer-panel" id="tanpuraDrawerPanel">
+    <div class="tanpura-drawer-header">
+      <div class="tanpura-drawer-title-group">
+        <div class="tanpura-drawer-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+        </div>
+        <div>
+          <h4 class="tanpura-drawer-heading">Tanpura Drone</h4>
+          <span class="tanpura-drawer-sub">Natural Acoustic Shruti</span>
+        </div>
+      </div>
+      <button type="button" class="tanpura-drawer-close" onclick="toggleTanpuraDrawer(false)" aria-label="Close Drawer">&times;</button>
+    </div>
+
+    <!-- Single Resonating String Deck -->
+    <span class="tanpura-control-label">Acoustic String</span>
+    <div class="tanpura-single-string-card" id="stringCard0">
+      <div class="single-string-header">
+        <div class="single-string-identity">
+          <span class="single-string-pulse-dot" id="stringPulseDot"></span>
+          <span class="single-string-title">Master String</span>
+          <span class="single-string-status" id="singleStringStatus">Tuned</span>
+        </div>
+        <div class="single-string-swara-badge" id="singleStringSwaraBadge">Pa (Pancham)</div>
+      </div>
+      <div class="single-string-tuning-row">
+        <span class="single-string-tuning-label">Swara:</span>
+        <div class="single-string-swara-chips">
+          <button type="button" class="swara-chip tanpura-first-str-btn active" data-string="Pa" onclick="setTanpuraFirstStr('Pa')" title="Pancham (Fifth)">Pa</button>
+          <button type="button" class="swara-chip tanpura-first-str-btn" data-string="Ma" onclick="setTanpuraFirstStr('Ma')" title="Madhyam (Fourth)">Ma</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Western Base Scale (Pitch) Selection Grid -->
+    <span class="tanpura-control-label">Base Scale (Pitch)</span>
+    <div class="tanpura-pitch-grid">
+      <button type="button" class="tanpura-pitch-btn" data-pitch="C" onclick="selectTanpuraPitch('C')">C <span class="btn-pitch-note">1</span></button>
+      <button type="button" class="tanpura-pitch-btn active" data-pitch="C#" onclick="selectTanpuraPitch('C#')">C# <span class="btn-pitch-note">1.5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="D" onclick="selectTanpuraPitch('D')">D <span class="btn-pitch-note">2</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="D#" onclick="selectTanpuraPitch('D#')">D# <span class="btn-pitch-note">2.5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="E" onclick="selectTanpuraPitch('E')">E <span class="btn-pitch-note">3</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="F" onclick="selectTanpuraPitch('F')">F <span class="btn-pitch-note">4</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="F#" onclick="selectTanpuraPitch('F#')">F# <span class="btn-pitch-note">4.5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="G" onclick="selectTanpuraPitch('G')">G <span class="btn-pitch-note">5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="G#" onclick="selectTanpuraPitch('G#')">G# <span class="btn-pitch-note">5.5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="A" onclick="selectTanpuraPitch('A')">A <span class="btn-pitch-note">6</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="A#" onclick="selectTanpuraPitch('A#')">A# <span class="btn-pitch-note">6.5</span></button>
+      <button type="button" class="tanpura-pitch-btn" data-pitch="B" onclick="selectTanpuraPitch('B')">B <span class="btn-pitch-note">7</span></button>
+    </div>
+
+    <!-- Sliders: Volume & String Change Speed -->
+    <div class="tanpura-sliders-grid">
+      <div class="tanpura-slider-wrap">
+        <label for="tanpuraVolumeRange">Volume</label>
+        <input type="range" id="tanpuraVolumeRange" min="0" max="1" step="0.05" value="0.70" oninput="window.BhajanTanpura.setVolume(parseFloat(this.value))">
+      </div>
+      <div class="tanpura-slider-wrap">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <label for="tanpuraTransitionRange" style="margin-bottom:0;">String Change Speed</label>
+          <span id="tanpuraTransitionSpeedLabel" style="font-size:10px; font-weight:700; color:var(--ink-soft, #64748b);">Medium</span>
+        </div>
+        <input type="range" id="tanpuraTransitionRange" min="1" max="5" step="1" value="3" oninput="window.BhajanTanpura.setTransitionSpeed(parseInt(this.value, 10))">
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsed Mini Pill Button (Draggable & Edge-Docking Native Widget) -->
+  <div class="tanpura-mini-pill" id="tanpuraMiniPill" role="button" aria-label="Open Tanpura Drone Controls" tabindex="0">
+    <button type="button" class="tanpura-pill-play-btn" id="tanpuraPlayPauseBtn" aria-label="Play / Stop Tanpura">
+      <span id="tanpuraPlayIcon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </span>
+      <span id="tanpuraPauseIcon" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </span>
+    </button>
+    <div class="tanpura-pill-info">
+      <span class="tanpura-pill-label" id="tanpuraStatusText">Tanpura</span>
+      <span class="tanpura-pill-pitch" id="tanpuraCurrentPitchDisplay">C# (1.5)</span>
+    </div>
+    <div class="tanpura-soundwave-bars" aria-hidden="true">
+      <div class="soundwave-bar"></div>
+      <div class="soundwave-bar"></div>
+      <div class="soundwave-bar"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function updateTanpuraOpenDirection() {
+    var widget = document.getElementById('tanpuraFloatingWidget');
+    if (!widget) return;
+    var rect = widget.getBoundingClientRect();
+    var isBottomHalf = rect.top > (window.innerHeight / 2);
+    if (isBottomHalf) {
+      widget.classList.add('open-up');
+      widget.classList.remove('open-down');
+    } else {
+      widget.classList.add('open-down');
+      widget.classList.remove('open-up');
+    }
+  }
+
+  function toggleTanpuraDrawer(forceOpen) {
+    var widget = document.getElementById('tanpuraFloatingWidget');
+    if (!widget) return;
+    updateTanpuraOpenDirection();
+    if (typeof forceOpen === 'boolean') {
+      widget.classList.toggle('expanded', forceOpen);
+    } else {
+      widget.classList.toggle('expanded');
+    }
+  }
+
+  function selectTanpuraPitch(p) {
+    if (window.BhajanTanpura) {
+      window.BhajanTanpura.setPitch(p);
+    }
+  }
+
+  function setTanpuraFirstStr(s) {
+    if (window.BhajanTanpura) {
+      window.BhajanTanpura.setFirstString(s);
+    }
+  }
+
+  // --- Movable & Edge-Snapping Widget Controller ---
+  (function () {
+    var widget = document.getElementById('tanpuraFloatingWidget');
+    var pill = document.getElementById('tanpuraMiniPill');
+    var playBtn = document.getElementById('tanpuraPlayPauseBtn');
+    if (!widget || !pill) return;
+
+    var isPointerDown = false;
+    var isDragging = false;
+    var startX = 0;
+    var startY = 0;
+    var initialTop = 0;
+    var initialLeft = 0;
+    var movedDist = 0;
+    var touchedPlayBtn = false;
+    var lastPlayToggle = 0;
+
+    // Restore saved position from localStorage
+    try {
+      var saved = localStorage.getItem('bp_tanpura_dock_pos');
+      if (saved) {
+        var parsed = JSON.parse(saved);
+        if (parsed.side === 'left') {
+          widget.classList.add('dock-left');
+          widget.classList.remove('dock-right');
+          widget.style.left = '0px';
+          widget.style.right = 'auto';
+        } else {
+          widget.classList.add('dock-right');
+          widget.classList.remove('dock-left');
+          widget.style.right = '0px';
+          widget.style.left = 'auto';
+        }
+        if (typeof parsed.top === 'number') {
+          var maxTop = window.innerHeight - 80;
+          widget.style.top = Math.max(40, Math.min(maxTop, parsed.top)) + 'px';
+          widget.style.bottom = 'auto';
+        }
+      } else {
+        widget.classList.add('dock-right');
+      }
+    } catch (_) {
+      widget.classList.add('dock-right');
+    }
+    updateTanpuraOpenDirection();
+
+    // Prevent default click on playBtn since tap gesture is handled in pointerup
+    if (playBtn) {
+      playBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      });
+    }
+
+    // Drag handling via Pointer Events (works on entire mini-pill including sticking-out play button)
+    pill.addEventListener('pointerdown', function (e) {
+      isPointerDown = true;
+      isDragging = false;
+      movedDist = 0;
+      startX = e.clientX;
+      startY = e.clientY;
+      touchedPlayBtn = Boolean(e.target.closest('.tanpura-pill-play-btn'));
+
+      var rect = widget.getBoundingClientRect();
+      initialTop = rect.top;
+      initialLeft = rect.left;
+
+      try { pill.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+
+    pill.addEventListener('pointermove', function (e) {
+      if (!isPointerDown) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      movedDist = Math.sqrt(dx * dx + dy * dy);
+
+      if (movedDist > 6 && !isDragging) {
+        isDragging = true;
+        widget.classList.add('is-dragging');
+        widget.classList.remove('expanded'); // Close drawer when dragging begins
+      }
+
+      if (isDragging) {
+        var newTop = initialTop + dy;
+        var newLeft = initialLeft + dx;
+        var maxTop = window.innerHeight - 70;
+        var maxLeft = window.innerWidth - pill.offsetWidth;
+
+        widget.style.top = Math.max(20, Math.min(maxTop, newTop)) + 'px';
+        widget.style.left = Math.max(0, Math.min(maxLeft, newLeft)) + 'px';
+        widget.style.right = 'auto';
+        widget.style.bottom = 'auto';
+      }
+    });
+
+    function finishDrag(e) {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+
+      try { pill.releasePointerCapture(e.pointerId); } catch (_) {}
+      widget.classList.remove('is-dragging');
+
+      if (isDragging) {
+        isDragging = false;
+        var rect = widget.getBoundingClientRect();
+        var centerPoint = rect.left + rect.width / 2;
+        var snapToLeft = centerPoint < (window.innerWidth / 2);
+        var finalTop = Math.max(40, Math.min(window.innerHeight - 80, rect.top));
+
+        if (snapToLeft) {
+          widget.classList.add('dock-left');
+          widget.classList.remove('dock-right');
+          widget.style.left = '0px';
+          widget.style.right = 'auto';
+        } else {
+          widget.classList.add('dock-right');
+          widget.classList.remove('dock-left');
+          widget.style.right = '0px';
+          widget.style.left = 'auto';
+        }
+
+        widget.style.top = finalTop + 'px';
+        widget.style.bottom = 'auto';
+        updateTanpuraOpenDirection();
+
+        try {
+          localStorage.setItem('bp_tanpura_dock_pos', JSON.stringify({
+            side: snapToLeft ? 'left' : 'right',
+            top: finalTop
+          }));
+        } catch (_) {}
+      } else {
+        // Pure tap without dragging
+        if (touchedPlayBtn) {
+          var now = Date.now();
+          if (now - lastPlayToggle > 250) {
+            lastPlayToggle = now;
+            if (window.BhajanTanpura) window.BhajanTanpura.toggle();
+          }
+        } else {
+          toggleTanpuraDrawer();
+        }
+      }
+    }
+
+    pill.addEventListener('pointerup', finishDrag);
+    pill.addEventListener('pointercancel', finishDrag);
+
+    // Click / Tap Outside: automatically closes drawer and docks into edge
+    document.addEventListener('pointerdown', function (e) {
+      if (widget.classList.contains('expanded')) {
+        if (!widget.contains(e.target)) {
+          toggleTanpuraDrawer(false);
+        }
+      }
+    });
+
+    // Keyboard support (Escape closes drawer)
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && widget.classList.contains('expanded')) {
+        toggleTanpuraDrawer(false);
+      }
+    });
+
+    window.addEventListener('resize', updateTanpuraOpenDirection);
+  })();
+</script>

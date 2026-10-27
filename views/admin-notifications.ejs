@@ -1,6 +1,6 @@
 <div class="page-header">
   <div>
-    <h2>🔔 Notification Management</h2>
+    <h2>Notification Management</h2>
     <p class="page-subtitle">View notification history and broadcast announcements to devotees.</p>
   </div>
 </div>
@@ -8,12 +8,12 @@
 <!-- Quick Actions -->
 <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
   <button type="button" id="btnToggleCustomNotif" onclick="toggleCustomForm()"
-    style="padding:9px 18px; border:none; border-radius:8px; background:linear-gradient(135deg, #ff9933 0%, #e65100 100%); color:#fff; font-weight:600; cursor:pointer; font-size:13.5px; display:inline-flex; align-items:center; gap:6px;">
-    <span>📢</span> Send Custom Notification
+    style="padding:9px 18px; border:none; border-radius:8px; background:var(--primary); color:#fff; font-weight:600; cursor:pointer; font-size:13.5px; display:inline-flex; align-items:center; gap:6px;">
+    Send Custom Notification
   </button>
   <button type="button" onclick="sendTestNotification()" class="button secondary"
     style="padding:9px 16px; font-size:13px;">
-    🔔 Send Quick Test
+    Send Quick Test
   </button>
 </div>
 
@@ -21,7 +21,7 @@
 <div id="customNotifCard" class="card" style="display:none; padding:20px 24px; margin-bottom:28px; max-width:640px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
     <h3 style="margin:0; font-size:16px; color:var(--ink); display:flex; align-items:center; gap:8px;">
-      <span>📢</span> New Custom Notification
+      New Custom Notification
     </h3>
     <button type="button" onclick="toggleCustomForm()"
       style="background:none; border:none; font-size:18px; color:var(--muted); cursor:pointer;">✕</button>
@@ -60,11 +60,11 @@
       <div style="display:flex; gap:18px; align-items:center; margin-bottom:10px;">
         <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; cursor:pointer;">
           <input type="radio" name="custTarget" value="all" checked onchange="handleTargetChange()">
-          <span>📢 All Devotees (Broadcast)</span>
+          <span>All Devotees (Broadcast)</span>
         </label>
         <label style="display:inline-flex; align-items:center; gap:6px; font-size:13.5px; cursor:pointer;">
           <input type="radio" name="custTarget" value="singer" onchange="handleTargetChange()">
-          <span>👤 Specific Singer</span>
+          <span>Specific Singer</span>
         </label>
       </div>
 
@@ -90,8 +90,8 @@
         Cancel
       </button>
       <button type="submit" id="custSubmitBtn" class="button"
-        style="background:#e65100; border:none; color:#fff; font-weight:600;">
-        🚀 Send Notification Now
+        style="background:var(--primary); border:none; color:#fff; font-weight:600;">
+        Send Notification Now
       </button>
     </div>
   </form>
@@ -99,7 +99,7 @@
 
 <!-- Subscriptions -->
 <div style="margin-bottom:32px;">
-  <h3 style="margin:0 0 12px; font-size:16px;">📱 Push Subscriptions (<%= subscriptions.length %>)</h3>
+  <h3 style="margin:0 0 12px; font-size:16px;">Push Subscriptions (<%= subscriptions.length %>)</h3>
   <% if (subscriptions.length> 0) { %>
     <div style="overflow-x:auto;">
       <table class="admin-bulletin-table">
@@ -141,7 +141,7 @@
 
 <!-- Notification History -->
 <div>
-  <h3 style="margin:0 0 12px; font-size:16px;">📋 Notification History (<%= notifications.length %>)</h3>
+  <h3 style="margin:0 0 12px; font-size:16px;">Notification History (<%= notifications.length %>)</h3>
   <% if (notifications.length> 0) { %>
     <div class="table-container">
       <table class="admin-bulletin-table">

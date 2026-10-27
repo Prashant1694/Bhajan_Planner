@@ -1,5 +1,5 @@
 <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-  <h2 style="margin:0;">📢 Manage Bulletins</h2>
+  <h2 style="margin:0;">Manage Bulletins</h2>
   <a href="/admin/bulletins/new" class="admin-bulletin-form btn-save" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; padding:8px 18px; font-size:13px;">
     + New Bulletin
   </a>
@@ -23,13 +23,13 @@
         <tr>
           <td>
             <strong><%= b.title %></strong>
-            <% if (b.is_pinned) { %><span title="Pinned">📌</span><% } %>
+            <% if (b.is_pinned) { %><span class="bulletin-pin-badge" style="font-size:11px; margin-left:6px;">Pinned</span><% } %>
           </td>
           <td>
             <span class="admin-bulletin-status <%= b.status %>"><%= b.status %></span>
           </td>
           <td>
-            <span class="bulletin-category-badge" style="background:<%= catInfo.color %>; font-size:10px;"><%= catInfo.icon %> <%= catInfo.label %></span>
+            <span class="bulletin-category-badge" style="background:<%= catInfo.color %>; font-size:10px;"><%= catInfo.label %></span>
           </td>
           <td style="font-size:12px; color:#888;">
             <% if (b.published_at) { %>
@@ -55,7 +55,9 @@
 </div>
 <% } else { %>
 <div class="bulletin-empty">
-  <div class="bulletin-empty-icon">📋</div>
+  <div class="bulletin-empty-icon" style="display:flex;align-items:center;justify-content:center;margin:0 auto 10px auto;color:#64748b;">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  </div>
   <p>No bulletins yet. Create your first one!</p>
 </div>
 <% } %>

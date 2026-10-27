@@ -137,6 +137,13 @@ function initAutocomplete(scopeElement = document) {
 
     input.addEventListener("input", () => {
       clearTimeout(debounceTimer);
+      const card = input.closest(".bhajan-item-card") || input.closest(".modal-bhajan-item");
+      if (card) {
+        const masterIdInput = card.querySelector(".bhajan-master-id, .edit-master-id");
+        if (masterIdInput) masterIdInput.value = "";
+        card._selectedMasterBhajan = null;
+      }
+
       const q = input.value.trim();
       if (q.length < 2) {
         dropdown.style.display = "none";
@@ -523,7 +530,7 @@ function showFairnessSummary(summary) {
 
   content.innerHTML = `
     <div style="background:var(--diwali-gold-light); padding:16px; border-radius:10px; margin-bottom:16px;">
-      <h4 style="margin:0 0 10px 0; color:var(--diwali-maroon);">Fair Distribution Verified ✅</h4>
+      <h4 style="margin:0 0 10px 0; color:var(--diwali-maroon);">Fair Distribution Verified</h4>
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:13.5px;">
         <div>Total Bhajans Assigned: <strong>${summary.totalBhajans}</strong></div>
         <div>Total Pairs / Participants: <strong>${summary.totalPairs}</strong></div>
@@ -610,6 +617,7 @@ function renderEditBhajanCard(b = {}, idx = 0) {
         <div class="autocomplete-container">
           <input type="text" class="diwali-input-text bhajan-autocomplete-input edit-bhajan-title" value="${escapeHtml(b.bhajan_title || "")}" placeholder="Search Master Bhajan bank or type title..." required autocomplete="off">
           <input type="hidden" class="bhajan-master-id edit-master-id" value="${b.master_bhajan_id || ""}">
+          <input type="hidden" class="edit-bhajan-id" value="${b.id || ""}">
           <div class="autocomplete-dropdown"></div>
         </div>
       </div>
@@ -682,10 +690,13 @@ async function saveParticipantEdits() {
   const bhajans = [];
   bhajanCards.forEach((c) => {
     const title = c.querySelector(".edit-bhajan-title")?.value.trim();
+    const bhajanId = c.querySelector(".edit-bhajan-id")?.value;
+    const masterIdVal = c.querySelector(".edit-master-id")?.value;
     if (title) {
       bhajans.push({
+        id: bhajanId ? parseInt(bhajanId, 10) : null,
         bhajan_title: title,
-        master_bhajan_id: c.querySelector(".edit-master-id")?.value || null,
+        master_bhajan_id: (masterIdVal && masterIdVal !== "null" && masterIdVal !== "undefined") ? parseInt(masterIdVal, 10) : null,
         scale: c.querySelector(".edit-bhajan-scale")?.value.trim() || "",
         tabla: c.querySelector(".edit-bhajan-tabla")?.value.trim() || "",
         deity: c.querySelector(".edit-bhajan-deity")?.value.trim() || "",

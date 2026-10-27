@@ -8,26 +8,28 @@
   const safeShowWelcome = typeof showWelcome !== 'undefined' ? showWelcome : false;
 %>
 
-<div class="container singer-hub-container" style="max-width: 960px; margin: 30px auto; padding: 24px 20px 32px 20px;">
+<link rel="stylesheet" href="/css/session-audio.css">
+
+<div class="container singer-hub-container">
 
   <!-- Profile Actions Bar -->
   <div class="singer-hub-top-nav">
     <div class="singer-hub-actions-group">
       <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
         <button type="button" onclick="openAdminSwitchModal()" class="singer-hub-action-btn btn-switch-singer" data-haptic="light" title="Switch to another singer profile">
-          <span class="hub-btn-icon">🔄</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           <span class="hub-btn-text">Switch Singer</span>
         </button>
       <% } %>
       <button type="button" onclick="openChangePinModal()" class="singer-hub-action-btn btn-change-pin" data-haptic="light" title="Change your 4-digit security PIN">
-        <span class="hub-btn-icon">🔑</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         <span class="hub-btn-text">Change PIN</span>
       </button>
       <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
         <form method="POST" action="/logout" target="_top" style="margin:0;display:inline;">
           <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
           <button type="submit" class="singer-hub-action-btn btn-logout" data-haptic="medium" title="Logout from Admin Mode" onclick="try{localStorage.removeItem('bp_is_admin');localStorage.removeItem('bp_admin_name');localStorage.removeItem('bp_admin_role');}catch(_){}">
-            <span class="hub-btn-icon">🚪</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span class="hub-btn-text">Admin Logout</span>
           </button>
         </form>
@@ -35,7 +37,7 @@
         <form method="POST" action="/singer/logout" target="_top" style="margin:0;display:inline;">
           <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
           <button type="submit" class="singer-hub-action-btn btn-logout" data-haptic="medium" title="Logout" onclick="try{localStorage.removeItem('bp_singer_id');localStorage.removeItem('bp_singer_name');localStorage.removeItem('bp_is_admin');}catch(_){}">
-            <span class="hub-btn-icon">🚪</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span class="hub-btn-text">Logout</span>
           </button>
         </form>
@@ -43,129 +45,156 @@
     </div>
   </div>
 
-  <!-- Profile Hero Header -->
-  <div class="singer-hub-hero">
-    <div class="singer-hub-hero-inner">
+  <!-- Profile Hero Banner (Native Indigo Style) -->
+  <div class="banner-hero hub-hero-banner">
+    <div class="hub-hero-body">
       
-      <!-- Avatar -->
-      <div class="singer-hub-avatar-wrap">
-        <div class="singer-hub-avatar">
+      <!-- Avatar & Info -->
+      <div class="hub-hero-main">
+        <div class="hub-hero-avatar">
           <%= singer.name.charAt(0).toUpperCase() %>
         </div>
-        <div class="singer-hub-avatar-badge" title="Verified Devotee">🪔</div>
-      </div>
+        <div class="hub-hero-text">
+          <div class="hub-hero-title-row">
+            <h1 class="hub-hero-name"><%= singer.name %></h1>
+            <% if (singer.gender) { %>
+              <span class="hub-hero-badge hub-gender-badge">
+                <%= singer.gender %>
+              </span>
+            <% } %>
+            <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+              <span class="hub-hero-badge hub-admin-badge">
+                Admin Linked
+              </span>
+            <% } %>
+          </div>
 
-      <!-- Info -->
-      <div class="singer-hub-info">
-        <div class="singer-hub-title-row">
-          <h1 class="singer-hub-name"><%= singer.name %></h1>
-          <% if (singer.gender) { %>
-            <span class="singer-hub-gender-badge">
-              <%= singer.gender %>
-            </span>
-          <% } %>
-          <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
-            <span class="singer-hub-admin-badge">
-              👑 Admin Linked
-            </span>
-          <% } %>
-        </div>
-
-        <div class="singer-hub-meta-row">
-          <span class="singer-hub-meta-item">
-            <span>🛡️</span> 4-Digit PIN Protected
-          </span>
-          <span>•</span>
-          <span class="singer-hub-meta-item" style="color: #38bdf8;">
-            <span>⏳</span> <strong><%= safeDaysRemaining %> days</strong> active on this device
-          </span>
-        </div>
-
-        <div class="singer-hub-scale-card">
-          <span>🎵 Singing Scale:</span>
-          <strong id="displayPreferredScale" class="singer-hub-scale-val"><%= singer.preferred_scale || 'Not configured' %></strong>
-          <button type="button" onclick="openPreferredScaleModal()" class="singer-hub-scale-btn" data-haptic="light">
-            ✏️ Change
-          </button>
+          <div class="hub-hero-meta-grid">
+            <div class="hub-hero-chip">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>4-Digit PIN Security</span>
+            </div>
+            <div class="hub-hero-chip">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span><strong><%= safeDaysRemaining %>d active</strong> on browser</span>
+            </div>
+            <button type="button" onclick="openPreferredScaleModal()" class="hub-hero-chip hub-chip-pitch" title="Change preferred singing pitch">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span>Pitch: <strong id="displayPreferredScale"><%= singer.preferred_scale || 'Not configured' %></strong></span>
+              <span class="hub-pitch-change-tag">Change</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Quick Action CTA -->
-      <div>
-        <a href="/submit-form" class="singer-hub-hero-cta" data-haptic="medium">
-          <span>🎤</span> Mark Bhajan Slot
+      <div class="hub-hero-cta-box">
+        <a href="/submit-form" class="btn hub-hero-cta-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <span>Mark Bhajan Slot</span>
         </a>
       </div>
 
     </div>
   </div>
 
-  <!-- Key Metrics Row -->
-  <div class="singer-metrics-grid">
+  <!-- Key Metrics Row (4 KPI Cards with top colored accent lines) -->
+  <div class="kpi-grid hub-kpi-grid">
     
-    <div class="singer-metric-card">
-      <div class="metric-card-header">
-        <span class="metric-card-title">Upcoming Slots</span>
-        <div class="metric-card-icon metric-icon-slots">📅</div>
+    <div class="kpi-card hub-kpi-card">
+      <div class="kpi-accent-bar" style="background: #d97706;"></div>
+      <div class="hub-kpi-card-header">
+        <span class="hub-kpi-card-title">Upcoming Slots</span>
+        <div class="hub-kpi-card-icon" style="background: #fef3c7; color: #b45309;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
       </div>
-      <div class="metric-card-val metric-val-slots">
+      <div class="hub-kpi-card-value">
         <%= upcomingSubmissions.length %>
       </div>
-      <div class="metric-card-sub">Scheduled in next session</div>
+      <div class="hub-kpi-card-sub">Scheduled in next session</div>
     </div>
 
-    <div class="singer-metric-card">
-      <div class="metric-card-header">
-        <span class="metric-card-title">My Songbook</span>
-        <div class="metric-card-icon metric-icon-songbook">📖</div>
+    <div class="kpi-card hub-kpi-card">
+      <div class="kpi-accent-bar" style="background: #0891b2;"></div>
+      <div class="hub-kpi-card-header">
+        <span class="hub-kpi-card-title">My Songbook</span>
+        <div class="hub-kpi-card-icon" style="background: #ecfeff; color: #0891b2;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
       </div>
-      <div class="metric-card-val metric-val-songbook">
+      <div class="hub-kpi-card-value">
         <%= safeSongbook.length %>
       </div>
-      <div class="metric-card-sub">Prepared repertoire</div>
+      <div class="hub-kpi-card-sub">Prepared repertoire</div>
     </div>
 
-    <div class="singer-metric-card">
-      <div class="metric-card-header">
-        <span class="metric-card-title">Past Bhajans</span>
-        <div class="metric-card-icon metric-icon-history">🪔</div>
+    <div class="kpi-card hub-kpi-card">
+      <div class="kpi-accent-bar" style="background: #ea580c;"></div>
+      <div class="hub-kpi-card-header">
+        <span class="hub-kpi-card-title">Past Bhajans</span>
+        <div class="hub-kpi-card-icon" style="background: #fff7ed; color: #ea580c;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
       </div>
-      <div class="metric-card-val metric-val-history">
+      <div class="hub-kpi-card-value">
         <%= safePastHistory.length %>
       </div>
-      <div class="metric-card-sub">In Samiti records</div>
+      <div class="hub-kpi-card-sub">In Samiti records</div>
     </div>
 
-    <div class="singer-metric-card">
-      <div class="metric-card-header">
-        <span class="metric-card-title">Correction Tickets</span>
-        <div class="metric-card-icon metric-icon-tickets">🎫</div>
+    <div class="kpi-card hub-kpi-card">
+      <div class="kpi-accent-bar" style="background: #0284c7;"></div>
+      <div class="hub-kpi-card-header">
+        <span class="hub-kpi-card-title">Correction Tickets</span>
+        <div class="hub-kpi-card-icon" style="background: #f0f9ff; color: #0284c7;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </div>
       </div>
-      <div class="metric-card-val metric-val-tickets">
+      <div class="hub-kpi-card-value">
         <%= safeMyReportsCount %>
       </div>
-      <a href="/my-reports" class="metric-card-sub" style="color: #0284c7; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-        Track reports →
+      <a href="/my-reports" style="font-size: 12px; color: #0284c7; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+        Track reports &rarr;
       </a>
     </div>
 
   </div>
 
-  <!-- Interactive Hub Tabs -->
-  <div class="hub-tabs-nav-bar">
-    <button type="button" class="hub-tab-btn active" onclick="switchHubTab('upcoming', this)" data-haptic="light">
-      <span>📅</span> Upcoming Schedule (<%= upcomingSubmissions.length %>)
-    </button>
-    <button type="button" class="hub-tab-btn" onclick="switchHubTab('songbook', this)" data-haptic="light">
-      <span>📖</span> My Songbook & Scales (<%= safeSongbook.length %>)
-    </button>
-    <button type="button" class="hub-tab-btn" onclick="switchHubTab('history', this)" data-haptic="light">
-      <span>📜</span> Singing History (<%= safePastHistory.length %>)
-    </button>
-    <button type="button" class="hub-tab-btn" onclick="switchHubTab('reports', this)" data-haptic="light">
-      <span>🎫</span> My Reports (<%= safeMyReportsCount %>)
-    </button>
+  <!-- Interactive Segmented Capsule Tab Control -->
+  <div class="hub-tabs-scroll-wrap">
+    <div class="segmented-control hub-segmented-tabs">
+      <button type="button" class="hub-tab-btn active" onclick="switchHubTab('upcoming', this)" data-haptic="light">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Upcoming (<%= upcomingSubmissions.length %>)</span>
+      </button>
+      <button type="button" class="hub-tab-btn" onclick="switchHubTab('songbook', this)" data-haptic="light">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>Songbook (<%= safeSongbook.length %>)</span>
+      </button>
+      <button type="button" class="hub-tab-btn" onclick="switchHubTab('history', this)" data-haptic="light">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>History (<%= safePastHistory.length %>)</span>
+      </button>
+      <button type="button" class="hub-tab-btn" onclick="switchHubTab('reports', this)" data-haptic="light">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        <span>Reports (<%= safeMyReportsCount %>)</span>
+      </button>
+    </div>
   </div>
+
+  <style>
+    .hub-tab-btn.active {
+      background: #ffffff !important;
+      color: #4f46e5 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08) !important;
+    }
+  </style>
 
   <!-- ========================================== -->
   <!-- TAB 1: UPCOMING SCHEDULE                   -->
@@ -174,57 +203,59 @@
     <% if (upcomingSubmissions && upcomingSubmissions.length > 0) { %>
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <% upcomingSubmissions.forEach(function(sub) { %>
-          <div style="background: var(--surface); border: 1px solid var(--border); border-left: 5px solid #ea580c; border-radius: 14px; padding: 20px; box-shadow: var(--shadow);">
+          <div class="hub-card hub-upcoming-card" style="border-left: 4px solid #4f46e5;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 6px;">
-                  📅 <%= sub.session_date %>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="background: rgba(79, 70, 229, 0.12); color: #4338ca; border: 1px solid rgba(79, 70, 229, 0.25); font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                  <%= sub.session_date %>
                 </span>
                 <% if (sub.list_order) { %>
-                  <span style="background: #e0e7ff; color: #3730a3; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">
+                  <span style="background: var(--border-soft); color: var(--ink); font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
                     Slot #<%= sub.list_order %>
                   </span>
                 <% } %>
-                <span style="background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px;">
-                  🕉️ <%= sub.deity %>
+                <span style="background: var(--surface); color: var(--ink-soft); font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);">
+                  <%= sub.deity %>
                 </span>
               </div>
               <span style="font-size: 12px; font-weight: 700; color: <%= sub.singer_name.toLowerCase() === singer.name.toLowerCase() ? '#16a34a' : '#0284c7' %>;">
-                <%= sub.singer_name.toLowerCase() === singer.name.toLowerCase() ? '🎤 Lead Singer' : '🤝 Partner Singer' %>
+                <%= sub.singer_name.toLowerCase() === singer.name.toLowerCase() ? 'Lead Singer' : 'Partner Singer' %>
               </span>
             </div>
 
-            <h3 style="font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 10px 0;">
+            <h3 style="font-size: 17px; font-weight: 800; color: var(--ink); margin: 0 0 10px 0;">
               <%= sub.title %>
             </h3>
 
-            <div style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); margin-bottom: 14px;">
-              <span><strong>Tempo:</strong> <%= sub.speed || 'Medium' %></span>
-              <span>•</span>
-              <span><strong>Scale:</strong> <%= sub.scale || 'Standard' %></span>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-bottom: 14px; align-items: center;">
+              <span>Tempo: <strong style="color: var(--ink);"><%= sub.speed || 'Medium' %></strong></span>
+              <span>&bull;</span>
+              <span>Scale: <strong style="color: var(--ink);"><%= sub.scale || 'Standard' %></strong></span>
               <% if (sub.partner_name) { %>
-                <span>•</span>
-                <span><strong>Partner:</strong> <%= sub.partner_name %></span>
+                <span>&bull;</span>
+                <span>Partner: <strong style="color: var(--ink);"><%= sub.partner_name %></strong></span>
               <% } %>
             </div>
 
             <div style="display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
-              <a href="/plan-view?session_date=<%= sub.session_date %>" class="button secondary" style="padding: 6px 12px; font-size: 12.5px; text-decoration: none;">
-                📊 View Full Session Plan
+              <a href="/plan-view?session_date=<%= sub.session_date %>" class="btn btn-secondary hub-btn-block-mobile" style="padding: 6px 14px; font-size: 12.5px; text-decoration: none; border-radius: 6px;">
+                View Full Session Plan &rarr;
               </a>
             </div>
           </div>
         <% }); %>
       </div>
     <% } else { %>
-      <div style="background: var(--surface); border: 1px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center;">
-        <div style="font-size: 38px; margin-bottom: 10px;">📋</div>
-        <h3 style="font-size: 17px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Upcoming Bhajans Scheduled</h3>
-        <p style="font-size: 13.5px; color: var(--ink-soft); max-width: 440px; margin: 0 auto 18px auto; line-height: 1.5;">
-          You haven't submitted a bhajan for the upcoming session yet. Submissions open every Thursday after 8:00 PM.
+      <div class="hub-card" style="border: 1px dashed var(--border); padding: 40px 20px; text-align: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--border-soft); color: var(--muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Upcoming Bhajans Scheduled</h3>
+        <p style="font-size: 13.5px; color: var(--muted); max-width: 440px; margin: 0 auto 18px auto; line-height: 1.5;">
+          You have not submitted a bhajan for the upcoming session yet. Submissions open every Thursday after 8:00 PM.
         </p>
-        <a href="/submit-form" class="button primary" style="padding: 10px 20px; font-size: 13.5px; font-weight: 700; background: #ea580c; border-color: #ea580c; text-decoration: none;">
-          🎤 Submit Bhajan for Thursday
+        <a href="/submit-form" class="btn btn-primary hub-btn-block-mobile" style="padding: 9px 18px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 6px;">
+          Submit Bhajan for Thursday
         </a>
       </div>
     <% } %>
@@ -236,13 +267,13 @@
   <div id="tab-songbook" class="hub-tab-pane" style="display: none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
       <div>
-        <h3 style="font-size: 18px; font-weight: 800; color: var(--ink); margin: 0;">📖 My Repertoire</h3>
-        <p style="font-size: 13px; color: var(--ink-soft); margin: 2px 0 0 0;">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--ink); margin: 0;">My Prepared Repertoire</h3>
+        <p style="font-size: 13px; color: var(--muted); margin: 2px 0 0 0;">
           Bhajans you have prepared, along with your personal singing pitch and notes.
         </p>
       </div>
-      <a href="/master-bank" class="button secondary" style="padding: 8px 14px; font-size: 13px; text-decoration: none;">
-        ➕ Browse &amp; Add Bhajans
+      <a href="/master-bank" class="btn btn-secondary hub-btn-block-mobile" style="padding: 7px 14px; font-size: 12.5px; text-decoration: none; border-radius: 6px;">
+        + Browse &amp; Add Bhajans
       </a>
     </div>
 
@@ -251,56 +282,58 @@
         <% safeSongbook.forEach(function(item) { %>
           <% const b = item.masterBhajan; %>
           <% if (!b) return; %>
-          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="hub-card" style="padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="background: #f1f5f9; color: #475569; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
-                  🕉️ <%= b.deity %>
+                <span style="background: var(--border-soft); color: var(--ink-soft); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
+                  <%= b.deity %>
                 </span>
-                <button type="button" class="sb-remove-btn" data-id="<%= b.id %>" data-title="<%= b.title %>" title="Remove from Songbook" style="background: none; border: none; font-size: 16px; cursor: pointer; color: #94a3b8;">
-                  🗑️
+                <button type="button" class="sb-remove-btn" data-id="<%= b.id %>" data-title="<%= b.title %>" title="Remove from Songbook" style="background: none; border: none; font-size: 14px; cursor: pointer; color: var(--muted); padding: 2px 4px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
 
-              <h4 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px 0; line-height: 1.4;">
+              <h4 style="font-size: 15.5px; font-weight: 700; color: var(--ink); margin: 0 0 8px 0; line-height: 1.4;">
                 <a href="/bhajan/<%= b.id %>" style="color: inherit; text-decoration: none;">
-                  <%= b.title %> ↗
+                  <%= b.title %> &rarr;
                 </a>
               </h4>
 
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; margin-bottom: 10px;">
+              <div style="background: var(--border-soft); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; margin-bottom: 10px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                  <span style="color: #64748b;">My Singing Pitch:</span>
-                  <strong style="color: #8b5cf6;"><%= item.custom_scale || b.shruti || 'Not specified' %></strong>
+                  <span style="color: var(--muted);">My Singing Pitch:</span>
+                  <strong style="color: #4f46e5;"><%= item.custom_scale || b.shruti || 'Not specified' %></strong>
                 </div>
                 <% if (item.notes) { %>
-                  <div style="color: #475569; font-style: italic; font-size: 12px; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
-                    "<%= item.notes %>"
+                  <div style="color: var(--ink-soft); font-style: italic; font-size: 12px; margin-top: 4px; border-top: 1px dashed var(--border); padding-top: 4px;">
+                    &ldquo;<%= item.notes %>&rdquo;
                   </div>
                 <% } %>
               </div>
             </div>
 
             <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px;">
-              <a href="/bhajan/<%= b.id %>" class="button secondary" style="padding: 6px 12px; font-size: 12px; text-decoration: none;">
-                📜 Practice Lyrics
+              <a href="/bhajan/<%= b.id %>" class="btn btn-secondary" style="flex: 1; text-align: center; justify-content: center; padding: 6px 10px; font-size: 12px; text-decoration: none; border-radius: 6px;">
+                Practice Lyrics
               </a>
-              <button type="button" class="button secondary sb-edit-btn" data-id="<%= b.id %>" data-title="<%= b.title %>" data-scale="<%= item.custom_scale || b.shruti || '' %>" data-notes="<%= item.notes || '' %>" style="padding: 6px 10px; font-size: 12px;">
-                ✏️ Edit Pitch
+              <button type="button" class="btn btn-secondary sb-edit-btn" data-id="<%= b.id %>" data-title="<%= b.title %>" data-scale="<%= item.custom_scale || b.shruti || '' %>" data-notes="<%= item.notes || '' %>" style="flex: 1; text-align: center; justify-content: center; padding: 6px 10px; font-size: 12px; border-radius: 6px;">
+                Edit Pitch
               </button>
             </div>
           </div>
         <% }); %>
       </div>
     <% } else { %>
-      <div style="background: var(--surface); border: 1px dashed var(--border); border-radius: 16px; padding: 40px 20px; text-align: center;">
-        <div style="font-size: 38px; margin-bottom: 10px;">📖</div>
-        <h3 style="font-size: 17px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">Your Songbook is Empty</h3>
-        <p style="font-size: 13.5px; color: var(--ink-soft); max-width: 440px; margin: 0 auto 18px auto; line-height: 1.5;">
-          Build your personal repertoire! When viewing any bhajan in the Master Bank, click <strong>"⭐ Add to My Songbook"</strong> to bookmark it with your personal vocal pitch.
+      <div class="hub-card" style="border: 1px dashed var(--border); padding: 40px 20px; text-align: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--border-soft); color: var(--muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">Your Songbook is Empty</h3>
+        <p style="font-size: 13.5px; color: var(--muted); max-width: 440px; margin: 0 auto 18px auto; line-height: 1.5;">
+          Build your personal repertoire! When viewing any bhajan in the Master Bank, click <strong>"Add to My Songbook"</strong> to bookmark it with your personal vocal pitch.
         </p>
-        <a href="/master-bank" class="button primary" style="padding: 10px 20px; font-size: 13.5px; font-weight: 700; background: #8b5cf6; border-color: #8b5cf6; text-decoration: none;">
-          🔍 Explore Master Bhajan Bank
+        <a href="/master-bank" class="btn btn-primary hub-btn-block-mobile" style="padding: 9px 18px; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 6px;">
+          Explore Master Bhajan Bank
         </a>
       </div>
     <% } %>
@@ -311,8 +344,8 @@
   <!-- ========================================== -->
   <div id="tab-history" class="hub-tab-pane" style="display: none;">
     <div style="margin-bottom: 18px;">
-      <h3 style="font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0;">📜 My Samiti Bhajan History</h3>
-      <p style="font-size: 13px; color: var(--ink-soft); margin: 0 0 14px 0;">
+      <h3 style="font-size: 17px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0;">My Samiti Bhajan History</h3>
+      <p style="font-size: 13px; color: var(--muted); margin: 0 0 14px 0;">
         Every bhajan you have sung in Gandhinagar sessions, with deity breakdown to help you maintain variety.
       </p>
 
@@ -321,8 +354,8 @@
       <% if (deityKeys.length > 0) { %>
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
           <% deityKeys.forEach(function(d) { %>
-            <span style="background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--ink); padding: 4px 10px; border-radius: 8px;">
-              <%= d %>: <span style="color: #ea580c;"><%= safeDeitySummary[d] %></span>
+            <span style="background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--ink); padding: 4px 10px; border-radius: 6px;">
+              <%= d %>: <span style="color: #4f46e5;"><%= safeDeitySummary[d] %></span>
             </span>
           <% }); %>
         </div>
@@ -332,17 +365,17 @@
     <% if (safePastHistory && safePastHistory.length > 0) { %>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <% safePastHistory.forEach(function(item) { %>
-          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div class="hub-card hub-history-row" style="padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span style="font-size: 12px; font-weight: 700; color: var(--ink-soft); font-family: monospace;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+                <span style="font-size: 12px; font-weight: 700; color: var(--muted); font-family: monospace;">
                   <%= item.session_date %>
                 </span>
-                <span style="background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px;">
+                <span style="background: var(--border-soft); color: var(--ink-soft); font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;">
                   <%= item.deity %>
                 </span>
                 <span style="font-size: 11px; font-weight: 700; color: <%= item.singer_name.toLowerCase() === singer.name.toLowerCase() ? '#16a34a' : '#0284c7' %>;">
-                  <%= item.singer_name.toLowerCase() === singer.name.toLowerCase() ? '🎤 Lead' : '🤝 Partner' %>
+                  <%= item.singer_name.toLowerCase() === singer.name.toLowerCase() ? 'Lead' : 'Partner' %>
                 </span>
               </div>
               <div style="font-size: 15px; font-weight: 700; color: var(--ink);">
@@ -350,21 +383,36 @@
               </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-soft);">
-              <span>Pitch: <strong><%= item.scale || '-' %></strong></span>
-              <a href="/database?search=<%= encodeURIComponent(item.title) %>" class="button secondary" style="padding: 5px 10px; font-size: 12px; text-decoration: none;">
-                Session Details
+            <div class="hub-history-row-actions" style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); flex-wrap: wrap;">
+              <span>Pitch: <strong style="color: var(--ink);"><%= item.scale || '-' %></strong></span>
+              <% 
+                const audioTs = item.audioTimestamp || (item.dataValues && item.dataValues.audioTimestamp);
+              %>
+              <% if (audioTs && audioTs.sessionAudio && audioTs.sessionAudio.audio_url) { 
+                const startM = Math.floor(audioTs.start_seconds / 60);
+                const startS = audioTs.start_seconds % 60;
+                const timeFormatted = String(startM).padStart(2, '0') + ':' + String(startS).padStart(2, '0');
+              %>
+                <button type="button" class="btn-play-bhajan" data-start="<%= audioTs.start_seconds %>" data-title="<%= (item.title || '').replace(/"/g, '&quot;') %>" data-singer="<%= (item.singer_name || '').replace(/"/g, '&quot;') %>" data-url="<%= (audioTs.sessionAudio.audio_url || '').replace(/"/g, '&quot;') %>" onclick="window.playSessionAudioBtn(this)" title="Listen to bhajan recording from <%= item.session_date %>">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span><%= timeFormatted %></span>
+                </button>
+              <% } %>
+              <a href="/database?search=<%= encodeURIComponent(item.title) %>" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; text-decoration: none; border-radius: 6px;">
+                Session Details &rarr;
               </a>
             </div>
           </div>
         <% }); %>
       </div>
     <% } else { %>
-      <div style="background: var(--surface); border: 1px dashed var(--border); border-radius: 16px; padding: 36px 20px; text-align: center;">
-        <div style="font-size: 36px; margin-bottom: 10px;">📜</div>
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Past Sessions Recorded</h3>
-        <p style="font-size: 13.5px; color: var(--ink-soft); margin: 0;">
-          Past bhajans sung under "<%= singer.name %>" will automatically show up here after each session!
+      <div style="background: #ffffff; border: 1px dashed var(--border); border-radius: 10px; padding: 36px 20px; text-align: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: #f8fafc; color: #64748b; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0;">No Past Sessions Recorded</h3>
+        <p style="font-size: 13.5px; color: #64748b; margin: 0;">
+          Past bhajans sung under &ldquo;<%= singer.name %>&rdquo; will automatically show up here after each session.
         </p>
       </div>
     <% } %>
@@ -377,10 +425,10 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
       <div>
         <h3 style="font-size: 17px; font-weight: 800; color: var(--ink); margin: 0 0 4px 0;">Correction Tickets &amp; Feedback</h3>
-        <p style="font-size: 13px; color: var(--ink-soft); margin: 0;">Track bhajan issues reported by you and responses from coordinators.</p>
+        <p style="font-size: 13px; color: var(--muted); margin: 0;">Track bhajan issues reported by you and responses from coordinators.</p>
       </div>
-      <a href="/master-bank" class="button secondary" style="font-size: 12.5px; padding: 6px 12px; text-decoration: none;">
-        🔍 Browse &amp; Report Bhajan
+      <a href="/master-bank" class="btn btn-secondary hub-btn-block-mobile" style="font-size: 12.5px; padding: 6px 14px; text-decoration: none; border-radius: 6px;">
+        Browse &amp; Report Bhajan
       </a>
     </div>
 
@@ -388,41 +436,41 @@
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <% safeMyReports.forEach(function(r) { %>
           <%
-            let statusBg = '#fef3c7'; let statusColor = '#92400e'; let statusLabel = '🟡 Pending Review';
+            let statusBg = 'var(--warning-light)'; let statusColor = 'var(--warning-text)'; let statusBorder = 'var(--warning-border)'; let statusLabel = 'Pending Review';
             if (r.status === 'under_review') {
-              statusBg = '#e0f2fe'; statusColor = '#0369a1'; statusLabel = '🔵 Under Review';
+              statusBg = 'var(--info-light)'; statusColor = '#0369a1'; statusBorder = 'var(--info-border)'; statusLabel = 'Under Review';
             } else if (r.status === 'resolved') {
-              statusBg = '#dcfce7'; statusColor = '#15803d'; statusLabel = '🟢 Resolved';
+              statusBg = 'var(--success-light)'; statusColor = 'var(--success-text)'; statusBorder = 'var(--success-border)'; statusLabel = 'Resolved';
             } else if (r.status === 'closed') {
-              statusBg = '#f1f5f9'; statusColor = '#475569'; statusLabel = '⚪ Closed';
+              statusBg = 'var(--border-soft)'; statusColor = 'var(--ink-soft)'; statusBorder = 'var(--border)'; statusLabel = 'Closed';
             }
 
             const catMap = {
-              lyrics: '📝 Lyrics', scale: '🎵 Scale', raga: '🎼 Raga',
-              deity: '🕉️ Deity', tempo: '⏱️ Tempo', sheet: '📄 Sheet',
-              spelling: '✏️ Typo', other: '❓ Other'
+              lyrics: 'Lyrics', scale: 'Scale', raga: 'Raga',
+              deity: 'Deity', tempo: 'Tempo', sheet: 'Sheet',
+              spelling: 'Typo', other: 'Other'
             };
           %>
-          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow);">
+          <div class="hub-card" style="padding: 16px;">
             
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
-                  <span style="background: #1e293b; color: #f8fafc; font-family: monospace; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px;">
+                  <span style="background: #1e293b; color: #f8fafc; font-family: monospace; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;">
                     <%= r.ticket_code %>
                   </span>
-                  <span style="background: <%= statusBg %>; color: <%= statusColor %>; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px;">
+                  <span style="background: <%= statusBg %>; color: <%= statusColor %>; border: 1px solid <%= statusBorder %>; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 9999px; text-transform: uppercase;">
                     <%= statusLabel %>
                   </span>
-                  <span style="font-size: 12px; color: var(--ink-soft);">
+                  <span style="font-size: 12px; color: var(--muted);">
                     <%= new Date(r.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) %>
                   </span>
                 </div>
 
-                <h4 style="font-size: 16px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0;">
+                <h4 style="font-size: 15.5px; font-weight: 800; color: var(--ink); margin: 0 0 6px 0;">
                   <% if (r.master_id) { %>
                     <a href="/bhajan/<%= r.master_id %>" style="color: inherit; text-decoration: none;">
-                      <%= r.bhajan_title %> ↗
+                      <%= r.bhajan_title %> &rarr;
                     </a>
                   <% } else { %>
                     <%= r.bhajan_title %>
@@ -431,7 +479,7 @@
               </div>
 
               <% if (r.master_id) { %>
-                <a href="/bhajan/<%= r.master_id %>" class="button secondary" style="padding: 5px 12px; font-size: 12px; text-decoration: none;">
+                <a href="/bhajan/<%= r.master_id %>" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px; text-decoration: none; border-radius: 6px;">
                   View Bhajan
                 </a>
               <% } %>
@@ -441,7 +489,7 @@
             <% if (r.categories && r.categories.length > 0) { %>
               <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
                 <% r.categories.forEach(function(cat) { %>
-                  <span style="background: var(--bg); border: 1px solid var(--border); font-size: 11.5px; padding: 2px 8px; border-radius: 6px; color: var(--ink-soft); font-weight: 600;">
+                  <span style="background: var(--border-soft); border: 1px solid var(--border); font-size: 11px; padding: 2px 8px; border-radius: 4px; color: var(--ink-soft); font-weight: 600;">
                     <%= catMap[cat] || cat %>
                   </span>
                 <% }); %>
@@ -449,31 +497,31 @@
             <% } %>
 
             <!-- Issue Description -->
-            <div style="background: var(--bg); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--ink); margin-bottom: 8px; line-height: 1.45;">
+            <div style="background: var(--border-soft); border-radius: 6px; padding: 10px 12px; font-size: 13px; color: var(--ink); margin-bottom: 8px; line-height: 1.45;">
               <strong>Reported Issue:</strong> <%= r.description %>
               <% if (r.suggested_correction) { %>
                 <div style="margin-top: 6px; color: #16a34a; font-weight: 600;">
-                  💡 <em>Suggested Correction:</em> <%= r.suggested_correction %>
+                  <em>Suggested Correction:</em> <%= r.suggested_correction %>
                 </div>
               <% } %>
             </div>
 
             <!-- Admin Response Callout -->
             <% if (r.admin_response) { %>
-              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px;">
+              <div style="background: rgba(22, 163, 74, 0.08); border: 1px solid rgba(22, 163, 74, 0.25); border-left: 4px solid #16a34a; border-radius: 6px; padding: 10px 14px; margin-top: 10px; font-size: 13px;">
                 <div style="font-weight: 800; color: #166534; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <span>💬 Response from Coordinator <%= r.reviewed_by ? `(${r.reviewed_by})` : '' %></span>
+                  <span>Response from Coordinator <%= r.reviewed_by ? `(${r.reviewed_by})` : '' %></span>
                   <% if (r.reviewed_at) { %>
                     <span style="font-size: 11.5px; font-weight: normal; color: #15803d;">
                       <%= new Date(r.reviewed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) %>
                     </span>
                   <% } %>
                 </div>
-                <div style="color: #14532d; line-height: 1.45;"><%= r.admin_response %></div>
+                <div style="color: var(--ink); line-height: 1.45;"><%= r.admin_response %></div>
               </div>
             <% } else { %>
-              <div style="font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px;">
-                ⏳ Under queue for coordinator verification.
+              <div style="font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px;">
+                Under queue for coordinator verification.
               </div>
             <% } %>
 
@@ -481,13 +529,15 @@
         <% }); %>
       </div>
     <% } else { %>
-      <div style="background: var(--surface); border: 1px dashed var(--border); border-radius: 16px; padding: 36px 20px; text-align: center;">
-        <div style="font-size: 36px; margin-bottom: 10px;">🎫</div>
+      <div class="hub-card" style="border: 1px dashed var(--border); padding: 36px 20px; text-align: center;">
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: var(--border-soft); color: var(--muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </div>
         <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Reports Submitted Yet</h3>
-        <p style="font-size: 13.5px; color: var(--ink-soft); margin: 0 0 16px 0;">
+        <p style="font-size: 13.5px; color: var(--muted); margin: 0 0 16px 0;">
           Notice incorrect lyrics, shruti, or sheet notation? Use the "Report" button on any bhajan page to notify coordinators.
         </p>
-        <a href="/master-bank" class="button primary" style="text-decoration: none; padding: 8px 18px; font-size: 13px;">
+        <a href="/master-bank" class="btn btn-primary hub-btn-block-mobile" style="text-decoration: none; padding: 8px 18px; font-size: 13px; border-radius: 6px;">
           Explore Master Bhajan Bank
         </a>
       </div>
@@ -497,89 +547,89 @@
 </div>
 
 <!-- Edit Songbook Details Modal -->
-<div id="editSongbookModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
-  <div style="background: var(--surface); border-radius: 18px; max-width: 440px; width: 100%; padding: 26px; box-shadow: var(--shadow);">
+<div id="editSongbookModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+  <div style="background: #ffffff; border-radius: 14px; max-width: 440px; width: 100%; padding: 24px; box-shadow: var(--shadow-xl); border: 1px solid var(--border);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--ink);">✏️ Personal Pitch &amp; Notes</h3>
-      <button type="button" onclick="closeEditSongbookModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--ink-soft);">&times;</button>
+      <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #0f172a;">Personal Pitch &amp; Notes</h3>
+      <button type="button" onclick="closeEditSongbookModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
     </div>
     
-    <div id="modalBhajanTitle" style="font-size: 14px; font-weight: 700; color: #ea580c; margin-bottom: 16px;"></div>
+    <div id="modalBhajanTitle" style="font-size: 13.5px; font-weight: 700; color: #4f46e5; margin-bottom: 16px;"></div>
 
     <form onsubmit="handleSongbookUpdateSubmit(event)">
       <input type="hidden" id="modalMasterId">
       
       <div style="margin-bottom: 14px;">
-        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ink);">My Preferred Scale / Pitch</label>
-        <input type="text" id="modalCustomScale" placeholder="e.g. 4.5 Safed, G#, 5 Kaali" style="width: 100%; padding: 9px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 8px;">
-        <small style="color: var(--ink-soft); font-size: 11.5px; margin-top: 3px; display: block;">Your custom harmonium scale for this bhajan.</small>
+        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #0f172a;">My Preferred Scale / Pitch</label>
+        <input type="text" id="modalCustomScale" placeholder="e.g. 4.5 Safed, G#, 5 Kaali" style="width: 100%; height: 38px; padding: 8px 12px; font-size: 13.5px; border: 1px solid var(--border); border-radius: 6px;">
+        <small style="color: #64748b; font-size: 11.5px; margin-top: 3px; display: block;">Your custom harmonium scale for this bhajan.</small>
       </div>
 
       <div style="margin-bottom: 18px;">
-        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ink);">Personal Practice Notes (Optional)</label>
-        <textarea id="modalNotes" rows="3" placeholder="e.g. Lead with slow alaap, speed up in 2nd tempo..." style="width: 100%; padding: 9px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
+        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #0f172a;">Personal Practice Notes (Optional)</label>
+        <textarea id="modalNotes" rows="3" placeholder="e.g. Lead with slow alaap, speed up in 2nd tempo..." style="width: 100%; padding: 8px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;"></textarea>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button type="button" onclick="closeEditSongbookModal()" class="button secondary" style="padding: 8px 14px;">Cancel</button>
-        <button type="submit" id="saveSongbookBtn" class="button primary" style="padding: 8px 18px; background: #8b5cf6; border-color: #8b5cf6;">Save Details</button>
+        <button type="button" onclick="closeEditSongbookModal()" class="btn btn-secondary" style="padding: 7px 14px; border-radius: 6px;">Cancel</button>
+        <button type="submit" id="saveSongbookBtn" class="btn btn-primary" style="padding: 7px 18px; border-radius: 6px;">Save Details</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Change PIN Modal -->
-<div id="changePinModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
-  <div style="background: var(--surface); border-radius: 18px; max-width: 400px; width: 100%; padding: 26px; box-shadow: var(--shadow);">
+<div id="changePinModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+  <div style="background: #ffffff; border-radius: 14px; max-width: 400px; width: 100%; padding: 24px; box-shadow: var(--shadow-xl); border: 1px solid var(--border);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--ink);">🔑 Change 4-Digit PIN</h3>
-      <button type="button" onclick="closeChangePinModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--ink-soft);">&times;</button>
+      <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #0f172a;">Change 4-Digit PIN</h3>
+      <button type="button" onclick="closeChangePinModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
     </div>
     
-    <div id="pinChangeAlert" style="display: none; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+    <div id="pinChangeAlert" style="display: none; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;"></div>
 
     <form onsubmit="handleChangePinSubmit(event)">
       <div style="margin-bottom: 14px;">
-        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ink);">Current 4-Digit PIN</label>
-        <input type="password" id="currentPin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required style="width: 100%; padding: 10px; font-size: 18px; text-align: center; font-family: monospace; letter-spacing: 6px; border: 1px solid var(--border); border-radius: 8px;">
+        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #0f172a;">Current 4-Digit PIN</label>
+        <input type="password" id="currentPin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required style="width: 100%; height: 42px; font-size: 18px; text-align: center; font-family: monospace; letter-spacing: 6px; border: 1px solid var(--border); border-radius: 6px;">
       </div>
       <div style="margin-bottom: 18px;">
-        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ink);">New 4-Digit PIN</label>
-        <input type="password" id="newPin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required style="width: 100%; padding: 10px; font-size: 18px; text-align: center; font-family: monospace; letter-spacing: 6px; border: 1px solid var(--border); border-radius: 8px;">
+        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: #0f172a;">New 4-Digit PIN</label>
+        <input type="password" id="newPin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required style="width: 100%; height: 42px; font-size: 18px; text-align: center; font-family: monospace; letter-spacing: 6px; border: 1px solid var(--border); border-radius: 6px;">
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button type="button" onclick="closeChangePinModal()" class="button secondary" style="padding: 8px 14px;">Cancel</button>
-        <button type="submit" id="changePinBtn" class="button primary" style="padding: 8px 18px; background: #ea580c; border-color: #ea580c;">Update PIN</button>
+        <button type="button" onclick="closeChangePinModal()" class="btn btn-secondary" style="padding: 7px 14px; border-radius: 6px;">Cancel</button>
+        <button type="submit" id="changePinBtn" class="btn btn-primary" style="padding: 7px 18px; border-radius: 6px;">Update PIN</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- Preferred Scale Modal -->
-<div id="preferredScaleModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
-  <div style="background: var(--surface); border-radius: 18px; max-width: 420px; width: 100%; padding: 26px; box-shadow: var(--shadow);">
+<div id="preferredScaleModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+  <div style="background: #ffffff; border-radius: 14px; max-width: 420px; width: 100%; padding: 24px; box-shadow: var(--shadow-xl); border: 1px solid var(--border);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--ink);">🎵 Default Vocal Scale / Pitch</h3>
-      <button type="button" onclick="closePreferredScaleModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: var(--ink-soft);">&times;</button>
+      <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #0f172a;">Default Vocal Scale / Pitch</h3>
+      <button type="button" onclick="closePreferredScaleModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">&times;</button>
     </div>
 
-    <p style="font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; line-height: 1.45;">
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 14px; line-height: 1.45;">
       Set your default harmonium vocal scale. When picking or submitting bhajans, this pitch will be pre-filled automatically.
     </p>
     
-    <div id="preferredScaleAlert" style="display: none; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+    <div id="preferredScaleAlert" style="display: none; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;"></div>
 
     <form onsubmit="handlePreferredScaleSubmit(event)">
       <div style="margin-bottom: 12px;">
-        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ink);">Your Scale</label>
-        <input type="text" id="inputPreferredScale" value="<%= singer.preferred_scale || '' %>" placeholder="e.g. 1.5P, 4.5 Safed, C#, 5 Kaali" style="width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 8px;">
+        <label style="display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: #0f172a;">Your Scale</label>
+        <input type="text" id="inputPreferredScale" value="<%= singer.preferred_scale || '' %>" placeholder="e.g. 1.5P, 4.5 Safed, C#, 5 Kaali" style="width: 100%; height: 38px; padding: 8px 12px; font-size: 13.5px; border: 1px solid var(--border); border-radius: 6px;">
       </div>
 
       <div style="margin-bottom: 18px;">
-        <div style="font-size: 11.5px; font-weight: 700; color: var(--ink-soft); margin-bottom: 6px; text-transform: uppercase;">Quick Suggestions:</div>
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Suggestions:</div>
         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
           <% ['1.5P', '2P', '2.5P', '4P', '4.5P', '5P', '5.5P', '1 Kaali', '4 Kaali', '5 Kaali'].forEach(function(sc) { %>
-            <button type="button" onclick="document.getElementById('inputPreferredScale').value='<%= sc %>'" style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; color: var(--ink);">
+            <button type="button" onclick="document.getElementById('inputPreferredScale').value='<%= sc %>'" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; color: #0f172a; font-weight: 500;">
               <%= sc %>
             </button>
           <% }); %>
@@ -587,8 +637,8 @@
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button type="button" onclick="closePreferredScaleModal()" class="button secondary" style="padding: 8px 14px;">Cancel</button>
-        <button type="submit" id="savePreferredScaleBtn" class="button primary" style="padding: 8px 18px; background: #8b5cf6; border-color: #8b5cf6;">Save Default Pitch</button>
+        <button type="button" onclick="closePreferredScaleModal()" class="btn btn-secondary" style="padding: 7px 14px; border-radius: 6px;">Cancel</button>
+        <button type="submit" id="savePreferredScaleBtn" class="btn btn-primary" style="padding: 7px 18px; border-radius: 6px;">Save Default Pitch</button>
       </div>
     </form>
   </div>
@@ -596,39 +646,39 @@
 
 <!-- Welcome Onboarding Modal -->
 <% if (safeShowWelcome) { %>
-<div id="welcomeHubModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(4px);">
-  <div style="background: var(--surface); border-radius: 20px; max-width: 500px; width: 100%; padding: 32px 28px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; position: relative; overflow: hidden;">
-    <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #ea580c, #f59e0b);"></div>
+<div id="welcomeHubModal" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px;">
+  <div style="background: #ffffff; border-radius: 14px; max-width: 500px; width: 100%; padding: 28px; box-shadow: var(--shadow-xl); text-align: center; position: relative; overflow: hidden; border: 1px solid var(--border);">
+    <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #4f46e5;"></div>
     
-    <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
-    <h2 style="font-size: 22px; font-weight: 800; color: var(--ink); margin: 0 0 8px 0;">Welcome to Your Singer Hub!</h2>
-    <p style="font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 0 auto 20px auto; max-width: 420px;">
+    <div style="width: 52px; height: 52px; border-radius: 12px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 8px 0;">Welcome to Your Singer Hub</h2>
+    <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin: 0 auto 20px auto; max-width: 420px;">
       Your devotee account for <strong><%= singer.name %></strong> is now active and protected with your 4-digit PIN.
     </p>
 
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; text-align: left; margin-bottom: 24px;">
-      <div style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">✨ What you can do now:</div>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: left; margin-bottom: 24px;">
+      <div style="font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">What you can do now:</div>
       <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.6;">
-        <li>🏠 <strong>Home Card:</strong> A dedicated <em>My Hub</em> card will now appear on your homepage.</li>
-        <li>📖 <strong>Songbook:</strong> Bookmark prepared bhajans with your preferred vocal scales.</li>
-        <li>🎤 <strong>1-Click Submissions:</strong> Your name is verified and locked on `/submit-form`.</li>
-        <li>🛡️ <strong>90-Day Stay-In:</strong> You remain logged in for 90 days on this device.</li>
+        <li><strong>Home Card:</strong> A dedicated <em>My Hub</em> card will now appear on your homepage.</li>
+        <li><strong>Songbook:</strong> Bookmark prepared bhajans with your preferred vocal scales.</li>
+        <li><strong>1-Click Submissions:</strong> Your name is verified and locked on submission pages.</li>
+        <li><strong>90-Day Stay-In:</strong> You remain logged in for 90 days on this device.</li>
       </ul>
     </div>
 
     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-      <a href="/submit-form" class="button primary" style="padding: 10px 20px; font-size: 14px; font-weight: 700; background: #ea580c; border-color: #ea580c; text-decoration: none;">
-        🎤 Continue to Bhajan Submission
+      <a href="/submit-form" class="btn btn-primary" style="padding: 9px 18px; font-size: 13.5px; font-weight: 700; text-decoration: none; border-radius: 6px;">
+        Continue to Bhajan Submission
       </a>
-      <button type="button" onclick="document.getElementById('welcomeHubModal').style.display='none'" class="button secondary" style="padding: 10px 16px; font-size: 14px;">
+      <button type="button" onclick="document.getElementById('welcomeHubModal').style.display='none'" class="btn btn-secondary" style="padding: 9px 16px; font-size: 13.5px; border-radius: 6px;">
         Explore Hub
       </button>
     </div>
   </div>
 </div>
 <% } %>
-
-
 
 <script>
 function switchHubTab(tabName, btn) {
@@ -834,21 +884,22 @@ async function handlePreferredScaleSubmit(e) {
 
 <% if (typeof isAdmin !== 'undefined' && isAdmin && typeof allSingers !== 'undefined' && allSingers.length > 0) { %>
 <!-- Admin Switch Singer Modal -->
-<div id="adminSwitchModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
-  <div style="background: var(--surface, #fff); border-radius: 18px; max-width: 440px; width: 100%; padding: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: left; border: 1px solid var(--border, #e2e8f0);">
+<div id="adminSwitchModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+  <div style="background: #ffffff; border-radius: 14px; max-width: 440px; width: 100%; padding: 24px; box-shadow: var(--shadow-xl); text-align: left; border: 1px solid var(--border);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <h3 style="margin: 0; font-size: 19px; font-weight: 800; color: var(--ink, #1e293b); display: flex; align-items: center; gap: 8px;">
-        <span>🔄</span> Switch Singer Profile
+      <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Switch Singer Profile
       </h3>
-      <button type="button" onclick="closeAdminSwitchModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted, #64748b);">✕</button>
+      <button type="button" onclick="closeAdminSwitchModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">✕</button>
     </div>
-    <p style="font-size: 13.5px; color: var(--muted, #64748b); margin-top: 0; margin-bottom: 16px; line-height: 1.5;">
+    <p style="font-size: 13px; color: #64748b; margin-top: 0; margin-bottom: 16px; line-height: 1.5;">
       As an administrator, switch to any singer profile to manage songbooks, examine singing analytics, or submit bhajans on their behalf.
     </p>
     <form id="adminSwitchForm" onsubmit="handleAdminSwitchSubmit(event)">
       <div style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 12.5px; font-weight: 700; color: var(--ink, #334155); margin-bottom: 6px;">Select Devotee Singer:</label>
-        <select id="adminSwitchSingerSelect" required style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border, #cbd5e1); font-size: 14px; background: var(--surface, #fff); color: var(--ink, #1e293b);">
+        <label style="display: block; font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">Select Devotee Singer:</label>
+        <select id="adminSwitchSingerSelect" required style="width: 100%; height: 40px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 13.5px; background: #ffffff; color: #0f172a;">
           <% allSingers.forEach(function(s) { %>
             <option value="<%= s.id %>" <%= s.id === singer.id ? 'selected' : '' %>>
               <%= s.name %> <%= s.gender ? `(${s.gender})` : '' %>
@@ -857,15 +908,15 @@ async function handlePreferredScaleSubmit(e) {
         </select>
       </div>
       <div style="margin-bottom: 20px;">
-        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-soft, #475569); cursor: pointer;">
-          <input type="checkbox" id="adminSwitchSavePermanent" value="1" checked style="width: 16px; height: 16px; accent-color: #9333ea;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+          <input type="checkbox" id="adminSwitchSavePermanent" value="1" checked style="width: 16px; height: 16px; accent-color: #4f46e5;">
           <span>Set as my permanent linked singer profile</span>
         </label>
       </div>
-      <div id="adminSwitchAlert" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+      <div id="adminSwitchAlert" style="display: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px;"></div>
       <div style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button type="button" onclick="closeAdminSwitchModal()" class="button secondary" style="padding: 9px 18px; font-size: 13.5px;">Cancel</button>
-        <button type="submit" id="adminSwitchSubmitBtn" class="button primary" style="background: #9333ea; border-color: #9333ea; padding: 9px 18px; font-size: 13.5px; font-weight: 700;">Switch Profile</button>
+        <button type="button" onclick="closeAdminSwitchModal()" class="btn btn-secondary" style="padding: 7px 16px; font-size: 13px; border-radius: 6px;">Cancel</button>
+        <button type="submit" id="adminSwitchSubmitBtn" class="btn btn-primary" style="padding: 7px 18px; font-size: 13px; font-weight: 700; border-radius: 6px;">Switch Profile</button>
       </div>
     </form>
   </div>
@@ -925,3 +976,4 @@ async function handleAdminSwitchSubmit(e) {
 </script>
 <% } %>
 
+<script src="/js/session-audio-player.js"></script>

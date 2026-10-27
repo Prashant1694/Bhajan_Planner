@@ -1,3 +1,20 @@
+const fs = require("fs");
+const path = require("path");
+
+let tanpuraWidgetHtml = "";
+function getTanpuraWidgetHtml() {
+  try {
+    return fs.readFileSync(path.join(__dirname, "views", "partials", "tanpura-widget.ejs"), "utf8");
+  } catch (e) {
+    return tanpuraWidgetHtml;
+  }
+}
+try {
+  tanpuraWidgetHtml = getTanpuraWidgetHtml();
+} catch (e) {
+  console.error("Could not load tanpura-widget.ejs:", e);
+}
+
 function escapeHtml(unsafe) {
   if (unsafe === null || unsafe === undefined) return "";
   return String(unsafe)
@@ -78,33 +95,7 @@ const themeToggleBtnHtml = `
     <span class="icon-sun"  aria-hidden="true">☀️</span>
   </button>`;
 
-const appBottomNavHtml = `
-  <div class="outer-shell-only-bottom-nav">
-  <nav class="app-bottom-nav no-print" id="appBottomNav" aria-label="Main Mobile Navigation">
-    <div class="app-bottom-nav-inner">
-      <a href="/" class="nav-tab" data-route="/" id="navTabHome">
-        <div class="tab-icon-box"><span class="tab-icon">🏠</span></div>
-        <span class="tab-label">Home</span>
-      </a>
-      <a href="/submit-form" class="nav-tab" data-route="/submit-form" id="navTabSinger">
-        <div class="tab-icon-box"><span class="tab-icon">🎤</span></div>
-        <span class="tab-label">Singer Zone</span>
-      </a>
-      <a href="/master-bank" class="nav-tab" data-route="/master-bank" id="navTabBank">
-        <div class="tab-icon-box"><span class="tab-icon">📖</span></div>
-        <span class="tab-label">Songbook</span>
-      </a>
-      <a href="/plan-view" class="nav-tab" data-route="/plan-view" id="navTabPlan">
-        <div class="tab-icon-box"><span class="tab-icon">📊</span></div>
-        <span class="tab-label">Live Plan</span>
-      </a>
-      <a href="/my-hub" class="nav-tab" data-route="/my-hub" id="navTabHub">
-        <div class="tab-icon-box"><span class="tab-icon">👤</span><span class="tab-badge-dot" id="hubBadgeDot" style="display:none;"></span></div>
-        <span class="tab-label">My Hub</span>
-      </a>
-    </div>
-  </nav>
-  </div>`;
+const appBottomNavHtml = "";
 
 function generateSubmitFormHtml(
   sessionDate,
@@ -126,232 +117,331 @@ function generateSubmitFormHtml(
   const dateAttr = isAdminBool ? "" : 'readonly style="cursor:not-allowed;"';
   const dateNotice = isAdminBool
     ? `<div class="date-notice date-notice-admin">
-        🔐 <strong>Admin Mode:</strong> You can select any date and manage bhajans at any time.
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span><strong>Admin Mode:</strong> You can select any session date and manage bhajans at any time.</span>
        </div>`
     : `<div class="date-notice date-notice-user">
-        ⏰ <strong>Submission Deadline:</strong> Submissions for <strong>${sessionDate}</strong> close on <strong>the night before at 11:59 PM</strong>. At 12:00 AM on the session date, submissions automatically lock and move to the History tab.
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span><strong>Submission Protocol:</strong> Submissions for <strong>${escapeHtml(sessionDate)}</strong> close on the night before at 11:59 PM. At 12:00 AM on the session date, submissions automatically lock.</span>
        </div>`;
 
+  const singerInitial = currentSinger ? (currentSinger.name || 'S').charAt(0).toUpperCase() : (isAdminBool ? 'A' : 'D');
+  const totalSlots = (Number(totalMandatory || 0) + Number(totalOptional || 0)) || 11;
+  const totalFilled = Number(mandatoryFilled || 0) + Number(optionalFilled || 0);
+  const progressPercent = totalSlots > 0 ? Math.min(100, Math.round((totalFilled / totalSlots) * 100)) : 0;
+  const progressCountsHtml = (totalMandatory && totalMandatory > 0)
+    ? `<span class="submit-count-pill">${mandatoryFilled}/${totalMandatory} Mandatory</span>
+       <span class="submit-count-pill" style="background:rgba(120,113,108,0.12); color:#57534e; border-color:rgba(120,113,108,0.25);">${optionalFilled}/${totalOptional} Optional</span>`
+    : `<span class="submit-count-pill">${totalFilled}/${totalSlots} Slots Filled</span>`;
+
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Bhajan Scheduler - Sai Centre Gandhinagar</title>
+  <title>Bhajan Scheduler • Sri Sathya Sai Seva Organisations, Gandhinagar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="csrf-token" content="${escapeHtml(csrfToken)}" />
   <script>window.csrfToken = "${escapeHtml(csrfToken)}";</script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
+  <!-- Google Fonts: Fraunces & Inter (Exact App Typography) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css?v=5.5">
+  <link rel="stylesheet" href="/css/submit-glass.css?v=1.0">
+  <link rel="stylesheet" href="/css/tanpura.css?v=1.0">
   ${themeHeadScript}
 </head>
 <body class="embed-page in-iframe">
   ${themeToggleBtnHtml}
-  <div class="container">
-    
-    <div class="header">
-      <h1>📋 Bhajan Scheduler</h1>
-      <p>Sri Sathya Sai Seva Organisation - Gandhinagar</p>
-    </div>
-    
-    <div id="scheduler" class="tab-content active">
-      <div class="progress-section">
-        <div class="progress-label">
-          <span><strong>Session Progress</strong></span>
-          <span>${mandatoryFilled}/${totalMandatory} Mandatory | ${optionalFilled}/${totalOptional} Optional</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: ${totalMandatory > 0 ? (mandatoryFilled / totalMandatory) * 100 : 100}%"></div>
-        </div>
-      </div>
-      
-      <form method="post" action="/submit-form" id="bhajanForm">
-        <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
-        <input type="hidden" name="admin" value="${isAdminBool}" />
-        <div class="form-group">
-          <label>📅 Bhajan Session Date</label>
-          <input type="date" name="session_date" value="${sessionDate}" required ${dateAttr} />
-          ${dateNotice}
-        </div>
-        
-        <div class="bhajan-details singer-profile-box">
-          <div class="form-row cols-3">
-            <div class="form-group">
-              <label>Singer Name <span class="required">*</span></label>
-              <div class="singer-autocomplete">
-                <input type="text" name="singer_name" id="singerName" required placeholder="Enter your full name" autocomplete="off" aria-autocomplete="list" aria-controls="singerSuggestions" aria-expanded="false" value="${currentSinger ? escapeHtml(currentSinger.name) : ""}" data-verified-singer="${currentSinger ? escapeHtml(currentSinger.name) : ""}" data-verified-gender="${currentSinger && currentSinger.gender ? escapeHtml(currentSinger.gender) : ""}" ${currentSinger && !isAdminBool ? 'readonly style="background:#f1f5f9; cursor:not-allowed;"' : ""} />
-                <div id="singerSuggestions" class="bhajan-suggestions" role="listbox" aria-label="Singer suggestions"></div>
-              </div>
-              <datalist id="singerList"></datalist>
-              ${currentSinger && !isAdminBool ? `<small style="color:#16a34a; font-size:11.5px; margin-top:4px; display:flex; align-items:center; gap:4px;"><span>🔒</span> Verified Devotee: <strong>${escapeHtml(currentSinger.name)}</strong></small>` : ""}
-            </div>
-            
-            <div class="form-group">
-              <label>Partner Name</label>
-              <input type="text" list="singerList" name="partner_name" id="partnerName" placeholder="Optional" autocomplete="off" />
-            </div>
 
-            <div class="form-group">
-              <label>Gender <span class="required">*</span></label>
-              <select name="gender" id="gender" required ${currentSinger && currentSinger.gender && !isAdminBool ? 'style="pointer-events:none; background:#f1f5f9;"' : ""}>
-                <option value="">Select</option>
-                <option value="Male" ${currentSinger && currentSinger.gender === "Male" ? "selected" : ""}>Male</option>
-                <option value="Female" ${currentSinger && currentSinger.gender === "Female" ? "selected" : ""}>Female</option>
-                <option value="Other" ${currentSinger && currentSinger.gender === "Other" ? "selected" : ""}>Other</option>
-              </select>
-              <input type="hidden" name="locked_gender" id="lockedGender" value="${currentSinger && currentSinger.gender ? escapeHtml(currentSinger.gender) : ""}" />
-            </div>
+  <div class="zen-submit-stage">
+    
+    <!-- Ambient Sacred Glow Orbs (Background) -->
+    <div class="sacred-orbs-canvas">
+      <div class="sacred-orb sacred-orb-1"></div>
+      <div class="sacred-orb sacred-orb-2"></div>
+      <div class="sacred-orb sacred-orb-3"></div>
+      <div class="sacred-orb sacred-orb-4"></div>
+      <div class="sacred-grid-texture"></div>
+    </div>
+
+    <!-- Prasanthi Sanctum Top Border -->
+    <div class="prasanthi-border"></div>
+
+    <div class="zen-submit-container">
+
+      <!-- 1. Hero Banner with Authentic Free-Standing Emblems -->
+      <header class="zen-glass-panel submit-hero-banner">
+        <!-- Left: Original Sri Sathya Sai Lotus Emblem -->
+        <div class="submit-emblem-wrap" title="Sri Sathya Sai Lotus Emblem">
+          <img src="/images/logo.png" alt="Sri Sathya Sai Lotus Emblem" class="submit-emblem" onerror="this.style.display='none'">
+        </div>
+
+        <!-- Center: Organisation Badge & Hero Title -->
+        <div class="submit-hero-center">
+          <div class="submit-org-badge">
+            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#d97706; margin-right:4px;"></span>
+            Sri Sathya Sai Seva Organisations, Gandhinagar
+          </div>
+          <h1 class="submit-hero-title">
+            Bhajan Planner
+          </h1>
+          <p class="submit-hero-subtitle" style="font-family: 'Fraunces', Georgia, serif; font-style: italic; font-size: clamp(12.5px, 1.8vw, 14.5px); color: #78716c; max-width: 640px; line-height: 1.55; margin-top: 6px;">
+            &ldquo;Bhajan must spread good-will, love, ecstasy; it must cleanse the polluted atmosphere; it must invite all to share in the joy and peace.&rdquo;
+            <span style="font-style: normal; font-weight: 600; font-size: 11px; opacity: 0.85; margin-left: 6px; white-space: nowrap;">&mdash; Baba</span>
+          </p>
+        </div>
+
+        <!-- Right: Original 100th Birthday Emblem -->
+        <div class="submit-emblem-wrap" title="Sri Sathya Sai 100th Birthday Emblem">
+          <img src="/images/logo_birthday.png" alt="Sri Sathya Sai 100th Birthday Emblem" class="submit-emblem" onerror="this.style.display='none'">
+        </div>
+      </header>
+
+      <!-- 2. Session Sequence Progress Indicator -->
+      <section class="zen-glass-panel submit-progress-card">
+        <div class="submit-progress-top">
+          <h2 class="submit-progress-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+            Session Sequence Progress
+          </h2>
+          <div class="submit-progress-counts">
+            ${progressCountsHtml}
           </div>
         </div>
-        
-        <div class="deity-choose-header">
-          ✨ Choose Deity <span class="required">*</span>
+        <div class="submit-progress-track">
+          <div class="submit-progress-fill" style="width: ${progressPercent}%;"></div>
         </div>
-        <div class="deity-choose-subtitle">
-          Tile color shows submission count • Tap available tile to select • Tap taken tile to view details
-        </div>
+      </section>
+
+      <!-- 3. Main Submission Form -->
+      <div id="scheduler" class="tab-content active" style="display:flex; flex-direction:column; gap:22px;">
         
-        <div class="deity-grid ganesha-row">
-          ${ganeshaCardHtml}
-        </div>
-        
-        <div class="deity-grid other-deities-grid">
-          ${otherDeitiesHtml}
-        </div>
-        
-        <div class="deity-grid ganesha-row">
-          ${hanumanCard}
-        </div>
-        
-        <input type="hidden" name="deity" id="selectedDeity" />
-        
-        <div class="bhajan-details" id="bhajanDetails">
-          <h3 class="bhajan-details-heading">
-            🎶 Details for <span id="deityDisplay">---</span>
-          </h3>
-          
-          <div class="form-row form-row-title-speed">
-            <div class="form-group form-group-title">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
-                <label style="margin-bottom:0;">Bhajan Title <span class="required">*</span></label>
+        <form method="post" action="/submit-form" id="bhajanForm" style="display:flex; flex-direction:column; gap:22px;">
+          <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
+          <input type="hidden" name="admin" value="${isAdminBool}" />
+
+          <!-- Session Date & Policy Notice -->
+          <div class="zen-glass-panel" style="padding:20px 24px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label style="display:flex; align-items:center; gap:6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                <span>Bhajan Session Date</span>
+              </label>
+              <input type="date" name="session_date" value="${sessionDate}" required ${dateAttr} />
+              ${dateNotice}
+            </div>
+          </div>
+
+          <!-- Singer & Accompanist Profile -->
+          <div class="zen-glass-panel singer-profile-box">
+            <div class="form-row cols-3">
+              <div class="form-group">
+                <label>Singer Name <span class="required" style="color:#e11d48;">*</span></label>
+                <div class="singer-autocomplete">
+                  <input type="text" name="singer_name" id="singerName" required placeholder="Enter your full name" autocomplete="off" aria-autocomplete="list" aria-controls="singerSuggestions" aria-expanded="false" value="${currentSinger ? escapeHtml(currentSinger.name) : ""}" data-verified-singer="${currentSinger ? escapeHtml(currentSinger.name) : ""}" data-verified-gender="${currentSinger && currentSinger.gender ? escapeHtml(currentSinger.gender) : ""}" ${currentSinger && !isAdminBool ? 'readonly style="background:rgba(241,245,249,0.7); cursor:not-allowed;"' : ""} />
+                  <div id="singerSuggestions" class="bhajan-suggestions" role="listbox" aria-label="Singer suggestions"></div>
+                </div>
+                <datalist id="singerList"></datalist>
                 ${
-                  currentSinger
-                    ? `
-                  <button type="button" id="openSongbookPickerBtn" style="background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; border-radius:6px; padding:3px 9px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                    <span>📖</span> Pick from My Songbook
-                  </button>
-                `
+                  currentSinger && !isAdminBool
+                    ? `<small style="color:#059669; font-size:11.5px; margin-top:5px; display:flex; align-items:center; gap:5px; font-weight:600;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Verified: <strong>${escapeHtml(currentSinger.name)}</strong>
+                      </small>`
                     : ""
                 }
               </div>
-              <div class="bhajan-autocomplete">
-                <input type="hidden" name="master_bhajan_id" id="selectedMasterBhajanId" />
-                <input type="hidden" id="singerPreferredScale" value="${escapeHtml(currentSinger?.preferred_scale || "")}" />
-                <input name="title" id="bhajanTitleInput" required placeholder="Select Deity to search..." autocomplete="off" aria-autocomplete="list" aria-controls="bhajanSuggestions" aria-expanded="false" />
-                <div id="bhajanSuggestions" class="bhajan-suggestions" role="listbox" aria-label="Bhajan suggestions"></div>
+
+              <div class="form-group">
+                <label>Partner / Accompanist</label>
+                <input type="text" list="singerList" name="partner_name" id="partnerName" placeholder="Optional" autocomplete="off" />
               </div>
-              
-              <div id="masterDataBadge" style="display:none; color:#28a745; font-size:12px; margin-top:4px; font-weight:600; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span>✅ Master DB Synced <span id="badgeDetails"></span></span>
-                <span id="badgeSheetLink" style="display:none;">
-                  <a href="#" id="sheetMusicLink" target="_blank" rel="noopener noreferrer" class="sheet-link-pill" style="margin-top:0;" title="Open official reference sheet music (PDF)">📄 Music Sheet ↗</a>
-                </span>
-                <span id="badgeLyricsLink" style="display:none;">
-                  <a href="#" id="lyricsPageLink" target="_blank" rel="noopener noreferrer" class="sheet-link-pill" style="margin-top:0; background:rgba(30,64,175,0.12); color:#1e40af; border-color:rgba(30,64,175,0.3);" title="Open sacred lyrics & singing guide">📖 Lyrics ↗</a>
-                </span>
+
+              <div class="form-group">
+                <label>Gender <span class="required" style="color:#e11d48;">*</span></label>
+                <select name="gender" id="gender" required ${currentSinger && currentSinger.gender && !isAdminBool ? 'style="pointer-events:none; background:rgba(241,245,249,0.7);"' : ""}>
+                  <option value="">Select Gender</option>
+                  <option value="Male" ${currentSinger && currentSinger.gender === "Male" ? "selected" : ""}>Male</option>
+                  <option value="Female" ${currentSinger && currentSinger.gender === "Female" ? "selected" : ""}>Female</option>
+                  <option value="Other" ${currentSinger && currentSinger.gender === "Other" ? "selected" : ""}>Other</option>
+                </select>
+                <input type="hidden" name="locked_gender" id="lockedGender" value="${currentSinger && currentSinger.gender ? escapeHtml(currentSinger.gender) : ""}" />
               </div>
-              
-              <div id="cooldownWarning" style="display:none; color:#d32f2f; background:#ffebee; padding:8px; border-radius:6px; font-size:12px; margin-top:8px; font-weight:500;"></div>
-            </div>
-            
-            <div class="form-group form-group-speed">
-              <label>Speed / Tempo</label>
-              <input type="text" name="speed" id="speedInput" readonly placeholder="Auto-filled..." class="input-readonly" />
             </div>
           </div>
-          
-          <div class="form-row form-row-scale-raag">
-             <div class="form-group form-group-scale">
-                <label>🎵 Scale / Shruti</label>
-                <input type="text" name="scale" id="scaleInput" placeholder="e.g., 1.5P or C#" />
-                <div id="scaleSuggestionsContainer" style="margin-top:6px; display:flex; flex-direction:column; gap:4px;">
-                  <div id="singerPrevScaleBadge" class="badge-scale-prev" style="display:none;">
-                    👤 <strong>Your Previous Scale:</strong> <span id="singerPrevScaleVal"></span>
+
+          <!-- Deity Slot Selection -->
+          <div class="zen-glass-panel deity-choose-card">
+            <h2 class="deity-choose-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m12 8 4 4-4 4M8 12h8"/></svg>
+              Choose Deity Slot <span class="required" style="color:#e11d48; font-size:16px;">*</span>
+            </h2>
+            <p class="deity-choose-subtitle">
+              Tile color reflects submission count &bull; Tap an available tile to enter your bhajan &bull; Tap taken tile to view details
+            </p>
+
+            <div class="deity-grid ganesha-row">
+              ${ganeshaCardHtml}
+            </div>
+
+            <div class="deity-grid other-deities-grid">
+              ${otherDeitiesHtml}
+            </div>
+
+            <div class="deity-grid ganesha-row">
+              ${hanumanCard}
+            </div>
+
+            <input type="hidden" name="deity" id="selectedDeity" />
+          </div>
+
+          <!-- Bhajan Details Form Card (Revealed on Deity Selection) -->
+          <div class="zen-glass-panel bhajan-details-card" id="bhajanDetails">
+            <h3 class="bhajan-details-heading">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7d2f45" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span>Bhajan Offering for <span id="deityDisplay" style="color:#d97706;">---</span></span>
+            </h3>
+
+            <div class="form-row form-row-title-speed">
+              <div class="form-group form-group-title">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                  <label style="margin-bottom:0;">Bhajan Title <span class="required" style="color:#e11d48;">*</span></label>
+                  ${
+                    currentSinger
+                      ? `<button type="button" id="openSongbookPickerBtn" class="pick-songbook-btn">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                          <span>Pick from My Songbook</span>
+                        </button>`
+                      : ""
+                  }
+                </div>
+
+                <div class="bhajan-autocomplete">
+                  <input type="hidden" name="master_bhajan_id" id="selectedMasterBhajanId" />
+                  <input type="hidden" id="singerPreferredScale" value="${escapeHtml(currentSinger?.preferred_scale || "")}" />
+                  <input name="title" id="bhajanTitleInput" required placeholder="Select Deity first to search master songbook..." autocomplete="off" aria-autocomplete="list" aria-controls="bhajanSuggestions" aria-expanded="false" />
+                  <div id="bhajanSuggestions" class="bhajan-suggestions" role="listbox" aria-label="Bhajan suggestions"></div>
+                </div>
+
+                <div id="masterDataBadge" class="master-sync-badge" style="display:none;">
+                  <div class="master-sync-badge-text">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Master DB Synced <span id="badgeDetails"></span></span>
                   </div>
-                  <div id="genderCommonScaleBadge" class="badge-scale-common" style="display:none;">
-                    👥 <strong>Most Common <span id="genderCommonScaleLabel">Male</span> Scale:</strong> <span id="genderCommonScaleVal"></span>
+                  <div class="master-sync-actions">
+                    <span id="badgeSheetLink" style="display:none;">
+                      <a href="#" id="sheetMusicLink" target="_blank" rel="noopener noreferrer" class="sheet-link-pill" title="Open official reference sheet music (PDF)">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>Music Sheet &nearr;</span>
+                      </a>
+                    </span>
+                    <span id="badgeLyricsLink" style="display:none;">
+                      <a href="#" id="lyricsPageLink" target="_blank" rel="noopener noreferrer" class="sheet-link-pill" title="Open sacred lyrics & singing guide">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span>Lyrics &nearr;</span>
+                      </a>
+                    </span>
                   </div>
                 </div>
-             </div>
-            <div class="form-group form-group-raag">
-               <label>🎼 Raag</label>
-               <input type="text" name="raga" id="ragaInput" readonly placeholder="Auto-filled..." class="input-readonly" />
+
+                <div id="cooldownWarning" style="display:none; color:#b91c1c; background:rgba(254,226,226,0.85); border:1px solid #fca5a5; padding:10px 14px; border-radius:10px; font-size:12.5px; margin-top:8px; font-weight:500;"></div>
+              </div>
+
+              <div class="form-group form-group-speed">
+                <label>Speed / Tempo</label>
+                <input type="text" name="speed" id="speedInput" readonly placeholder="Auto-filled..." class="input-readonly" style="background:rgba(241,245,249,0.7); cursor:not-allowed;" />
+              </div>
             </div>
+
+            <div class="form-row form-row-scale-raag">
+              <div class="form-group form-group-scale">
+                <label>Scale / Shruti</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <input type="text" name="scale" id="scaleInput" placeholder="e.g., 1.5P or C#" style="flex:1;" />
+                  <button type="button" id="btnAuditionScale" class="audition-tanpura-btn" title="Sound this pitch in Tanpura" onclick="if(window.playTanpuraPitch){ window.playTanpuraPitch(document.getElementById('scaleInput').value); }">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    <span>Sound Tanpura</span>
+                  </button>
+                </div>
+
+                <div id="scaleSuggestionsContainer" style="margin-top:6px; display:flex; flex-direction:column; gap:4px;">
+                  <div id="singerPrevScaleBadge" class="badge-scale-prev" style="display:none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span><strong>Your Previous Scale:</strong> <span id="singerPrevScaleVal"></span></span>
+                  </div>
+                  <div id="genderCommonScaleBadge" class="badge-scale-common" style="display:none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span><strong>Most Common <span id="genderCommonScaleLabel">Male</span> Scale:</strong> <span id="genderCommonScaleVal"></span></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group form-group-raag">
+                <label>Raag / Melody</label>
+                <input type="text" name="raga" id="ragaInput" readonly placeholder="Auto-filled..." class="input-readonly" style="background:rgba(241,245,249,0.7); cursor:not-allowed;" />
+              </div>
+            </div>
+
+            <input type="hidden" name="level" id="hiddenLevel" />
+            <input type="hidden" name="language" id="hiddenLanguage" />
+
+            <button type="button" id="preSubmitBtn" class="submit-slot-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Review &amp; Submit Offering</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- 5. Registered Bhajan Sequence -->
+        <section class="zen-glass-panel submitted-bhajans-card" aria-labelledby="submittedBhajansHeading">
+          <div class="submitted-header">
+            <h3 id="submittedBhajansHeading" class="submitted-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+              <span>Registered Bhajan Sequence (${submissionCount})</span>
+            </h3>
+            <p class="submitted-subtitle">
+              ${submissionCount} bhajan${submissionCount === 1 ? "" : "s"} offered for this session. Please review the sequence to prevent duplicate selections.
+            </p>
           </div>
 
-          <input type="hidden" name="level" id="hiddenLevel" />
-          <input type="hidden" name="language" id="hiddenLanguage" />
-          
-          <button type="button" id="preSubmitBtn" class="submit-btn">Submit Form</button>
-        </div>
-      </form>
+          ${
+            submissionCount > 0
+              ? `
+            <div class="table-glass-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Singer</th>
+                    <th>Deity</th>
+                    <th>Bhajan Title</th>
+                    <th>Speed</th>
+                    <th>Scale</th>
+                  </tr>
+                </thead>
+                <tbody>${submissionRowsHtml}</tbody>
+              </table>
+            </div>
+          `
+              : `<div class="submitted-empty-state">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a8a29e" stroke-width="1.8" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                  <div>No bhajans have been offered yet for this session. Select an available deity above to begin!</div>
+                </div>`
+          }
+        </section>
 
-      <section class="submitted-bhajans" aria-labelledby="submittedBhajansHeading">
-        <div class="submitted-bhajans-heading">
-          <div>
-            <h3 id="submittedBhajansHeading">Bhajans already submitted</h3>
-            <p>${submissionCount} bhajan${submissionCount === 1 ? "" : "s"} added for this session. Please avoid duplicate titles.</p>
-          </div>
-        </div>
-        ${
-          submissionCount > 0
-            ? `
-          <div class="table-container">
-            <table>
-              <thead><tr><th>#</th><th>Singer</th><th>Deity</th><th>Bhajan</th><th>Speed</th><th>Scale</th></tr></thead>
-              <tbody>${submissionRowsHtml}</tbody>
-            </table>
-          </div>
-        `
-            : '<p class="submitted-bhajans-empty">No bhajans have been submitted yet.</p>'
-        }
-      </section>
+      </div>
     </div>
   </div>
-  
-  <div id="detailsModal" class="modal">
-    <div class="modal-content">
-      <div class="sheet-drag-handle"></div>
-      <div class="modal-header">
-        <h3 id="modalDeityName">Deity Details</h3>
-        <button class="close-btn" onclick="closeModal()">&times;</button>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Singer</div>
-        <div class="detail-value" id="modalSinger">---</div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Bhajan Title</div>
-        <div class="detail-value" id="modalBhajan">---</div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Scale</div>
-        <div class="detail-value" id="modalScale">---</div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Speed</div>
-        <div class="detail-value" id="modalSpeed">---</div>
-      </div>
-      <div class="modal-actions-row">
-        <button type="button" class="button secondary btn-modal-edit" onclick="closeModal()">Close</button>
-      </div>
-    </div>
-  </div>
 
+
+  <!-- Confirm & Submit Review Modal -->
   <div id="confirmSubmitModal" class="modal">
     <div class="modal-content">
-      <div class="sheet-drag-handle"></div>
+      <div class="sheet-drag-handle" onclick="closeConfirmModal()"></div>
       <div class="modal-header">
-        <h3 style="color:#2f9e44;">Review Your Submission</h3>
+        <h3 style="color:#15803d;">Review Your Offering</h3>
         <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
       </div>
       <div class="detail-row">
@@ -367,54 +457,95 @@ function generateSubmitFormHtml(
         <div class="detail-value" id="modTitle">---</div>
       </div>
       <div class="detail-row">
-        <div class="detail-label">Scale/Shruti</div>
+        <div class="detail-label">Scale / Shruti</div>
         <div class="detail-value" id="modScale">---</div>
       </div>
       <div class="modal-actions-row">
-        <button type="button" id="editBtn" class="button secondary btn-modal-edit">✏️ Edit</button>
-        <button type="button" id="confirmBtn" class="button button-confirm btn-modal-confirm">✨ Confirm &amp; Offer</button>
-      </div>
-    </div>
-  </div>
-  
-  <div id="selectBhajanModal" class="modal">
-    <div class="modal-content select-bhajan-modal-content">
-      <div class="sheet-drag-handle"></div>
-      <div class="modal-music-icon">🎵</div>
-      <h3 class="modal-warning-title">
-        Select Bhajan from Suggestions
-      </h3>
-      <p class="modal-warning-text">
-        Cannot submit bhajan without selecting from dropdown. Manual entry without selecting a suggested bhajan is not allowed.
-      </p>
-      <div style="display:flex; justify-content:center;">
-        <button type="button" id="closeSelectBhajanModalBtn" class="button button-select-dropdown">
-          Select from Dropdown
+        <button type="button" id="editBtn" class="button secondary btn-modal-edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <span>Modify</span>
+        </button>
+        <button type="button" id="confirmBtn" class="button button-confirm btn-modal-confirm">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Confirm &amp; Offer</span>
         </button>
       </div>
     </div>
   </div>
 
-  <div id="songbookPickerModal" class="modal">
-    <div class="modal-content songbook-picker-sheet" style="max-width:540px; width:92%; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
-      <div class="sheet-drag-handle"></div>
-      <div class="modal-header" style="padding-bottom:12px; border-bottom:1px solid var(--border);">
-        <h3 style="color:#7c3aed; margin:0; display:flex; align-items:center; gap:8px;">
-          <span>📖</span> Pick from My Songbook
-        </h3>
-        <button class="close-btn" type="button" id="closeSongbookPickerBtn">&times;</button>
+  <!-- Must Select from Suggestions Warning Modal -->
+  <div id="selectBhajanModal" class="modal">
+    <div class="modal-content select-bhajan-modal-content">
+      <div class="sheet-drag-handle" onclick="document.getElementById('selectBhajanModal').classList.remove('is-open')"></div>
+      <div class="modal-music-icon" style="color:#d97706;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
       </div>
-      <p style="font-size:13px; color:var(--ink-soft); margin:10px 0 14px 0;">
-        Select one of your prepared bhajans. It will automatically choose the deity and pre-fill your saved singing pitch!
+      <h3 class="modal-warning-title">
+        Select Bhajan from Songbook
+      </h3>
+      <p class="modal-warning-text">
+        Please select an authentic bhajan from the verified dropdown suggestions to ensure correct scale, tempo, and lyric alignment.
       </p>
-      <div id="songbookPickerList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px; padding-right:4px;">
-        <div style="text-align:center; padding:20px; color:var(--ink-soft);">Loading your songbook...</div>
+      <div style="display:flex; justify-content:center;">
+        <button type="button" id="closeSelectBhajanModalBtn" class="button button-select-dropdown">
+          Select from Suggestions
+        </button>
       </div>
     </div>
   </div>
-  
+
+  <!-- Songbook Picker Modal -->
+  <div id="songbookPickerModal" class="modal">
+    <div class="modal-content songbook-picker-sheet" style="max-width:540px; width:92%; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div class="sheet-drag-handle" onclick="document.getElementById('songbookPickerModal').classList.remove('is-open')"></div>
+      <div class="modal-header" style="padding-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <h3 style="color:#7c3aed; margin:0; display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Pick from My Songbook</span>
+        </h3>
+        <button class="close-btn" type="button" id="closeSongbookPickerBtn">&times;</button>
+      </div>
+      <p style="font-size:12.5px; color:#57534e; margin:10px 0 14px 0;">
+        Choose one of your prepared bhajans. The slot, deity, and singing pitch will automatically pre-fill!
+      </p>
+      <div id="songbookPickerList" style="overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; padding-right:4px;">
+        <div style="text-align:center; padding:20px; color:#78716c;">Loading your songbook...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Taken Deity Slot Details Modal -->
+  <div id="detailsModal" class="zen-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalDeityName" onclick="if(event.target===this)closeModal('detailsModal')">
+    <div class="zen-glass-panel zen-modal-card">
+      <div class="zen-modal-header">
+        <h3 id="modalDeityName" class="zen-modal-title">Deity Slot Details</h3>
+        <button type="button" class="close-btn" onclick="closeModal('detailsModal')" aria-label="Close">&times;</button>
+      </div>
+      <div class="zen-modal-body">
+        <div class="detail-row">
+          <span class="detail-label">Singer</span>
+          <span class="detail-value" id="modalSinger">---</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Bhajan Title</span>
+          <span class="detail-value" id="modalBhajan">---</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Scale / Shruti</span>
+          <span class="detail-value" id="modalScale">---</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Speed / Tempo</span>
+          <span class="detail-value" id="modalSpeed">---</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   ${appBottomNavHtml}
-  <script src="/js/script.js?v=2.9"></script>
+  ${getTanpuraWidgetHtml()}
+  <script src="/js/tanpura.js?v=2.2"></script>
+  <script src="/js/script.js?v=3.0"></script>
 </body>
 </html>`;
 }
@@ -428,7 +559,8 @@ function generatePlanViewHtml(sessionDate, rowsHtml, whatsappText, whatsappEncod
     submissionsCount = 0,
     isUpcoming = false,
     isAdmin = false,
-    csrfToken = ""
+    csrfToken = "",
+    sessionAudio = null
   } = opts;
 
   const dateOptionsHtml = dateOptionsList
@@ -452,7 +584,8 @@ function generatePlanViewHtml(sessionDate, rowsHtml, whatsappText, whatsappEncod
   <meta name="csrf-token" content="${escapeHtml(csrfToken)}" />
   <script>window.csrfToken = "${escapeHtml(csrfToken)}";</script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/style.css?v=5.3">
+  <link rel="stylesheet" href="/css/session-audio.css">
   ${themeHeadScript}
 </head>
 <body class="embed-page in-iframe">
@@ -535,6 +668,24 @@ function generatePlanViewHtml(sessionDate, rowsHtml, whatsappText, whatsappEncod
       </div>
     </div>
 
+    ${sessionAudio && sessionAudio.audio_url ? `
+    <!-- ═══ SESSION AUDIO BANNER ═══ -->
+    <div class="session-audio-banner no-print">
+      <div class="audio-banner-left">
+        <div class="audio-banner-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="audio-banner-info">
+          <h3 class="audio-banner-title">${escapeHtml(sessionAudio.title || 'Session Recording')}</h3>
+          <p class="audio-banner-sub">Session audio recording is ready. Play the full session or click timestamps next to individual bhajans below.</p>
+        </div>
+      </div>
+      <button type="button" class="audio-banner-play-btn" data-start="0" data-title="${escapeHtml(sessionAudio.title || 'Session Recording')}" data-singer="${escapeHtml(sessionDateHuman)}" data-url="${escapeHtml(sessionAudio.audio_url)}" onclick="window.playSessionAudioBtn(this)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span>Play Full Recording</span>
+      </button>
+    </div>` : ''}
+
     <!-- ═══ MOBILE TIMELINE VIEW ═══ -->
     <div class="plan-timeline active-view" id="planTimeline">
       ${timelineCardsHtml}
@@ -574,10 +725,10 @@ function generatePlanViewHtml(sessionDate, rowsHtml, whatsappText, whatsappEncod
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="plan-btn plan-btn-whatsapp" onclick="sharePlan()" id="planShareBtnBottom">
-            <span>📤</span> <span>Share</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> <span>Share</span>
           </button>
           <button type="button" class="plan-btn plan-btn-secondary" onclick="copyPlanText()" id="planCopyBtn">
-            <span>📋</span> <span>Copy</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> <span>Copy</span>
           </button>
         </div>
       </div>
@@ -741,6 +892,29 @@ function generatePlanViewHtml(sessionDate, rowsHtml, whatsappText, whatsappEncod
       window.location.href = '/bhajan/' + bhajanId;
     }
   </script>
+
+  <script src="/js/session-audio-player.js"></script>
+  ${sessionAudio && sessionAudio.audio_url ? `
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.SessionAudioPlayer) {
+        window.SessionAudioPlayer.init(${JSON.stringify({
+          id: sessionAudio.id,
+          title: sessionAudio.title,
+          audio_url: sessionAudio.audio_url,
+          session_date: sessionAudio.session_date,
+          timestamps: (sessionAudio.timestamps || []).map(t => ({
+            id: t.id,
+            submission_id: t.submission_id,
+            bhajan_title: t.bhajan_title,
+            singer_name: t.singer_name,
+            deity: t.deity,
+            start_seconds: t.start_seconds
+          }))
+        })});
+      }
+    });
+  </script>` : ''}
 
   <script src="/js/script.js?v=2.10"></script>
 </body>

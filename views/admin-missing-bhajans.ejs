@@ -4,18 +4,18 @@
   <div id="catcherToast" style="display:none; position:fixed; top:24px; right:24px; z-index:9999; background:linear-gradient(135deg, #16a34a, #15803d); color:#fff; padding:12px 22px; border-radius:12px; font-size:13.5px; font-weight:700; box-shadow:0 8px 24px rgba(0,0,0,0.2); transition:all 0.3s ease;">
   </div>
 
-  <!-- ═══ EXECUTIVE HEADER ═══ -->
+  <!-- EXECUTIVE HEADER -->
   <header class="session-unified-header">
     <div class="session-header-top-row">
       <div class="session-header-identity">
-        <div class="session-date-tile" style="background:linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(217, 138, 43, 0.15)); border-color:rgba(239, 68, 68, 0.4);">
-          <span style="font-size:22px;">🚨</span>
+        <div class="session-date-tile" style="background:#fee2e2; border-color:#ef4444; color:#ef4444; display:flex; align-items:center; justify-content:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         </div>
         <div class="session-title-block">
           <h1>Missing Bhajan Catcher</h1>
           <div class="session-tags-row">
             <span class="session-tag <%= totalMissing === 0 ? 'session-tag-regular' : 'session-tag-festival' %>">
-              <%= totalMissing === 0 ? '✅ 100% Synchronized' : `${totalMissing} Unlinked Submissions` %>
+              <%= totalMissing === 0 ? '100% Synchronized' : `${totalMissing} Unlinked Submissions` %>
             </span>
             <% if (totalPages > 1) { %>
               <span class="session-tag session-tag-regular">Batch <%= currentPage %> of <%= totalPages %> (50 / batch)</span>
@@ -27,11 +27,11 @@
       <!-- Quick Nav Buttons -->
       <div class="session-primary-actions" style="max-width:320px;">
         <a href="/master-bank" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;">
-          <span>📚</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           <span>Master Bank</span>
         </a>
         <a href="/admin" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;">
-          <span>🏠</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Dashboard</span>
         </a>
       </div>
@@ -41,28 +41,36 @@
     <div class="session-metrics-deck" style="margin-top:14px;">
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-card-icon">🚨</div>
+          <div class="metric-card-icon" style="color:#ef4444;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val total-missing-count"><%= totalMissing %></span>
             <span class="metric-card-lbl">Missing From Master</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">⚡</div>
+          <div class="metric-card-icon" style="color:#0284c7;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= missingBhajans ? missingBhajans.length : 0 %></span>
             <span class="metric-card-lbl">In Current Batch</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">📄</div>
+          <div class="metric-card-icon" style="color:#64748b;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= currentPage %> / <%= totalPages || 1 %></span>
             <span class="metric-card-lbl">Batch Page</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">🔍</div>
+          <div class="metric-card-icon" style="color:#16a34a;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= missingBhajans ? missingBhajans.filter(b => b.candidates && b.candidates.length > 0).length : 0 %></span>
             <span class="metric-card-lbl">With Auto-Matches</span>
@@ -72,14 +80,14 @@
     </div>
   </header>
 
-  <!-- ═══ MAIN WORKSPACE ═══ -->
+  <!-- MAIN WORKSPACE -->
   <main class="session-unified-workspace view-mode-table">
 
     <!-- Workspace Controls Bar -->
     <div class="workspace-header-bar">
       <div class="workspace-filter-box">
         <input type="text" id="missingSearchInput" onkeyup="filterMissingBhajans()"
-               placeholder="🔍 Filter this batch of <%= missingBhajans ? missingBhajans.length : 0 %> bhajans..." 
+               placeholder="Filter this batch of <%= missingBhajans ? missingBhajans.length : 0 %> bhajans..." 
                class="workspace-search-input" aria-label="Filter missing bhajans">
         
         <span class="workspace-meta-text">
@@ -90,39 +98,36 @@
       <!-- Pagination Buttons -->
       <% if (totalPages > 1) { %>
         <div class="workspace-view-controls">
-          <div style="display:flex; gap:6px;">
-            <% if (hasPrev) { %>
-              <a href="/admin/missing-bhajans?page=<%= currentPage - 1 %>" class="sec-tool-btn" style="width:auto; min-height:34px; padding:0 12px; flex-direction:row; gap:4px;">
-                ← Prev 50
-              </a>
+          <div class="view-switcher-pill">
+            <% if (currentPage > 1) { %>
+              <a href="/admin/missing-bhajans?page=<%= currentPage - 1 %>" class="view-switch-btn" style="text-decoration:none;">&larr; Prev</a>
             <% } %>
-            <% if (hasNext) { %>
-              <a href="/admin/missing-bhajans?page=<%= currentPage + 1 %>" class="sec-tool-btn" style="width:auto; min-height:34px; padding:0 12px; flex-direction:row; gap:4px;">
-                Next 50 →
-              </a>
+            <span class="view-switch-btn active" style="cursor:default;">Page <%= currentPage %> / <%= totalPages %></span>
+            <% if (currentPage < totalPages) { %>
+              <a href="/admin/missing-bhajans?page=<%= currentPage + 1 %>" class="view-switch-btn" style="text-decoration:none;">Next &rarr;</a>
             <% } %>
           </div>
         </div>
       <% } %>
     </div>
 
-    <!-- Missing Bhajans Cards Container -->
-    <div class="workspace-cards-list">
+    <!-- Missing Songs Cards Stream -->
+    <div id="missingListContainer" style="display:flex; flex-direction:column; gap:12px; margin-top:14px;">
       <% if (missingBhajans && missingBhajans.length > 0) { %>
-        <div id="missingListContainer" class="cards-deck-container">
+        <div class="session-cards-stream" style="display:flex; flex-direction:column; gap:12px;">
           <% missingBhajans.forEach(function(item, idx) { %>
-            <article class="sequencer-card missing-card-item" id="card-<%= encodeURIComponent(item.submittedTitle) %>" data-title="<%= item.submittedTitle.toLowerCase() %>">
+            <article class="session-track-card missing-card-item" data-title="<%= item.submittedTitle.toLowerCase() %>" style="display:flex; flex-direction:column; gap:10px; padding:16px 18px; border-radius:12px; background:var(--surface); border:1px solid var(--border);">
               
-              <!-- Card Header -->
-              <div class="card-top-header" style="align-items:center;">
-                <div class="card-reorder-group">
-                  <span class="table-order-badge" style="cursor:default; min-width:32px; height:32px; font-size:12px;">
+              <!-- Card Header Row -->
+              <div class="track-card-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <div class="card-seq-badge-wrap">
+                  <span class="card-seq-num" style="font-size:12px; font-family:monospace; color:var(--text-light); font-weight:700;">
                     #<%= startIndex + idx %>
                   </span>
                 </div>
-                <div class="card-header-main">
+                <div class="card-header-main" style="flex:1;">
                   <div class="card-title-wrap">
-                    <span class="card-bhajan-title" style="font-size:16px;">📝 <%= item.submittedTitle %></span>
+                    <span class="card-bhajan-title" style="font-size:16px; font-weight:700;"><%= item.submittedTitle %></span>
                   </div>
                 </div>
               </div>
@@ -130,7 +135,7 @@
               <!-- Candidate Auto-Matches -->
               <% if (item.candidates && item.candidates.length > 0) { %>
                 <div style="font-size:12px; font-weight:700; color:var(--text-light); display:flex; align-items:center; gap:6px; margin-top:2px;">
-                  <span>🔍</span> Potential matches found in Master Database:
+                  Potential matches found in Master Database:
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:8px;">
@@ -142,7 +147,7 @@
                         </span>
                         <strong style="font-size:14px; color:var(--text);"><%= c.master.title %></strong>
                         <% if (c.master.raga) { %>
-                          <span style="font-size:11.5px; color:var(--text-light);">• Raag: <%= c.master.raga %></span>
+                          <span style="font-size:11.5px; color:var(--text-light);">&bull; Raag: <%= c.master.raga %></span>
                         <% } %>
                         <span class="diag-chip pass" style="font-size:10.5px; padding:2px 7px;">
                           <%= Math.round(c.score * 100) %>% match
@@ -151,7 +156,7 @@
 
                       <button type="button" class="cmd-btn cmd-btn-share" style="height:32px; font-size:12px; padding:0 14px;"
                               onclick="liveReconcile('<%= item.submittedTitle.replace(/'/g, "\\'") %>', 'link', <%= c.master.id %>, '<%= c.master.title.replace(/'/g, "\\'") %>')">
-                        ✓ Yes, Link This
+                        Yes, Link This
                       </button>
                     </div>
                   <% }); %>
@@ -160,7 +165,7 @@
                 <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:4px;">
                   <span style="font-size:12px; color:var(--text-light);">None of these match?</span>
                   <button type="button" class="card-touch-btn btn-edit" onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
-                    ➕ Add as New Canonical Song
+                    + Add as New Canonical Song
                   </button>
                 </div>
 
@@ -169,7 +174,7 @@
                   <span style="font-size:12.5px; color:var(--text-light);">No similar titles found in Master Bank.</span>
                   <button type="button" class="cmd-btn cmd-btn-add" style="height:34px; font-size:12.5px; padding:0 16px;"
                           onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
-                    ➕ Add to Master Bank
+                    + Add to Master Bank
                   </button>
                 </div>
               <% } %>
@@ -180,9 +185,11 @@
 
       <% } else { %>
         <div style="padding:48px 20px; text-align:center;">
-          <div style="font-size:42px; margin-bottom:12px;">🎉</div>
-          <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700;">100% Synchronized!</h3>
-          <p style="font-size:13.5px; color:var(--text-light); margin:0;">
+          <div style="width:48px; height:48px; border-radius:12px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700; color:#0f172a;">100% Synchronized!</h3>
+          <p style="font-size:13.5px; color:#64748b; margin:0;">
             Every single bhajan submitted in past sessions matches a canonical record in the Master Database.
           </p>
         </div>
@@ -191,26 +198,25 @@
 
   </main>
 
-  <!-- ═══ ADD MISSING BHAJAN MODAL ═══ -->
+  <!-- ADD MISSING BHAJAN MODAL -->
   <div id="missingBhajanModal" class="session-modal-overlay">
     <div class="session-modal-card" style="max-width:480px;">
       <div class="session-modal-header">
-        <h3>➕ Add to Master Database</h3>
-        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeMissingBhajanModal()">✕</button>
+        <h3>Add to Master Database</h3>
+        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeMissingBhajanModal()">&times;</button>
       </div>
       <div class="session-modal-body" style="display:flex; flex-direction:column; gap:12px;">
         <div>
           <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Bhajan Title</label>
           <input type="text" id="mbTitle" required class="workspace-search-input" style="width:100%; max-width:none;">
         </div>
-
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
             <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Deity</label>
             <select id="mbDeity" class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="Ganesha">Ganesha</option>
               <option value="Guru">Guru</option>
-              <option value="Mata">Mata / Devi</option>
+              <option value="Mata">Mata</option>
               <option value="SarvaDharma">SarvaDharma</option>
               <option value="Sai">Sai</option>
               <option value="Shiva">Shiva</option>
@@ -224,42 +230,40 @@
           <div>
             <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Tempo</label>
             <select id="mbTempo" class="workspace-search-input" style="width:100%; max-width:none;">
-              <option value="Medium">Medium</option>
               <option value="Slow">Slow</option>
+              <option value="Medium" selected>Medium</option>
               <option value="Fast">Fast</option>
             </select>
           </div>
         </div>
-
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Scale (Male)</label>
-            <input type="text" id="mbShruti" placeholder="e.g. 4 White" class="workspace-search-input" style="width:100%; max-width:none;">
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Male)</label>
+            <input type="text" id="mbShruti" placeholder="e.g. C#" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Scale (Female)</label>
-            <input type="text" id="mbShrutiFemale" placeholder="e.g. 1 White" class="workspace-search-input" style="width:100%; max-width:none;">
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Female)</label>
+            <input type="text" id="mbShrutiFemale" placeholder="e.g. G#" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
         </div>
-
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Raag</label>
-            <input type="text" id="mbRaga" placeholder="e.g. Bhairavi" class="workspace-search-input" style="width:100%; max-width:none;">
+            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Raga</label>
+            <input type="text" id="mbRaga" placeholder="e.g. Yaman" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
           <div>
             <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Difficulty Level</label>
             <select id="mbLevel" class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="Easy">Easy</option>
               <option value="Medium" selected>Medium</option>
-              <option value="Hard">Hard</option>
+              <option value="Advanced">Advanced</option>
             </select>
           </div>
         </div>
       </div>
-      <div class="session-modal-footer">
-        <button type="button" class="sec-tool-btn" style="width:auto; min-height:36px; padding:0 14px;" onclick="closeMissingBhajanModal()">Cancel</button>
-        <button type="button" class="cmd-btn cmd-btn-share" style="height:36px; padding:0 18px;" onclick="liveSaveMissingBhajan()">Add to Master</button>
+      <div class="session-modal-footer" style="display:flex; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid var(--border);">
+        <button type="button" class="sec-tool-btn" style="min-height:36px; padding:0 14px;" onclick="closeMissingBhajanModal()">Cancel</button>
+        <button type="button" class="cmd-btn cmd-btn-share" style="height:36px; padding:0 18px;" onclick="liveSaveMissingBhajan()">Save to Master Bank</button>
       </div>
     </div>
   </div>
@@ -267,51 +271,38 @@
 </div>
 
 <script>
-  function showToast(message, type = 'success') {
+  function showToast(msg, type) {
     const toast = document.getElementById('catcherToast');
     if (!toast) return;
-    toast.textContent = message;
-    toast.style.background = type === 'error' ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #16a34a, #15803d)';
+    toast.textContent = msg;
+    toast.style.background = (type === 'error') ? 'linear-gradient(135deg, #dc2626, #b91c1c)' : 'linear-gradient(135deg, #16a34a, #15803d)';
     toast.style.display = 'block';
-    toast.style.opacity = '1';
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.style.display = 'none', 300);
-    }, 3500);
+    setTimeout(() => { toast.style.display = 'none'; }, 2800);
   }
 
   function liveRemoveCard(submittedTitle) {
-    const cardId = 'card-' + encodeURIComponent(submittedTitle);
-    const card = document.getElementById(cardId);
-    if (card) {
-      card.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(-10px) scale(0.97)';
-      setTimeout(() => {
-        card.style.maxHeight = '0';
-        card.style.padding = '0';
-        card.style.margin = '0';
-        card.style.overflow = 'hidden';
-        card.style.border = 'none';
-      }, 150);
-      setTimeout(() => {
-        card.remove();
-        decrementAllCounters();
-      }, 380);
-    }
-  }
+    const cards = document.querySelectorAll('.missing-card-item');
+    cards.forEach(card => {
+      if (card.getAttribute('data-title') === submittedTitle.toLowerCase()) {
+        card.style.transition = 'all 0.3s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.95)';
+        setTimeout(() => card.remove(), 300);
 
-  function decrementAllCounters() {
-    const countElems = document.querySelectorAll('.total-missing-count, .missing-catcher-badge');
-    countElems.forEach(el => {
-      let current = parseInt(el.textContent.replace(/[^\d]/g, ''), 10);
-      if (!isNaN(current) && current > 0) {
-        let updated = current - 1;
-        el.textContent = updated > 999 ? '999+' : (updated > 0 ? updated : '');
-        if (updated <= 0) {
-          el.style.display = 'none';
-          const dot = document.querySelector('.sidebar-badge-dot');
-          if (dot) dot.style.display = 'none';
+        const badgeEls = document.querySelectorAll('.total-missing-count');
+        badgeEls.forEach(el => {
+          const current = parseInt(el.textContent) || 0;
+          if (current > 0) el.textContent = current - 1;
+        });
+
+        const sidebarBadge = document.querySelector('.missing-catcher-badge');
+        if (sidebarBadge) {
+          const cur = parseInt(sidebarBadge.textContent) || 0;
+          if (cur <= 1) {
+            sidebarBadge.style.display = 'none';
+          } else {
+            sidebarBadge.textContent = cur - 1;
+          }
         }
       }
     });
@@ -322,11 +313,13 @@
       if (container) {
         container.innerHTML = `
           <div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:40px 20px; text-align:center;">
-            <div style="font-size:42px; margin-bottom:12px;">🎉</div>
-            <h3 style="color:var(--success); margin-bottom:8px;">Batch Completed!</h3>
-            <p style="color:var(--text-light); margin-bottom:18px;">All 50 bhajans in this batch have been reconciled.</p>
+            <div style="width:48px; height:48px; border-radius:12px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3 style="color:#16a34a; margin-bottom:8px;">Batch Completed!</h3>
+            <p style="color:#64748b; margin-bottom:18px;">All 50 bhajans in this batch have been reconciled.</p>
             <a href="/admin/missing-bhajans" class="cmd-btn cmd-btn-share" style="display:inline-flex; text-decoration:none; height:38px; padding:0 22px;">
-              Continue to Next Batch →
+              Continue to Next Batch &rarr;
             </a>
           </div>
         `;
@@ -343,7 +336,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          showToast('✓ Linked "' + submittedTitle + '" to "' + (masterTitle || data.masterTitle || '') + '"');
+          showToast('Linked "' + submittedTitle + '" to "' + (masterTitle || data.masterTitle || '') + '"');
           liveRemoveCard(submittedTitle);
         } else {
           showToast('Error: ' + (data.error || 'Unknown error'), 'error');
@@ -382,7 +375,7 @@
       .then(result => {
         if (result.success) {
           closeMissingBhajanModal();
-          showToast('✅ Added "' + title + '" to Master Database!');
+          showToast('Added "' + title + '" to Master Database!');
           liveRemoveCard(title);
         } else {
           showToast('Error: ' + (result.error || 'Failed to add'), 'error');

@@ -13,7 +13,7 @@
 
   <% if (typeof errorMsg !== 'undefined' && errorMsg) { %>
     <div class="alert alert-danger" style="margin-bottom:20px; padding:12px 16px; border-radius:8px; background:#fbeae8; color:#b23b32; font-weight:600;">
-      ❌ <%= errorMsg %>
+      <%= errorMsg %>
     </div>
   <% } %>
 
@@ -23,7 +23,7 @@
 
       <!-- Participant Pair Section -->
       <div class="diwali-form-card">
-        <h2>👥 Audition Participant Pair</h2>
+        <h2>Audition Participant Pair</h2>
         <p style="margin: -10px 0 20px 0; color:var(--text-light); font-size:13.5px;">
           Both Lead Singer and Partner names are strictly mandatory for Diwali Audition pairs.
         </p>
@@ -72,7 +72,7 @@
                   value="Gents"
                   <%= (!formData || formData.gender === 'Gents') ? 'checked' : '' %>
                 >
-                👔 Gents
+                Gents
               </label>
               <label class="gender-radio-label">
                 <input
@@ -81,7 +81,7 @@
                   value="Ladies"
                   <%= (formData && formData.gender === 'Ladies') ? 'checked' : '' %>
                 >
-                👗 Ladies
+                Ladies
               </label>
             </div>
           </div>
@@ -102,15 +102,38 @@
       <!-- Multiple Bhajans Section -->
       <div class="diwali-form-card">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--diwali-gold-border); padding-bottom: 10px; margin-bottom: 16px;">
-          <h2 style="margin:0; border:none; padding:0;">🎼 Selected Bhajans for this Pair</h2>
+          <h2 style="margin:0; border:none; padding:0;">Selected Bhajans for this Pair</h2>
           <small style="color:var(--text-light); font-size:13px;">Add one or multiple bhajans for this pair</small>
         </div>
 
+        <%
+          let formBhajans = [];
+          if (formData && formData.bhajan_title) {
+            const titles = Array.isArray(formData.bhajan_title) ? formData.bhajan_title : [formData.bhajan_title];
+            const masterIds = Array.isArray(formData.master_bhajan_id) ? formData.master_bhajan_id : [formData.master_bhajan_id];
+            const scales = Array.isArray(formData.scale) ? formData.scale : [formData.scale];
+            const tablas = Array.isArray(formData.tabla) ? formData.tabla : [formData.tabla];
+            const deities = Array.isArray(formData.deity) ? formData.deity : [formData.deity];
+            const remarksArr = Array.isArray(formData.bhajan_remarks) ? formData.bhajan_remarks : [formData.bhajan_remarks];
+            formBhajans = titles.map((t, i) => ({
+              title: t || '',
+              master_bhajan_id: (masterIds && masterIds[i]) || '',
+              scale: (scales && scales[i]) || '',
+              tabla: (tablas && tablas[i]) || '',
+              deity: (deities && deities[i]) || '',
+              remarks: (remarksArr && remarksArr[i]) || ''
+            }));
+          }
+          if (formBhajans.length === 0) {
+            formBhajans = [{ title: '', master_bhajan_id: '', scale: '', tabla: '', deity: '', remarks: '' }];
+          }
+        %>
+
         <div id="bhajanRepeaterContainer" class="bhajan-repeater-wrap">
-          <!-- Bhajan Card 1 -->
+          <% formBhajans.forEach((fb, idx) => { %>
           <div class="bhajan-item-card">
             <div class="bhajan-card-header">
-              <span class="bhajan-num-badge">Bhajan #1</span>
+              <span class="bhajan-num-badge">Bhajan #<%= idx + 1 %></span>
               <button type="button" class="btn-remove-bhajan" onclick="removeBhajanCard(this)">✕ Remove</button>
             </div>
 
@@ -127,8 +150,9 @@
                     class="diwali-input-text bhajan-autocomplete-input"
                     placeholder="Search Master Bhajan bank or type title..."
                     autocomplete="off"
+                    value="<%= fb.title %>"
                   >
-                  <input type="hidden" name="master_bhajan_id" class="bhajan-master-id" value="">
+                  <input type="hidden" name="master_bhajan_id" class="bhajan-master-id" value="<%= fb.master_bhajan_id %>">
                   <div class="autocomplete-dropdown"></div>
                 </div>
               </div>
@@ -136,28 +160,29 @@
               <div class="bhajan-meta-grid">
                 <div class="diwali-field-group">
                   <label class="diwali-field-label">Deity</label>
-                  <input type="text" name="deity" class="diwali-input-text bhajan-deity-input" placeholder="e.g. Ganesha, Krishna, Shiva...">
+                  <input type="text" name="deity" class="diwali-input-text bhajan-deity-input" placeholder="e.g. Ganesha, Krishna, Shiva..." value="<%= fb.deity %>">
                 </div>
 
                 <div class="diwali-field-group">
                   <label class="diwali-field-label">
                     Scale <span class="field-hint-tag">Auto-filled</span>
                   </label>
-                  <input type="text" name="scale" class="diwali-input-text bhajan-scale-input" placeholder="e.g. C#">
+                  <input type="text" name="scale" class="diwali-input-text bhajan-scale-input" placeholder="e.g. C#" value="<%= fb.scale %>">
                 </div>
 
                 <div class="diwali-field-group">
                   <label class="diwali-field-label">Tabla Shruti</label>
-                  <input type="text" name="tabla" class="diwali-input-text bhajan-tabla-input" placeholder="e.g. 1.5, 2...">
+                  <input type="text" name="tabla" class="diwali-input-text bhajan-tabla-input" placeholder="e.g. 1.5, 2..." value="<%= fb.tabla %>">
                 </div>
               </div>
 
               <div class="diwali-field-group bhajan-field-remarks">
                 <label class="diwali-field-label">Bhajan Remarks</label>
-                <input type="text" name="bhajan_remarks" class="diwali-input-text" placeholder="Audition comments or notes...">
+                <input type="text" name="bhajan_remarks" class="diwali-input-text" placeholder="Audition comments or notes..." value="<%= fb.remarks %>">
               </div>
             </div>
           </div>
+          <% }) %>
         </div>
 
         <button
@@ -166,7 +191,7 @@
           class="btn-diwali btn-diwali-secondary"
           style="width:100%; justify-content:center; padding:12px; border-style:dashed; margin-bottom:20px;"
         >
-          ➕ Add Another Bhajan for this Pair
+          + Add Another Bhajan for this Pair
         </button>
 
         <div style="display:flex; justify-content:flex-end; gap:12px; padding-top:16px; border-top:1px solid var(--diwali-border);">
@@ -174,7 +199,7 @@
             Cancel
           </a>
           <button type="submit" class="btn-diwali btn-diwali-primary" style="padding:12px 28px; font-size:16px;">
-            💾 Save Participant &amp; Bhajans
+            Save Participant &amp; Bhajans
           </button>
         </div>
       </div>

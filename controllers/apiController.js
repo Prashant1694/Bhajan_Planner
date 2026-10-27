@@ -4,39 +4,11 @@ const BhajanSubmission = require("../models/BhajanSubmission");
 const Singer = require("../models/Singer");
 const DeityRule = require("../models/DeityRule");
 
-// The source bank has historically used a few different labels for the same
-// deity. Keep this mapping at the API boundary so the form never hides an
-// otherwise relevant bhajan merely because its imported category differs.
-const DEITY_ALIASES = {
-  Vitthala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-  Vittala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-  Vithhala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-  Vithala: ["Vitthala", "Vittala", "Vithhala", "Vithala"],
-  Mata: ["Mata", "Devi"],
-  Devi: ["Devi", "Mata"],
-  Hanuman: ["Hanuman", "Anjaneya"],
-  Anjaneya: ["Hanuman", "Anjaneya"],
-  SarvaDharma: ["SarvaDharma", "Sarva Dharma"],
-  "Sarva Dharma": ["SarvaDharma", "Sarva Dharma"]
-};
-
-const DEITY_TITLE_MATCHERS = {
-  Vitthala: /vitt?h?ala|vithoba|pandurang/i,
-  Vittala: /vitt?h?ala|vithoba|pandurang/i,
-  Vithhala: /vitt?h?ala|vithoba|pandurang/i,
-  Vithala: /vitt?h?ala|vithoba|pandurang/i,
-  Hanuman: /hanuman|anjaneya|maruthi|maruti|pavana suta|bajrang/i,
-  Anjaneya: /hanuman|anjaneya|maruthi|maruti|pavana suta|bajrang/i
-};
-
-const DEITY_TITLE_SEARCH_TERMS = {
-  Vitthala: ["Pandurang", "Vitt", "Vith"],
-  Vittala: ["Pandurang", "Vitt", "Vith"],
-  Vithhala: ["Pandurang", "Vitt", "Vith"],
-  Vithala: ["Pandurang", "Vitt", "Vith"],
-  Hanuman: ["Hanuman", "Anjaneya", "Maruthi", "Maruti", "Pavana Suta", "Bajrang"],
-  Anjaneya: ["Hanuman", "Anjaneya", "Maruthi", "Maruti", "Pavana Suta", "Bajrang"]
-};
+const {
+  DEITY_ALIASES,
+  DEITY_TITLE_MATCHERS,
+  DEITY_TITLE_SEARCH_TERMS
+} = require("../config/constants");
 
 exports.getMasterBhajans = async (req, res) => {
   try {
@@ -72,9 +44,12 @@ exports.getMasterBhajans = async (req, res) => {
     const seenIds = new Set();
     const relevantBhajans = bhajans
       .filter((bhajan) => {
-        if (!bhajan.deity) return false;
-        const bDeityTokens = bhajan.deity.split(",").map((s) => s.trim().toLowerCase());
-        const hasDeity = bDeityTokens.some((d) => lowerAliases.includes(d));
+        const bDeityTokens = (bhajan.deity || "").split(/[,;&\/]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+        const hasDeity = bDeityTokens.some((d) => {
+          if (lowerAliases.includes(d)) return true;
+          const tokenAliases = (DEITY_ALIASES[d] || []).map((x) => x.toLowerCase());
+          return tokenAliases.some((ta) => lowerAliases.includes(ta));
+        });
         return hasDeity || (titleMatcher && titleMatcher.test(bhajan.title));
       })
       .filter((bhajan) => {
@@ -238,12 +213,15 @@ exports.getSingers = async (req, res) => {
 
 exports.getDeityRules = async (req, res) => {
   try {
+    const { deityOrderKey } = require("../services/helpers");
     const date = req.query.date || "default";
     let rules = await DeityRule.findAll({ where: { session_date: date } });
     if (rules.length === 0 && date !== "default") {
       rules = await DeityRule.findAll({ where: { session_date: "default" } });
     }
-    res.json(rules);
+    const plainRules = rules.map((r) => r.toJSON ? r.toJSON() : r);
+    plainRules.sort((a, b) => deityOrderKey(a.deity_name) - deityOrderKey(b.deity_name));
+    res.json(plainRules);
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Failed to load deity rules:`, error);
     res.status(500).json({ error: "Failed to load deity rules." });

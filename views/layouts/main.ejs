@@ -25,24 +25,30 @@
     <title>
       <%= typeof pageTitle !=="undefined" ? pageTitle : "Bhajan Planner" %>
     </title>
+    <!-- Google Fonts Direct Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- Global CSS with Cache Busting -->
-    <link rel="stylesheet" href="/css/style.css?v=4.6">
-    <link rel="stylesheet" href="/css/pwa.css?v=4.0">
-    <link rel="stylesheet" href="/css/notifications.css?v=4.4">
-    <link rel="stylesheet" href="/css/bulletin.css?v=4.4">
+    <link rel="stylesheet" href="/css/style.css?v=5.5">
+    <link rel="stylesheet" href="/css/pwa.css?v=5.5">
+    <link rel="stylesheet" href="/css/notifications.css?v=5.5">
+    <link rel="stylesheet" href="/css/bulletin.css?v=5.5">
 
-    <% if (typeof showLoader !=="undefined" && showLoader) { %>
-      <link rel="stylesheet" href="/css/loading.css?v=4.0">
-      <% } %>
+    <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
+      <link rel="stylesheet" href="/css/loading.css?v=5.5">
+    <% } %>
 
-        <% if (typeof isAdminPage !=="undefined" && isAdminPage) { %>
-          <link rel="stylesheet" href="/css/admin.css?v=4.7">
-          <% } %>
+    <% if (typeof isAdminPage !=="undefined" && isAdminPage) { %>
+      <link rel="stylesheet" href="/css/admin.css?v=5.5">
+    <% } %>
 
-            <!-- Optional page-specific CSS -->
-            <% if (pageCSS) { %>
-              <link rel="stylesheet" href="/css/<%= pageCSS %>?v=4.0">
-              <% } %>
+    <!-- Optional page-specific CSS -->
+    <% if (pageCSS) { %>
+      <link rel="stylesheet" href="/css/<%= pageCSS %>?v=5.5">
+    <% } %>
+
 
                 <!-- Critical Anti-FOUC for Floating Theme Toggle & Absolute Print Elimination -->
                 <style>
@@ -138,13 +144,47 @@
                         } else if (window.top && window.top.history && window.top.history.replaceState) {
                           window.top.history.replaceState({ path: cleanUrl }, '', cleanUrl);
                         }
-                      } else if (!/^\/(admin-login|forgot-password|logout)/i.test(window.location.pathname) && !window.location.search.includes('_embed=1') && !window.location.search.includes('standalone=1')) {
-                        // Top-level browser open/refresh: seamlessly wrap inside app-shell at this exact path & query!
-                        var fullUrl = window.location.pathname + window.location.search;
-                        try {
-                          sessionStorage.setItem('bp_current_path', fullUrl);
-                        } catch (_) {}
-                        window.location.replace('/?route=' + encodeURIComponent(fullUrl));
+
+                        // Seamless cross-tab link delegator
+                        document.addEventListener('click', function (e) {
+                          var a = e.target && e.target.closest('a');
+                          if (!a || !a.href) return;
+                          if (a.target === '_blank' || a.hasAttribute('download')) return;
+                          var rawHref = a.getAttribute('href') || '';
+                          if (rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+
+                          try {
+                            var dest = new URL(a.href, window.location.origin);
+                            if (dest.origin !== window.location.origin) return; // external
+
+                            var path = dest.pathname.toLowerCase();
+                            if (path.startsWith('/admin')) {
+                              // Direct top-level navigation to admin portal
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.top.location.href = dest.pathname + dest.search;
+                              return;
+                            }
+
+                            var targetTab = null;
+                            if (path === '/' || path === '') targetTab = 'home';
+                            else if (path.startsWith('/submit-form')) targetTab = 'singer';
+                            else if (path.startsWith('/master-bank')) targetTab = 'bank';
+                            else if (path.startsWith('/plan-view')) targetTab = 'plan';
+                            else if (path.startsWith('/my-hub')) targetTab = 'hub';
+
+                            var frameId = (window.frameElement && window.frameElement.id) || '';
+                            var myTab = frameId.replace('frame-', '');
+
+                            // If this link leads to a different shell tab, delegate smoothly to parent shell
+                            if (targetTab && myTab && targetTab !== myTab && window.top && typeof window.top.switchTab === 'function') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              var cleanDest = dest.pathname + dest.search;
+                              window.top.switchTab(targetTab, cleanDest);
+                            }
+                          } catch (_) {}
+                        }, true);
                       }
                     } catch (e) { }
                   })();
@@ -157,29 +197,44 @@
                   .in-iframe #nativeTopBar,
                   .in-iframe .native-top-bar,
                   .in-iframe #themeToggle,
-                  .in-iframe .theme-toggle,
+                  .in-iframe .floating-theme-toggle,
                   .in-iframe #notifBellBtn,
                   .in-iframe .notif-bell-btn,
-                  .in-iframe #topbarThemeToggle,
-                  .in-iframe .topbar-theme-toggle,
                   .in-iframe .topbar-quick-link,
-                  .in-iframe .outer-shell-only-bottom-nav {
+                  .in-iframe .outer-shell-only-bottom-nav,
+                  .in-iframe .pwa-install-overlay,
+                  .in-iframe #pwaInstallOverlay,
+                  body.embed-page .pwa-install-overlay,
+                  body.embed-page #pwaInstallOverlay {
                     display: none !important;
                     visibility: hidden !important;
                     height: 0 !important;
+                    max-height: 0 !important;
                     overflow: hidden !important;
                     pointer-events: none !important;
+                    opacity: 0 !important;
                   }
 
-                  .in-iframe body,
-                  body.embed-page,
-                  html.in-iframe {
+                  html.in-iframe,
+                  html.embed-page {
+                    width: 100% !important;
+                    height: 100% !important;
                     overflow-y: auto !important;
                     overflow-x: hidden !important;
                     -webkit-overflow-scrolling: touch !important;
-                    height: auto !important;
+                  }
+
+                  body.in-iframe,
+                  body.embed-page,
+                  .in-iframe body {
+                    width: 100% !important;
                     min-height: 100% !important;
-                    padding-bottom: 24px !important;
+                    height: auto !important;
+                    overflow-y: visible !important;
+                    overflow-x: hidden !important;
+                    -webkit-overflow-scrolling: touch !important;
+                    box-sizing: border-box !important;
+                    padding-bottom: 48px !important;
                   }
                 </style>
   </head>
@@ -195,6 +250,7 @@
         </div>
       </div>
 
+      <% if (!isEmbed) { %>
       <!-- PWA Install Banner -->
       <div class="pwa-install-overlay" id="pwaInstallOverlay">
         <div class="pwa-install-banner">
@@ -209,35 +265,40 @@
           </div>
           <div class="pwa-banner-divider"></div>
           <div class="pwa-banner-benefits">
-            <div class="pwa-benefit"><span>⚡</span> Faster loading</div>
-            <div class="pwa-benefit"><span>📱</span> Works like a native app</div>
-            <div class="pwa-benefit"><span>🏠</span> Home screen access</div>
+            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Faster loading</div>
+            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> Works like a native app</div>
+            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home screen access</div>
           </div>
           <div class="pwa-banner-actions">
             <button class="pwa-btn-install" id="pwaBtnInstall">Install App</button>
             <button class="pwa-btn-dismiss" id="pwaBtnDismiss">Not Now</button>
           </div>
           <div class="pwa-manual-instructions" id="pwaManualInstructions" style="display:none">
-            <p id="pwaManualInstructionsText">Tap your browser menu (<strong>⋮</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+            <p id="pwaManualInstructionsText">Tap your browser menu (<strong>&vellip;</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
           </div>
           <div class="pwa-ios-instructions" id="pwaIosInstructions" style="display:none">
-            <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">⬆</span> then <strong>"Add to Home
+            <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">&uarr;</span> then <strong>"Add to Home
                 Screen"</strong></p>
           </div>
         </div>
       </div>
+      <% } %>
 
-      <% if (typeof showLoader !=="undefined" && showLoader) { %>
+      <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
         <%- include("../partials/loading") %>
-          <% } %>
+      <% } %>
 
             <% const isAuthAdmin=(typeof isAdminPage !=='undefined' && isAdminPage && currentAdmin); %>
               <% if (!isEmbed && !isAuthAdmin) { %>
                 <!-- Dark Mode Toggle (floating, above notification bell) -->
                 <button class="theme-toggle floating-theme-toggle" id="themeToggle" aria-label="Toggle dark mode"
                   aria-pressed="false" data-tooltip="Switch to Dark">
-                  <span class="icon-moon" aria-hidden="true">🌙</span>
-                  <span class="icon-sun" aria-hidden="true">☀️</span>
+                  <span class="icon-moon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  </span>
+                  <span class="icon-sun" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  </span>
                 </button>
 
                 <!-- Notification Center (user-facing) -->
@@ -247,30 +308,34 @@
                   <%- include("../partials/whats-new-modal") %>
                     <% } /* end !isEmbed && !isAuthAdmin */ %>
 
-                      <% if (typeof isAdminPage !== "undefined" && isAdminPage && currentAdmin) { %>
-                        <main class="main-content admin-main-fullwidth">
-                          <div class="page-body"><%- body %></div>
-                        </main>
+                      <% if (!isEmbed && typeof isAdminPage !== "undefined" && isAdminPage && currentAdmin) { %>
+                        <div class="admin-layout">
+                          <%- include('../partials/sidebar') %>
+                          <div class="sidebar-overlay" id="sidebarOverlay"></div>
+                          <main class="main-content">
+                            <%- include('../partials/topbar') %>
+                            <div class="page-body"><%- body %></div>
+                          </main>
+                        </div>
                       <% } else { %>
-                          <%- body %>
-                            <% if (!isEmbed) { %>
-                              <div class="outer-shell-only-bottom-nav">
-                                <%- include('../partials/app-bottom-nav') %>
-                              </div>
-                              <% } %>
-                                <% } %>
+                        <%- body %>
+                      <% } %>
 
                                   <!-- Universal SSSO Print Footer for every printable page -->
                                   <%- include('../partials/universal-print-footer') %>
 
                                     <!-- Global JS -->
                                     <script src="/js/haptics.js"></script>
-<script src="/js/script.js?v=2.9"></script>
-                                    <script src="/js/pwa.js"></script>
-                                    <script src="/js/notifications.js"></script>
+                                    <script src="/js/script.js?v=3.1"></script>
+                                    <% if (!isEmbed) { %>
+                                      <script src="/js/pwa.js"></script>
+                                      <script src="/js/notifications.js"></script>
+                                    <% } %>
                                     <script>
                                       (function () {
                                         try {
+                                          var hasDots = document.getElementById('homeReportDot') || document.getElementById('bankReportDot') || document.getElementById('unreadReplyDot');
+                                          if (!hasDots) return;
                                           var storedTickets = JSON.parse(localStorage.getItem('bp_my_report_tickets') || '[]');
                                           var devId = localStorage.getItem('bp_device_id') || '';
                                           if (storedTickets.length === 0 && !devId) return;
@@ -294,9 +359,9 @@
                                       })();
                                     </script>
 
-                                    <% if (typeof showLoader !=="undefined" && showLoader) { %>
+                                    <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
                                       <script src="/js/loading.js?v=3.4"></script>
-                                      <% } %>
+                                    <% } %>
 
                                         <!-- Optional page-specific JS -->
                                         <% if (typeof pageJS !=="undefined" && pageJS) { %>

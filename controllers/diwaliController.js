@@ -132,11 +132,10 @@ exports.createParticipant = async (req, res) => {
       }
     }
 
-    if (!Array.isArray(bhajans) && req.body["bhajan_title"]) {
+    if (!Array.isArray(bhajans) && req.body["bhajan_title"] !== undefined) {
       // If submitted as traditional multi-inputs
-      const titles = Array.isArray(req.body.bhajan_title)
-        ? req.body.bhajan_title
-        : [req.body.bhajan_title];
+      const rawTitles = req.body.bhajan_title;
+      const titles = Array.isArray(rawTitles) ? rawTitles : [rawTitles];
       const masterIds = Array.isArray(req.body.master_bhajan_id)
         ? req.body.master_bhajan_id
         : [req.body.master_bhajan_id];
@@ -149,14 +148,17 @@ exports.createParticipant = async (req, res) => {
         : [req.body.bhajan_remarks];
 
       bhajans = titles.map((title, idx) => ({
-        bhajan_title: title,
-        master_bhajan_id: masterIds[idx] || null,
-        scale: scales[idx] || "",
-        tabla: tablas[idx] || "",
-        shruti: (shrutis && shrutis[idx]) || scales[idx] || "",
-        deity: deities[idx] || "",
-        remarks: bhajanRemarks[idx] || ""
+        bhajan_title: (title || "").trim(),
+        master_bhajan_id: (masterIds && masterIds[idx]) || null,
+        scale: (scales && scales[idx]) || "",
+        tabla: (tablas && tablas[idx]) || "",
+        shruti: (shrutis && shrutis[idx]) || (scales && scales[idx]) || "",
+        deity: (deities && deities[idx]) || "",
+        remarks: (bhajanRemarks && bhajanRemarks[idx]) || ""
       }));
+    }
+    if (!Array.isArray(bhajans)) {
+      bhajans = [];
     }
 
     const participant = await diwaliService.createParticipantWithBhajans({
@@ -184,8 +186,15 @@ exports.createParticipant = async (req, res) => {
     if (req.xhr || req.headers.accept?.includes("application/json")) {
       return res.status(400).json({ success: false, error: error.message });
     }
-    const selectedEvent = await resolveSelectedEvent(req);
-    const allEvents = await diwaliService.getAllEvents();
+    let selectedEvent = null;
+    let allEvents = [];
+    try {
+      selectedEvent = await resolveSelectedEvent(req);
+      allEvents = await diwaliService.getAllEvents();
+    } catch (_) {}
+    if (!selectedEvent) {
+      selectedEvent = { year: new Date().getFullYear(), name: `Diwali ${new Date().getFullYear()}` };
+    }
     res.render("diwali/entry", {
       pageTitle: `Diwali Entry — ${selectedEvent.name}`,
       page: "diwali",

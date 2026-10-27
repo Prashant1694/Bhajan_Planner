@@ -1,327 +1,1219 @@
-<div class="container container-xl">
-  <div class="header">
-    <h1>🚩 Bhajan Issue & Correction Reports</h1>
-    <p>Review devotee-submitted feedback, verify lyrics or pitch corrections, and communicate ticket resolutions.</p>
+<div class="admin-reports-view">
+  <!-- Page Header -->
+  <header class="admin-reports-header">
+    <div class="admin-reports-header-content">
+      <div class="admin-reports-title-group">
+        <span class="admin-reports-badge">Devotee Care &amp; Feedback</span>
+        <h1 class="admin-reports-title">Bhajan Issue &amp; Correction Reports</h1>
+        <p class="admin-reports-subtitle">
+          Review devotee-submitted feedback, verify lyrics or pitch corrections, and communicate ticket resolutions.
+        </p>
+      </div>
+      <div class="admin-reports-header-actions">
+        <a href="/master-bank" class="sec-tool-btn" style="min-height:36px; padding:0 14px; text-decoration:none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Master Bank</span>
+        </a>
+        <a href="/my-reports" target="_blank" class="sec-tool-btn" style="min-height:36px; padding:0 14px; text-decoration:none;" title="Preview devotee ticket tracker portal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <span>User Portal &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stat Cards Overview Grid -->
+  <% const totalCount = (counts.total !== undefined ? counts.total : counts.all) || 0; %>
+  <div class="reports-kpi-grid">
+    <!-- Card 1: Total Tickets -->
+    <a href="/admin/reports" class="reports-kpi-card <%= !selectedStatus ? 'kpi-card-active' : '' %>" data-kpi="all">
+      <div class="kpi-card-stripe kpi-stripe-all"></div>
+      <div class="kpi-card-header">
+        <span class="kpi-card-label">Total Tickets</span>
+        <span class="kpi-pill kpi-pill-all">All</span>
+      </div>
+      <div class="kpi-card-number"><%= totalCount %></div>
+      <div class="kpi-card-meta">Lifetime submissions</div>
+    </a>
+
+    <!-- Card 2: Needs Review -->
+    <a href="/admin/reports?status=pending" class="reports-kpi-card <%= selectedStatus === 'pending' ? 'kpi-card-active' : '' %>" data-kpi="pending">
+      <div class="kpi-card-stripe kpi-stripe-pending"></div>
+      <div class="kpi-card-header">
+        <span class="kpi-card-label">Needs Review</span>
+        <span class="kpi-pill kpi-pill-pending">Pending</span>
+      </div>
+      <div class="kpi-card-number kpi-num-pending"><%= counts.pending || 0 %></div>
+      <div class="kpi-card-meta">Awaiting response</div>
+    </a>
+
+    <!-- Card 3: In Progress -->
+    <a href="/admin/reports?status=under_review" class="reports-kpi-card <%= selectedStatus === 'under_review' ? 'kpi-card-active' : '' %>" data-kpi="progress">
+      <div class="kpi-card-stripe kpi-stripe-progress"></div>
+      <div class="kpi-card-header">
+        <span class="kpi-card-label">In Progress</span>
+        <span class="kpi-pill kpi-pill-progress">Active</span>
+      </div>
+      <div class="kpi-card-number kpi-num-progress"><%= counts.under_review || 0 %></div>
+      <div class="kpi-card-meta">Under verification</div>
+    </a>
+
+    <!-- Card 4: Resolved -->
+    <a href="/admin/reports?status=resolved" class="reports-kpi-card <%= selectedStatus === 'resolved' ? 'kpi-card-active' : '' %>" data-kpi="resolved">
+      <div class="kpi-card-stripe kpi-stripe-resolved"></div>
+      <div class="kpi-card-header">
+        <span class="kpi-card-label">Resolved</span>
+        <span class="kpi-pill kpi-pill-resolved">Fixed</span>
+      </div>
+      <div class="kpi-card-number kpi-num-resolved"><%= counts.resolved || 0 %></div>
+      <div class="kpi-card-meta">Resolved &amp; notified</div>
+    </a>
   </div>
 
-  <div class="bank-body">
-    <!-- Stat Cards Overview -->
-    <div class="report-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-      <a href="/admin/reports" class="stat-card <%= !selectedStatus ? 'active-stat' : '' %>" style="background: var(--bg-card, #fff); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); text-decoration: none; color: inherit; display: block; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-        <div style="font-size: 13px; color: var(--muted, #64748b); font-weight: 600; text-transform: uppercase;">Total Tickets</div>
-        <div style="font-size: 28px; font-weight: 800; margin-top: 6px; color: var(--text-main, #1e293b);"><%= counts.total %></div>
-      </a>
-      <a href="/admin/reports?status=pending" class="stat-card <%= selectedStatus === 'pending' ? 'active-stat' : '' %>" style="background: var(--bg-card, #fff); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); text-decoration: none; color: inherit; display: block; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-        <div style="font-size: 13px; color: #d97706; font-weight: 600; text-transform: uppercase;">🟡 Needs Review</div>
-        <div style="font-size: 28px; font-weight: 800; margin-top: 6px; color: #d97706;"><%= counts.pending %></div>
-      </a>
-      <a href="/admin/reports?status=under_review" class="stat-card <%= selectedStatus === 'under_review' ? 'active-stat' : '' %>" style="background: var(--bg-card, #fff); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); text-decoration: none; color: inherit; display: block; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-        <div style="font-size: 13px; color: #2563eb; font-weight: 600; text-transform: uppercase;">🔵 In Progress</div>
-        <div style="font-size: 28px; font-weight: 800; margin-top: 6px; color: #2563eb;"><%= counts.under_review %></div>
-      </a>
-      <a href="/admin/reports?status=resolved" class="stat-card <%= selectedStatus === 'resolved' ? 'active-stat' : '' %>" style="background: var(--bg-card, #fff); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); text-decoration: none; color: inherit; display: block; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-        <div style="font-size: 13px; color: #16a34a; font-weight: 600; text-transform: uppercase;">🟢 Resolved</div>
-        <div style="font-size: 28px; font-weight: 800; margin-top: 6px; color: #16a34a;"><%= counts.resolved %></div>
-      </a>
-    </div>
+  <!-- Filter & Search Toolbar -->
+  <div class="reports-toolbar-card">
+    <form method="GET" action="/admin/reports" class="reports-toolbar-form">
+      <div class="reports-search-box">
+        <svg class="reports-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          type="search"
+          name="search"
+          value="<%= searchQuery %>"
+          placeholder="Search ticket #, title, lyrics snippet, or reporter..."
+          class="reports-search-input"
+          aria-label="Search reports"
+        >
+        <% if (searchQuery) { %>
+          <a href="/admin/reports<%= selectedStatus ? '?status=' + selectedStatus : '' %>" class="reports-clear-search" title="Clear search">
+            &times;
+          </a>
+        <% } %>
+      </div>
 
-    <!-- Filters & Search Toolbar -->
-    <div class="page-toolbar" style="background: var(--bg-card, #fff); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); margin-bottom: 20px;">
-      <form method="GET" action="/admin/reports" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: 1;">
-          <!-- Status Dropdown -->
-          <select name="status" onchange="this.form.submit()" style="padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); font-weight: 600; font-size: 13px; background: var(--bg-input, #fff); color: var(--text-main, #1e293b);">
-            <option value="">All Statuses (<%= counts.total %>)</option>
-            <option value="pending" <%= selectedStatus === 'pending' ? 'selected' : '' %>>🟡 Needs Review (<%= counts.pending %>)</option>
-            <option value="under_review" <%= selectedStatus === 'under_review' ? 'selected' : '' %>>🔵 In Progress (<%= counts.under_review %>)</option>
-            <option value="resolved" <%= selectedStatus === 'resolved' ? 'selected' : '' %>>🟢 Resolved (<%= counts.resolved %>)</option>
-            <option value="closed" <%= selectedStatus === 'closed' ? 'selected' : '' %>>⚪ Closed (<%= counts.closed %>)</option>
+      <div class="reports-filter-group">
+        <!-- Status Filter Dropdown -->
+        <div class="reports-select-wrap">
+          <select name="status" onchange="this.form.submit()" class="reports-select" aria-label="Filter by status">
+            <option value="">All Statuses (<%= totalCount %>)</option>
+            <option value="pending" <%= selectedStatus === 'pending' ? 'selected' : '' %>>Needs Review (<%= counts.pending || 0 %>)</option>
+            <option value="under_review" <%= selectedStatus === 'under_review' ? 'selected' : '' %>>In Progress (<%= counts.under_review || 0 %>)</option>
+            <option value="resolved" <%= selectedStatus === 'resolved' ? 'selected' : '' %>>Resolved (<%= counts.resolved || 0 %>)</option>
+            <option value="closed" <%= selectedStatus === 'closed' ? 'selected' : '' %>>Closed (<%= counts.closed || 0 %>)</option>
           </select>
+        </div>
 
-          <!-- Category Filter -->
-          <select name="category" onchange="this.form.submit()" style="padding: 9px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); font-weight: 600; font-size: 13px; background: var(--bg-input, #fff); color: var(--text-main, #1e293b);">
+        <!-- Category Filter Dropdown -->
+        <div class="reports-select-wrap">
+          <select name="category" onchange="this.form.submit()" class="reports-select" aria-label="Filter by category">
             <option value="">All Categories</option>
-            <option value="lyrics" <%= selectedCategory === 'lyrics' ? 'selected' : '' %>>📝 Lyrics</option>
-            <option value="scale" <%= selectedCategory === 'scale' ? 'selected' : '' %>>🎵 Scale / Pitch</option>
-            <option value="raga" <%= selectedCategory === 'raga' ? 'selected' : '' %>>🎼 Raga</option>
-            <option value="deity" <%= selectedCategory === 'deity' ? 'selected' : '' %>>🕉️ Deity</option>
-            <option value="tempo" <%= selectedCategory === 'tempo' ? 'selected' : '' %>>⏱️ Tempo</option>
-            <option value="sheet" <%= selectedCategory === 'sheet' ? 'selected' : '' %>>📄 Music Sheet</option>
-            <option value="spelling" <%= selectedCategory === 'spelling' ? 'selected' : '' %>>✏️ Spelling / Title</option>
-            <option value="other" <%= selectedCategory === 'other' ? 'selected' : '' %>>❓ Other</option>
+            <option value="lyrics" <%= selectedCategory === 'lyrics' ? 'selected' : '' %>>Lyrics</option>
+            <option value="scale" <%= selectedCategory === 'scale' ? 'selected' : '' %>>Scale / Pitch</option>
+            <option value="raga" <%= selectedCategory === 'raga' ? 'selected' : '' %>>Raga</option>
+            <option value="deity" <%= selectedCategory === 'deity' ? 'selected' : '' %>>Deity</option>
+            <option value="tempo" <%= selectedCategory === 'tempo' ? 'selected' : '' %>>Tempo</option>
+            <option value="sheet" <%= selectedCategory === 'sheet' ? 'selected' : '' %>>Music Sheet</option>
+            <option value="spelling" <%= selectedCategory === 'spelling' ? 'selected' : '' %>>Spelling / Title</option>
+            <option value="other" <%= selectedCategory === 'other' ? 'selected' : '' %>>Other</option>
           </select>
-
-          <!-- Search Input -->
-          <div style="position: relative; flex: 1; min-width: 220px;">
-            <input
-              type="search"
-              name="search"
-              value="<%= searchQuery %>"
-              placeholder="Search by Title, Ticket (REP-...), or Reporter..."
-              style="width: 100%; padding: 9px 14px; padding-left: 36px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); font-size: 13px; background: var(--bg-input, #fff); color: var(--text-main, #1e293b);"
-            >
-            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.6;">🔍</span>
-          </div>
-          <button type="submit" class="button primary" style="padding: 9px 16px; font-size: 13px; font-weight: 600;">Search</button>
-          <% if (selectedStatus || selectedCategory || searchQuery) { %>
-            <a href="/admin/reports" class="button secondary" style="padding: 9px 14px; font-size: 13px;">Clear</a>
-          <% } %>
         </div>
 
-        <div style="display: flex; gap: 8px;">
-          <a href="/master-bank" class="button secondary" style="padding: 9px 14px; font-size: 13px;">📚 Master Bank</a>
-          <a href="/my-reports" target="_blank" class="button secondary" style="padding: 9px 14px; font-size: 13px;" title="Open user ticket tracker preview">👤 User Portal ↗</a>
-        </div>
-      </form>
-    </div>
+        <button type="submit" class="reports-btn-submit">
+          <span>Search</span>
+        </button>
 
-    <!-- Reports Table -->
-    <div class="table-container bank-table" style="background: var(--bg-card, #fff); border-radius: 12px; border: 1px solid var(--border-color, #e2e8f0); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <table id="reportsTable" style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="background: var(--bg-table-head, #f8fafc); border-bottom: 2px solid var(--border-color, #e2e8f0); text-align: left;">
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Ticket #</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Bhajan Title</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Categories</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Report Details</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Reporter</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase;">Status</th>
-            <th style="padding: 14px 16px; font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase; text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (reports && reports.length > 0) { %>
+        <% if (selectedStatus || selectedCategory || searchQuery) { %>
+          <a href="/admin/reports" class="reports-btn-clear" title="Reset all filters">
+            <span>Clear</span>
+          </a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <!-- Main Content Container: Table (Desktop) & Cards (Mobile) -->
+  <div class="reports-content-box">
+    <% if (reports && reports.length > 0) { %>
+      <!-- Desktop Table View -->
+      <div class="reports-table-container">
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th style="width: 130px;">Ticket #</th>
+              <th style="width: 220px;">Bhajan Title</th>
+              <th style="width: 150px;">Categories</th>
+              <th>Issue Details</th>
+              <th style="width: 170px;">Reporter</th>
+              <th style="width: 120px; text-align:center;">Status</th>
+              <th style="width: 130px; text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
             <% reports.forEach(r => { %>
               <%
-                let badgeStyle = "background: #fef3c7; color: #b45309;";
-                let statusLabel = "🟡 Pending";
+                let badgeClass = "rep-badge-pending";
+                let statusLabel = "Pending";
                 if (r.status === 'under_review') {
-                  badgeStyle = "background: #dbeafe; color: #1d4ed8;";
-                  statusLabel = "🔵 In Progress";
+                  badgeClass = "rep-badge-progress";
+                  statusLabel = "In Progress";
                 } else if (r.status === 'resolved') {
-                  badgeStyle = "background: #dcfce7; color: #15803d;";
-                  statusLabel = "🟢 Resolved";
+                  badgeClass = "rep-badge-resolved";
+                  statusLabel = "Resolved";
                 } else if (r.status === 'closed') {
-                  badgeStyle = "background: #f1f5f9; color: #64748b;";
-                  statusLabel = "⚪ Closed";
+                  badgeClass = "rep-badge-closed";
+                  statusLabel = "Closed";
                 }
 
                 const catLabels = {
-                  lyrics: '📝 Lyrics',
-                  scale: '🎵 Scale',
-                  raga: '🎼 Raga',
-                  deity: '🕉️ Deity',
-                  tempo: '⏱️ Tempo',
-                  sheet: '📄 Sheet',
-                  spelling: '✏️ Typo',
-                  other: '❓ Other'
+                  lyrics: 'Lyrics',
+                  scale: 'Scale',
+                  raga: 'Raga',
+                  deity: 'Deity',
+                  tempo: 'Tempo',
+                  sheet: 'Sheet',
+                  spelling: 'Typo',
+                  other: 'Other'
                 };
               %>
-              <tr id="report-row-<%= r.id %>" style="border-bottom: 1px solid var(--border-color, #f1f5f9); transition: background 0.15s;">
-                <td style="padding: 14px 16px; font-family: monospace; font-weight: 700; font-size: 13px; color: #6366f1;">
-                  <%= r.ticket_code %>
-                  <div style="font-size: 11px; font-weight: 400; color: var(--muted, #94a3b8); margin-top: 2px;">
-                    <%= new Date(r.created_at).toLocaleDateString() %>
+              <tr id="report-row-<%= r.id %>" class="reports-tr">
+                <td>
+                  <span class="reports-ticket-code"><%= r.ticket_code %></span>
+                  <div class="reports-ticket-date">
+                    <%= new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) %>
                   </div>
                 </td>
-                <td style="padding: 14px 16px; font-weight: 600;">
+
+                <td>
                   <% if (r.master_id) { %>
-                    <a href="/bhajan/<%= r.master_id %>" target="_blank" style="color: #2563eb; text-decoration: none;" title="Open live bhajan page">
-                      <%= r.bhajan_title %> ↗
+                    <a href="/bhajan/<%= r.master_id %>" target="_blank" class="reports-bhajan-link" title="Open live bhajan page">
+                      <span><%= r.bhajan_title %></span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                     </a>
                   <% } else { %>
-                    <%= r.bhajan_title %>
+                    <span class="reports-bhajan-title"><%= r.bhajan_title %></span>
                   <% } %>
                 </td>
-                <td style="padding: 14px 16px;">
-                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+
+                <td>
+                  <div class="reports-cats-wrap">
                     <% (r.categories || []).forEach(cat => { %>
-                      <span style="font-size: 11px; background: rgba(99, 102, 241, 0.08); color: #4f46e5; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                      <span class="reports-cat-chip">
                         <%= catLabels[cat] || cat %>
                       </span>
                     <% }) %>
                   </div>
                 </td>
-                <td style="padding: 14px 16px; max-width: 280px;">
-                  <div style="font-size: 13px; color: var(--text-main, #334155); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
+
+                <td>
+                  <div class="reports-desc-preview">
                     <%= r.description %>
                   </div>
                   <% if (r.suggested_correction) { %>
-                    <div style="font-size: 11px; color: #16a34a; font-weight: 600; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">
-                      💡 Suggestion: <%= r.suggested_correction %>
+                    <div class="reports-suggestion-preview">
+                      <strong>Suggestion:</strong> <%= r.suggested_correction %>
                     </div>
                   <% } %>
                 </td>
-                <td style="padding: 14px 16px; font-size: 13px;">
-                  <div style="font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+
+                <td>
+                  <div class="reports-reporter-info">
+                    <span class="reports-reporter-name"><%= r.reporter_name || 'Anonymous' %></span>
                     <% if (r.singer_id) { %>
-                      <span title="Registered &amp; PIN-verified Singer" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">
-                        🎤 Singer
-                      </span>
+                      <span class="reports-singer-tag">Singer</span>
                     <% } %>
-                    <span><%= r.reporter_name || 'Anonymous' %></span>
                   </div>
                   <% if (r.reporter_contact) { %>
-                    <div style="font-size: 11px; color: var(--muted, #64748b);"><%= r.reporter_contact %></div>
+                    <div class="reports-reporter-contact"><%= r.reporter_contact %></div>
                   <% } %>
                 </td>
-                <td style="padding: 14px 16px;">
-                  <span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; <%= badgeStyle %>">
+
+                <td style="text-align:center;">
+                  <span class="rep-status-badge <%= badgeClass %>">
                     <%= statusLabel %>
                   </span>
                   <% if (r.admin_response) { %>
-                    <div style="font-size: 10px; color: #16a34a; margin-top: 3px; font-weight: 600;">💬 Replied</div>
+                    <div class="reports-replied-indicator">Replied</div>
                   <% } %>
                 </td>
-                <td style="padding: 14px 16px; text-align: right;">
+
+                <td style="text-align:right;">
                   <button
                     type="button"
-                    class="button secondary"
-                    style="padding: 6px 12px; font-size: 12px; font-weight: 600;"
+                    class="reports-action-btn"
                     onclick='openReportModal(<%= JSON.stringify(r) %>)'
+                    aria-label="Review and reply to report <%= r.ticket_code %>"
                   >
-                    Review / Reply 💬
+                    <span>Review &amp; Reply</span>
                   </button>
                 </td>
               </tr>
             <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards View -->
+      <div class="reports-cards-container">
+        <% reports.forEach(r => { %>
+          <%
+            let badgeClass = "rep-badge-pending";
+            let statusLabel = "Pending";
+            if (r.status === 'under_review') {
+              badgeClass = "rep-badge-progress";
+              statusLabel = "In Progress";
+            } else if (r.status === 'resolved') {
+              badgeClass = "rep-badge-resolved";
+              statusLabel = "Resolved";
+            } else if (r.status === 'closed') {
+              badgeClass = "rep-badge-closed";
+              statusLabel = "Closed";
+            }
+
+            const catLabels = {
+              lyrics: 'Lyrics',
+              scale: 'Scale',
+              raga: 'Raga',
+              deity: 'Deity',
+              tempo: 'Tempo',
+              sheet: 'Sheet',
+              spelling: 'Typo',
+              other: 'Other'
+            };
+          %>
+          <div class="report-mobile-card" id="mobile-report-card-<%= r.id %>">
+            <div class="report-mobile-card-top">
+              <div class="reports-ticket-code"><%= r.ticket_code %></div>
+              <span class="rep-status-badge <%= badgeClass %>"><%= statusLabel %></span>
+            </div>
+
+            <h3 class="report-mobile-title">
+              <% if (r.master_id) { %>
+                <a href="/bhajan/<%= r.master_id %>" target="_blank" class="reports-bhajan-link">
+                  <%= r.bhajan_title %>
+                </a>
+              <% } else { %>
+                <%= r.bhajan_title %>
+              <% } %>
+            </h3>
+
+            <div class="reports-cats-wrap" style="margin-bottom: 8px;">
+              <% (r.categories || []).forEach(cat => { %>
+                <span class="reports-cat-chip"><%= catLabels[cat] || cat %></span>
+              <% }) %>
+            </div>
+
+            <div class="reports-desc-preview" style="-webkit-line-clamp: 3; margin-bottom: 8px;">
+              <%= r.description %>
+            </div>
+
+            <% if (r.suggested_correction) { %>
+              <div class="reports-suggestion-preview" style="margin-bottom: 10px;">
+                <strong>Suggestion:</strong> <%= r.suggested_correction %>
+              </div>
+            <% } %>
+
+            <div class="report-mobile-card-meta">
+              <div class="reports-reporter-info">
+                <span class="reports-reporter-name"><%= r.reporter_name || 'Anonymous' %></span>
+                <% if (r.singer_id) { %>
+                  <span class="reports-singer-tag">Singer</span>
+                <% } %>
+                <span class="reports-ticket-date" style="margin-left: 6px;">
+                  &bull; <%= new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) %>
+                </span>
+              </div>
+              <% if (r.admin_response) { %>
+                <div class="reports-replied-indicator">Replied</div>
+              <% } %>
+            </div>
+
+            <div class="report-mobile-card-actions">
+              <button
+                type="button"
+                class="reports-action-btn reports-action-btn-block"
+                onclick='openReportModal(<%= JSON.stringify(r) %>)'
+              >
+                Review &amp; Reply
+              </button>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+    <% } else { %>
+      <!-- Clean Empty State -->
+      <div class="reports-empty-state">
+        <div class="reports-empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+          </svg>
+        </div>
+        <h3 class="reports-empty-title">No Reports Found</h3>
+        <p class="reports-empty-desc">
+          <% if (selectedStatus || selectedCategory || searchQuery) { %>
+            There are no reports matching the selected filters.
           <% } else { %>
-            <tr>
-              <td colspan="7" style="padding: 48px 16px; text-align: center; color: var(--muted, #64748b);">
-                <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
-                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">No Reports Found</h3>
-                <p style="font-size: 13px;">There are no reports matching the selected filters. Great job!</p>
-              </td>
-            </tr>
+            All bhajan feedback tickets have been cleared! Great job keeping the bhajan bank pristine.
           <% } %>
-        </tbody>
-      </table>
-    </div>
+        </p>
+        <% if (selectedStatus || selectedCategory || searchQuery) { %>
+          <a href="/admin/reports" class="reports-btn-submit" style="text-decoration:none; display:inline-flex; align-items:center; margin-top: 10px;">
+            <span>Clear Filters</span>
+          </a>
+        <% } %>
+      </div>
+    <% } %>
   </div>
 </div>
 
 <!-- ========================================================== -->
 <!-- MODAL: REVIEW & REPLY TICKET                               -->
 <!-- ========================================================== -->
-<div id="reviewModal" style="display:none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;">
-  <div style="background: #ffffff; width: 100%; max-width: 650px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;">
-    
+<div id="reviewModal" class="reports-modal-backdrop" style="display:none;" onclick="if(event.target === this) closeReportModal();">
+  <div class="reports-modal-dialog">
     <!-- Modal Header -->
-    <div style="padding: 18px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+    <div class="reports-modal-header">
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-family: monospace; font-size: 13px; font-weight: 800; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 6px;" id="modalTicketCode">REP-0000</span>
-          <span id="modalStatusBadge" style="padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">🟡 Pending</span>
+          <span class="reports-ticket-code" id="modalTicketCode">REP-0000</span>
+          <span id="modalStatusBadge" class="rep-status-badge rep-badge-pending">Pending</span>
         </div>
-        <h2 style="font-size: 17px; font-weight: 700; color: #1e293b; margin-top: 6px; margin-bottom: 0;" id="modalBhajanTitle">Bhajan Title</h2>
+        <h2 class="reports-modal-title" id="modalBhajanTitle">Bhajan Title</h2>
       </div>
-      <button type="button" onclick="closeReportModal()" style="background: transparent; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1;">&times;</button>
+      <button type="button" onclick="closeReportModal()" class="reports-modal-close" aria-label="Close modal">&times;</button>
     </div>
 
     <!-- Modal Body -->
-    <div style="padding: 24px; overflow-y: auto; flex: 1;">
-      
+    <div class="reports-modal-body">
       <!-- Issue Categories & Reporter Box -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
-        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-          <div><strong>Reported By:</strong> <span id="modalReporterName">Devotee</span> (<span id="modalReporterContact">No contact</span>)</div>
-          <div style="color: #64748b;" id="modalCreatedAt">Date</div>
+      <div class="reports-modal-info-box">
+        <div class="reports-modal-info-row">
+          <div>
+            <strong>Reported By:</strong> 
+            <span id="modalReporterName">Devotee</span> 
+            (<span id="modalReporterContact">No contact</span>)
+          </div>
+          <div id="modalCreatedAt" style="color: var(--muted); font-size: 11.5px;">Date</div>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-          <strong style="font-size: 12px; color: #475569;">Issue Types:</strong>
+          <strong style="font-size: 11.5px; color: var(--ink-soft);">Issue Types:</strong>
           <div id="modalCategoriesList" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
         </div>
       </div>
 
-      <!-- User's Description -->
+      <!-- Devotee Description -->
       <div style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 6px;">Devotee's Description:</label>
-        <div id="modalDescription" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 14px; line-height: 1.5; color: #1e293b; white-space: pre-wrap;"></div>
+        <label class="reports-modal-label">Devotee's Description:</label>
+        <div id="modalDescription" class="reports-modal-text-box"></div>
       </div>
 
       <!-- Suggested Correction (if provided) -->
-      <div id="modalCorrectionBox" style="margin-bottom: 18px; display: none;">
-        <label style="display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #16a34a; margin-bottom: 6px;">💡 Suggested Correction / Lyrics:</label>
-        <div id="modalSuggestedCorrection" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.5; color: #14532d; white-space: pre-wrap;"></div>
+      <div id="modalCorrectionBox" style="margin-bottom: 16px; display: none;">
+        <label class="reports-modal-label" style="color: #15803d;">Suggested Correction / Lyrics:</label>
+        <div id="modalSuggestedCorrection" class="reports-modal-suggestion-box"></div>
       </div>
 
-      <div style="margin-bottom: 18px; text-align: right;">
-        <a id="modalMasterLink" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #2563eb; font-weight: 600; text-decoration: none;">
-          📖 Open Live Bhajan Details ↗
+      <div style="margin-bottom: 16px; text-align: right;">
+        <a id="modalMasterLink" href="#" target="_blank" class="reports-bhajan-link" style="display: inline-flex; font-size: 12.5px;">
+          <span>Open Live Bhajan Details</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       </div>
 
-      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 18px 0;">
+      <hr class="reports-modal-hr">
 
       <!-- Admin Actions Form -->
       <form id="updateReportForm" onsubmit="submitReportUpdate(event)">
         <input type="hidden" id="modalReportId">
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+        <div class="reports-modal-status-row">
           <div>
-            <label for="modalStatusSelect" style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Update Status *</label>
-            <select id="modalStatusSelect" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 600; font-size: 13px;">
-              <option value="pending">🟡 Needs Review (Pending)</option>
-              <option value="under_review">🔵 In Progress (Under Review)</option>
-              <option value="resolved">🟢 Resolved (Fixed in Database)</option>
-              <option value="closed">⚪ Closed (No Action Needed)</option>
+            <label for="modalStatusSelect" class="reports-modal-label">Update Status *</label>
+            <select id="modalStatusSelect" required class="reports-select" style="width: 100%;">
+              <option value="pending">Needs Review (Pending)</option>
+              <option value="under_review">In Progress (Under Review)</option>
+              <option value="resolved">Resolved (Fixed in Database)</option>
+              <option value="closed">Closed (No Action Needed)</option>
             </select>
           </div>
-          <div style="display: flex; align-items: flex-end;">
-            <p style="font-size: 11px; color: #64748b; margin: 0; line-height: 1.4;">
-              Marking <strong>Resolved</strong> timestamps the ticket and notifies the user in their ticket tracker.
+          <div style="display: flex; align-items: center;">
+            <p style="font-size: 11.5px; color: var(--muted); margin: 0; line-height: 1.4;">
+              Marking <strong>Resolved</strong> timestamps the ticket and updates the user&#39;s tracker status.
             </p>
           </div>
         </div>
 
-        <!-- Admin Response to User -->
+        <!-- Admin Response to Devotee -->
         <div style="margin-bottom: 16px;">
-          <label for="modalAdminResponse" style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
-            💬 Response to Devotee <span style="font-weight: 400; color: #64748b;">(User will see this on their ticket tracker)</span>
+          <label for="modalAdminResponse" class="reports-modal-label">
+            Response to Devotee <span style="font-weight: 400; color: var(--muted);">(User will see this on their ticket tracker)</span>
           </label>
           <textarea
             id="modalAdminResponse"
             rows="3"
             placeholder="e.g. Sai Ram! Thank you for pointing this out. We have corrected the lyrics and updated the pitch in the master bank."
-            style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; line-height: 1.4; resize: vertical;"
+            class="reports-modal-textarea"
           ></textarea>
-          <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
-            <button type="button" class="button secondary" style="padding: 2px 8px; font-size: 11px;" onclick="document.getElementById('modalAdminResponse').value='Sai Ram! Thank you for pointing this out. We have corrected the lyrics and updated the master bank.'; document.getElementById('modalStatusSelect').value='resolved';">
-              ✅ Lyrics Corrected
-            </button>
-            <button type="button" class="button secondary" style="padding: 2px 8px; font-size: 11px;" onclick="document.getElementById('modalAdminResponse').value='Sai Ram! The singing pitch / scale has been updated in the master database.'; document.getElementById('modalStatusSelect').value='resolved';">
-              🎵 Scale Updated
-            </button>
-            <button type="button" class="button secondary" style="padding: 2px 8px; font-size: 11px;" onclick="document.getElementById('modalAdminResponse').value='Sai Ram! We verified the bhajan with official Prashanti Mandir audio records. Details are confirmed accurate.'; document.getElementById('modalStatusSelect').value='closed';">
-              ℹ️ Verified Accurate
-            </button>
-            <button type="button" class="button secondary" style="padding: 2px 8px; font-size: 11px;" onclick="document.getElementById('modalAdminResponse').value='Sai Ram! We have re-uploaded the official sheet music PDF with correct notation.'; document.getElementById('modalStatusSelect').value='resolved';">
-              📄 Sheet Updated
-            </button>
+          <!-- Quick Reply Presets -->
+          <div class="reports-preset-chips">
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('lyrics')">Lyrics Corrected</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('scale')">Scale / Pitch Updated</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('accurate')">Verified Accurate</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('sheet')">Sheet Music Updated</button>
           </div>
         </div>
 
         <!-- Admin Internal Notes -->
         <div style="margin-bottom: 20px;">
-          <label for="modalAdminNotes" style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px;">
-            🔒 Internal Admin Notes <span style="font-weight: 400; color: #94a3b8;">(Only visible to admins)</span>
+          <label for="modalAdminNotes" class="reports-modal-label">
+            Internal Admin Notes <span style="font-weight: 400; color: var(--muted);">(Only visible to admins)</span>
           </label>
           <input
             type="text"
             id="modalAdminNotes"
             placeholder="e.g. Cross-referenced with Sathya Sai Bhajan Avali audio book page 42"
-            style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px;"
+            class="reports-search-input"
+            style="width: 100%; height: 38px;"
           >
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 10px;">
-          <button type="button" onclick="closeReportModal()" class="button secondary" style="padding: 9px 16px;">Cancel</button>
-          <button type="submit" id="saveReportBtn" class="button primary" style="padding: 9px 20px; font-weight: 700;">💾 Save &amp; Notify User</button>
+        <div class="reports-modal-actions">
+          <button type="button" onclick="closeReportModal()" class="reports-btn-clear">Cancel</button>
+          <button type="submit" id="saveReportBtn" class="reports-btn-submit" style="min-width: 160px;">
+            Save &amp; Notify User
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<style>
+/* ==========================================================================
+   Admin Reports & Feedback Dashboard - Clean Devotional Styling
+   ========================================================================== */
+.admin-reports-view {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px 16px 40px 16px;
+}
+
+/* Page Header */
+.admin-reports-header {
+  margin-bottom: 22px;
+}
+.admin-reports-header-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-reports-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--saffron-dk, #b26a1b);
+  background: var(--surface-2, rgba(217, 138, 43, 0.1));
+  border: 1px solid rgba(217, 138, 43, 0.25);
+  padding: 3px 9px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.admin-reports-title {
+  font-family: "Cinzel", "Fraunces", Georgia, serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink, #1f2937);
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+.admin-reports-subtitle {
+  font-size: 13.5px;
+  color: var(--muted, #64748b);
+  margin: 0;
+  max-width: 680px;
+  line-height: 1.5;
+}
+.admin-reports-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* KPI Cards Grid */
+.reports-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+  .reports-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .reports-kpi-grid {
+    gap: 10px;
+  }
+}
+
+.reports-kpi-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.reports-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  border-color: rgba(217, 138, 43, 0.4);
+}
+.reports-kpi-card.kpi-card-active {
+  border-color: var(--saffron, #d98a2b);
+  box-shadow: 0 0 0 2px rgba(217, 138, 43, 0.25), 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.kpi-card-stripe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+.kpi-stripe-all { background: linear-gradient(90deg, #6366f1, #818cf8); }
+.kpi-stripe-pending { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.kpi-stripe-progress { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+.kpi-stripe-resolved { background: linear-gradient(90deg, #16a34a, #22c55e); }
+
+.kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.kpi-card-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted, #64748b);
+}
+.kpi-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.kpi-pill-all { background: rgba(99, 102, 241, 0.12); color: #4f46e5; }
+.kpi-pill-pending { background: rgba(217, 119, 6, 0.12); color: #d97706; }
+.kpi-pill-progress { background: rgba(2, 132, 199, 0.12); color: #0284c7; }
+.kpi-pill-resolved { background: rgba(22, 163, 74, 0.12); color: #16a34a; }
+
+.kpi-card-number {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--ink, #0f172a);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-num-pending { color: #d97706; }
+.kpi-num-progress { color: #0284c7; }
+.kpi-num-resolved { color: #16a34a; }
+
+.kpi-card-meta {
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  margin-top: 4px;
+}
+
+/* Toolbar & Filters */
+.reports-toolbar-card {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.reports-toolbar-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.reports-search-box {
+  position: relative;
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+.reports-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted, #94a3b8);
+  pointer-events: none;
+}
+.reports-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface-2, #f8fafc);
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+  box-sizing: border-box;
+}
+.reports-search-input:focus {
+  border-color: var(--saffron, #d98a2b);
+  background: var(--surface, #ffffff);
+}
+.reports-clear-search {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted, #94a3b8);
+  text-decoration: none;
+  cursor: pointer;
+}
+.reports-clear-search:hover { color: var(--ink, #0f172a); }
+
+.reports-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.reports-select-wrap {
+  position: relative;
+}
+.reports-select {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.reports-select:focus {
+  border-color: var(--saffron, #d98a2b);
+}
+.reports-btn-submit {
+  height: 38px;
+  padding: 0 16px;
+  background: var(--saffron, #d98a2b);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, transform 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.reports-btn-submit:hover {
+  background: var(--saffron-dk, #b26a1b);
+}
+.reports-btn-submit:active { transform: scale(0.97); }
+
+.reports-btn-clear {
+  height: 38px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--ink-soft, #475569);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.reports-btn-clear:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--ink, #0f172a);
+}
+
+/* Main Content Box */
+.reports-content-box {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+/* Desktop Table */
+.reports-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+.reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.reports-table thead tr {
+  background: var(--surface-2, #f8fafc);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.reports-table th {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.reports-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  vertical-align: middle;
+  font-size: 13px;
+}
+.reports-tr {
+  transition: background 0.15s ease;
+}
+.reports-tr:hover {
+  background: rgba(217, 138, 43, 0.03);
+}
+
+.reports-ticket-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--maroon, #7d2f45);
+  background: rgba(125, 47, 69, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.reports-ticket-date {
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  margin-top: 3px;
+}
+
+.reports-bhajan-link {
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+.reports-bhajan-link:hover {
+  color: var(--saffron-dk, #b26a1b);
+}
+.reports-bhajan-title {
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+}
+
+.reports-cats-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.reports-cat-chip {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  color: var(--ink-soft, #475569);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.reports-desc-preview {
+  color: var(--ink, #334155);
+  font-size: 13px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
+}
+.reports-suggestion-preview {
+  font-size: 11.5px;
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.reports-reporter-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.reports-reporter-name {
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+.reports-singer-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.reports-reporter-contact {
+  font-size: 11px;
+  color: var(--muted, #64748b);
+  margin-top: 2px;
+}
+
+/* Status Badges */
+.rep-status-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.rep-badge-pending {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+.rep-badge-progress {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.3);
+}
+.rep-badge-resolved {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+.rep-badge-closed {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--muted, #64748b);
+  border: 1px solid var(--border, #cbd5e1);
+}
+.reports-replied-indicator {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #15803d;
+  margin-top: 3px;
+}
+
+.reports-action-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  background: var(--surface-2, #f8fafc);
+  color: var(--ink, #0f172a);
+  border: 1px solid var(--border, #cbd5e1);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.reports-action-btn:hover {
+  background: var(--saffron, #d98a2b);
+  color: #ffffff;
+  border-color: var(--saffron, #d98a2b);
+}
+.reports-action-btn:active { transform: scale(0.96); }
+
+/* Mobile Cards View */
+.reports-cards-container {
+  display: none;
+  padding: 12px;
+  gap: 12px;
+  flex-direction: column;
+}
+.report-mobile-card {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.report-mobile-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.report-mobile-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: var(--ink, #0f172a);
+}
+.report-mobile-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #f1f5f9);
+  margin-bottom: 10px;
+}
+.reports-action-btn-block {
+  width: 100%;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .reports-table-container { display: none; }
+  .reports-cards-container { display: flex; }
+  .admin-reports-title { font-size: 20px; }
+  .admin-reports-header-actions { width: 100%; }
+  .admin-reports-header-actions .sec-tool-btn { flex: 1; justify-content: center; }
+  .reports-toolbar-form { flex-direction: column; align-items: stretch; }
+  .reports-filter-group { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .reports-select-wrap, .reports-select { width: 100%; }
+  .reports-btn-submit, .reports-btn-clear { width: 100%; }
+}
+
+/* Empty State */
+.reports-empty-state {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--muted, #64748b);
+}
+.reports-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  color: var(--saffron-dk, #b26a1b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px auto;
+}
+.reports-empty-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  margin: 0 0 6px 0;
+}
+.reports-empty-desc {
+  font-size: 13.5px;
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Modal Styling */
+.reports-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+.reports-modal-dialog {
+  background: var(--surface, #ffffff);
+  width: 100%;
+  max-width: 620px;
+  border-radius: 14px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border, #cbd5e1);
+  color: var(--ink, #0f172a);
+}
+.reports-modal-header {
+  padding: 18px 22px;
+  background: var(--surface-2, #f8fafc);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.reports-modal-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink, #0f172a);
+  margin: 6px 0 0 0;
+  line-height: 1.25;
+}
+.reports-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--muted, #64748b);
+  line-height: 1;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reports-modal-close:hover {
+  background: rgba(0,0,0,0.06);
+  color: var(--ink, #0f172a);
+}
+
+.reports-modal-body {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+}
+.reports-modal-info-box {
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.reports-modal-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.reports-modal-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ink-soft, #475569);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+.reports-modal-text-box {
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink, #0f172a);
+  white-space: pre-wrap;
+}
+.reports-modal-suggestion-box {
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #15803d;
+  white-space: pre-wrap;
+}
+.reports-modal-hr {
+  border: 0;
+  border-top: 1px solid var(--border, #e2e8f0);
+  margin: 16px 0;
+}
+.reports-modal-status-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 480px) {
+  .reports-modal-status-row { grid-template-columns: 1fr; }
+}
+.reports-modal-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #0f172a);
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.reports-preset-chips {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reports-chip-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--ink-soft, #475569);
+  border: 1px solid var(--border, #cbd5e1);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.reports-chip-btn:hover {
+  background: var(--saffron-dk, #b26a1b);
+  color: #ffffff;
+  border-color: var(--saffron-dk, #b26a1b);
+}
+.reports-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+}
+</style>
 
 <script>
 let currentEditingReport = null;
@@ -355,18 +1247,18 @@ function openReportModal(report) {
   const catContainer = document.getElementById('modalCategoriesList');
   catContainer.innerHTML = '';
   const catLabels = {
-    lyrics: '📝 Lyrics',
-    scale: '🎵 Scale',
-    raga: '🎼 Raga',
-    deity: '🕉️ Deity',
-    tempo: '⏱️ Tempo',
-    sheet: '📄 Sheet',
-    spelling: '✏️ Typo',
-    other: '❓ Other'
+    lyrics: 'Lyrics',
+    scale: 'Scale',
+    raga: 'Raga',
+    deity: 'Deity',
+    tempo: 'Tempo',
+    sheet: 'Sheet',
+    spelling: 'Typo',
+    other: 'Other'
   };
   (report.categories || []).forEach(cat => {
     const span = document.createElement('span');
-    span.style = 'font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 4px; font-weight: 600;';
+    span.className = 'reports-cat-chip';
     span.innerText = catLabels[cat] || cat;
     catContainer.appendChild(span);
   });
@@ -377,22 +1269,19 @@ function openReportModal(report) {
   document.getElementById('modalAdminNotes').value = report.admin_notes || '';
 
   const badge = document.getElementById('modalStatusBadge');
+  badge.className = 'rep-status-badge';
   if (report.status === 'under_review') {
-    badge.innerText = '🔵 In Progress';
-    badge.style.background = '#dbeafe';
-    badge.style.color = '#1d4ed8';
+    badge.innerText = 'In Progress';
+    badge.classList.add('rep-badge-progress');
   } else if (report.status === 'resolved') {
-    badge.innerText = '🟢 Resolved';
-    badge.style.background = '#dcfce7';
-    badge.style.color = '#15803d';
+    badge.innerText = 'Resolved';
+    badge.classList.add('rep-badge-resolved');
   } else if (report.status === 'closed') {
-    badge.innerText = '⚪ Closed';
-    badge.style.background = '#f1f5f9';
-    badge.style.color = '#64748b';
+    badge.innerText = 'Closed';
+    badge.classList.add('rep-badge-closed');
   } else {
-    badge.innerText = '🟡 Pending';
-    badge.style.background = '#fef3c7';
-    badge.style.color = '#b45309';
+    badge.innerText = 'Pending';
+    badge.classList.add('rep-badge-pending');
   }
 
   const modal = document.getElementById('reviewModal');
@@ -401,6 +1290,24 @@ function openReportModal(report) {
 
 function closeReportModal() {
   document.getElementById('reviewModal').style.display = 'none';
+}
+
+function applyQuickReply(type) {
+  const resp = document.getElementById('modalAdminResponse');
+  const statusSel = document.getElementById('modalStatusSelect');
+  if (type === 'lyrics') {
+    resp.value = 'Sai Ram! Thank you for pointing this out. We have corrected the lyrics and updated the master bank.';
+    statusSel.value = 'resolved';
+  } else if (type === 'scale') {
+    resp.value = 'Sai Ram! The singing pitch / scale has been updated in the master database.';
+    statusSel.value = 'resolved';
+  } else if (type === 'accurate') {
+    resp.value = 'Sai Ram! We verified the bhajan with official Prashanti Mandir audio records. Details are confirmed accurate.';
+    statusSel.value = 'closed';
+  } else if (type === 'sheet') {
+    resp.value = 'Sai Ram! We have re-uploaded the official sheet music PDF with correct notation.';
+    statusSel.value = 'resolved';
+  }
 }
 
 async function submitReportUpdate(e) {
@@ -425,12 +1332,11 @@ async function submitReportUpdate(e) {
     if (!res.ok) throw new Error(data.error || 'Failed to update report');
 
     closeReportModal();
-    // Reload page to reflect updated counts and status
     window.location.reload();
   } catch (err) {
     alert('Error updating report: ' + err.message);
     saveBtn.disabled = false;
-    saveBtn.innerText = '💾 Save & Notify User';
+    saveBtn.innerText = 'Save & Notify User';
   }
 }
 </script>

@@ -32,16 +32,41 @@
   }
 %>
 
-<div class="bhajan-detail-page <%= printDensityClass %>">
-  <div class="container detail-container">
+<div class="zen-detail-stage bhajan-detail-page <%= printDensityClass %>">
+  <!-- Prasanthi Sanctum Top Border -->
+  <div class="prasanthi-border no-print" aria-hidden="true"></div>
+
+  <!-- Floating Sacred Ambient Light Orbs -->
+  <div class="sacred-orbs-canvas no-print" aria-hidden="true">
+    <div class="sacred-orb sacred-orb-1"></div>
+    <div class="sacred-orb sacred-orb-2"></div>
+    <div class="sacred-orb sacred-orb-3"></div>
+    <div class="sacred-orb sacred-orb-4"></div>
+    <div class="sacred-grid-texture"></div>
+  </div>
+
+  <div class="detail-container zen-detail-container">
 
     <!-- Top Breadcrumb & Navigation -->
-    <nav class="detail-nav-bar" aria-label="Breadcrumb navigation">
-      <a href="/master-bank" class="detail-back-btn" id="backToBankBtn">
-        <span class="back-arrow">←</span> Master Bhajan Bank
+    <nav class="detail-nav-bar no-print" aria-label="Breadcrumb navigation">
+      <a href="/master-bank" class="detail-back-btn zen-glass-panel" id="backToBankBtn" onclick="if(window.history.length>1){event.preventDefault();window.history.back();}else{window.location.href='/master-bank';}">
+        <span class="back-arrow">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </span>
+        <span>Master Bhajan Bank</span>
       </a>
-      <div class="detail-breadcrumbs">
-        <a href="/master-bank">Master Bank</a>
+
+      <div class="detail-breadcrumbs zen-glass-panel">
+        <a href="/master-bank" class="crumb-home-link" title="Return to Master Bank">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>Master Bank</span>
+        </a>
         <span class="crumb-sep">/</span>
         <% if (bhajan.deity) { %>
           <span class="crumb-deity"><%= bhajan.deity %></span>
@@ -51,28 +76,51 @@
       </div>
     </nav>
 
-    <!-- Sacred Header Card -->
-    <header class="detail-hero-card">
+    <!-- Sacred Header Hero Card -->
+    <header class="detail-hero-card zen-glass-panel">
+      <div class="hero-card-sheen" aria-hidden="true"></div>
       <div class="detail-hero-content">
+        <div class="hero-pre-badge-row">
+          <span class="hero-catalog-chip">#<%= bhajan.id %></span>
+          <% if (bhajan.level) { %>
+            <span class="hero-sub-chip">Level <%= bhajan.level %></span>
+          <% } %>
+          <span class="hero-sub-chip sanctuary-badge">Prasanthi Repertoire</span>
+        </div>
+
         <h1 class="detail-bhajan-title" id="bhajanTitleDisplay"><%= bhajan.title %></h1>
+
         <div class="detail-badge-strip">
           <% if (bhajan.deity) { %>
             <% bhajan.deity.split(',').map(d => d.trim()).filter(Boolean).forEach(d => { %>
-              <span class="hero-pill deity-pill">🕉️ <%= d %></span>
+              <span class="hero-pill deity-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                <span><%= d %></span>
+              </span>
             <% }); %>
           <% } %>
           <% if (bhajan.tempo) { %>
-            <span class="hero-pill tempo-pill">⏱️ <%= bhajan.tempo %></span>
+            <span class="hero-pill tempo-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span><%= bhajan.tempo %></span>
+            </span>
           <% } %>
           <% if (bhajan.raga && bhajan.raga !== '-' && bhajan.raga !== 'Not specified') { %>
-            <span class="hero-pill raga-pill">🎼 Raag <%= bhajan.raga %></span>
+            <span class="hero-pill raga-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+              <span>Raag <%= bhajan.raga %></span>
+            </span>
           <% } %>
           <% if (bhajan.language) { %>
-            <span class="hero-pill lang-pill">🗣️ <%= bhajan.language %></span>
+            <span class="hero-pill lang-pill">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" x2="22" y1="12" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <span><%= bhajan.language %></span>
+            </span>
           <% } %>
           <% if (bhajan.sheet_filename) { %>
             <a href="/sheets/<%= encodeURIComponent(bhajan.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="hero-pill sheet-pill" title="Open official PDF music notation & sheet">
-              📄 Music Sheet ↗
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Music Sheet ↗</span>
             </a>
           <% } %>
         </div>
@@ -82,73 +130,101 @@
     <!-- ======================================================== -->
     <!-- 1. TOP SECTION: SACRED BHAJAN LYRICS (FIRST AT TOP)       -->
     <!-- ======================================================== -->
-    <section class="lyrics-section-card" id="lyricsSection" aria-label="Bhajan Lyrics">
+    <section class="lyrics-section-card zen-glass-panel" id="lyricsSection" aria-label="Bhajan Lyrics">
       
-      <!-- Lyrics Action Toolbar: Font Resize + Copy + Print + Music Sheet -->
+      <!-- Lyrics Action Toolbar: Segmented Modern Glass Controls -->
       <div class="lyrics-toolbar">
         <div class="lyrics-controls-group">
-          <!-- Tactile Font Size Adjustment (+ / - / Reset) -->
-          <div class="font-size-adjuster" role="group" aria-label="Adjust font size">
-            <button type="button" id="fontDec" class="font-btn" onclick="changeLyricsFontSize(-2)" title="Decrease lyrics font size" aria-label="Decrease font size">A−</button>
-            <span id="fontSizeDisplay" class="font-size-indicator" title="Current text size">20px</span>
-            <button type="button" id="fontInc" class="font-btn" onclick="changeLyricsFontSize(2)" title="Increase lyrics font size" aria-label="Increase font size">A+</button>
-            <button type="button" id="fontReset" class="font-btn font-reset-btn" onclick="changeLyricsFontSize(0)" title="Reset font size to default (20px)" aria-label="Reset font size">↺</button>
+
+          <!-- Segment 1: Reading & Appearance Settings -->
+          <div class="segmented-control-cluster typography-cluster">
+            <!-- Tactile Font Size Adjustment (+ / - / Reset) -->
+            <div class="font-size-adjuster font-size-pill" role="group" aria-label="Adjust font size">
+              <button type="button" id="fontDec" class="font-btn" onclick="changeLyricsFontSize(-2)" title="Decrease font size" aria-label="Decrease font size">A−</button>
+              <span id="fontSizeDisplay" class="font-size-indicator" title="Current text size">20px</span>
+              <button type="button" id="fontInc" class="font-btn" onclick="changeLyricsFontSize(2)" title="Increase font size" aria-label="Increase font size">A+</button>
+              <button type="button" id="fontReset" class="font-btn font-reset-btn" onclick="changeLyricsFontSize(0)" title="Reset font size to default (20px)" aria-label="Reset font size">↺</button>
+            </div>
+
+            <!-- Floral Frame Toggle -->
+            <button type="button" id="toggleFrameBtn" class="tool-btn active" onclick="toggleFloralFrame()" title="Toggle decorative frame">
+              <span class="btn-icon" id="frameIcon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              </span>
+              <span class="btn-text" id="frameText">Frame</span>
+            </button>
+
+            <!-- Alignment Toggle (Default Left-Aligned) -->
+            <button type="button" id="toggleAlignBtn" class="tool-btn" onclick="toggleLyricsAlignment()" title="Toggle text alignment (Left / Center)">
+              <span class="btn-icon" id="alignIcon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+              </span>
+              <span class="btn-text" id="alignText">Center</span>
+            </button>
           </div>
 
-          <!-- Floral Frame Toggle -->
-          <button type="button" id="toggleFrameBtn" class="tool-btn active" onclick="toggleFloralFrame()" title="Toggle sacred floral frame (Double gold border & botanical corners)">
-            <span id="frameIcon">🌸</span> <span id="frameText">Frame</span>
-          </button>
+          <!-- Segment 2: Quick Devotional Actions -->
+          <div class="segmented-control-cluster actions-cluster">
+            <!-- Copy Lyrics Button -->
+            <button type="button" id="copyLyricsBtn" class="tool-btn copy-btn" onclick="copyBhajanLyrics()" title="Copy full lyrics to clipboard">
+              <span class="btn-icon" id="copyIcon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              </span>
+              <span class="btn-text" id="copyBtnText">Copy</span>
+            </button>
 
-          <!-- Alignment Toggle -->
-          <button type="button" id="toggleAlignBtn" class="tool-btn" onclick="toggleLyricsAlignment()" title="Toggle text alignment (Center / Left)">
-            <span id="alignIcon">≡</span> <span id="alignText">Left</span>
-          </button>
+            <!-- Print Button -->
+            <button type="button" onclick="window.print()" class="tool-btn print-btn no-print" title="Print lyrics sheet">
+              <span class="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+              </span>
+              <span class="btn-text">Print</span>
+            </button>
 
-          <!-- Copy Lyrics Button -->
-          <button type="button" id="copyLyricsBtn" class="tool-btn copy-btn" onclick="copyBhajanLyrics()" title="Copy full lyrics to clipboard">
-            <span class="btn-icon" id="copyIcon">📋</span>
-            <span id="copyBtnText">Copy</span>
-          </button>
+            <% if (bhajan.sheet_filename) { %>
+              <!-- Official Music Sheet Button -->
+              <a href="/sheets/<%= encodeURIComponent(bhajan.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="tool-btn sheet-btn no-print" title="Open official reference music sheet (PDF)">
+                <span class="btn-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </span>
+                <span class="btn-text">Music Sheet</span>
+              </a>
+            <% } %>
 
-          <!-- Print Button -->
-          <button type="button" onclick="window.print()" class="tool-btn print-btn no-print" title="Print lyrics sheet">
-            <span class="btn-icon">🖨️</span>
-            <span class="btn-text">Print</span>
-          </button>
-
-          <% if (bhajan.sheet_filename) { %>
-            <!-- Official Music Sheet Button -->
-            <a href="/sheets/<%= encodeURIComponent(bhajan.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="tool-btn sheet-btn no-print" title="Open official reference music sheet (PDF)">
-              <span class="btn-icon">📄</span>
-              <span class="btn-text">Music Sheet</span>
+            <!-- Schedule This Bhajan Button -->
+            <a href="/submit-form?prefill_title=<%= encodeURIComponent(bhajan.title) %>&prefill_deity=<%= encodeURIComponent(bhajan.deity || '') %>&prefill_scale=<%= encodeURIComponent(bhajan.shruti || '') %>&prefill_speed=<%= encodeURIComponent(bhajan.tempo || '') %>&master_id=<%= bhajan.id %>" class="tool-btn schedule-tool-btn no-print" title="Schedule this bhajan for the upcoming session">
+              <span class="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              </span>
+              <span class="btn-text">Schedule</span>
             </a>
-          <% } %>
 
-          <!-- Schedule This Bhajan Button (Phase 4) -->
-          <a href="/submit-form?prefill_title=<%= encodeURIComponent(bhajan.title) %>&prefill_deity=<%= encodeURIComponent(bhajan.deity || '') %>&prefill_scale=<%= encodeURIComponent(bhajan.shruti || '') %>&prefill_speed=<%= encodeURIComponent(bhajan.tempo || '') %>&master_id=<%= bhajan.id %>" class="tool-btn schedule-tool-btn no-print" title="Schedule this bhajan for the upcoming session" style="color: #16a34a; border-color: rgba(22, 163, 74, 0.4); text-decoration: none; font-weight: 700;">
-            <span class="btn-icon">🎤</span>
-            <span class="btn-text">Schedule</span>
-          </a>
+            <!-- Add to My Songbook Button -->
+            <button type="button" id="songbookBtn" onclick="openSongbookModal()" class="tool-btn songbook-btn no-print" title="Save this bhajan to your personal Songbook repertoire">
+              <span class="btn-icon" id="songbookIcon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </span>
+              <span class="btn-text" id="songbookBtnText">Songbook</span>
+            </button>
 
-          <!-- Add to My Songbook / Repertoire Button (Phase 2) -->
-          <button type="button" id="songbookBtn" onclick="openSongbookModal()" class="tool-btn songbook-btn no-print" title="Save this bhajan to your personal Songbook repertoire" style="color: #7c3aed; border-color: rgba(124, 58, 237, 0.35);">
-            <span class="btn-icon" id="songbookIcon">⭐</span>
-            <span id="songbookBtnText">Songbook</span>
-          </button>
+            <!-- Report Issue / Suggest Correction Button -->
+            <button type="button" onclick="openReportModal()" class="tool-btn report-btn no-print" title="Report incorrect lyrics, scale, or details">
+              <span class="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+              </span>
+              <span class="btn-text">Report</span>
+            </button>
 
-          <!-- Report Issue / Suggest Correction Button -->
-          <button type="button" onclick="openReportModal()" class="tool-btn report-btn no-print" title="Report incorrect lyrics, scale, or details" style="color: #b45309; border-color: rgba(217, 119, 6, 0.35);">
-            <span class="btn-icon">🚩</span>
-            <span class="btn-text">Report Issue</span>
-          </button>
+            <!-- Track Reports Button -->
+            <a href="/my-reports" class="tool-btn track-btn no-print" id="trackReportsLink" title="Track your reported issues & admin replies">
+              <span class="btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/></svg>
+              </span>
+              <span class="btn-text">My Reports</span>
+              <span id="unreadReplyDot" class="unread-reply-dot" style="display:none;"></span>
+            </a>
+          </div>
 
-          <!-- Track Reports Button -->
-          <a href="/my-reports" class="tool-btn track-btn no-print" id="trackReportsLink" title="Track your reported issues & admin replies" style="text-decoration:none; position:relative;">
-            <span class="btn-icon">📋</span>
-            <span class="btn-text">My Reports</span>
-            <span id="unreadReplyDot" style="display:none; position:absolute; top:-4px; right:-4px; width:10px; height:10px; background:#ef4444; border-radius:50%; border:2px solid #fff; box-shadow:0 0 6px #ef4444;"></span>
-          </a>
         </div>
       </div>
 
@@ -178,9 +254,11 @@
           </div>
         <% } else { %>
           <div class="lyrics-empty-state">
-            <span class="empty-icon">🪔</span>
+            <span class="empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </span>
             <h3>Lyrics Currently Being Transcribed</h3>
-            <p>The lyrics for this bhajan are being formatted. Pitch and harmonium references are provided below.</p>
+            <p>The lyrics for this bhajan are being formatted. Pitch, harmonium, and raga references are provided below.</p>
           </div>
         <% } %>
       </div>
@@ -198,11 +276,17 @@
     <!-- ======================================================== -->
     <!-- 2. BOTTOM SECTION: ACCOMPANIMENT & MUSICAL DETAILS       -->
     <!-- ======================================================== -->
-    <section class="metadata-section-card" id="accompanimentSection" aria-label="Musical Accompaniment & Specifications">
+    <section class="metadata-section-card zen-glass-panel" id="accompanimentSection" aria-label="Musical Accompaniment & Specifications">
       <div class="meta-section-header">
-        <span class="meta-header-icon">🎼</span>
+        <div class="meta-header-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+        </div>
         <div>
-          <h2 class="meta-section-title">Musical Accompaniment & Singing Guide</h2>
+          <h2 class="meta-section-title">Musical Accompaniment &amp; Singing Guide</h2>
           <p class="meta-section-sub">Standard references for harmonium, keyboard, tabla, and vocalists</p>
         </div>
       </div>
@@ -210,44 +294,58 @@
       <div class="meta-specs-grid">
         
         <!-- Male Scale / Shruti -->
-        <div class="spec-tile">
-          <div class="spec-tile-icon">🎹</div>
+        <div class="spec-tile spec-tile-pitch">
+          <div class="spec-tile-icon-box pitch-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="12" x="2" y="6" rx="2"></rect><line x1="6" x2="6" y1="6" y2="12"></line><line x1="10" x2="10" y1="6" y2="12"></line><line x1="14" x2="14" y1="6" y2="12"></line><line x1="18" x2="18" y1="6" y2="12"></line></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Male Scale / Shruti</span>
-            <span class="spec-value">
+            <div class="spec-value-row">
               <% if (bhajan.shruti && bhajan.shruti !== '-' && bhajan.shruti !== 'Not specified') { %>
                 <strong class="pitch-indian"><%= bhajan.shruti %></strong>
                 <% if (westM !== '-') { %>
                   <span class="pitch-western">Key of <%= westM %></span>
                 <% } %>
+                <button type="button" class="spec-drone-btn" onclick="window.playTanpuraPitch('<%= (westM && westM !== "-") ? westM : bhajan.shruti %>');" title="Audition Tanpura drone in pitch <%= (westM && westM !== "-") ? westM : bhajan.shruti %>" aria-label="Play Tanpura in male pitch">
+                  <span class="drone-btn-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>
+                  <span class="drone-btn-text">Drone</span>
+                </button>
               <% } else { %>
-                Not specified
+                <span class="muted-note">Not specified</span>
               <% } %>
-            </span>
+            </div>
           </div>
         </div>
 
         <!-- Female Scale / Shruti -->
-        <div class="spec-tile">
-          <div class="spec-tile-icon">🎹</div>
+        <div class="spec-tile spec-tile-pitch">
+          <div class="spec-tile-icon-box pitch-icon-box female-pitch-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="12" x="2" y="6" rx="2"></rect><line x1="6" x2="6" y1="6" y2="12"></line><line x1="10" x2="10" y1="6" y2="12"></line><line x1="14" x2="14" y1="6" y2="12"></line><line x1="18" x2="18" y1="6" y2="12"></line></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Female Scale / Shruti</span>
-            <span class="spec-value">
+            <div class="spec-value-row">
               <% if (bhajan.shruti_female && bhajan.shruti_female !== '-' && bhajan.shruti_female !== 'Not specified') { %>
                 <strong class="pitch-indian"><%= bhajan.shruti_female %></strong>
                 <% if (westF !== '-') { %>
                   <span class="pitch-western">Key of <%= westF %></span>
                 <% } %>
+                <button type="button" class="spec-drone-btn" onclick="window.playTanpuraPitch('<%= (westF && westF !== "-") ? westF : bhajan.shruti_female %>');" title="Audition Tanpura drone in pitch <%= (westF && westF !== "-") ? westF : bhajan.shruti_female %>" aria-label="Play Tanpura in female pitch">
+                  <span class="drone-btn-icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>
+                  <span class="drone-btn-text">Drone</span>
+                </button>
               <% } else { %>
                 <span class="muted-note">Same as male or −5 semitones</span>
               <% } %>
-            </span>
+            </div>
           </div>
         </div>
 
         <!-- Deity Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">🕉️</div>
+          <div class="spec-tile-icon-box deity-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 6 15 11 20 12 16 16 17 21 12 18 7 21 8 16 4 12 9 11 12 6"></polygon></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Deity / Aspect</span>
             <span class="spec-value highlight-val"><%= bhajan.deity || 'Not specified' %></span>
@@ -256,14 +354,16 @@
 
         <!-- Speed / Tempo Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">⏱️</div>
+          <div class="spec-tile-icon-box tempo-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Speed / Tempo</span>
             <span class="spec-value">
               <% if (bhajan.tempo) { %>
                 <span class="tempo-tag-badge"><%= bhajan.tempo %></span>
               <% } else { %>
-                Not specified
+                <span class="muted-note">Not specified</span>
               <% } %>
             </span>
           </div>
@@ -271,27 +371,20 @@
 
         <!-- Classical Raag Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">🎵</div>
+          <div class="spec-tile-icon-box raga-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Classical Raag</span>
-            <span class="spec-value"><%= (bhajan.raga && bhajan.raga !== '-' && bhajan.raga !== 'Not specified') ? bhajan.raga : 'Not specified' %></span>
+            <span class="spec-value raga-title-val"><%= (bhajan.raga && bhajan.raga !== '-' && bhajan.raga !== 'Not specified') ? bhajan.raga : 'Not specified' %></span>
           </div>
         </div>
 
-        <% if (bhajan.raga_notes) { %>
-          <!-- Dedicated Raag Singing & Swara Notes -->
-          <div class="spec-tile spec-tile-full-width raga-notes-tile">
-            <div class="spec-tile-icon">🎼</div>
-            <div class="spec-tile-info">
-              <span class="spec-label">Raag Swara Notes & Scale Details</span>
-              <div class="spec-raga-notes-text"><%= bhajan.raga_notes %></div>
-            </div>
-          </div>
-        <% } %>
-
         <!-- Language Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">🗣️</div>
+          <div class="spec-tile-icon-box lang-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" x2="22" y1="12" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Devotional Language</span>
             <span class="spec-value"><%= bhajan.language || 'Not specified' %></span>
@@ -300,7 +393,9 @@
 
         <!-- Difficulty Level Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">📊</div>
+          <div class="spec-tile-icon-box level-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Difficulty / Level</span>
             <span class="spec-value"><%= bhajan.level ? `Level ${bhajan.level}` : 'Standard' %></span>
@@ -309,17 +404,21 @@
 
         <!-- Master Bank ID Spec -->
         <div class="spec-tile">
-          <div class="spec-tile-icon">🆔</div>
+          <div class="spec-tile-icon-box id-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10v10H7z"/></svg>
+          </div>
           <div class="spec-tile-info">
             <span class="spec-label">Master Catalog ID</span>
-            <span class="spec-value">#<%= bhajan.id %></span>
+            <span class="spec-value mono-id">#<%= bhajan.id %></span>
           </div>
         </div>
 
         <% if (bhajan.sheet_filename) { %>
           <!-- Official Music Sheet Reference Spec Tile -->
           <div class="spec-tile spec-tile-sheet">
-            <div class="spec-tile-icon">📄</div>
+            <div class="spec-tile-icon-box sheet-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
             <div class="spec-tile-info">
               <span class="spec-label">Official Music Sheet</span>
               <span class="spec-value">
@@ -331,16 +430,134 @@
           </div>
         <% } %>
 
+        <% if (bhajan.raga_notes) { 
+          // Parse raga notes intelligently into swaras, western scale, commentary, and footnote
+          let rText = (bhajan.raga_notes || '').trim();
+          let rFootnote = '';
+          const footMatch = rText.match(/(\*[^*]+)$/);
+          if (footMatch && (footMatch[1].toLowerCase().includes('octave') || footMatch[1].toLowerCase().includes('lower') || footMatch[1].toLowerCase().includes('notes'))) {
+            rFootnote = footMatch[0].trim().replace(/^\*\s*/, '');
+            rText = rText.substring(0, rText.length - footMatch[0].length).trim();
+          }
+          rText = rText.replace(/^Notes:\s*/i, '').trim();
+          // Fix concatenated words like SIn the Key of C:
+          rText = rText.replace(/([a-zA-Z0-9])In the Key of/i, '$1 In the Key of');
+          
+          let swarasRaw = rText;
+          let westernRaw = '';
+          let westernKey = 'Key of C';
+          const keyMatch = rText.match(/(?:In\s+the\s+Key\s+of\s+([A-Ga-g#♭b]+):?|Key\s+of\s+([A-Ga-g#♭b]+):?)/i);
+          if (keyMatch) {
+            swarasRaw = rText.substring(0, keyMatch.index).trim();
+            westernKey = keyMatch[1] ? ('Key of ' + keyMatch[1].toUpperCase()) : 'Key of C';
+            westernRaw = rText.substring(keyMatch.index + keyMatch[0].length).trim();
+          }
+
+          let commentary = '';
+          const swaraStartMatch = swarasRaw.search(/(?:^|\s)([nNrgmdsNRGMDS][123]?\s+[nNrgmdsNRGMDS][123]?\s+[nNrgmdsNRGMDS])/);
+          if (swaraStartMatch > 0) {
+            commentary = swarasRaw.substring(0, swaraStartMatch).trim();
+            swarasRaw = swarasRaw.substring(swaraStartMatch).trim();
+          }
+
+          const swaraTokens = swarasRaw.split(/\s+/).filter(Boolean);
+          const westernTokens = westernRaw.split(/\s+/).filter(Boolean);
+        %>
+          <!-- Dedicated Raag Singing & Swara Notes -->
+          <div class="spec-tile spec-tile-full-width raga-master-tile">
+            <div class="raga-master-box">
+              <div class="raga-master-head">
+                <div class="raga-master-icon-wrap">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                  </svg>
+                </div>
+                <div class="raga-master-title-area">
+                  <div class="raga-master-badge-row">
+                    <span class="raga-master-badge">Raag Swara Notes &amp; Scale Details</span>
+                    <span class="raga-master-subbadge">Melodic Framework</span>
+                  </div>
+                  <h4 class="raga-master-heading">Arohana &bull; Avarohana Sequence</h4>
+                </div>
+              </div>
+
+              <% if (commentary) { %>
+                <div class="raga-master-commentary">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  <span><%= commentary %></span>
+                </div>
+              <% } %>
+
+              <div class="raga-master-sections">
+                <!-- Indian Classical Swara Sequence -->
+                <div class="raga-sequence-card swara-sequence-card">
+                  <div class="raga-sequence-header">
+                    <span class="sequence-title">Indian Swaras</span>
+                    <span class="sequence-sub">Classical Notation</span>
+                  </div>
+                  <div class="swara-chips-flow">
+                    <% if (swaraTokens.length > 0) { %>
+                      <% swaraTokens.forEach(tok => { 
+                        const m = tok.match(/^([a-zA-Z]+)(\d+)?$/);
+                        const note = m ? m[1] : tok;
+                        const sub = m && m[2] ? m[2] : '';
+                      %>
+                        <span class="musical-swara-pill">
+                          <span class="swara-note"><%= note %></span><% if (sub) { %><sub class="swara-sub"><%= sub %></sub><% } %>
+                        </span>
+                      <% }) %>
+                    <% } else { %>
+                      <span class="swara-fallback-text"><%= swarasRaw %></span>
+                    <% } %>
+                  </div>
+                </div>
+
+                <!-- Western Key Equivalent -->
+                <% if (westernRaw) { %>
+                  <div class="raga-sequence-card western-sequence-card">
+                    <div class="raga-sequence-header">
+                      <span class="sequence-title western-title"><%= westernKey %></span>
+                      <span class="sequence-sub">Harmonium &bull; Piano Notes</span>
+                    </div>
+                    <div class="western-chips-flow">
+                      <% westernTokens.forEach(tok => { %>
+                        <span class="musical-western-pill"><%= tok %></span>
+                      <% }) %>
+                    </div>
+                  </div>
+                <% } %>
+              </div>
+
+              <% if (rFootnote) { %>
+                <div class="raga-master-footnote">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                  <span><%= rFootnote %></span>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+
       </div>
     </section>
 
     <!-- Bottom Navigation & Action Strip -->
     <div class="detail-footer-nav no-print">
-      <a href="/master-bank" class="footer-nav-btn secondary-btn">
-        <span>←</span> Master Bhajan Bank
+      <a href="/master-bank" class="footer-nav-btn secondary-btn" onclick="if(window.history.length>1){event.preventDefault();window.history.back();}else{window.location.href='/master-bank';}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Master Bhajan Bank</span>
       </a>
       <button type="button" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })" class="footer-nav-btn text-btn">
-        <span>↑</span> Top
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="19" x2="12" y2="5"></line>
+          <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+        <span>Back to Top</span>
       </button>
     </div>
 
@@ -348,88 +565,90 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- SONGBOOK / REPERTOIRE MODAL (PHASE 2)                    -->
+<!-- FLOATING TANPURA PRACTICE DRONE WIDGET                    -->
 <!-- ======================================================== -->
-<div id="songbookModal" class="report-modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;">
-  <div class="report-modal-card" style="background: #ffffff; width: 100%; max-width: 480px; border-radius: 18px; box-shadow: 0 25px 35px -5px rgba(0,0,0,0.2); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column;">
+<link rel="stylesheet" href="/css/tanpura.css?v=2.2">
+<%- include('partials/tanpura-widget') %>
+
+<!-- ======================================================== -->
+<!-- SONGBOOK / REPERTOIRE MODAL                              -->
+<!-- ======================================================== -->
+<div id="songbookModal" class="report-modal-overlay" style="display:none;" aria-modal="true" role="dialog">
+  <div class="report-modal-card zen-glass-panel">
     
     <!-- Modal Header -->
-    <div style="padding: 20px 24px; background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-bottom: 1px solid #ddd6fe; display: flex; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 24px;">⭐</span>
+    <div class="modal-card-header songbook-header">
+      <div class="modal-card-title-group">
+        <div class="modal-header-icon-box songbook-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
         <div>
-          <h2 style="font-size: 17px; font-weight: 800; color: #5b21b6; margin: 0;">My Singer Songbook</h2>
-          <div style="font-size: 12px; color: #6d28d9; margin-top: 2px;">Bhajan: <strong><%= bhajan.title %></strong></div>
+          <h2 class="modal-heading">My Singer Songbook</h2>
+          <div class="modal-subheading">Bhajan: <strong><%= bhajan.title %></strong></div>
         </div>
       </div>
-      <button type="button" onclick="closeSongbookModal()" style="background: transparent; border: none; font-size: 26px; cursor: pointer; color: #5b21b6; line-height: 1;">&times;</button>
+      <button type="button" onclick="closeSongbookModal()" class="modal-close-icon-btn" aria-label="Close modal">&times;</button>
     </div>
 
     <!-- Modal Body -->
-    <div id="songbookModalBody" style="padding: 22px 24px; overflow-y: auto;">
-      <div id="songbookAuthNotice" style="display: none; text-align: center; padding: 20px 10px;">
-        <div style="font-size: 38px; margin-bottom: 12px;">🔒</div>
-        <h3 style="font-size: 17px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Singer Verification Required</h3>
-        <p style="font-size: 13.5px; color: #64748b; line-height: 1.5; margin: 0 0 20px 0;">
-          Please sign in with your 4-digit PIN to save this bhajan to your personal Songbook repertoire and record your vocal pitch.
-        </p>
-        <a href="/singer/login?redirect=<%= encodeURIComponent('/bhajan/' + bhajan.id) %>" class="button primary" style="display: inline-block; padding: 10px 22px; font-weight: 700; background: #ea580c; border-color: #ea580c; text-decoration: none;">
-          🎤 Singer Login with 4-Digit PIN
+    <div id="songbookModalBody" class="modal-card-body">
+      <div id="songbookAuthNotice" style="display: none;" class="auth-required-notice">
+        <div class="auth-icon-wrap">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Singer Verification Required</h3>
+        <p>Please sign in with your 4-digit PIN to save this bhajan to your personal Songbook repertoire and record your preferred singing scale.</p>
+        <a href="/singer/login?redirect=<%= encodeURIComponent('/bhajan/' + bhajan.id) %>" class="modal-primary-btn auth-login-link">
+          Singer Login with 4-Digit PIN
         </a>
       </div>
 
       <form id="songbookForm" onsubmit="handleSongbookFormSubmit(event)" style="display: none;">
         <input type="hidden" id="sbMasterId" value="<%= bhajan.id %>">
         
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 18px;">
-          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569; margin-bottom: 4px;">
+        <div class="songbook-meta-summary">
+          <div class="summary-row">
             <span>Default Catalog Pitch:</span>
             <strong><%= bhajan.shruti || 'Not specified' %></strong>
           </div>
           <% if (bhajan.shruti_female) { %>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569;">
+            <div class="summary-row">
               <span>Female Reference Pitch:</span>
               <strong><%= bhajan.shruti_female %></strong>
             </div>
           <% } %>
         </div>
 
-        <div style="margin-bottom: 16px;">
-          <label for="sbCustomScale" style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
-            My Singing Pitch / Scale
-          </label>
+        <div class="form-field-group">
+          <label for="sbCustomScale" class="form-field-label">My Singing Pitch / Scale</label>
           <input
             type="text"
             id="sbCustomScale"
+            class="form-field-input"
             placeholder="e.g. 4.5 Safed, G#, 5 Kaali"
             value="<%= bhajan.shruti || '' %>"
-            style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px;"
           >
-          <small style="color: #64748b; font-size: 11.5px; margin-top: 4px; display: block;">
-            The harmonium scale you prefer when leading this bhajan.
-          </small>
+          <small class="form-field-help">The harmonium key you prefer when leading this bhajan.</small>
         </div>
 
-        <div style="margin-bottom: 22px;">
-          <label for="sbNotes" style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
-            Personal Practice Notes (Optional)
-          </label>
+        <div class="form-field-group">
+          <label for="sbNotes" class="form-field-label">Personal Practice Notes (Optional)</label>
           <textarea
             id="sbNotes"
             rows="3"
+            class="form-field-textarea"
             placeholder="e.g. Lead with slow alaap; repeat charan twice..."
-            style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; line-height: 1.4; resize: vertical;"
           ></textarea>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-          <button type="button" id="sbRemoveBtn" onclick="handleSongbookRemove()" class="button secondary" style="color: #dc2626; border-color: #fca5a5; display: none;">
+        <div class="modal-card-actions">
+          <button type="button" id="sbRemoveBtn" onclick="handleSongbookRemove()" class="modal-danger-btn" style="display: none;">
             Remove from Songbook
           </button>
-          <div style="display: flex; gap: 8px; margin-left: auto;">
-            <button type="button" onclick="closeSongbookModal()" class="button secondary">Cancel</button>
-            <button type="submit" id="sbSaveBtn" class="button primary" style="background: #8b5cf6; border-color: #8b5cf6; font-weight: 700;">
-              ⭐ Save to Songbook
+          <div class="modal-actions-right">
+            <button type="button" onclick="closeSongbookModal()" class="modal-secondary-btn">Cancel</button>
+            <button type="submit" id="sbSaveBtn" class="modal-primary-btn songbook-save-btn">
+              Save to Songbook
             </button>
           </div>
         </div>
@@ -442,142 +661,148 @@
 <!-- ======================================================== -->
 <!-- MODAL: REPORT BHAJAN ISSUE / SUGGEST CORRECTION           -->
 <!-- ======================================================== -->
-<div id="reportModal" class="report-modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;">
-  <div class="report-modal-card" style="background: #ffffff; width: 100%; max-width: 580px; border-radius: 18px; box-shadow: 0 25px 35px -5px rgba(0,0,0,0.2); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column;">
+<div id="reportModal" class="report-modal-overlay" style="display:none;" aria-modal="true" role="dialog">
+  <div class="report-modal-card zen-glass-panel">
     
     <!-- Modal Header -->
-    <div style="padding: 20px 24px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border-bottom: 1px solid #fed7aa; display: flex; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 24px;">🚩</span>
+    <div class="modal-card-header report-header">
+      <div class="modal-card-title-group">
+        <div class="modal-header-icon-box report-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+        </div>
         <div>
-          <h2 style="font-size: 17px; font-weight: 800; color: #9a3412; margin: 0;">Report an Issue / Suggest Correction</h2>
-          <div style="font-size: 12px; color: #c2410c; margin-top: 2px;">Bhajan: <strong><%= bhajan.title %></strong></div>
+          <h2 class="modal-heading">Report an Issue / Suggest Correction</h2>
+          <div class="modal-subheading">Bhajan: <strong><%= bhajan.title %></strong></div>
         </div>
       </div>
-      <button type="button" onclick="closeReportModal()" style="background: transparent; border: none; font-size: 26px; cursor: pointer; color: #9a3412; line-height: 1;">&times;</button>
+      <button type="button" onclick="closeReportModal()" class="modal-close-icon-btn" aria-label="Close modal">&times;</button>
     </div>
 
     <!-- Modal Form Body -->
-    <div id="reportFormBody" style="padding: 22px 24px; overflow-y: auto; flex: 1;">
+    <div id="reportFormBody" class="modal-card-body">
       <form id="bhajanReportForm" onsubmit="handleBhajanReportSubmit(event)">
         <input type="hidden" id="reportMasterId" value="<%= bhajan.id %>">
         <input type="hidden" id="reportBhajanTitle" value="<%= bhajan.title %>">
 
         <!-- Category Checkboxes -->
-        <div style="margin-bottom: 18px;">
-          <label style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
-            What needs to be corrected? <span style="font-weight: 400; color: #64748b;">(Select all that apply)</span>
+        <div class="form-field-group">
+          <label class="form-field-label">
+            What needs to be corrected? <span class="form-field-optional">(Select all that apply)</span>
           </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="lyrics" checked style="accent-color: #ea580c;">
-              <span>📝 Lyrics incorrect / missing</span>
+          <div class="report-categories-grid">
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="lyrics" checked>
+              <span>Lyrics incorrect / missing</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="scale" style="accent-color: #ea580c;">
-              <span>🎵 Scale / Pitch incorrect</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="scale">
+              <span>Scale / Pitch incorrect</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="raga" style="accent-color: #ea580c;">
-              <span>🎼 Raga name inaccurate</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="raga">
+              <span>Raga name inaccurate</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="deity" style="accent-color: #ea580c;">
-              <span>🕉️ Deity categorization</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="deity">
+              <span>Deity categorization</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="tempo" style="accent-color: #ea580c;">
-              <span>⏱️ Tempo (Speed) wrong</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="tempo">
+              <span>Tempo (Speed) wrong</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="sheet" style="accent-color: #ea580c;">
-              <span>📄 Music Sheet error</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="sheet">
+              <span>Music Sheet error</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="spelling" style="accent-color: #ea580c;">
-              <span>✏️ Title / word typo</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="spelling">
+              <span>Title / word typo</span>
             </label>
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 7px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" name="reportCat" value="other" style="accent-color: #ea580c;">
-              <span>❓ Other detail</span>
+            <label class="category-check-card">
+              <input type="checkbox" name="reportCat" value="other">
+              <span>Other detail</span>
             </label>
           </div>
         </div>
 
         <!-- Description -->
-        <div style="margin-bottom: 14px;">
-          <label for="reportDescription" style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
-            Issue Details <span style="font-weight: 500; color: #16a34a; font-size: 12px;">(Optional — not required if option is checked above)</span>
+        <div class="form-field-group">
+          <label for="reportDescription" class="form-field-label">
+            Issue Details <span class="form-field-hint">(Optional — not required if option is checked above)</span>
           </label>
           <textarea
             id="reportDescription"
             rows="3"
-            placeholder="Optional: No need to write anything if your issue is covered by the checkboxes above. You can add specific details here only if you wish..."
-            style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13.5px; line-height: 1.4; resize: vertical;"
+            class="form-field-textarea"
+            placeholder="Optional: No need to write anything if your issue is covered by the checkboxes above. You can add specific details here..."
           ></textarea>
         </div>
 
         <!-- Suggested Correction / Lyrics (Optional) -->
-        <div style="margin-bottom: 14px;">
-          <label for="reportSuggestion" style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
-            Suggested Correction / Full Lyrics <span style="font-weight: 400; color: #64748b;">(Optional)</span>
+        <div class="form-field-group">
+          <label for="reportSuggestion" class="form-field-label">
+            Suggested Correction / Full Lyrics <span class="form-field-optional">(Optional)</span>
           </label>
           <textarea
             id="reportSuggestion"
             rows="3"
+            class="form-field-textarea"
             placeholder="Paste verified lyrics or recommended changes here..."
-            style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13.5px; line-height: 1.4; resize: vertical;"
           ></textarea>
         </div>
 
         <!-- Reporter Info (Optional) -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-          <div>
-            <label for="reporterName" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Your Name (Optional)</label>
+        <div class="form-row-two-col">
+          <div class="form-field-group">
+            <label for="reporterName" class="form-field-label">Your Name (Optional)</label>
             <input
               type="text"
               id="reporterName"
+              class="form-field-input"
               placeholder="e.g. Prashant"
-              style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px;"
             >
           </div>
-          <div>
-            <label for="reporterContact" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Contact (Email/Phone - Optional)</label>
+          <div class="form-field-group">
+            <label for="reporterContact" class="form-field-label">Contact (Email/Phone - Optional)</label>
             <input
               type="text"
               id="reporterContact"
+              class="form-field-input"
               placeholder="For update notifications"
-              style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px;"
             >
           </div>
         </div>
 
         <!-- Actions -->
-        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-          <button type="button" onclick="closeReportModal()" class="button secondary" style="padding: 9px 16px;">Cancel</button>
-          <button type="submit" id="submitReportBtn" class="button primary" style="padding: 9px 22px; font-weight: 700; background: #ea580c; border-color: #ea580c;">🚩 Submit Report</button>
+        <div class="modal-card-actions">
+          <div class="modal-actions-right">
+            <button type="button" onclick="closeReportModal()" class="modal-secondary-btn">Cancel</button>
+            <button type="submit" id="submitReportBtn" class="modal-primary-btn report-submit-btn">Submit Report</button>
+          </div>
         </div>
       </form>
     </div>
 
     <!-- Success Confirmation State (shown after submit) -->
-    <div id="reportSuccessBody" style="display: none; padding: 32px 24px; text-align: center;">
-      <div style="font-size: 44px; margin-bottom: 12px;">✅</div>
-      <h3 style="font-size: 20px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">Report Submitted!</h3>
-      <p style="font-size: 14px; color: #64748b; max-width: 420px; margin: 0 auto 16px auto; line-height: 1.5;">
+    <div id="reportSuccessBody" class="modal-card-body report-success-state" style="display: none;">
+      <div class="success-icon-badge">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h3 class="success-title">Report Submitted!</h3>
+      <p class="success-desc">
         Thank you for helping keep our Bhajan Bank accurate. Our music and coordination team will review this.
       </p>
       
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; max-width: 320px; margin: 0 auto 20px auto;">
-        <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700;">Your Reference Ticket</div>
-        <div id="createdTicketCode" style="font-family: monospace; font-size: 20px; font-weight: 800; color: #4338ca; margin-top: 4px;">REP-XXXX</div>
+      <div class="ticket-code-card">
+        <div class="ticket-code-label">Your Reference Ticket</div>
+        <div id="createdTicketCode" class="ticket-code-value">REP-XXXX</div>
       </div>
 
-      <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-        <a href="/my-reports" class="button primary" style="text-decoration: none; padding: 10px 18px; font-size: 13px; font-weight: 700;">
-          📋 Track Ticket Status
+      <div class="success-actions-row">
+        <a href="/my-reports" class="modal-primary-btn track-ticket-link">
+          Track Ticket Status
         </a>
-        <button type="button" onclick="closeReportModal()" class="button secondary" style="padding: 10px 18px; font-size: 13px;">
+        <button type="button" onclick="closeReportModal()" class="modal-secondary-btn">
           Done
         </button>
       </div>
@@ -587,7 +812,12 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- BULLETPROOF CLIENT SCRIPTS (FONT RESIZE, ALIGN, COPY)     -->
+<!-- AUDIO TANPURA JAVASCRIPT ENGINE                          -->
+<!-- ======================================================== -->
+<script src="/js/tanpura.js"></script>
+
+<!-- ======================================================== -->
+<!-- CLIENT SCRIPTS (FONT RESIZE, ALIGN, COPY, MODALS)        -->
 <!-- ======================================================== -->
 <script>
 (function() {
@@ -650,25 +880,71 @@
     }
   };
 
-  // Alignment Toggle
-  let isLeftAligned = false;
-  window.toggleLyricsAlignment = function() {
-    isLeftAligned = !isLeftAligned;
+  // Alignment Toggle (Default is Left Aligned)
+  let isLeftAligned = true;
+
+  // Restore saved alignment preference
+  try {
+    const savedAlign = localStorage.getItem('bp_bhajan_lyrics_alignment');
+    if (savedAlign === 'center') {
+      isLeftAligned = false;
+    }
+  } catch (e) {}
+
+  function applyAlignment(leftAligned) {
+    isLeftAligned = !!leftAligned;
     const container = document.getElementById('lyricsContainer');
+    const alignBtn = document.getElementById('toggleAlignBtn');
     const alignIcon = document.getElementById('alignIcon');
     const alignText = document.getElementById('alignText');
 
+    const centerSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>';
+    const leftSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>';
+
     if (container) {
-      if (isLeftAligned) {
-        container.classList.add('align-left');
-        if (alignIcon) alignIcon.textContent = '☱';
-        if (alignText) alignText.textContent = 'Center';
+      if (!isLeftAligned) {
+        container.classList.add('align-center');
+        container.style.textAlign = 'center';
+        const lines = container.querySelectorAll('.lyrics-line');
+        for (let i = 0; i < lines.length; i++) {
+          lines[i].style.textAlign = 'center';
+        }
+        const stanzas = container.querySelectorAll('.lyrics-stanza');
+        for (let s = 0; s < stanzas.length; s++) {
+          stanzas[s].style.textAlign = 'center';
+        }
       } else {
-        container.classList.remove('align-left');
-        if (alignIcon) alignIcon.textContent = '≡';
-        if (alignText) alignText.textContent = 'Left';
+        container.classList.remove('align-center');
+        container.style.textAlign = 'left';
+        const lines = container.querySelectorAll('.lyrics-line');
+        for (let i = 0; i < lines.length; i++) {
+          lines[i].style.textAlign = 'left';
+        }
+        const stanzas = container.querySelectorAll('.lyrics-stanza');
+        for (let s = 0; s < stanzas.length; s++) {
+          stanzas[s].style.textAlign = 'left';
+        }
       }
     }
+
+    if (alignBtn) {
+      alignBtn.classList.toggle('active', !isLeftAligned);
+      alignBtn.title = isLeftAligned ? 'Center align lyrics text' : 'Left align lyrics text';
+    }
+    if (alignText) {
+      alignText.textContent = isLeftAligned ? 'Center' : 'Left';
+    }
+    if (alignIcon) {
+      alignIcon.innerHTML = isLeftAligned ? centerSvg : leftSvg;
+    }
+
+    try {
+      localStorage.setItem('bp_bhajan_lyrics_alignment', isLeftAligned ? 'left' : 'center');
+    } catch (e) {}
+  }
+
+  window.toggleLyricsAlignment = function() {
+    applyAlignment(!isLeftAligned);
   };
 
   // Copy Lyrics to Clipboard
@@ -677,7 +953,6 @@
     const lyricsElem = document.getElementById('rawLyricsText');
     const copyBtn = document.getElementById('copyLyricsBtn');
     const copyBtnText = document.getElementById('copyBtnText');
-    const copyIcon = document.getElementById('copyIcon');
 
     if (!lyricsElem || !lyricsElem.value.trim()) return;
 
@@ -698,20 +973,18 @@
       }
 
       if (copyBtn) copyBtn.classList.add('copied');
-      if (copyBtnText) copyBtnText.textContent = 'Copied! ✓';
-      if (copyIcon) copyIcon.textContent = '✓';
+      if (copyBtnText) copyBtnText.textContent = 'Copied!';
 
       setTimeout(function() {
         if (copyBtn) copyBtn.classList.remove('copied');
-        if (copyBtnText) copyBtnText.textContent = 'Copy Lyrics';
-        if (copyIcon) copyIcon.textContent = '📋';
-      }, 2200);
+        if (copyBtnText) copyBtnText.textContent = 'Copy';
+      }, 2000);
     } catch (err) {
       alert('Could not copy lyrics to clipboard.');
     }
   };
 
-  // Floral Frame Toggle (Double gold border & botanical corners)
+  // Frame Toggle
   let isFrameActive = true;
   try {
     const savedFrame = localStorage.getItem('bp_bhajan_lyrics_floral_frame');
@@ -724,7 +997,6 @@
     isFrameActive = active;
     const viewport = document.getElementById('lyricsViewport');
     const btn = document.getElementById('toggleFrameBtn');
-    const icon = document.getElementById('frameIcon');
     const text = document.getElementById('frameText');
     if (viewport) {
       viewport.classList.toggle('floral-frame-active', isFrameActive);
@@ -732,7 +1004,6 @@
     if (btn) {
       btn.classList.toggle('active', isFrameActive);
     }
-    if (icon) icon.textContent = isFrameActive ? '🌸' : '📄';
     if (text) text.textContent = isFrameActive ? 'Frame' : 'Clean';
     try {
       localStorage.setItem('bp_bhajan_lyrics_floral_frame', String(isFrameActive));
@@ -821,7 +1092,7 @@
       alert('Error submitting report: ' + err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = '🚩 Submit Report';
+      btn.textContent = 'Submit Report';
     }
   };
 
@@ -851,7 +1122,7 @@
   }
 
   // -------------------------------------------------------------
-  // SONGBOOK / REPERTOIRE CONTROLLER (PHASE 2)
+  // SONGBOOK / REPERTOIRE CONTROLLER
   // -------------------------------------------------------------
   let isSongbookBookmarked = false;
   let isSingerLoggedIn = false;
@@ -871,22 +1142,19 @@
       const notesInput = document.getElementById('sbNotes');
 
       if (isSongbookBookmarked && data.bookmark) {
-        if (icon) icon.textContent = '★';
+        if (icon) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#7c3aed" stroke="#7c3aed" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
         if (text) text.textContent = 'In Songbook';
         if (btn) {
-          btn.style.color = '#7c3aed';
-          btn.style.borderColor = '#8b5cf6';
-          btn.style.background = '#f5f3ff';
+          btn.classList.add('bookmarked');
         }
         if (removeBtn) removeBtn.style.display = 'inline-block';
         if (scaleInput && data.bookmark.custom_scale) scaleInput.value = data.bookmark.custom_scale;
         if (notesInput && data.bookmark.notes) notesInput.value = data.bookmark.notes;
       } else {
-        if (icon) icon.textContent = '⭐';
+        if (icon) icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
         if (text) text.textContent = 'Songbook';
         if (btn) {
-          btn.style.background = 'transparent';
-          btn.style.borderColor = 'rgba(124, 58, 237, 0.35)';
+          btn.classList.remove('bookmarked');
         }
         if (removeBtn) removeBtn.style.display = 'none';
       }
@@ -942,7 +1210,7 @@
       alert('Error: ' + err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = '⭐ Save to Songbook';
+      btn.textContent = 'Save to Songbook';
     }
   };
 
@@ -969,402 +1237,16 @@
     document.addEventListener('DOMContentLoaded', function() { 
       applySize(currentSize);
       applyFrameState(isFrameActive);
+      applyAlignment(isLeftAligned);
       checkReportNotifications();
       checkSongbookStatus();
     });
   } else {
     applySize(currentSize);
     applyFrameState(isFrameActive);
+    applyAlignment(isLeftAligned);
     checkReportNotifications();
     checkSongbookStatus();
   }
 })();
 </script>
-
-<!-- ======================================================== -->
-<!-- EMBEDDED PRINT STYLESHEET — GUARANTEED 1-PAGE FULL FRAME -->
-<!-- ======================================================== -->
-<style>
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 12mm 16mm 12mm 16mm;
-  }
-
-  *, *::before, *::after {
-    box-shadow: none !important;
-    text-shadow: none !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  html, body {
-    width: 100% !important;
-    min-height: 100% !important;
-    height: auto !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    font-family: 'Fraunces', Georgia, serif !important;
-  }
-
-  /* Completely Suppress Non-Print Elements & Floating Buttons */
-  .no-print,
-  .theme-toggle,
-  #themeToggle,
-  .notif-bell-btn,
-  #notifBellBtn,
-  .notif-badge,
-  .notif-panel,
-  .notif-overlay,
-  .notif-prompt-overlay,
-  .pwa-install-overlay,
-  #pwaInstallOverlay,
-  .notification-bell-container,
-  .detail-nav-bar,
-  .lyrics-toolbar,
-  .detail-footer-nav,
-  button,
-  .stanza-ornament {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    position: fixed !important;
-    left: -9999px !important;
-    top: -9999px !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
-
-  /* FULL FRAME Page Wrapper & Container (Spanning Full A4 Printable Frame) */
-  .bhajan-detail-page {
-    width: 100% !important;
-    min-height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: none !important;
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
-  }
-
-  .detail-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Strip all card boxes, card borders, and shadows for pure songbook presentation */
-  .detail-hero-card,
-  .lyrics-section-card,
-  .lyrics-parchment,
-  .lyrics-stanza {
-    border: none !important;
-    background: transparent !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .detail-hero-card::before {
-    display: none !important;
-  }
-
-  /* Top Section: Prominent Title & Devotional Sub-header */
-  .detail-hero-card {
-    text-align: center !important;
-    padding-bottom: 8pt !important;
-    margin-bottom: 12pt !important;
-    border-bottom: 1.5pt solid #222222 !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  .detail-bhajan-title {
-    font-family: 'Fraunces', Georgia, serif !important;
-    font-size: 24pt !important;
-    font-weight: 700 !important;
-    color: #000000 !important;
-    text-align: center !important;
-    margin: 0 0 8pt 0 !important;
-    line-height: 1.25 !important;
-    letter-spacing: -0.2pt !important;
-  }
-
-  .detail-badge-strip {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 8pt !important;
-    flex-wrap: wrap !important;
-    margin: 0 !important;
-  }
-
-  .hero-pill {
-    background: #fbf8f2 !important;
-    border: 1pt solid #444444 !important;
-    color: #111111 !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 9.5pt !important;
-    font-weight: 700 !important;
-    padding: 3pt 10pt !important;
-    border-radius: 12pt !important;
-  }
-
-  /* Middle Section: Sacred Lyrics (Vertically and Horizontally Full-Frame) */
-  .lyrics-section-card {
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    margin: 0 !important;
-    padding: 4pt 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .lyrics-parchment.floral-frame-active {
-    border: 2pt solid #c59929 !important;
-    outline: 0.8pt solid rgba(197, 153, 41, 0.5) !important;
-    outline-offset: -5pt !important;
-    border-radius: 6pt !important;
-    padding: 24pt 20pt !important;
-    position: relative !important;
-    background-color: #fffdfa !important;
-    background-image: 
-      radial-gradient(circle at center, rgba(255, 253, 249, 0.96) 28%, rgba(254, 247, 242, 0.88) 100%), 
-      url('/images/lyrics-floral-frame.png') !important;
-    background-size: cover !important;
-    background-position: center !important;
-    box-sizing: border-box !important;
-  }
-
-  .parchment-corner {
-    display: block !important;
-    position: absolute !important;
-    width: 90pt !important;
-    height: 90pt !important;
-    pointer-events: none !important;
-    z-index: 1 !important;
-  }
-  .parchment-corner.corner-tl {
-    top: -2pt !important;
-    left: -2pt !important;
-  }
-  .parchment-corner.corner-br {
-    bottom: -2pt !important;
-    right: -2pt !important;
-  }
-
-  .parchment-watermark {
-    display: block !important;
-    position: absolute !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 170pt !important;
-    height: 170pt !important;
-    opacity: 0.45 !important;
-    z-index: 1 !important;
-  }
-
-  .lyrics-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 auto !important;
-    text-align: center !important;
-    position: relative !important;
-    z-index: 2 !important;
-  }
-
-  .lyrics-line {
-    font-family: 'Fraunces', Georgia, serif !important;
-    font-weight: 500 !important;
-    color: #000000 !important;
-    text-align: center !important;
-    margin: 0 !important;
-  }
-
-  .lyrics-stanza.first-stanza {
-    border-left: none !important;
-    padding-left: 0 !important;
-  }
-
-  /* DYNAMIC PRINT SIZING TO FILL THE FULL FRAME BEAUTIFULLY */
-  /* 1. Spacious Mode (<= 13 lines like Bhajan #37): Large, grand, filling the full sheet */
-  .print-spacious .lyrics-line {
-    font-size: 19pt !important;
-    line-height: 2.35 !important;
-    letter-spacing: 0.3pt !important;
-    padding: 3.5pt 0 !important;
-  }
-  .print-spacious .lyrics-stanza {
-    margin-bottom: 22pt !important;
-  }
-
-  /* 2. Medium Mode (14-22 lines) */
-  .print-medium .lyrics-line {
-    font-size: 15.5pt !important;
-    line-height: 2.05 !important;
-    letter-spacing: 0.2pt !important;
-    padding: 2.5pt 0 !important;
-  }
-  .print-medium .lyrics-stanza {
-    margin-bottom: 14pt !important;
-  }
-
-  /* 3. Compact Mode (> 22 lines): Fits on single portrait page */
-  .print-compact .lyrics-line {
-    font-size: 12.5pt !important;
-    line-height: 1.7 !important;
-    padding: 1.5pt 0 !important;
-  }
-  .print-compact .lyrics-stanza {
-    margin-bottom: 9pt !important;
-  }
-
-  /* If user toggled Left alignment on screen */
-  .lyrics-container.align-left .lyrics-line {
-    text-align: left !important;
-  }
-  .lyrics-container.align-left {
-    text-align: left !important;
-    padding-left: 20pt !important;
-  }
-
-  /* Bottom Section: Full-Width Accompaniment Specs Strip */
-  .metadata-section-card {
-    border: 1.5pt solid #222222 !important;
-    border-radius: 6pt !important;
-    background: #fbfbfb !important;
-    padding: 8pt 12pt 10pt !important;
-    margin: 14pt 0 0 0 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .meta-section-header {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6pt !important;
-    padding-bottom: 4pt !important;
-    margin-bottom: 6pt !important;
-    border-bottom: 1pt solid #cccccc !important;
-  }
-
-  .meta-header-icon {
-    display: none !important;
-  }
-
-  .meta-section-title {
-    font-family: 'Inter', sans-serif !important;
-    font-size: 9.5pt !important;
-    font-weight: 800 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.8pt !important;
-    color: #000000 !important;
-    margin: 0 !important;
-  }
-
-  .meta-section-sub {
-    display: none !important;
-  }
-
-  .meta-specs-grid {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 5pt 8pt !important;
-    width: 100% !important;
-  }
-
-  .spec-tile {
-    border: 0.8pt solid #bbbbbb !important;
-    background: #ffffff !important;
-    padding: 5pt 7pt !important;
-    border-radius: 4pt !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 1.5pt !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .spec-tile-icon {
-    display: none !important;
-  }
-
-  .spec-tile-info {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1.5pt !important;
-    width: 100% !important;
-  }
-
-  .spec-label {
-    font-family: 'Inter', sans-serif !important;
-    font-size: 6.8pt !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.4pt !important;
-    color: #444444 !important;
-  }
-
-  .spec-value {
-    font-family: 'Inter', sans-serif !important;
-    font-size: 9.5pt !important;
-    font-weight: 700 !important;
-    color: #000000 !important;
-  }
-
-  .spec-value.highlight-val {
-    font-family: 'Fraunces', Georgia, serif !important;
-    color: #000000 !important;
-    font-size: 10.5pt !important;
-  }
-
-  .pitch-indian {
-    font-size: 10.5pt !important;
-    font-weight: 800 !important;
-    color: #000000 !important;
-  }
-
-  .pitch-western {
-    background: none !important;
-    border: none !important;
-    padding: 0 !important;
-    font-size: 9pt !important;
-    font-weight: 600 !important;
-    color: #222222 !important;
-    margin-left: 3pt !important;
-  }
-
-  .tempo-tag-badge {
-    background: none !important;
-    border: none !important;
-    padding: 0 !important;
-    font-size: 9.5pt !important;
-    font-weight: 700 !important;
-    color: #000000 !important;
-  }
-
-  .muted-note {
-    font-size: 8pt !important;
-    color: #555555 !important;
-  }
-}
-</style>
-

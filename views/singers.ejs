@@ -4,8 +4,8 @@
   <header class="session-unified-header">
     <div class="session-header-top-row">
       <div class="session-header-identity">
-        <div class="session-date-tile" style="background:linear-gradient(135deg, rgba(217, 138, 43, 0.2), rgba(125, 47, 69, 0.15)); border-color:var(--primary);">
-          <span style="font-size:22px;">👥</span>
+        <div class="session-date-tile" style="background: #eef2ff; border-color: #4f46e5; display:flex; align-items:center; justify-content:center; color: #4f46e5;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
         <div class="session-title-block">
           <h1>Singers Directory</h1>
@@ -20,11 +20,11 @@
       <!-- Quick Action Buttons -->
       <div class="session-primary-actions" style="max-width:320px;">
         <button type="button" class="cmd-btn cmd-btn-add" onclick="toggleAddSingerDrawer()" title="Add a new singer to directory">
-          <span class="cmd-btn-icon">➕</span>
+          <span class="cmd-btn-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
           <span class="cmd-btn-text">Add Singer</span>
         </button>
         <a href="/admin" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;">
-          <span>🏠</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Dashboard</span>
         </a>
       </div>
@@ -34,28 +34,36 @@
     <div class="session-metrics-deck" style="margin-top:14px;">
       <div class="metrics-grid">
         <div class="metric-card">
-          <div class="metric-card-icon">👥</div>
+          <div class="metric-card-icon" style="color:#4f46e5;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= metrics.total %></span>
             <span class="metric-card-lbl">Total Singers</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">👨</div>
+          <div class="metric-card-icon" style="color:#0284c7;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= metrics.male %></span>
             <span class="metric-card-lbl">Male (<%= metrics.total ? Math.round((metrics.male / metrics.total) * 100) : 0 %>%)</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">👩</div>
+          <div class="metric-card-icon" style="color:#ec4899;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= metrics.female %></span>
             <span class="metric-card-lbl">Female (<%= metrics.total ? Math.round((metrics.female / metrics.total) * 100) : 0 %>%)</span>
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-card-icon">🔒</div>
+          <div class="metric-card-icon" style="color:#10b981;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
           <div class="metric-card-data">
             <span class="metric-card-val"><%= metrics.pinProtected %></span>
             <span class="metric-card-lbl">PIN Protected</span>
@@ -69,9 +77,9 @@
   <div id="addSingerDrawer" class="session-unified-header" style="display:none; margin-bottom:14px; border:2px dashed var(--primary); background:var(--surface-raised);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h3 style="margin:0; font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
-        <span>➕</span> Register New Devotee Singer
+        Register New Devotee Singer
       </h3>
-      <button type="button" onclick="toggleAddSingerDrawer()" class="sec-tool-btn" style="width:32px; min-height:32px; padding:0; border-radius:50%;">✕</button>
+      <button type="button" onclick="toggleAddSingerDrawer()" class="sec-tool-btn" style="width:32px; min-height:32px; padding:0; border-radius:50%;">&times;</button>
     </div>
     <form action="/api/admin/add-singer" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) auto; gap:10px; align-items:center;">
       <input type="text" name="name" required class="workspace-search-input" placeholder="Singer Full Name (e.g. Ramesh S.)" style="max-width:none;">
@@ -82,7 +90,7 @@
         <option value="Other">Other</option>
       </select>
       <button type="submit" class="cmd-btn cmd-btn-share" style="height:40px; padding:0 20px;">
-        <span>💾</span> Save Singer
+        Save Singer
       </button>
     </form>
   </div>
@@ -94,7 +102,7 @@
     <div class="workspace-header-bar">
       <div class="workspace-filter-box">
         <input type="text" id="singerSearchInput" class="workspace-search-input" 
-               placeholder="🔍 Search singer name, gender, or status..." 
+               placeholder="Search singer name, gender, or status..." 
                oninput="filterSingersTable(this.value)" 
                aria-label="Filter singers">
         
@@ -106,8 +114,8 @@
       <div class="workspace-view-controls">
         <div class="view-switcher-pill" role="group" aria-label="Gender filter">
           <button type="button" class="view-switch-btn active" id="btnGenderAll" onclick="setGenderFilter('all')">All</button>
-          <button type="button" class="view-switch-btn" id="btnGenderMale" onclick="setGenderFilter('male')">👨 Male</button>
-          <button type="button" class="view-switch-btn" id="btnGenderFemale" onclick="setGenderFilter('female')">👩 Female</button>
+          <button type="button" class="view-switch-btn" id="btnGenderMale" onclick="setGenderFilter('male')">Male</button>
+          <button type="button" class="view-switch-btn" id="btnGenderFemale" onclick="setGenderFilter('female')">Female</button>
         </div>
       </div>
     </div>
@@ -145,7 +153,7 @@
                     <div>
                       <strong style="font-size:14px; color:var(--text);"><%= s.name %></strong>
                       <% if (s.is_unrecorded) { %>
-                        <br><small style="color:var(--danger); font-size:11px;">⚠️ Sung in past session, not in dictionary</small>
+                        <br><small style="color:var(--danger); font-size:11px;">Sung in past session, not in dictionary</small>
                       <% } %>
                     </div>
                   </div>
@@ -154,7 +162,7 @@
                 <td>
                   <% if (s.gender) { %>
                     <span class="card-gender-chip" style="font-size:11.5px; font-weight:600; padding:3px 9px;">
-                      <%= s.gender === 'Male' ? '👨 Male' : (s.gender === 'Female' ? '👩 Female' : s.gender) %>
+                      <%= s.gender %>
                     </span>
                   <% } else { %>
                     <span style="color:var(--text-light); font-size:12px;">—</span>
@@ -179,16 +187,16 @@
                 <td>
                   <% if (s.pin) { %>
                     <span class="diag-chip pass" style="font-size:11px; padding:2px 8px;">
-                      <span>🔒</span> Set
+                      Set
                     </span>
                     <% if (s.id) { %>
                       <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="display:inline; margin-left:4px;" onsubmit="return confirm('Reset PIN for <%= s.name.replace(/'/g, "\\'") %>?');">
-                        <button type="submit" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:2px 6px; font-size:10px; width:auto;" title="Reset PIN">🔄</button>
+                        <button type="submit" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:2px 6px; font-size:10px; width:auto;" title="Reset PIN">Reset</button>
                       </form>
                     <% } %>
                   <% } else { %>
                     <span class="diag-chip warn" style="font-size:11px; padding:2px 8px;">
-                      <span>🔓</span> Not set
+                      Not set
                     </span>
                   <% } %>
                 </td>
@@ -197,11 +205,11 @@
                   <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
                     <% if (s.id) { %>
                       <button type="button" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11.5px;" onclick="openEditModal(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>', '<%= s.gender || '' %>')" title="Edit singer">
-                        ✏️
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
                       <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" onsubmit="return confirm('Delete this singer from the directory?');" style="margin:0; display:inline;">
                         <button type="submit" class="card-touch-btn btn-delete" style="padding:4px 9px; font-size:11.5px;" title="Delete singer">
-                          🗑️
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                       </form>
                     <% } else { %>
@@ -209,7 +217,7 @@
                       <form action="/api/admin/add-singer" method="POST" style="margin:0; display:inline;">
                         <input type="hidden" name="name" value="<%= s.name %>">
                         <button type="submit" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11px;" title="Register into dictionary">
-                          ➕ Register
+                          + Register
                         </button>
                       </form>
                     <% } %>
@@ -235,8 +243,8 @@
   <div id="editSingerModal" class="session-modal-overlay">
     <div class="session-modal-card">
       <div class="session-modal-header">
-        <h3>✏️ Edit Singer Details</h3>
-        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeEditModal()">✕</button>
+        <h3>Edit Singer Details</h3>
+        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeEditModal()">&times;</button>
       </div>
       <form id="editSingerForm" method="POST">
         <div class="session-modal-body" style="display:flex; flex-direction:column; gap:12px;">

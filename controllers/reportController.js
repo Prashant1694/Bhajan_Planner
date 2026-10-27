@@ -287,8 +287,10 @@ exports.showAdminReports = async (req, res) => {
       return plain;
     });
 
+    const totalCount = await BhajanReport.count();
     const counts = {
-      all: await BhajanReport.count(),
+      all: totalCount,
+      total: totalCount,
       pending: await BhajanReport.count({ where: { status: "pending" } }),
       under_review: await BhajanReport.count({ where: { status: "under_review" } }),
       resolved: await BhajanReport.count({ where: { status: "resolved" } }),

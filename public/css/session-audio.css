@@ -1,0 +1,984 @@
+/* ==========================================================================
+   SESSION AUDIO PLAYER & TIMESTAMP STYLING
+   Sri Sathya Sai Seva Organisation, Gandhinagar
+   ========================================================================== */
+
+/* Timestamp Play Button on Bhajan Rows */
+.btn-play-bhajan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(217, 119, 6, 0.09);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.btn-play-bhajan:hover {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(217, 119, 6, 0.28);
+}
+
+.btn-play-bhajan svg {
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .btn-play-bhajan {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .btn-play-bhajan:hover {
+  background: #d97706;
+  color: #ffffff;
+}
+
+/* Header Session Recording Banner (Harmonized with Page Palette) */
+.session-audio-banner {
+  background: var(--surface, #ffffff);
+  border: 1px solid rgba(217, 138, 43, 0.25);
+  border-left: 4px solid #d97706;
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: var(--text, #1e293b);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .session-audio-banner {
+  background: var(--surface, #1e293b);
+  border-color: rgba(245, 158, 11, 0.25);
+  border-left-color: #f59e0b;
+  color: #f1f5f9;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.audio-banner-left,
+.session-audio-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.audio-banner-badge,
+.session-audio-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .audio-banner-badge,
+[data-theme="dark"] .session-audio-banner-icon {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.audio-banner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.audio-banner-title,
+.session-audio-banner-title {
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+  color: var(--text, #1e293b);
+  word-break: break-word;
+}
+
+[data-theme="dark"] .audio-banner-title,
+[data-theme="dark"] .session-audio-banner-title {
+  color: #f8fafc;
+}
+
+.audio-banner-sub,
+.session-audio-banner-sub {
+  font-size: 12.5px;
+  color: var(--text-light, #64748b);
+  margin: 0;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .audio-banner-sub,
+[data-theme="dark"] .session-audio-banner-sub {
+  color: #94a3b8;
+}
+
+.audio-banner-play-btn,
+.session-audio-banner-btn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #ffffff;
+  border: 1px solid #b45309;
+  border-radius: 8px;
+  height: 35px;
+  padding: 0 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: 0 2px 4px rgba(217, 119, 6, 0.22);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.audio-banner-play-btn:hover,
+.session-audio-banner-btn:hover {
+  background: linear-gradient(135deg, #b45309, #92400e);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(217, 119, 6, 0.32);
+  color: #ffffff;
+}
+
+.audio-banner-play-btn:active,
+.session-audio-banner-btn:active {
+  transform: translateY(0);
+}
+
+/* Sticky Bottom Audio Bar (Warm Devotional Aesthetic) */
+.sticky-audio-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9990;
+  background: rgba(254, 252, 248, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(217, 119, 6, 0.22);
+  box-shadow: 0 -8px 28px rgba(180, 83, 9, 0.08), 0 -2px 6px rgba(0, 0, 0, 0.03);
+  padding: 10px 24px 14px 24px;
+  transform: translateY(115%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.sticky-audio-bar.is-visible {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .sticky-audio-bar {
+  background: rgba(24, 18, 14, 0.97);
+  border-top-color: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.65);
+}
+
+/* Progress scrubber slider */
+.audio-scrubber-wrap {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto 8px auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.audio-progress-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(217, 119, 6, 0.16);
+  outline: none;
+  cursor: pointer;
+  transition: height 0.15s;
+}
+
+[data-theme="dark"] .audio-progress-slider {
+  background: rgba(245, 158, 11, 0.2);
+}
+
+.audio-progress-slider:hover {
+  height: 6px;
+}
+
+.audio-progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d97706;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(217, 119, 6, 0.45);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.audio-progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  background: #b45309;
+}
+
+[data-theme="dark"] .audio-progress-slider::-webkit-slider-thumb {
+  background: #f59e0b;
+  border-color: #1e182c;
+  box-shadow: 0 1px 6px rgba(245, 158, 11, 0.5);
+}
+
+.audio-time-label {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #92400e;
+  min-width: 44px;
+  letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .audio-time-label {
+  color: #fbbf24;
+}
+
+/* Main Controls Bar */
+.audio-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Current Playing Info */
+.audio-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.audio-track-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .audio-track-icon {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+.audio-track-details {
+  min-width: 0;
+}
+
+.audio-track-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink, #1e293b);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+[data-theme="dark"] .audio-track-title {
+  color: #f8fafc;
+}
+
+.audio-track-meta {
+  font-size: 12px;
+  color: var(--ink-soft, #64748b);
+  margin: 2px 0 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .audio-track-meta {
+  color: #94a3b8;
+}
+
+/* Playback buttons */
+.audio-center-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.audio-ctrl-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #78350f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.audio-ctrl-btn:hover {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+}
+
+[data-theme="dark"] .audio-ctrl-btn {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .audio-ctrl-btn:hover {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fef08a;
+}
+
+.audio-play-pause-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.38);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.audio-play-pause-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(217, 119, 6, 0.48);
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+}
+
+/* Secondary controls (Speed, Marker jumper, Close) */
+.audio-secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.audio-speed-btn {
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.audio-speed-btn:hover {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+
+[data-theme="dark"] .audio-speed-btn {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .audio-speed-btn:hover {
+  background: #f59e0b;
+  color: #1a1512;
+}
+
+.audio-markers-select {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #1e293b);
+  max-width: 200px;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .audio-markers-select {
+  background: #251e18;
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #f8fafc;
+}
+
+.audio-close-bar-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--ink-soft, #64748b);
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.audio-close-bar-btn:hover {
+  color: var(--danger, #ef4444);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Mobile responsive rules */
+@media (max-width: 640px) {
+  .sticky-audio-bar {
+    padding: 8px 14px calc(10px + env(safe-area-inset-bottom, 0px)) 14px;
+  }
+
+  .audio-scrubber-wrap {
+    margin-bottom: 6px;
+    gap: 8px;
+  }
+
+  .audio-controls-row {
+    gap: 8px;
+  }
+
+  .audio-now-playing {
+    flex: 1 1 120px;
+    gap: 8px;
+  }
+
+  .audio-track-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .audio-track-title {
+    font-size: 12.5px;
+  }
+
+  .audio-track-meta {
+    font-size: 11px;
+  }
+
+  .audio-center-buttons {
+    gap: 4px;
+  }
+
+  .audio-ctrl-btn {
+    width: 30px;
+    height: 30px;
+    padding: 2px;
+  }
+
+  .audio-play-pause-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .audio-markers-select {
+    display: none;
+  }
+
+  .audio-markers-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+    max-width: 130px;
+    gap: 4px;
+  }
+
+  .audio-speed-btn {
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .audio-close-bar-btn {
+    font-size: 18px;
+    padding: 2px 4px;
+  }
+}
+
+/* ==========================================================================
+   CUSTOM MOBILE JUMP-TO-BHAJAN BOTTOM SHEET / MENU
+   ========================================================================== */
+
+.audio-markers-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #1e293b);
+  cursor: pointer;
+  max-width: 175px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.audio-markers-btn:hover {
+  border-color: #d97706;
+  background: rgba(245, 158, 11, 0.08);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .audio-markers-btn {
+  background: #251e18;
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .audio-markers-btn:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #f59e0b;
+}
+
+.marker-btn-icon {
+  flex-shrink: 0;
+  color: #d97706;
+}
+
+.marker-btn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.marker-btn-chevron {
+  flex-shrink: 0;
+  color: var(--ink-soft, #78716c);
+  margin-left: auto;
+}
+
+/* Bottom Sheet Modal Container */
+.audio-markers-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.audio-markers-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.audio-markers-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.audio-markers-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  max-height: 80vh;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.24);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 10px 18px calc(16px + env(safe-area-inset-bottom, 0px)) 18px;
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.audio-markers-modal.is-open .audio-markers-sheet {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .audio-markers-sheet {
+  background: rgba(24, 24, 27, 0.97);
+  border-top-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.65);
+  color: #f43f5e;
+}
+
+/* On Desktop & Tablet: Centered Dialog */
+@media (min-width: 641px) {
+  .audio-markers-modal {
+    align-items: center;
+    padding: 20px;
+  }
+  .audio-markers-sheet {
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    max-height: 75vh;
+    transform: scale(0.95) translateY(12px);
+    padding: 16px 20px 20px 20px;
+  }
+  .audio-markers-modal.is-open .audio-markers-sheet {
+    transform: scale(1) translateY(0);
+  }
+  [data-theme="dark"] .audio-markers-sheet {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.audio-markers-drag-handle {
+  width: 44px;
+  height: 4.5px;
+  border-radius: 9999px;
+  background: rgba(120, 113, 108, 0.3);
+  margin: 0 auto 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.audio-markers-drag-handle:hover {
+  background: rgba(120, 113, 108, 0.5);
+}
+
+.audio-markers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+[data-theme="dark"] .audio-markers-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.audio-markers-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio-markers-icon-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.25));
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+[data-theme="dark"] .audio-markers-icon-pill {
+  color: #fcd34d;
+}
+
+.audio-markers-heading {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c1917;
+  margin: 0;
+  line-height: 1.2;
+}
+[data-theme="dark"] .audio-markers-heading {
+  color: #ffffff;
+}
+
+.audio-markers-subheading {
+  font-size: 11px;
+  color: #78716c;
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+[data-theme="dark"] .audio-markers-subheading {
+  color: #a8a29e;
+}
+
+.audio-markers-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
+  color: #78716c;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.audio-markers-close-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+[data-theme="dark"] .audio-markers-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #a8a29e;
+}
+
+/* Search bar */
+.audio-markers-search-wrap {
+  position: relative;
+  margin: 12px 0 10px;
+}
+.markers-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a8a29e;
+  pointer-events: none;
+}
+.audio-markers-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  font-size: 12.5px;
+  color: #1c1917;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+.audio-markers-search-input:focus {
+  border-color: #d97706;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+[data-theme="dark"] .audio-markers-search-input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+[data-theme="dark"] .audio-markers-search-input:focus {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: #f59e0b;
+}
+
+/* Scrollable Markers List */
+.audio-markers-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 52vh;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.marker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.marker-item:hover {
+  background: rgba(245, 158, 11, 0.07);
+  border-color: rgba(245, 158, 11, 0.2);
+  transform: translateX(2px);
+}
+
+.marker-item:active {
+  transform: scale(0.99);
+}
+
+.marker-item.is-active {
+  background: rgba(245, 158, 11, 0.14) !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+  border-left: 3.5px solid #d97706 !important;
+}
+[data-theme="dark"] .marker-item.is-active {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  border-left-color: #f59e0b !important;
+}
+
+.marker-index-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #78716c;
+  min-width: 20px;
+}
+[data-theme="dark"] .marker-index-chip {
+  color: #a8a29e;
+}
+
+.marker-time-badge {
+  font-family: 'Inter', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  flex-shrink: 0;
+}
+[data-theme="dark"] .marker-time-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.marker-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.marker-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1c1917;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+[data-theme="dark"] .marker-title {
+  color: #f8fafc;
+}
+.marker-item.is-active .marker-title {
+  color: #b45309;
+  font-weight: 700;
+}
+[data-theme="dark"] .marker-item.is-active .marker-title {
+  color: #fcd34d;
+}
+
+.marker-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #78716c;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="dark"] .marker-sub {
+  color: #a8a29e;
+}
+
+.marker-deity-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(120, 113, 108, 0.12);
+  color: #78716c;
+}
+[data-theme="dark"] .marker-deity-pill {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d6d3d1;
+}
+
+.marker-action-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.marker-play-chevron {
+  color: #a8a29e;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.marker-item:hover .marker-play-chevron {
+  color: #d97706;
+  transform: translateX(1px);
+}
+
+.marker-equalizer-bars {
+  display: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+.marker-equalizer-bars span {
+  width: 2.5px;
+  background: #d97706;
+  border-radius: 1px;
+  animation: eqBounce 0.8s ease-in-out infinite alternate;
+}
+.marker-equalizer-bars span:nth-child(1) { height: 8px; animation-delay: 0.1s; }
+.marker-equalizer-bars span:nth-child(2) { height: 14px; animation-delay: 0.3s; }
+.marker-equalizer-bars span:nth-child(3) { height: 6px; animation-delay: 0.2s; }
+
+.marker-item.is-active .marker-play-chevron {
+  display: none;
+}
+.marker-item.is-active .marker-equalizer-bars {
+  display: flex;
+}
+
+@keyframes eqBounce {
+  0% { transform: scaleY(0.4); }
+  100% { transform: scaleY(1); }
+}
+
+.markers-empty-state {
+  text-align: center;
+  padding: 24px 12px;
+  color: #78716c;
+  font-size: 12.5px;
+}
+[diff_block_end]

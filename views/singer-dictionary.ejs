@@ -1,15 +1,15 @@
 <div class="container container-lg">
     <div class="header">
-      <h1>📖 Singer Dictionary</h1>
+      <h1>Singer Dictionary</h1>
       <p>Manage the Master List of Approved Singer Names</p>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <a href="/admin" class="button secondary">⬅️ Back to Admin</a>
+      <a href="/admin" class="button secondary">&larr; Back to Admin</a>
     </div>
 
     <div class="card add-singer-card" style="margin-bottom:24px;">
-      <h3 style="margin-bottom:14px; font-size:16px; display:flex; align-items:center; gap:8px;">➕ Add New Singer</h3>
+      <h3 style="margin-bottom:14px; font-size:16px; display:flex; align-items:center; gap:8px;">Add New Singer</h3>
       <form action="/api/admin/add-singer" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <input type="text" name="name" required class="filter-input" placeholder="e.g., Rahul S." style="max-width:300px;">
         <select name="gender" required class="filter-input" style="max-width:150px;">
@@ -26,7 +26,7 @@
       <table id="singerDictTable">
         <thead>
           <tr>
-            <th onclick="sortTable(0, 'singerDictTable')" style="cursor:pointer;">Singer Name ↕</th>
+            <th onclick="sortTable(0, 'singerDictTable')" style="cursor:pointer;">Singer Name</th>
             <th>Gender</th>
             <th>Notification PIN</th>
             <th style="text-align:right;">Actions</th>
@@ -40,22 +40,22 @@
                 <td><span class="gender-cell <%= s.gender ? s.gender.toLowerCase() : 'unset' %>"><%= s.gender || 'Not set' %></span></td>
                 <td>
                   <% if (s.pin) { %>
-                    <span class="badge-pin badge-pin-protected">🔒 Protected</span>
+                    <span class="badge-pin badge-pin-protected">Protected</span>
                     <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="margin:0; display:inline; margin-left:6px;" onsubmit="return confirm('Reset the 4-digit PIN for <%= s.name.replace(/'/g, "\\'") %>? The singer will be able to set a new PIN on their next visit.');">
-                      <button type="submit" class="btn-pin-reset" title="Reset PIN">🔄 Reset</button>
+                      <button type="submit" class="btn-pin-reset" title="Reset PIN">Reset</button>
                     </form>
                   <% } else { %>
-                    <span class="badge-pin badge-pin-unset">🔓 Not Set</span>
+                    <span class="badge-pin badge-pin-unset">Not Set</span>
                   <% } %>
                 </td>
                 <td style="text-align:right;">
                   <form action="/api/admin/edit-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" id="edit-form-<%= s.id %>">
                     <input type="hidden" name="name" id="edit-input-<%= s.id %>" value="<%= s.name %>">
                     <input type="hidden" name="gender" id="edit-gender-<%= s.id %>" value="<%= s.gender || '' %>">
-                    <button type="button" class="btn-table-action btn-table-edit" onclick="editSinger(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>')">✏️ Edit</button>
+                    <button type="button" class="btn-table-action btn-table-edit" onclick="editSinger(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>')">Edit</button>
                   </form>
                   <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Delete this singer from the dictionary?');">
-                    <button type="submit" class="btn-table-action btn-table-delete">❌ Delete</button>
+                    <button type="submit" class="btn-table-action btn-table-delete">Delete</button>
                   </form>
                 </td>
               </tr>

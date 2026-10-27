@@ -4,23 +4,23 @@
 
   <div style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <a href="/admin/diwali?year=<%= selectedEvent.year %>" class="btn-diwali btn-diwali-secondary">
-      ⬅️ Back to Diwali Dashboard
+      Back to Diwali Dashboard
     </a>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <span class="badge-pill" style="font-size:13.5px; background:var(--diwali-gold-light); color:var(--diwali-amber); padding:6px 12px;">
         Event: <strong><%= selectedEvent.name %></strong>
       </span>
       <a href="/admin/diwali/export/yearly?format=excel&category=Both" class="btn-diwali btn-diwali-secondary" title="Download Complete Yearly Audition Data in Excel (.xlsx)">
-        📊 Download Yearly Data (.xlsx)
+        Download Yearly Data (.xlsx)
       </a>
       <a href="/admin/diwali/export/sequence?format=pdf&category=Both" class="btn-diwali btn-diwali-primary" style="background:var(--diwali-maroon); color:#fff;" title="Print Sequence PDF directly">
-        🖨️ Print Sequence (PDF)
+        Print Sequence (PDF)
       </a>
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportSequence')">
-        📋 Export Sequences
+        Export Sequences
       </button>
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalMakeSequence')">
-        🔄 Regenerate Sequences
+        Regenerate Sequences
       </button>
     </div>
   </div>
@@ -32,7 +32,7 @@
         Sequences have not been generated yet. Please generate sequences first.
       </p>
       <button type="button" class="btn-diwali btn-diwali-maroon" onclick="diwaliOpenModal('modalMakeSequence')">
-        🎛️ Make Sequence Now
+        Make Sequence Now
       </button>
     </div>
   <% } else { %>
@@ -143,7 +143,7 @@
 <div id="modalMakeSequence" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>🔄 Regenerate Sequences</h3>
+      <h3>Regenerate Sequences</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalMakeSequence')">&times;</button>
     </div>
     <div class="diwali-modal-body">
@@ -179,7 +179,7 @@
 <div id="modalFairnessSummary" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box" style="max-width:560px;">
     <div class="diwali-modal-header">
-      <h3>⚖️ Sequence Fairness Summary</h3>
+      <h3>Sequence Fairness Summary</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalFairnessSummary'); window.location.reload();">&times;</button>
     </div>
     <div class="diwali-modal-body" id="fairnessSummaryContent"></div>
@@ -193,7 +193,7 @@
 <div id="modalExportSequence" class="diwali-modal-overlay" style="display:none;">
   <div class="diwali-modal-box">
     <div class="diwali-modal-header">
-      <h3>📋 Export Sequences</h3>
+      <h3>Export Sequences</h3>
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalExportSequence')">&times;</button>
     </div>
     <div class="diwali-modal-body">
@@ -235,7 +235,7 @@
     </div>
     <div class="diwali-modal-footer">
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliCloseModal('modalExportSequence')">Cancel</button>
-      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerSequenceExport()">📥 Download</button>
+      <button type="button" class="btn-diwali btn-diwali-primary" onclick="triggerSequenceExport()">Download</button>
     </div>
   </div>
 </div>

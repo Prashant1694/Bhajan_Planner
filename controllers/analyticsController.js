@@ -2,6 +2,8 @@ const { Sequelize } = require("sequelize");
 
 const BhajanSubmission = require("../models/BhajanSubmission");
 const MasterBhajan = require("../models/MasterBhajan");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const { getLocalDateStr, deityOrderKey, SPEED_ORDER } = require("../services/helpers");
 
 exports.showDatabase = async (req, res) => {
@@ -65,6 +67,33 @@ exports.showDatabase = async (req, res) => {
       sessionsMap.get(s.session_date).push(s);
     });
 
+    // Fetch published session recordings and timestamps for archive sessions
+    const audioByDate = new Map();
+    try {
+      const audioRecords = await SessionAudio.findAll({
+        where: { is_published: true },
+        include: [{ model: SessionAudioTimestamp, as: "timestamps" }]
+      });
+      audioRecords.forEach((rec) => {
+        audioByDate.set(rec.session_date, {
+          id: rec.id,
+          title: rec.title,
+          audio_url: rec.audio_url,
+          session_date: rec.session_date,
+          timestamps: (rec.timestamps || []).map((t) => ({
+            id: t.id,
+            submission_id: t.submission_id,
+            bhajan_title: t.bhajan_title,
+            singer_name: t.singer_name,
+            deity: t.deity,
+            start_seconds: t.start_seconds
+          }))
+        });
+      });
+    } catch (audioErr) {
+      console.warn("Could not load archive session audio records:", audioErr.message);
+    }
+
     // Build sessions array with heading and sorted bhajans
     const DAY_NAMES = [
       "Sunday",
@@ -102,7 +131,26 @@ exports.showDatabase = async (req, res) => {
       const dayName = DAY_NAMES[dateObj.getDay()];
       const heading = `${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y} - ${dayName}`;
 
-      sessions.push({ date: dateStr, heading, bhajans });
+      const sessionAudio = audioByDate.get(dateStr) || null;
+      if (sessionAudio && sessionAudio.timestamps) {
+        const tsBySubId = new Map();
+        const tsByTitle = new Map();
+        sessionAudio.timestamps.forEach((t) => {
+          if (t.submission_id) tsBySubId.set(String(t.submission_id), t);
+          if (t.bhajan_title) tsByTitle.set(t.bhajan_title.trim().toLowerCase(), t);
+        });
+
+        bhajans.forEach((b) => {
+          const matchedTs =
+            (b.id && tsBySubId.get(String(b.id))) ||
+            tsByTitle.get((b.title || "").trim().toLowerCase());
+          if (matchedTs) {
+            b.audioTimestamp = matchedTs;
+          }
+        });
+      }
+
+      sessions.push({ date: dateStr, heading, bhajans, sessionAudio });
     }
 
     const initialSearch = (req.query.search || "").trim();

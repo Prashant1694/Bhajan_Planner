@@ -25,7 +25,7 @@
 
     const uniqueTempos = [...new Set(bhajans.map(b => (b.tempo || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
-    // Extract single unique ragas (split by comma for multi-raga bhajans, keep Carnatic/Hindustani slash pairs)
+    // Extract single unique ragas (split by comma for multi-raga bhajans)
     const ragaMap = new Map();
     bhajans.forEach(b => {
       if (!b.raga) return;
@@ -41,6 +41,61 @@
     });
     const uniqueRagas = Array.from(ragaMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
+    // Canonical lists for Admin Edit Modal dropdowns to prevent discrepancies
+    const primaryDeities = ['Ganesha', 'Guru', 'Hanuman', 'Krishna', 'Mata', 'Narasimha', 'Narayana', 'Rama', 'Sai', 'SarvaDharma', 'Shiva', 'Subrahmanya', 'Surya', 'Vitthala', 'Ayyappa'];
+    const dbDeitiesRaw = [...new Set(bhajans.map(b => (b.deity || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const singleDeitiesList = primaryDeities.filter(d => dbDeitiesRaw.some(x => x.toLowerCase() === d.toLowerCase()) || true);
+    const comboDeitiesList = dbDeitiesRaw.filter(d => d.includes(',') || !singleDeitiesList.some(s => s.toLowerCase() === d.toLowerCase()));
+
+    const modalRagasMap = new Map();
+    uniqueRagas.forEach(r => {
+      const key = r.name.toLowerCase().trim();
+      if (!modalRagasMap.has(key)) modalRagasMap.set(key, r.name);
+    });
+    bhajans.forEach(b => {
+      if (!b.raga) return;
+      const cleaned = b.raga.replace(/^~\s*/, '').trim();
+      if (!cleaned) return;
+      const key = cleaned.toLowerCase();
+      if (!modalRagasMap.has(key)) {
+        const words = cleaned.split(/([\s/,-]+)/).map(w => /^[a-zA-Z]+$/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w).join('');
+        modalRagasMap.set(key, words);
+      }
+    });
+    const sortedModalRagas = Array.from(modalRagasMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    const standardShrutis = [
+      '1P', '1.5P', '2P', '2.5P', '3P', '4P', '4.5P', '5P', '5.5P', '6P', '6.5P', '7P',
+      '1M', '1.5M', '2M', '2.5M', '3M', '4M', '4.5M', '5M', '5.5M', '6M', '6.5M', '7M'
+    ];
+    const maleShrutisFromDb = [...new Set(bhajans.map(b => (b.shruti || '').trim()).filter(Boolean))];
+    const femaleShrutisFromDb = [...new Set(bhajans.map(b => (b.shruti_female || '').trim()).filter(Boolean))];
+    const allMaleShrutis = [...new Set([...standardShrutis, ...maleShrutisFromDb])].sort((a, b) => {
+      const numA = parseFloat(a) || 0;
+      const numB = parseFloat(b) || 0;
+      return numA === numB ? a.localeCompare(b) : numA - numB;
+    });
+    const allFemaleShrutis = [...new Set([...standardShrutis, ...femaleShrutisFromDb])].sort((a, b) => {
+      const numA = parseFloat(a) || 0;
+      const numB = parseFloat(b) || 0;
+      return numA === numB ? a.localeCompare(b) : numA - numB;
+    });
+
+    const standardLangs = ['Sanskrit / Hindi', 'Hindi', 'Sanskrit', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Gujarati', 'Bengali', 'English'];
+    const dbLangs = [...new Set(bhajans.map(b => (b.language || '').trim()).filter(Boolean))];
+    const modalLanguagesMap = new Map();
+    standardLangs.forEach(l => modalLanguagesMap.set(l.toLowerCase(), l));
+    dbLangs.forEach(l => {
+      const key = l.toLowerCase();
+      if (!modalLanguagesMap.has(key)) {
+        const titleCased = l.split(/([\s/,-]+)/).map(w => /^[a-zA-Z]+$/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w).join('');
+        modalLanguagesMap.set(key, titleCased);
+      }
+    });
+    const sortedModalLanguages = Array.from(modalLanguagesMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    const sortedModalSheets = [...new Set(bhajans.map(b => (b.sheet_filename || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
     function getWesternScale(indianScale) {
       if (!indianScale || indianScale === '-' || indianScale === 'Not specified') return '-';
       const match = indianScale.toString().trim().match(/^([\d\.]+)\s*([PMpm])?.*$/);
@@ -52,113 +107,122 @@
       return ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][index];
     }
 
-    function getDeityIcon(deity) {
-      if (!deity) return '🕉️';
-      const d = deity.toLowerCase();
-      if (d.includes('ganesh')) return '🐘';
-      if (d.includes('guru')) return '🙏';
-      if (d.includes('shiva')) return '🔱';
-      if (d.includes('devi') || d.includes('amman') || d.includes('durga') || d.includes('saraswati') || d.includes('lakshmi')) return '🌸';
-      if (d.includes('ram')) return '🏹';
-      if (d.includes('krishna')) return '🪈';
-      if (d.includes('sai') || d.includes('baba')) return '🕉️';
-      if (d.includes('subrahmanya') || d.includes('muruga') || d.includes('kartikeya')) return '🪶';
-      if (d.includes('hanuman') || d.includes('anjaneya') || d.includes('maruti')) return '🐒';
-      if (d.includes('sarva') || d.includes('all')) return '🪔';
-      return '✨';
+    function getDeityJewel(deityStr) {
+      if (!deityStr) return { initial: 'D', className: 'jewel-default' };
+      const first = deityStr.split(/[,;&\/]+/)[0].trim().toLowerCase();
+      if (first.includes('ganesh') || first.includes('vinayak')) return { initial: 'G', className: 'jewel-ganesha' };
+      if (first.includes('guru')) return { initial: 'G', className: 'jewel-guru' };
+      if (first.includes('hanuman') || first.includes('anjaneya') || first.includes('maruti')) return { initial: 'H', className: 'jewel-hanuman' };
+      if (first.includes('krishna')) return { initial: 'K', className: 'jewel-krishna' };
+      if (first.includes('mata') || first.includes('devi') || first.includes('durga')) return { initial: 'M', className: 'jewel-mata' };
+      if (first.includes('narayan')) return { initial: 'N', className: 'jewel-narayana' };
+      if (first.includes('rama')) return { initial: 'R', className: 'jewel-rama' };
+      if (first.includes('sai')) return { initial: 'S', className: 'jewel-sai' };
+      if (first.includes('sarva')) return { initial: 'S', className: 'jewel-sarvadharma' };
+      if (first.includes('shiva')) return { initial: 'S', className: 'jewel-shiva' };
+      if (first.includes('vitt') || first.includes('vith')) return { initial: 'V', className: 'jewel-vitthala' };
+      return { initial: (deityStr.trim().charAt(0) || 'D').toUpperCase(), className: 'jewel-default' };
     }
   %>
 
   <div class="master-bank-page">
-    <div class="container container-xl">
 
-      <!-- Unified Master Bhajan Bank Hero, Search & Filter Card -->
-      <section class="bank-unified-card" aria-label="Master Bhajan Bank and Search Filters">
-        <!-- Top Hero Section within Unified Card -->
-        <div class="bank-card-hero">
-          <div class="bank-hero-header-row">
-            <div class="bank-card-badge-row">
-              <span class="bank-hero-icon" aria-hidden="true">📖</span>
-              <span class="bank-hero-count-badge" id="heroCountBadge"><%= bhajans.length %> Active Bhajans</span>
-              <span class="bank-hero-subtag">Official Mandir Catalog</span>
+      <!-- Glassmorphic Command & Filter Deck -->
+      <section class="bank-glass-deck" aria-label="Master Bhajan Bank Search & Filters">
+        <!-- Top Row: Compact Title, View Switcher & Minimalist Tools -->
+        <div class="bank-glass-header-row">
+          <div class="bank-glass-title-group">
+            <h1 class="bank-glass-title">Master Bhajan Bank</h1>
+            <span class="bank-glass-badge" id="heroCountBadge">
+              <span class="badge-dot"></span>
+              <%= bhajans.length %> Verified Bhajans
+            </span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <!-- View Switcher (Cards vs Minimalist List) -->
+            <div class="glass-view-switcher" role="group" aria-label="Catalog view mode">
+              <button type="button" class="view-switch-btn active" id="btnViewGrid" onclick="setCatalogViewMode('grid')" title="Glass Cards View" aria-label="Cards view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                <span>Cards</span>
+              </button>
+              <button type="button" class="view-switch-btn" id="btnViewList" onclick="setCatalogViewMode('list')" title="Minimalist List View" aria-label="List view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <span>List</span>
+              </button>
             </div>
+
             <% if (isAdmin) { %>
-              <div class="bank-top-actions" aria-label="Admin catalog tools">
-                <a href="/admin/archived-master-bhajans" class="bank-btn-action secondary-cta" title="View deactivated master bhajans">
-                  <span>📦</span> Archived Masters
+              <div class="bank-glass-admin-tools" aria-label="Admin catalog tools">
+                <a href="/admin/archived-master-bhajans" class="glass-btn-sm" title="View deactivated master bhajans">
+                  Archived
                 </a>
-                <a href="/admin/export-master" class="bank-btn-action secondary-cta" title="Download Master Catalog JSON">
-                  <span>⬇️</span> Download JSON
+                <a href="/admin/export-master" class="glass-btn-sm" title="Download Master Catalog JSON">
+                  Export JSON
                 </a>
               </div>
             <% } %>
           </div>
-          <h1 class="bank-card-title">Master Bhajan Bank</h1>
-          <p class="bank-card-subtitle">
-            Search Prashanthi Mandir bhajans, explore verified lyrics, and learn authentic scales, tempos, and ragas. Click any bhajan to view its full lyrics and accompaniment details.
-          </p>
         </div>
 
-        <div class="bank-card-divider" aria-hidden="true"></div>
-
-        <!-- Integrated Search Bar Row -->
-        <div class="bank-search-row">
-          <div class="bank-search-wrap">
-            <span class="search-glass-icon" aria-hidden="true">🔍</span>
-            <input
-              type="search"
-              id="filterBankTitle"
-              class="bank-search-input"
-              placeholder="Search 1,024 bhajans by title, raag, deity, tempo, or pitch..."
-              autocomplete="off"
-              enterkeyhint="search"
-              oninput="handleBankSearchInput(this)"
-            />
-            <button type="button" id="clearBankSearchBtn" class="clear-search-btn" style="display:none;" onclick="clearBankSearch()" aria-label="Clear search">✕</button>
-          </div>
+        <!-- Integrated Glassmorphic Search Bar -->
+        <div class="bank-glass-search-wrap">
+          <span class="search-glass-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            type="search"
+            id="filterBankTitle"
+            class="bank-glass-search-input"
+            placeholder="Search <%= bhajans.length %> bhajans by title, raag, deity, tempo, or scale..."
+            autocomplete="off"
+            enterkeyhint="search"
+            oninput="handleBankSearchInput(this)"
+          />
+          <button type="button" id="clearBankSearchBtn" class="clear-search-btn" style="display:none;" onclick="clearBankSearch()" aria-label="Clear search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
 
-        <!-- App-First Swipeable Deity Filter Chips -->
+        <!-- Minimalist Frosted Deity Filter Chips Scroll -->
         <div class="bank-deity-chips-scroll" id="bankDeityChipsScroll" role="tablist" aria-label="Filter by Deity">
           <button type="button" class="deity-chip active-chip" data-deity="" onclick="selectDeityChip(this, '')">
-            <span>✨ All</span> <span class="chip-count"><%= bhajans.length %></span>
+            <span>All</span> <span class="chip-count"><%= bhajans.length %></span>
           </button>
           <% uniqueDeities.forEach(d => { %>
             <button type="button" class="deity-chip" data-deity="<%= d.name.toLowerCase() %>" onclick="selectDeityChip(this, '<%= d.name.toLowerCase() %>')">
-              <span><%= getDeityIcon(d.name) %> <%= d.name %></span> <span class="chip-count"><%= d.count %></span>
+              <span><%= d.name %></span> <span class="chip-count"><%= d.count %></span>
             </button>
           <% }) %>
         </div>
 
-        <!-- Integrated Filter Controls & Result Count Row -->
+        <!-- Translucent Filter & Info Strip (Tempo, Raag, Reset & Live Count) -->
         <div class="bank-filter-controls-row">
           <div class="bank-dropdowns-strip">
-            <!-- Deity Dropdown -->
-            <div class="filter-field-group">
-              <label for="filterBankDeity" class="filter-field-label">🕉️ Deity</label>
-              <select id="filterBankDeity" class="filter-select-control" onchange="filterMasterBank()">
-                <option value="">All Deities (<%= bhajans.length %>)</option>
-                <% uniqueDeities.forEach(d => { %>
-                  <option value="<%= d.name.toLowerCase() %>"><%= d.name %> (<%= d.count %>)</option>
-                <% }) %>
-              </select>
-            </div>
+            <!-- Hidden Deity select for script synchronization -->
+            <select id="filterBankDeity" class="filter-select-control glass-select" style="display:none;" onchange="filterMasterBank()">
+              <option value="">All Deities</option>
+              <% uniqueDeities.forEach(d => { %>
+                <option value="<%= d.name.toLowerCase() %>"><%= d.name %></option>
+              <% }) %>
+            </select>
 
             <!-- Tempo Dropdown -->
             <div class="filter-field-group">
-              <label for="filterBankTempo" class="filter-field-label">⏱️ Tempo</label>
-              <select id="filterBankTempo" class="filter-select-control" onchange="filterMasterBank()">
+              <select id="filterBankTempo" class="filter-select-control glass-select" onchange="filterMasterBank()" aria-label="Filter by Tempo">
                 <option value="">All Tempos</option>
                 <% uniqueTempos.forEach(t => { %>
-                  <option value="<%= t.toLowerCase() %>"><%= t %></option>
+                  <option value="<%= t.toLowerCase() %>"><%= t.charAt(0).toUpperCase() + t.slice(1) %></option>
                 <% }) %>
               </select>
             </div>
 
-            <!-- Raga Dropdown (Clean Ragas Only with Counts) -->
+            <!-- Raga Dropdown -->
             <div class="filter-field-group">
-              <label for="filterBankRaga" class="filter-field-label">🎼 Raag</label>
-              <select id="filterBankRaga" class="filter-select-control" onchange="filterMasterBank()">
+              <select id="filterBankRaga" class="filter-select-control glass-select" onchange="filterMasterBank()" aria-label="Filter by Raag">
                 <option value="">All Ragas (<%= uniqueRagas.length %>)</option>
                 <% uniqueRagas.forEach(r => { %>
                   <option value="<%= r.name.toLowerCase() %>"><%= r.name %> (<%= r.count %>)</option>
@@ -167,141 +231,195 @@
             </div>
 
             <!-- Reset Button -->
-            <div class="filter-field-group reset-field-group">
-              <label class="filter-field-label desktop-only-label">&nbsp;</label>
-              <button type="button" class="filter-reset-action-btn" onclick="resetAllBankFilters()" title="Reset all search filters">
-                <span class="reset-icon">↺</span> Reset Filters
-              </button>
-            </div>
+            <button type="button" class="filter-reset-action-btn glass-reset-btn" onclick="resetAllBankFilters()" title="Reset all search filters">
+              <span class="reset-icon">↺</span> Reset
+            </button>
           </div>
 
           <!-- Aligned Result Count Indicator -->
-          <div class="bank-count-pill" id="bankCountPill">
+          <div class="bank-count-pill glass-pill" id="bankCountPill">
             Showing <strong id="renderedCountDisplay"><%= Math.min(60, bhajans.length) %></strong> of <strong id="totalMatchingDisplay"><%= bhajans.length %></strong> bhajans
           </div>
         </div>
       </section>
 
-      <!-- Desktop & Tablet Catalog Table with Strict Column Alignment -->
-      <div class="table-container bank-table-container">
-        <table id="masterBankTable" class="master-catalog-table">
-          <thead>
-            <tr>
-              <th class="col-title" onclick="sortTable(0, 'masterBankTable')" style="cursor:pointer;" title="Sort by Title">Title ↕</th>
-              <th class="col-deity" onclick="sortTable(1, 'masterBankTable')" style="cursor:pointer;" title="Sort by Deity">Deity ↕</th>
-              <th class="col-tempo" onclick="sortTable(2, 'masterBankTable')" style="cursor:pointer;" title="Sort by Tempo">Tempo ↕</th>
-              <th class="col-raga" onclick="sortTable(3, 'masterBankTable')" style="cursor:pointer;" title="Sort by Raga">Raag ↕</th>
-              <th class="col-shruti-m" onclick="sortTable(4, 'masterBankTable')" style="cursor:pointer;" title="Sort by Scale Male">Scale (M) ↕</th>
-              <th class="col-west-m" onclick="sortTable(5, 'masterBankTable')" style="cursor:pointer;" title="Sort by West M">Key (M) ↕</th>
-              <th class="col-shruti-f" onclick="sortTable(6, 'masterBankTable')" style="cursor:pointer;" title="Sort by Scale Female">Scale (F) ↕</th>
-              <th class="col-west-f" onclick="sortTable(7, 'masterBankTable')" style="cursor:pointer;" title="Sort by West F">Key (F) ↕</th>
-              <th class="col-level" onclick="sortTable(8, 'masterBankTable')" style="cursor:pointer;" title="Sort by Level">Level ↕</th>
-              <th class="col-actions"><%= isAdmin ? 'Actions' : 'Lyrics' %></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% const initialBhajans = bhajans.slice(0, 60); %>
-            <% if (initialBhajans.length > 0) { %>
-              <% initialBhajans.forEach(b => { %>
-                <tr id="row-<%= b.id %>" data-deity="<%= (b.deity || '').toLowerCase() %>">
-                  <td data-label="Title" class="col-title <%= isAdmin ? 'edit-cell' : '' %>" data-field="title">
-                    <a href="/bhajan/<%= b.id %>" class="bank-title-link" title="Open lyrics and singing details">
-                      <%= b.title %>
-                    </a>
-                  </td>
-                  <td data-label="Deity" class="col-deity <%= isAdmin ? 'edit-cell' : '' %>" data-field="deity">
-                    <span class="deity-pill"><%= b.deity || '-' %></span>
-                  </td>
-                  <td data-label="Tempo" class="col-tempo <%= isAdmin ? 'edit-cell' : '' %>" data-field="tempo">
-                    <span class="tempo-cell"><%= b.tempo || '-' %></span>
-                  </td>
-                  <td data-label="Raag" class="col-raga <%= isAdmin ? 'edit-cell' : '' %>" data-field="raga">
-                    <span class="raga-cell"><%= b.raga || '-' %></span>
-                  </td>
-                  <td data-label="Scale (M)" class="col-shruti-m <%= isAdmin ? 'edit-cell' : '' %>" data-field="shruti">
-                    <span class="scale-pill"><%= b.shruti || '-' %></span>
-                  </td>
-                  <td data-label="Key (M)" id="west-m-<%= b.id %>" class="col-west-m west-scale-cell">
-                    <%= getWesternScale(b.shruti) %>
-                  </td>
-                  <td data-label="Scale (F)" class="col-shruti-f <%= isAdmin ? 'edit-cell' : '' %>" data-field="shruti_female">
-                    <span class="scale-pill"><%= b.shruti_female || '-' %></span>
-                  </td>
-                  <td data-label="Key (F)" id="west-f-<%= b.id %>" class="col-west-f west-scale-cell">
-                    <%= getWesternScale(b.shruti_female) %>
-                  </td>
-                  <td data-label="Level" class="col-level <%= isAdmin ? 'edit-cell' : '' %>" data-field="level"><%= b.level || '-' %></td>
-                  <td data-label="Actions" class="col-actions action-cell">
-                    <a href="/bhajan/<%= b.id %>" class="btn-table-action btn-table-view" title="View lyrics & accompaniment notes">📖 Lyrics</a>
-                    <% if (b.sheet_filename) { %>
-                      <a href="/sheets/<%= encodeURIComponent(b.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="btn-table-action btn-table-sheet" title="Open official music sheet (PDF)">📄 Sheet</a>
-                    <% } %>
-                    <% if (isAdmin) { %>
-                      <button class="btn-table-action btn-table-edit" onclick="editMasterRow(<%= b.id %>)">✏️ Edit</button>
-                      <button class="btn-table-action btn-table-delete" onclick="deleteMasterRow(<%= b.id %>)">❌ Del</button>
-                    <% } %>
-                  </td>
-                </tr>
-              <% }) %>
-            <% } else { %>
-              <tr><td colspan="<%= isAdmin ? 10 : 10 %>" class="table-empty-cell">No master bhajans found.</td></tr>
-            <% } %>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile Devotional Cards View (< 768px) -->
-      <div id="masterBankMobileCards" class="bank-mobile-cards-grid" aria-label="Mobile Bhajan Cards">
+      <!-- Master Bhajan Glassmorphic Songbook Catalog (Replaces Generic Table) -->
+      <div id="masterBankCatalog" class="master-catalog-view mode-grid" aria-label="Master Bhajan Catalog">
+        <% const initialBhajans = bhajans.slice(0, 60); %>
         <% if (initialBhajans.length > 0) { %>
           <% initialBhajans.forEach(b => { %>
-            <div class="bhajan-mobile-card" id="card-<%= b.id %>" data-id="<%= b.id %>" data-deity="<%= (b.deity || '').toLowerCase() %>" onclick="window.openQuickLyrics(<%= b.id %>)">
-              <div class="card-top-row">
-                <div class="card-pills-row">
-                  <% if (b.deity) { %><span class="deity-pill"><%= getDeityIcon(b.deity) %> <%= b.deity %></span><% } %>
-                  <% if (b.tempo) { %><span class="meta-tag tempo-tag">⏱️ <%= b.tempo %></span><% } %>
+            <%
+              const jewel = getDeityJewel(b.deity);
+              const wM = getWesternScale(b.shruti);
+              const wF = getWesternScale(b.shruti_female);
+              const deityTokens = (b.deity || '').split(/[,;&\/]+/).map(d => d.trim()).filter(Boolean);
+              const tempoClass = (b.tempo || '').toLowerCase().replace(/\s+/g, '-');
+            %>
+            <div class="glass-bhajan-card" id="card-<%= b.id %>" data-id="<%= b.id %>" data-deity="<%= (b.deity || '').toLowerCase() %>" onclick="recordBhajanClick(<%= b.id %>); window.openQuickLyrics(<%= b.id %>)">
+              
+              <!-- GRID VIEW MODE CONTENT -->
+              <div class="card-grid-content">
+                <div class="card-head-bar">
+                  <div class="card-deity-group">
+                    <% deityTokens.forEach(d => { %>
+                      <span class="deity-pill"><%= d %></span>
+                    <% }) %>
+                  </div>
+                  <div class="card-top-actions">
+                    <% if (isAdmin) { %>
+                      <div class="admin-actions-trio" onclick="event.stopPropagation();">
+                        <button type="button" class="admin-action-btn admin-btn-star" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Save in Songbook" aria-label="Bookmark">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </button>
+                        <button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(<%= b.id %>)" title="Edit Master Bhajan" aria-label="Edit">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                      </div>
+                    <% } else { %>
+                      <button type="button" class="btn-card-bookmark" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Add to My Songbook" aria-label="Bookmark">
+                        <span class="bookmark-star">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </span>
+                      </button>
+                    <% } %>
+                  </div>
                 </div>
-                <div class="card-top-right-actions">
-                  <button type="button" class="btn-card-bookmark" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Add to My Songbook" aria-label="Bookmark">
-                    <span class="bookmark-star">☆</span>
+
+                <h3 class="card-title">
+                  <a href="/bhajan/<%= b.id %>" class="card-title-link" onclick="event.preventDefault(); event.stopPropagation(); recordBhajanClick(<%= b.id %>); window.openQuickLyrics(<%= b.id %>);">
+                    <%= b.title %>
+                  </a>
+                </h3>
+
+                <div class="card-pitch-capsule">
+                  <div class="pitch-capsule-item">
+                    <span class="pitch-capsule-lbl">Male:</span>
+                    <span class="pitch-capsule-val"><%= b.shruti || '-' %></span>
+                    <% if (wM !== '-') { %><span class="pitch-capsule-key"><%= wM %></span><% } %>
+                    <% if (b.shruti && b.shruti !== '-') { %>
+                      <button type="button" class="btn-pitch-drone-play" onclick="event.stopPropagation(); window.playTanpuraPitch('<%= (wM && wM !== "-") ? wM : b.shruti %>');" title="Play Tanpura in pitch <%= (wM && wM !== "-") ? wM : b.shruti %>" aria-label="Play Tanpura">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                      </button>
+                    <% } %>
+                  </div>
+                  <div class="pitch-capsule-item">
+                    <span class="pitch-capsule-lbl">Female:</span>
+                    <span class="pitch-capsule-val"><%= b.shruti_female || '-' %></span>
+                    <% if (wF !== '-') { %><span class="pitch-capsule-key"><%= wF %></span><% } %>
+                    <% if (b.shruti_female && b.shruti_female !== '-') { %>
+                      <button type="button" class="btn-pitch-drone-play" onclick="event.stopPropagation(); window.playTanpuraPitch('<%= (wF && wF !== "-") ? wF : b.shruti_female %>');" title="Play Tanpura in pitch <%= (wF && wF !== "-") ? wF : b.shruti_female %>" aria-label="Play Tanpura">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                      </button>
+                    <% } %>
+                  </div>
+                </div>
+
+                <div class="card-subtags-row">
+                  <% if (b.raga) { %><span class="meta-tag raga-tag">Raag <%= b.raga %></span><% } %>
+                  <% if (b.tempo) { %>
+                    <span class="meta-tag tempo-tag tempo-<%= tempoClass %>">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <%= b.tempo %>
+                    </span>
+                  <% } %>
+                  <% if (b.language) { %><span class="meta-tag lang-tag"><%= b.language %></span><% } %>
+                  <% if (b.level) { %><span class="meta-tag level-tag"><%= b.level.charAt(0).toUpperCase() + b.level.slice(1) %></span><% } %>
+                </div>
+
+                <div class="card-bottom-actions-row">
+                  <div class="card-actions-left">
+                    <button type="button" class="card-action-btn-primary" onclick="event.stopPropagation(); recordBhajanClick(<%= b.id %>); window.openQuickLyrics(<%= b.id %>);">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                      <span>Lyrics</span>
+                    </button>
+                    <% if (b.sheet_filename) { %>
+                      <a href="/sheets/<%= encodeURIComponent(b.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="card-sheet-btn-sm" title="Open music sheet (PDF)" onclick="event.stopPropagation();">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>Sheet</span>
+                      </a>
+                    <% } %>
+                  </div>
+                  <a href="/bhajan/<%= b.id %>" class="card-details-arrow-btn" onclick="event.stopPropagation(); recordBhajanClick(<%= b.id %>);" title="Full devotion details" aria-label="Details">↗</a>
+                </div>
+              </div>
+
+              <!-- LIST VIEW MODE CONTENT -->
+              <div class="card-list-content">
+                <div class="list-main-col">
+                  <div class="list-title-group">
+                    <a href="/bhajan/<%= b.id %>" class="card-title-link" onclick="event.preventDefault(); event.stopPropagation(); recordBhajanClick(<%= b.id %>); window.openQuickLyrics(<%= b.id %>);">
+                      <%= b.title %>
+                    </a>
+                    <div class="list-meta-subtitle">
+                      <% deityTokens.forEach(d => { %><span class="deity-pill"><%= d %></span><% }) %>
+                      <% if (b.raga) { %><span class="meta-tag raga-tag">Raag <%= b.raga %></span><% } %>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="list-pitches-col">
+                  <div class="card-pitch-capsule">
+                    <div class="pitch-capsule-item">
+                      <span class="pitch-capsule-lbl">M:</span>
+                      <span class="pitch-capsule-val"><%= b.shruti || '-' %></span>
+                      <% if (wM !== '-') { %><span class="pitch-capsule-key"><%= wM %></span><% } %>
+                    </div>
+                    <div class="pitch-capsule-item">
+                      <span class="pitch-capsule-lbl">F:</span>
+                      <span class="pitch-capsule-val"><%= b.shruti_female || '-' %></span>
+                      <% if (wF !== '-') { %><span class="pitch-capsule-key"><%= wF %></span><% } %>
+                    </div>
+                  </div>
+                  <% if (b.tempo) { %>
+                    <span class="tempo-cell tempo-<%= tempoClass %>"><%= b.tempo %></span>
+                  <% } %>
+                </div>
+
+                <div class="list-actions-col">
+                  <% if (b.sheet_filename) { %>
+                    <a href="/sheets/<%= encodeURIComponent(b.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="card-sheet-btn-sm" title="Open music sheet" onclick="event.stopPropagation();">
+                      <span>Sheet</span>
+                    </a>
+                  <% } %>
+                  <button type="button" class="card-action-btn-primary" onclick="event.stopPropagation(); recordBhajanClick(<%= b.id %>); window.openQuickLyrics(<%= b.id %>);">
+                    Lyrics
                   </button>
                   <% if (isAdmin) { %>
-                    <div class="card-admin-actions" onclick="event.stopPropagation();">
-                      <button class="btn-table-action btn-table-edit" onclick="editMasterRow(<%= b.id %>)">✏️ Edit</button>
-                      <button class="btn-table-action btn-table-delete" onclick="deleteMasterRow(<%= b.id %>)">❌</button>
+                    <div class="admin-actions-trio" onclick="event.stopPropagation();">
+                      <button type="button" class="admin-action-btn admin-btn-star" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Save in Songbook" aria-label="Bookmark">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      </button>
+                      <button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(<%= b.id %>)" title="Edit Master Bhajan" aria-label="Edit">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
                     </div>
+                  <% } else { %>
+                    <button type="button" class="btn-card-bookmark" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Add to My Songbook" aria-label="Bookmark">
+                      <span class="bookmark-star">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      </span>
+                    </button>
                   <% } %>
+                  <a href="/bhajan/<%= b.id %>" class="card-details-arrow-btn" onclick="event.stopPropagation(); recordBhajanClick(<%= b.id %>);" title="Full devotion details" aria-label="Details">↗</a>
                 </div>
               </div>
-              <h3 class="card-title">
-                <a href="/bhajan/<%= b.id %>" onclick="event.stopPropagation();"><%= b.title %></a>
-              </h3>
-              <div class="card-scales-grid">
-                <div class="scale-item">
-                  <span class="scale-lbl">👤 Male:</span>
-                  <span class="scale-val"><%= b.shruti || '-' %> <%= getWesternScale(b.shruti) !== '-' ? '(' + getWesternScale(b.shruti) + ')' : '' %></span>
-                </div>
-                <div class="scale-item">
-                  <span class="scale-lbl">👩 Female:</span>
-                  <span class="scale-val"><%= b.shruti_female || '-' %> <%= getWesternScale(b.shruti_female) !== '-' ? '(' + getWesternScale(b.shruti_female) + ')' : '' %></span>
-                </div>
-              </div>
-              <div class="card-footer-row">
-                <div class="card-meta-tags">
-                  <% if (b.raga) { %><span class="meta-tag raga-tag">🎼 <%= b.raga %></span><% } %>
-                  <% if (b.language) { %><span class="meta-tag lang-tag">🗣️ <%= b.language %></span><% } %>
-                </div>
-                <div class="card-footer-actions">
-                  <% if (b.sheet_filename) { %>
-                    <a href="/sheets/<%= encodeURIComponent(b.sheet_filename) %>" target="_blank" rel="noopener noreferrer" class="card-view-sheet-btn" title="Open music sheet (PDF)" onclick="event.stopPropagation();">📄 Sheet</a>
-                  <% } %>
-                  <button type="button" class="card-quick-lyrics-btn" onclick="event.stopPropagation(); window.openQuickLyrics(<%= b.id %>);">
-                    📖 Lyrics
-                  </button>
-                  <a href="/bhajan/<%= b.id %>" class="card-view-lyrics-btn" onclick="event.stopPropagation();" title="Full devotion details">↗</a>
-                </div>
-              </div>
+
             </div>
           <% }) %>
+        <% } else { %>
+          <div class="catalog-empty-state">
+            <div class="catalog-empty-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            </div>
+            <h3 class="catalog-empty-title">No Bhajans Found</h3>
+            <p class="catalog-empty-desc">No master bhajans matched the current filters.</p>
+          </div>
         <% } %>
       </div>
 
@@ -309,25 +427,24 @@
       <% if (bhajans.length > 60) { %>
         <div id="masterBankLoadMore" class="bank-load-more-wrap">
           <button type="button" id="bankLoadMoreBtn" class="bank-load-more-btn">
-            📜 Load More Bhajans (<span id="bankRemainingCount"><%= bhajans.length - 60 %></span> remaining)
+            Load More Bhajans (<span id="bankRemainingCount"><%= bhajans.length - 60 %></span> remaining)
           </button>
         </div>
       <% } %>
 
-    </div>
   </div>
 
-  <!-- App-First Quick Lyrics Bottom Sheet Modal -->
+  <!-- App-First Quick Lyrics Bottom Sheet Modal (Zero Emoji) -->
   <div id="quickLyricsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="quickLyricsTitle">
     <div class="modal-content quick-lyrics-sheet">
-      <div class="sheet-drag-handle"></div>
+      <div class="sheet-drag-handle" id="quickLyricsDragHandle" onclick="toggleQuickLyricsExpand()" role="button" tabindex="0" title="Tap to expand or collapse" aria-label="Toggle expand lyrics sheet"></div>
       
       <div class="modal-header quick-lyrics-header">
         <div class="quick-lyrics-title-wrap">
           <div class="quick-lyrics-badge-strip">
-            <span id="quickDeityBadge" class="hero-pill deity-pill">🕉️ Sai</span>
-            <span id="quickTempoBadge" class="hero-pill tempo-pill">⏱️ Fast</span>
-            <span id="quickRagaBadge" class="hero-pill raga-pill" style="display:none;">🎼 Raag</span>
+            <span id="quickDeityBadge" class="hero-pill deity-pill quick-deity-pill">Sai</span>
+            <span id="quickTempoBadge" class="hero-pill tempo-pill">Fast</span>
+            <span id="quickRagaBadge" class="hero-pill raga-pill" style="display:none;">Raag</span>
           </div>
           <h2 id="quickLyricsTitle" class="quick-lyrics-title">Bhajan Title</h2>
         </div>
@@ -337,24 +454,24 @@
       <!-- Accompaniment Scales -->
       <div class="quick-scales-bar">
         <div class="quick-scale-box">
-          <span class="scale-lbl">👤 Male Pitch:</span>
+          <span class="scale-lbl">Male Pitch:</span>
           <strong id="quickScaleMale" class="scale-val">-</strong>
         </div>
         <div class="quick-scale-box">
-          <span class="scale-lbl">👩 Female Pitch:</span>
+          <span class="scale-lbl">Female Pitch:</span>
           <strong id="quickScaleFemale" class="scale-val">-</strong>
         </div>
       </div>
 
-      <!-- Sacred Lyrics Reader Area -->
+      <!-- Lyrics Reader Area -->
       <div class="quick-lyrics-reader-box">
         <div class="quick-lyrics-toolbar">
-          <span class="quick-reader-heading">📜 Sacred Lyrics</span>
-          <div class="quick-reader-controls">
-            <button type="button" class="font-btn" onclick="adjustQuickFontSize(-2)" title="Decrease font">A−</button>
-            <span id="quickFontSizeVal" class="quick-font-val">19px</span>
-            <button type="button" class="font-btn" onclick="adjustQuickFontSize(2)" title="Increase font">A+</button>
-            <button type="button" class="font-btn font-reset-btn" onclick="adjustQuickFontSize(0)" title="Reset font">↺</button>
+          <span class="quick-reader-heading">Sacred Lyrics</span>
+          <div class="quick-reader-controls font-size-pill" role="group" aria-label="Adjust font size">
+            <button type="button" class="font-btn" onclick="adjustQuickFontSize(-2)" title="Decrease font" aria-label="Decrease font">A−</button>
+            <span id="quickFontSizeVal" class="quick-font-val" title="Current text size">19px</span>
+            <button type="button" class="font-btn" onclick="adjustQuickFontSize(2)" title="Increase font" aria-label="Increase font">A+</button>
+            <button type="button" class="font-btn font-reset-btn" onclick="adjustQuickFontSize(0)" title="Reset font (19px)" aria-label="Reset font size">↺</button>
           </div>
         </div>
         <div id="quickLyricsText" class="quick-lyrics-content">
@@ -365,25 +482,152 @@
       <!-- Modal Bottom Actions Row -->
       <div class="modal-actions-row quick-modal-actions">
         <button type="button" id="quickCopyBtn" class="button secondary btn-modal-edit" onclick="copyQuickLyrics()">
-          📋 Copy
+          Copy Lyrics
         </button>
         <button type="button" id="quickBookmarkBtn" class="button secondary btn-modal-edit" onclick="toggleQuickBookmark()">
-          ⭐ Songbook
+          Save in Songbook
         </button>
         <a id="quickScheduleBtn" href="/submit-form" class="button button-confirm btn-modal-confirm" style="text-decoration:none;">
-          🎤 Schedule
+          Schedule
         </a>
         <a id="quickFullPageBtn" href="#" class="button secondary btn-modal-edit" style="text-decoration:none;">
-          📖 Full Page ↗
+          Full Page ↗
         </a>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification for Quick Actions -->
+  <!-- Admin Edit Master Bhajan Modal -->
+  <div id="adminEditBhajanModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="adminEditBhajanTitle" style="display:none;">
+    <div class="modal-content admin-edit-bhajan-sheet">
+      <div class="sheet-drag-handle" onclick="closeAdminEditBhajanModal()" title="Close editor"></div>
+      
+      <div class="modal-header">
+        <div class="admin-edit-title-wrap">
+          <span class="admin-edit-badge">Master Catalog Editor</span>
+          <h2 id="adminEditBhajanTitle" class="admin-edit-title">Edit Bhajan</h2>
+        </div>
+        <button type="button" class="close-btn" onclick="closeAdminEditBhajanModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="adminEditBhajanForm" onsubmit="submitAdminEditBhajan(event)" class="admin-edit-form">
+        <input type="hidden" id="editBhajanId" name="id" />
+
+        <div class="admin-form-grid">
+          <div class="admin-form-group full-width">
+            <label for="editBhajanTitle">Bhajan Title <span class="req">*</span></label>
+            <input type="text" id="editBhajanTitle" name="title" required class="admin-input-control" placeholder="e.g. Vinayaka Vinayaka" />
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanDeity">Deity / Deities <span class="req">*</span></label>
+            <select id="editBhajanDeity" name="deity" required class="admin-input-control">
+              <option value="">Select Deity</option>
+              <optgroup label="Primary Deities">
+                <% singleDeitiesList.forEach(d => { %>
+                  <option value="<%= d %>"><%= d %></option>
+                <% }) %>
+              </optgroup>
+              <optgroup label="Multi-Deity Combinations">
+                <% comboDeitiesList.forEach(d => { %>
+                  <option value="<%= d %>"><%= d %></option>
+                <% }) %>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanTempo">Tempo / Speed</label>
+            <select id="editBhajanTempo" name="tempo" class="admin-input-control">
+              <option value="">Select Tempo</option>
+              <option value="Slow">Slow</option>
+              <option value="Medium">Medium</option>
+              <option value="Fast">Fast</option>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanRaga">Raag</label>
+            <select id="editBhajanRaga" name="raga" class="admin-input-control">
+              <option value="">Select Raag (or None)</option>
+              <% sortedModalRagas.forEach(r => { %>
+                <option value="<%= r %>"><%= r %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanLevel">Level</label>
+            <select id="editBhajanLevel" name="level" class="admin-input-control">
+              <option value="">Select Level</option>
+              <option value="simple">Simple / Basic</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanShrutiMale">Male Pitch (Shruti)</label>
+            <select id="editBhajanShrutiMale" name="shruti" class="admin-input-control">
+              <option value="">Select Male Pitch</option>
+              <% allMaleShrutis.forEach(p => { 
+                const note = getWesternScale(p);
+              %>
+                <option value="<%= p %>"><%= p %><%= (note && note !== '-' ? ' (' + note + ')' : '') %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanShrutiFemale">Female Pitch (Shruti)</label>
+            <select id="editBhajanShrutiFemale" name="shruti_female" class="admin-input-control">
+              <option value="">Select Female Pitch</option>
+              <% allFemaleShrutis.forEach(p => { 
+                const note = getWesternScale(p);
+              %>
+                <option value="<%= p %>"><%= p %><%= (note && note !== '-' ? ' (' + note + ')' : '') %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanLanguage">Language</label>
+            <select id="editBhajanLanguage" name="language" class="admin-input-control">
+              <option value="">Select Language</option>
+              <% sortedModalLanguages.forEach(l => { %>
+                <option value="<%= l %>"><%= l %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editBhajanSheet">Sheet Filename (PDF)</label>
+            <select id="editBhajanSheet" name="sheet_filename" class="admin-input-control">
+              <option value="">None / No sheet</option>
+              <% sortedModalSheets.forEach(s => { %>
+                <option value="<%= s %>"><%= s %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="admin-form-group full-width">
+            <label for="editBhajanLyrics">Sacred Lyrics</label>
+            <textarea id="editBhajanLyrics" name="lyrics" rows="7" class="admin-textarea-control" placeholder="Enter stanzas separated by blank lines..."></textarea>
+          </div>
+        </div>
+
+        <div class="admin-modal-actions-row">
+          <button type="button" class="button secondary" onclick="closeAdminEditBhajanModal()">Cancel</button>
+          <button type="submit" class="button button-confirm" id="btnSaveAdminEdit">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
   <div id="bankToast" class="bank-toast" style="display:none;" role="status" aria-live="polite"></div>
 
-  <!-- Raw Master Bhajans Data Cache for Instant Zero-Latency Filtering -->
+  <!-- Master Bhajans Data Cache for Instant Zero-Latency Filtering -->
   <script id="allMasterBhajansData" type="application/json">
     <%- JSON.stringify(bhajans.map(b => ({
       id: b.id,
@@ -411,8 +655,7 @@
     window.ALL_MASTER_BHAJANS = allData;
     window.IS_ADMIN_MASTER_BANK = <%= isAdmin ? 'true' : 'false' %>;
 
-    var tbody = document.querySelector('#masterBankTable tbody');
-    var mobileCardsContainer = document.getElementById('masterBankMobileCards');
+    var catalogContainer = document.getElementById('masterBankCatalog');
     var loadMoreBtn = document.getElementById('bankLoadMoreBtn');
     var loadMoreDiv = document.getElementById('masterBankLoadMore');
     var remCount = document.getElementById('bankRemainingCount');
@@ -433,95 +676,267 @@
         .replace(/"/g, '&quot;');
     }
 
-    function createRowHtml(b) {
-      var isAdmin = window.IS_ADMIN_MASTER_BANK;
-      var editClass = isAdmin ? ' edit-cell' : '';
-      var deityPill = b.deity ? '<span class="deity-pill">' + escapeHtml(b.deity) + '</span>' : '-';
-      var sheetBtn = b.sheet_filename ? '<a href="/sheets/' + encodeURIComponent(b.sheet_filename) + '" target="_blank" rel="noopener noreferrer" class="btn-table-action btn-table-sheet" title="Open official music sheet (PDF)">📄 Sheet</a> ' : '';
-      var actionsHtml = '<td data-label="Actions" class="col-actions action-cell">' +
-        '<a href="/bhajan/' + b.id + '" class="btn-table-action btn-table-view" title="View lyrics & accompaniment notes">📖 Lyrics</a> ' +
-        sheetBtn;
-      if (isAdmin) {
-        actionsHtml += '<button class="btn-table-action btn-table-edit" onclick="editMasterRow(' + b.id + ')">✏️ Edit</button> ' +
-          '<button class="btn-table-action btn-table-delete" onclick="deleteMasterRow(' + b.id + ')">❌ Del</button>';
+    // ── Bug 2: Filter & Search State Persistence in sessionStorage ──
+    function saveBankFilterState(lastId) {
+      try {
+        var titleIn = document.getElementById('filterBankTitle');
+        var deityIn = document.getElementById('filterBankDeity');
+        var tempoIn = document.getElementById('filterBankTempo');
+        var ragaIn = document.getElementById('filterBankRaga');
+
+        var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        var existing = {};
+        try {
+          existing = JSON.parse(sessionStorage.getItem('bp_bank_filter_state') || '{}');
+        } catch (_) {}
+
+        var state = {
+          search: titleIn ? titleIn.value : '',
+          deity: deityIn ? deityIn.value : '',
+          tempo: tempoIn ? tempoIn.value : '',
+          raga: ragaIn ? ragaIn.value : '',
+          scrollY: scrollY,
+          lastBhajanId: (lastId !== undefined) ? lastId : (existing.lastBhajanId || null),
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem('bp_bank_filter_state', JSON.stringify(state));
+      } catch (_) {}
+    }
+
+    window.recordBhajanClick = function(id) {
+      saveBankFilterState(id);
+    };
+
+    function restoreBankFilterState() {
+      try {
+        var raw = sessionStorage.getItem('bp_bank_filter_state');
+        if (!raw) return;
+        var state = JSON.parse(raw);
+        if (!state) return;
+
+        var titleIn = document.getElementById('filterBankTitle');
+        var deityIn = document.getElementById('filterBankDeity');
+        var tempoIn = document.getElementById('filterBankTempo');
+        var ragaIn = document.getElementById('filterBankRaga');
+
+        var applied = false;
+        if (titleIn && state.search) {
+          titleIn.value = state.search;
+          if (clearSearchBtn) clearSearchBtn.style.display = 'block';
+          applied = true;
+        }
+        if (deityIn && state.deity) {
+          deityIn.value = state.deity;
+          applied = true;
+        }
+        if (tempoIn && state.tempo) {
+          tempoIn.value = state.tempo;
+          applied = true;
+        }
+        if (ragaIn && state.raga) {
+          ragaIn.value = state.raga;
+          applied = true;
+        }
+
+        if (applied) {
+          window.filterMasterBank(true);
+        }
+
+        // Restore scroll position or smooth scroll to last viewed bhajan card
+        if (state.lastBhajanId) {
+          setTimeout(function() {
+            var target = document.getElementById('card-' + state.lastBhajanId) || document.getElementById('row-' + state.lastBhajanId);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.classList.add('highlight-pulse');
+              setTimeout(function() {
+                target.classList.remove('highlight-pulse');
+              }, 2500);
+            } else if (state.scrollY) {
+              window.scrollTo({ top: state.scrollY, behavior: 'instant' });
+            }
+          }, 150);
+        } else if (state.scrollY) {
+          window.scrollTo({ top: state.scrollY, behavior: 'instant' });
+        }
+      } catch (_) {}
+    }
+
+    function getDeityJewelClient(deityStr) {
+      var d = (deityStr || '').toLowerCase();
+      if (d.includes('ganesha') || d.includes('vinayaka') || d.includes('vighnesh')) {
+        return { initial: 'G', className: 'jewel-ganesha' };
+      } else if (d.includes('shiva') || d.includes('shankara') || d.includes('nataraja') || d.includes('rudra')) {
+        return { initial: 'S', className: 'jewel-shiva' };
+      } else if (d.includes('krishna') || d.includes('gopala') || d.includes('govinda') || d.includes('madhava')) {
+        return { initial: 'K', className: 'jewel-krishna' };
+      } else if (d.includes('rama') || d.includes('raghu') || d.includes('ram')) {
+        return { initial: 'R', className: 'jewel-rama' };
+      } else if (d.includes('narayana') || d.includes('vishnu') || d.includes('hari')) {
+        return { initial: 'N', className: 'jewel-narayana' };
+      } else if (d.includes('sai') || d.includes('baba')) {
+        return { initial: 'S', className: 'jewel-sai' };
+      } else if (d.includes('mata') || d.includes('devi') || d.includes('durga') || d.includes('amma') || d.includes('sarada') || d.includes('lakshmi')) {
+        return { initial: 'M', className: 'jewel-mata' };
+      } else if (d.includes('hanuman') || d.includes('anjaneya') || d.includes('maruti')) {
+        return { initial: 'H', className: 'jewel-hanuman' };
+      } else if (d.includes('guru')) {
+        return { initial: 'G', className: 'jewel-guru' };
+      } else if (d.includes('sarva') || d.includes('dharma')) {
+        return { initial: 'Ω', className: 'jewel-sarva' };
       }
-      actionsHtml += '</td>';
-
-      return '<tr id="row-' + b.id + '" data-deity="' + escapeHtml((b.deity || '').toLowerCase()) + '">' +
-        '<td data-label="Title" class="col-title' + editClass + '" data-field="title"><a href="/bhajan/' + b.id + '" class="bank-title-link" title="Open lyrics and singing details">' + escapeHtml(b.title) + '</a></td>' +
-        '<td data-label="Deity" class="col-deity' + editClass + '" data-field="deity">' + deityPill + '</td>' +
-        '<td data-label="Tempo" class="col-tempo' + editClass + '" data-field="tempo"><span class="tempo-cell">' + escapeHtml(b.tempo || '-') + '</span></td>' +
-        '<td data-label="Raag" class="col-raga' + editClass + '" data-field="raga"><span class="raga-cell">' + escapeHtml(b.raga || '-') + '</span></td>' +
-        '<td data-label="Scale (M)" class="col-shruti-m' + editClass + '" data-field="shruti"><span class="scale-pill">' + escapeHtml(b.shruti || '-') + '</span></td>' +
-        '<td data-label="Key (M)" id="west-m-' + b.id + '" class="col-west-m west-scale-cell">' + escapeHtml(b.wm || '-') + '</td>' +
-        '<td data-label="Scale (F)" class="col-shruti-f' + editClass + '" data-field="shruti_female"><span class="scale-pill">' + escapeHtml(b.shruti_female || '-') + '</span></td>' +
-        '<td data-label="Key (F)" id="west-f-' + b.id + '" class="col-west-f west-scale-cell">' + escapeHtml(b.wf || '-') + '</td>' +
-        '<td data-label="Level" class="col-level' + editClass + '" data-field="level">' + escapeHtml(b.level || '-') + '</td>' +
-        actionsHtml +
-        '</tr>';
+      return { initial: 'ॐ', className: 'jewel-default' };
     }
 
-    function getDeityIconClient(deity) {
-      if (!deity) return '🕉️';
-      var d = deity.toLowerCase();
-      if (d.includes('ganesh')) return '🐘';
-      if (d.includes('guru')) return '🙏';
-      if (d.includes('shiva')) return '🔱';
-      if (d.includes('devi') || d.includes('amman') || d.includes('durga') || d.includes('saraswati') || d.includes('lakshmi')) return '🌸';
-      if (d.includes('ram')) return '🏹';
-      if (d.includes('krishna')) return '🪈';
-      if (d.includes('sai') || d.includes('baba')) return '🕉️';
-      if (d.includes('subrahmanya') || d.includes('muruga') || d.includes('kartikeya')) return '🪶';
-      if (d.includes('sarva') || d.includes('all')) return '🪔';
-      return '✨';
-    }
-
-    function createCardHtml(b) {
+    function createGlassBhajanCardHtml(b) {
       var isAdmin = window.IS_ADMIN_MASTER_BANK;
+      var jewel = getDeityJewelClient(b.deity);
+      var deityTokens = (b.deity || 'Devotional').split(/[,;&\/]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+      var deityPills = deityTokens.map(function(d) { return '<span class="deity-pill">' + escapeHtml(d) + '</span>'; }).join('');
+      var tempoClass = (b.tempo || '').toLowerCase().replace(/\s+/g, '-');
+      var tempoPill = b.tempo ? '<span class="meta-tag tempo-tag tempo-' + tempoClass + '"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ' + escapeHtml(b.tempo) + '</span>' : '';
+
+      var wM = (b.wm && b.wm !== '-') ? '<span class="pitch-capsule-key">' + escapeHtml(b.wm) + '</span>' : '';
+      var wF = (b.wf && b.wf !== '-') ? '<span class="pitch-capsule-key">' + escapeHtml(b.wf) + '</span>' : '';
+      var scaleM = escapeHtml(b.shruti || '-');
+      var scaleF = escapeHtml(b.shruti_female || '-');
+
+      var ragaTag = b.raga ? '<span class="meta-tag raga-tag">Raag ' + escapeHtml(b.raga) + '</span>' : '';
+      var langTag = b.language ? '<span class="meta-tag lang-tag">' + escapeHtml(b.language) + '</span>' : '';
+      var levelTag = b.level ? '<span class="meta-tag level-tag">' + escapeHtml(b.level.charAt(0).toUpperCase() + b.level.slice(1)) + '</span>' : '';
+
+      var sheetBtn = b.sheet_filename ? '<a href="/sheets/' + encodeURIComponent(b.sheet_filename) + '" target="_blank" rel="noopener noreferrer" class="card-sheet-btn-sm" title="Open music sheet (PDF)" onclick="event.stopPropagation();"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>Sheet</span></a>' : '';
+
       var isBookmarked = window.BOOKMARKED_BHAJAN_IDS && window.BOOKMARKED_BHAJAN_IDS.has(Number(b.id));
-      var deityPill = b.deity ? '<span class="deity-pill">' + getDeityIconClient(b.deity) + ' ' + escapeHtml(b.deity) + '</span>' : '';
-      var tempoPill = b.tempo ? '<span class="meta-tag tempo-tag">⏱️ ' + escapeHtml(b.tempo) + '</span>' : '';
-      var ragaTag = b.raga ? '<span class="meta-tag raga-tag">🎼 ' + escapeHtml(b.raga) + '</span>' : '';
-      var langTag = b.language ? '<span class="meta-tag lang-tag">🗣️ ' + escapeHtml(b.language) + '</span>' : '';
-      var sheetBtn = b.sheet_filename ? '<a href="/sheets/' + encodeURIComponent(b.sheet_filename) + '" target="_blank" rel="noopener noreferrer" class="card-view-sheet-btn" title="Open music sheet (PDF)" onclick="event.stopPropagation();">📄 Sheet</a>' : '';
+      var starFill = isBookmarked ? '#f59e0b' : 'none';
+      var starStroke = isBookmarked ? '#f59e0b' : 'currentColor';
 
-      var scaleM = (b.shruti || '-') + (b.wm && b.wm !== '-' ? ' (' + b.wm + ')' : '');
-      var scaleF = (b.shruti_female || '-') + (b.wf && b.wf !== '-' ? ' (' + b.wf + ')' : '');
+      var adminActionsTrio = '<div class="admin-actions-trio" onclick="event.stopPropagation();">' +
+        '<button type="button" class="admin-action-btn admin-btn-star' + (isBookmarked ? ' active' : '') + '" data-id="' + b.id + '" onclick="event.stopPropagation(); window.toggleSongbookBookmark(' + b.id + ', this)" title="Save in Songbook" aria-label="Bookmark">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + starFill + '" stroke="' + starStroke + '" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+        '</button>' +
+        '<button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(' + b.id + ')" title="Edit Master Bhajan" aria-label="Edit">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        '</button>' +
+        '<button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(' + b.id + ')" title="Delete Bhajan" aria-label="Delete">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
+        '</button>' +
+      '</div>';
 
-      var bookmarkBtn = '<button type="button" class="btn-card-bookmark ' + (isBookmarked ? 'active' : '') + '" data-id="' + b.id + '" onclick="event.stopPropagation(); window.toggleSongbookBookmark(' + b.id + ', this);" title="' + (isBookmarked ? 'Remove from Songbook' : 'Add to My Songbook') + '" aria-label="Bookmark">' +
-        '<span class="bookmark-star">' + (isBookmarked ? '★' : '☆') + '</span>' +
-        '</button>';
+      var singerBookmarkBtn = '<button type="button" class="btn-card-bookmark' + (isBookmarked ? ' active' : '') + '" data-id="' + b.id + '" onclick="event.stopPropagation(); window.toggleSongbookBookmark(' + b.id + ', this)" title="' + (isBookmarked ? 'In Songbook' : 'Add to My Songbook') + '" aria-label="Bookmark">' +
+        '<span class="bookmark-star">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + (isBookmarked ? '#f59e0b' : 'none') + '" stroke="' + (isBookmarked ? '#f59e0b' : '#94a3b8') + '" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
+        '</span>' +
+      '</button>';
 
-      var adminActions = '';
-      if (isAdmin) {
-        adminActions = '<div class="card-admin-actions" onclick="event.stopPropagation();">' +
-          '<button class="btn-table-action btn-table-edit" onclick="editMasterRow(' + b.id + ')">✏️ Edit</button> ' +
-          '<button class="btn-table-action btn-table-delete" onclick="deleteMasterRow(' + b.id + ')">❌</button>' +
-          '</div>';
-      }
+      var topActions = isAdmin ? adminActionsTrio : singerBookmarkBtn;
 
-      return '<div class="bhajan-mobile-card" id="card-' + b.id + '" data-id="' + b.id + '" data-deity="' + escapeHtml((b.deity || '').toLowerCase()) + '" onclick="window.openQuickLyrics(' + b.id + ');">' +
-        '<div class="card-top-row">' +
-          '<div class="card-pills-row">' + deityPill + tempoPill + '</div>' +
-          '<div class="card-top-right-actions">' + bookmarkBtn + adminActions + '</div>' +
+      return '<div class="glass-bhajan-card" id="card-' + b.id + '" data-id="' + b.id + '" data-deity="' + escapeHtml((b.deity || '').toLowerCase()) + '" onclick="recordBhajanClick(' + b.id + '); window.openQuickLyrics(' + b.id + ');">' +
+        '<!-- GRID VIEW MODE CONTENT -->' +
+        '<div class="card-grid-content">' +
+          '<div class="card-head-bar">' +
+            '<div class="card-deity-group">' +
+              deityPills +
+            '</div>' +
+            '<div class="card-top-actions">' +
+              topActions +
+            '</div>' +
+          '</div>' +
+          '<h3 class="card-title">' +
+            '<a href="/bhajan/' + b.id + '" class="card-title-link" onclick="event.preventDefault(); event.stopPropagation(); recordBhajanClick(' + b.id + '); window.openQuickLyrics(' + b.id + ');">' +
+              escapeHtml(b.title) +
+            '</a>' +
+          '</h3>' +
+          '<div class="card-pitch-capsule">' +
+            '<div class="pitch-capsule-item">' +
+              '<span class="pitch-capsule-lbl">Male:</span>' +
+              '<span class="pitch-capsule-val">' + scaleM + '</span>' +
+              wM +
+              (b.shruti && b.shruti !== '-' ? '<button type="button" class="btn-pitch-drone-play" onclick="event.stopPropagation(); window.playTanpuraPitch(\'' + escapeHtml((b.wm && b.wm !== '-') ? b.wm : b.shruti) + '\');" title="Play Tanpura in pitch ' + escapeHtml((b.wm && b.wm !== '-') ? b.wm : b.shruti) + '" aria-label="Play Tanpura"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>' : '') +
+            '</div>' +
+            '<div class="pitch-capsule-item">' +
+              '<span class="pitch-capsule-lbl">Female:</span>' +
+              '<span class="pitch-capsule-val">' + scaleF + '</span>' +
+              wF +
+              (b.shruti_female && b.shruti_female !== '-' ? '<button type="button" class="btn-pitch-drone-play" onclick="event.stopPropagation(); window.playTanpuraPitch(\'' + escapeHtml((b.wf && b.wf !== '-') ? b.wf : b.shruti_female) + '\');" title="Play Tanpura in pitch ' + escapeHtml((b.wf && b.wf !== '-') ? b.wf : b.shruti_female) + '" aria-label="Play Tanpura"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="card-subtags-row">' +
+            ragaTag +
+            tempoPill +
+            langTag +
+            levelTag +
+          '</div>' +
+          '<div class="card-bottom-actions-row">' +
+            '<div class="card-actions-left">' +
+              '<button type="button" class="card-action-btn-primary" onclick="event.stopPropagation(); recordBhajanClick(' + b.id + '); window.openQuickLyrics(' + b.id + ');">' +
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' +
+                '<span>Lyrics</span>' +
+              '</button>' +
+              sheetBtn +
+            '</div>' +
+            '<a href="/bhajan/' + b.id + '" class="card-details-arrow-btn" onclick="event.stopPropagation(); recordBhajanClick(' + b.id + ');" title="Full devotion details" aria-label="Details">↗</a>' +
+          '</div>' +
         '</div>' +
-        '<h3 class="card-title"><a href="/bhajan/' + b.id + '" onclick="event.stopPropagation();">' + escapeHtml(b.title) + '</a></h3>' +
-        '<div class="card-scales-grid">' +
-          '<div class="scale-item"><span class="scale-lbl">👤 Male:</span> <span class="scale-val">' + escapeHtml(scaleM) + '</span></div>' +
-          '<div class="scale-item"><span class="scale-lbl">👩 Female:</span> <span class="scale-val">' + escapeHtml(scaleF) + '</span></div>' +
-        '</div>' +
-        '<div class="card-footer-row">' +
-          '<div class="card-meta-tags">' + ragaTag + langTag + '</div>' +
-          '<div class="card-footer-actions">' +
+        '<!-- LIST VIEW MODE CONTENT -->' +
+        '<div class="card-list-content">' +
+          '<div class="list-main-col">' +
+            '<div class="list-title-group">' +
+              '<a href="/bhajan/' + b.id + '" class="card-title-link" onclick="event.preventDefault(); event.stopPropagation(); recordBhajanClick(' + b.id + '); window.openQuickLyrics(' + b.id + ');">' +
+                escapeHtml(b.title) +
+              '</a>' +
+              '<div class="list-meta-subtitle">' +
+                deityPills +
+                ragaTag +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="list-pitches-col">' +
+            '<div class="card-pitch-capsule">' +
+              '<div class="pitch-capsule-item">' +
+                '<span class="pitch-capsule-lbl">M:</span>' +
+                '<span class="pitch-capsule-val">' + scaleM + '</span>' +
+                wM +
+              '</div>' +
+              '<div class="pitch-capsule-item">' +
+                '<span class="pitch-capsule-lbl">F:</span>' +
+                '<span class="pitch-capsule-val">' + scaleF + '</span>' +
+                wF +
+              '</div>' +
+            '</div>' +
+            tempoPill +
+          '</div>' +
+          '<div class="list-actions-col">' +
             sheetBtn +
-            '<button type="button" class="card-quick-lyrics-btn" onclick="event.stopPropagation(); window.openQuickLyrics(' + b.id + ');">' +
-              '📖 Lyrics' +
+            '<button type="button" class="card-action-btn-primary" onclick="event.stopPropagation(); recordBhajanClick(' + b.id + '); window.openQuickLyrics(' + b.id + ');">' +
+              'Lyrics' +
             '</button>' +
-            '<a href="/bhajan/' + b.id + '" class="card-view-lyrics-btn" onclick="event.stopPropagation();" title="Full devotion details">↗</a>' +
+            topActions +
+            '<a href="/bhajan/' + b.id + '" class="card-details-arrow-btn" onclick="event.stopPropagation(); recordBhajanClick(' + b.id + ');" title="Full devotion details" aria-label="Details">↗</a>' +
           '</div>' +
         '</div>' +
       '</div>';
     }
+
+    window.setCatalogViewMode = function(mode) {
+      var catalog = document.getElementById('masterBankCatalog');
+      var btnGrid = document.getElementById('btnViewGrid');
+      var btnList = document.getElementById('btnViewList');
+      if (!catalog) return;
+      if (mode === 'list') {
+        catalog.classList.remove('mode-grid');
+        catalog.classList.add('mode-list');
+        if (btnGrid) { btnGrid.classList.remove('active'); btnGrid.setAttribute('aria-pressed', 'false'); }
+        if (btnList) { btnList.classList.add('active'); btnList.setAttribute('aria-pressed', 'true'); }
+        try { localStorage.setItem('bp_catalog_view', 'list'); } catch (_) {}
+      } else {
+        catalog.classList.remove('mode-list');
+        catalog.classList.add('mode-grid');
+        if (btnGrid) { btnGrid.classList.add('active'); btnGrid.setAttribute('aria-pressed', 'true'); }
+        if (btnList) { btnList.classList.remove('active'); btnList.setAttribute('aria-pressed', 'false'); }
+        try { localStorage.setItem('bp_catalog_view', 'grid'); } catch (_) {}
+      }
+    };
 
     function updateLoadMoreUI() {
       if (renderedCountDisplay) renderedCountDisplay.textContent = Math.min(renderedCount, currentMatches.length);
@@ -540,13 +955,9 @@
     window.renderMoreMasterBank = function() {
       var nextBatch = currentMatches.slice(renderedCount, renderedCount + BATCH_SIZE);
       if (nextBatch.length === 0) return;
-      if (tbody) {
-        var tableHtml = nextBatch.map(createRowHtml).join('');
-        tbody.insertAdjacentHTML('beforeend', tableHtml);
-      }
-      if (mobileCardsContainer) {
-        var cardsHtml = nextBatch.map(createCardHtml).join('');
-        mobileCardsContainer.insertAdjacentHTML('beforeend', cardsHtml);
+      if (catalogContainer) {
+        var cardsHtml = nextBatch.map(createGlassBhajanCardHtml).join('');
+        catalogContainer.insertAdjacentHTML('beforeend', cardsHtml);
       }
       renderedCount += nextBatch.length;
       updateLoadMoreUI();
@@ -581,18 +992,41 @@
       var langWords = getWords(b.language);
       var allWords = titleWords.concat(deityWords, ragaWords, tempoWords, langWords);
 
-      // Clean individual deities list for multi-deity bhajans
-      var deityList = (b.deity || '')
+      var rawDeityTokens = (b.deity || '')
         .toLowerCase()
-        .split(',')
-        .map(function(s) {
-          var trimmed = s.trim();
-          if (trimmed === 'vittala' || trimmed === 'vithhala' || trimmed === 'vithala') return 'vitthala';
-          return trimmed;
-        })
+        .split(/[,;&\/]+/)
+        .map(function(s) { return s.trim(); })
         .filter(Boolean);
+      var deityList = [];
+      for (var dt = 0; dt < rawDeityTokens.length; dt++) {
+        var dTok = rawDeityTokens[dt];
+        if (deityList.indexOf(dTok) === -1) deityList.push(dTok);
+        if (dTok === 'vittala' || dTok === 'vithhala' || dTok === 'vithala') {
+          if (deityList.indexOf('vitthala') === -1) deityList.push('vitthala');
+        }
+        if (dTok === 'vitthala') {
+          if (deityList.indexOf('vittala') === -1) deityList.push('vittala');
+        }
+        if (dTok === 'devi') {
+          if (deityList.indexOf('mata') === -1) deityList.push('mata');
+        }
+        if (dTok === 'mata') {
+          if (deityList.indexOf('devi') === -1) deityList.push('devi');
+        }
+        if (dTok === 'anjaneya') {
+          if (deityList.indexOf('hanuman') === -1) deityList.push('hanuman');
+        }
+        if (dTok === 'hanuman') {
+          if (deityList.indexOf('anjaneya') === -1) deityList.push('anjaneya');
+        }
+        if (dTok === 'sarva dharma') {
+          if (deityList.indexOf('sarvadharma') === -1) deityList.push('sarvadharma');
+        }
+        if (dTok === 'sarvadharma') {
+          if (deityList.indexOf('sarva dharma') === -1) deityList.push('sarva dharma');
+        }
+      }
 
-      // Clean individual ragas list for multi-raga bhajans
       var ragaList = (b.raga || '')
         .replace(/~/g, '')
         .toLowerCase()
@@ -661,10 +1095,11 @@
       var allChip = document.querySelector('.deity-chip[data-deity=""]');
       if (allChip) allChip.classList.add('active-chip');
 
+      sessionStorage.removeItem('bp_bank_filter_state');
       window.filterMasterBank();
     };
 
-    window.filterMasterBank = function() {
+    window.filterMasterBank = function(skipSave) {
       var rawSearch = (document.getElementById('filterBankTitle') ? document.getElementById('filterBankTitle').value : '').trim();
       var normQuery = normalizeSearch(rawSearch);
       var queryTokens = normQuery.split(' ').filter(Boolean);
@@ -680,6 +1115,10 @@
       var tempoFilter = (document.getElementById('filterBankTempo') ? document.getElementById('filterBankTempo').value : '').trim().toLowerCase();
       var ragaFilter  = (document.getElementById('filterBankRaga') ? document.getElementById('filterBankRaga').value : '').trim().toLowerCase();
 
+      if (!skipSave) {
+        saveBankFilterState();
+      }
+
       var scoredMatches = [];
 
       for (var i = 0; i < searchCatalog.length; i++) {
@@ -693,7 +1132,6 @@
         // 2. Query Search with Word-Boundary Accuracy & Relevance Scoring
         var score = 1;
         if (uniqueTokens.length > 0) {
-          // Every search token must match either a word prefix or title substring
           var allTokensMatch = true;
           for (var t = 0; t < uniqueTokens.length; t++) {
             var tok = uniqueTokens[t];
@@ -712,7 +1150,6 @@
           }
           if (!allTokensMatch) continue;
 
-          // Compute Relevance Score
           score = 0;
           if (entry.titleNorm === normQuery) {
             score += 6000;
@@ -746,12 +1183,10 @@
             }
           }
 
-          // Substantial boost when title contains all searched tokens
           if (titleTokenMatches >= uniqueTokens.length) {
             score += 1200;
           }
 
-          // Metadata matches
           for (var m = 0; m < uniqueTokens.length; m++) {
             var mTok = uniqueTokens[m];
             for (var dw = 0; dw < entry.deityWords.length; dw++) {
@@ -769,7 +1204,6 @@
         scoredMatches.push({ item: entry.item, score: score, originalIndex: i });
       }
 
-      // Sort by score descending if query entered, else maintain catalog order
       if (uniqueTokens.length > 0) {
         scoredMatches.sort(function(a, b) {
           if (b.score !== a.score) return b.score - a.score;
@@ -780,28 +1214,24 @@
       currentMatches = scoredMatches.map(function(s) { return s.item; });
       renderedCount = Math.min(BATCH_SIZE, currentMatches.length);
 
-      if (tbody) {
+      if (catalogContainer) {
         if (currentMatches.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="' + (window.IS_ADMIN_MASTER_BANK ? 10 : 10) + '" class="table-empty-cell">🔍 No matching bhajans found. Try adjusting your search query or filters.</td></tr>';
+          catalogContainer.innerHTML = '<div class="catalog-empty-state">' +
+            '<div class="catalog-empty-icon">' +
+              '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>' +
+            '</div>' +
+            '<h3 class="catalog-empty-title">No Bhajans Found</h3>' +
+            '<p class="catalog-empty-desc">No master bhajans matched the current filters.</p>' +
+          '</div>';
         } else {
-          tbody.innerHTML = currentMatches.slice(0, renderedCount).map(createRowHtml).join('');
-        }
-      }
-
-      if (mobileCardsContainer) {
-        if (currentMatches.length === 0) {
-          mobileCardsContainer.innerHTML = '<div class="mobile-empty-cards"><span class="empty-icon">🔍</span><p>No matching bhajans found. Try adjusting your search query or filters.</p></div>';
-        } else {
-          mobileCardsContainer.innerHTML = currentMatches.slice(0, renderedCount).map(createCardHtml).join('');
+          catalogContainer.innerHTML = currentMatches.slice(0, renderedCount).map(createGlassBhajanCardHtml).join('');
         }
       }
 
       updateLoadMoreUI();
     };
 
-    // ---------------------------------------------------------------
-    // PHASE 4: QUICK LYRICS BOTTOM SHEET & SONGBOOK BOOKMARKS
-    // ---------------------------------------------------------------
+    // Quick lyrics bottom sheet & Songbook bookmarks
     var activeQuickBhajan = null;
     var currentQuickFontSize = 19;
 
@@ -823,12 +1253,22 @@
       var bookmarkBtn = document.getElementById('quickBookmarkBtn');
 
       if (titleElem) titleElem.textContent = b.title;
-      if (deityBadge) {
-        deityBadge.innerHTML = getDeityIconClient(b.deity) + ' ' + (b.deity || 'Devotional');
+      var badgeStrip = document.querySelector('.quick-lyrics-badge-strip');
+      if (badgeStrip) {
+        var existingDeityPills = badgeStrip.querySelectorAll('.quick-deity-pill');
+        existingDeityPills.forEach(function(p) { p.remove(); });
+        var deityTokens = (b.deity || 'Devotional').split(/[,;&\/]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+        var firstEl = badgeStrip.firstChild;
+        deityTokens.forEach(function(dt) {
+          var sp = document.createElement('span');
+          sp.className = 'hero-pill deity-pill quick-deity-pill';
+          sp.textContent = dt;
+          badgeStrip.insertBefore(sp, firstEl);
+        });
       }
       if (tempoBadge) {
         if (b.tempo) {
-          tempoBadge.textContent = '⏱️ ' + b.tempo;
+          tempoBadge.textContent = b.tempo;
           tempoBadge.style.display = 'inline-block';
         } else {
           tempoBadge.style.display = 'none';
@@ -836,7 +1276,7 @@
       }
       if (ragaBadge) {
         if (b.raga) {
-          ragaBadge.textContent = '🎼 ' + b.raga;
+          ragaBadge.textContent = 'Raag ' + b.raga;
           ragaBadge.style.display = 'inline-block';
         } else {
           ragaBadge.style.display = 'none';
@@ -856,8 +1296,8 @@
           }).join('');
         } else {
           textElem.innerHTML = '<div class="empty-lyrics-prompt">' +
-            '<p>🌸 Lyrics are being added to our sacred master bank.</p>' +
-            '<a href="/bhajan/' + b.id + '" class="button secondary" style="display:inline-block; font-size:12px; margin-top:8px;">Open Full Page to Contribute</a>' +
+            '<p>Lyrics are being synchronized into the master catalog.</p>' +
+            '<a href="/bhajan/' + b.id + '" class="button secondary" style="display:inline-block; font-size:12px; margin-top:8px;">Open Full Details</a>' +
             '</div>';
         }
       }
@@ -875,30 +1315,262 @@
 
       var isBookmarked = window.BOOKMARKED_BHAJAN_IDS && window.BOOKMARKED_BHAJAN_IDS.has(Number(b.id));
       if (bookmarkBtn) {
-        bookmarkBtn.innerHTML = isBookmarked ? '★ In Songbook' : '⭐ Songbook';
+        bookmarkBtn.textContent = isBookmarked ? 'In Songbook' : 'Save in Songbook';
         bookmarkBtn.classList.toggle('bookmarked', isBookmarked);
       }
 
       if (modal) modal.classList.add('show');
     };
 
+    window.toggleQuickLyricsExpand = function() {
+      var sheet = document.querySelector('.quick-lyrics-sheet');
+      if (!sheet) return;
+      sheet.classList.toggle('sheet-expanded');
+    };
+
     window.closeQuickLyrics = function() {
       var modal = document.getElementById('quickLyricsModal');
-      if (modal) modal.classList.remove('show');
+      if (modal) {
+        modal.classList.remove('show');
+        var sheet = modal.querySelector('.quick-lyrics-sheet');
+        if (sheet) sheet.classList.remove('sheet-expanded');
+      }
+    };
+
+    // Mobile Virtual Keyboard Handling for Search Bar
+    var searchInput = document.getElementById('filterBankTitle');
+    if (searchInput) {
+      // On focus in mobile view: smoothly scroll container to top to reveal results space
+      searchInput.addEventListener('focus', function() {
+        if (window.innerWidth <= 768) {
+          setTimeout(function() {
+            var hero = document.querySelector('.bank-filter-hero');
+            if (hero) {
+              hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 280);
+        }
+      });
+      // On Enter key press: dismiss mobile keyboard automatically
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchInput.blur();
+        }
+      });
+    }
+
+    // Admin Master Bhajan Edit Modal Logic
+    window.openAdminEditBhajanModal = function(id) {
+      var b = allData.find(function(x) { return x.id === id || String(x.id) === String(id); });
+      if (!b) return;
+
+      var idField = document.getElementById('editBhajanId');
+      var titleField = document.getElementById('editBhajanTitle');
+      var deityField = document.getElementById('editBhajanDeity');
+      var tempoField = document.getElementById('editBhajanTempo');
+      var ragaField = document.getElementById('editBhajanRaga');
+      var levelField = document.getElementById('editBhajanLevel');
+      var shrutiMaleField = document.getElementById('editBhajanShrutiMale');
+      var shrutiFemField = document.getElementById('editBhajanShrutiFemale');
+      var langField = document.getElementById('editBhajanLanguage');
+      var sheetField = document.getElementById('editBhajanSheet');
+      var lyricsField = document.getElementById('editBhajanLyrics');
+
+      function setSelectVal(sel, val) {
+        if (!sel) return;
+        if (!val) { sel.value = ''; return; }
+        var v = String(val).trim();
+        if (!v) { sel.value = ''; return; }
+
+        // 1. Exact match
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === v) {
+            sel.selectedIndex = i;
+            return;
+          }
+        }
+
+        // 2. Case-insensitive match (e.g. gavati -> Gavati, sanskrit / hindi -> Sanskrit / Hindi)
+        var vLow = v.toLowerCase();
+        for (var j = 0; j < sel.options.length; j++) {
+          if (sel.options[j].value.toLowerCase() === vLow) {
+            sel.selectedIndex = j;
+            return;
+          }
+        }
+
+        // 2b. Level mapping (basic -> simple)
+        if (vLow === 'basic') {
+          for (var k = 0; k < sel.options.length; k++) {
+            if (sel.options[k].value === 'simple') {
+              sel.selectedIndex = k;
+              return;
+            }
+          }
+        }
+
+        // 2c. Strip leading '~ '
+        if (v.startsWith('~')) {
+          var stripTilde = v.replace(/^~\s*/, '').toLowerCase();
+          for (var m = 0; m < sel.options.length; m++) {
+            if (sel.options[m].value.toLowerCase() === stripTilde) {
+              sel.selectedIndex = m;
+              return;
+            }
+          }
+        }
+
+        // 3. Fallback: dynamically add and select option so no data is ever lost
+        var opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        sel.appendChild(opt);
+        sel.value = v;
+      }
+
+      if (idField) idField.value = b.id;
+      if (titleField) titleField.value = b.title || '';
+      if (deityField) setSelectVal(deityField, b.deity);
+      if (tempoField) setSelectVal(tempoField, b.tempo);
+      if (ragaField) setSelectVal(ragaField, b.raga);
+      if (levelField) setSelectVal(levelField, b.level);
+      if (shrutiMaleField) setSelectVal(shrutiMaleField, b.shruti);
+      if (shrutiFemField) setSelectVal(shrutiFemField, b.shruti_female);
+      if (langField) setSelectVal(langField, b.language);
+      if (sheetField) setSelectVal(sheetField, b.sheet_filename);
+      if (lyricsField) lyricsField.value = b.lyrics || '';
+
+      var modal = document.getElementById('adminEditBhajanModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+      }
+    };
+
+    window.closeAdminEditBhajanModal = function() {
+      var modal = document.getElementById('adminEditBhajanModal');
+      if (modal) {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+      }
+    };
+
+    window.submitAdminEditBhajan = async function(e) {
+      e.preventDefault();
+      var id = document.getElementById('editBhajanId').value;
+      var saveBtn = document.getElementById('btnSaveAdminEdit');
+      var origText = saveBtn ? saveBtn.textContent : 'Save Changes';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+      }
+
+      var updatedData = {
+        title: document.getElementById('editBhajanTitle').value.trim(),
+        deity: document.getElementById('editBhajanDeity').value.trim(),
+        tempo: document.getElementById('editBhajanTempo').value.trim(),
+        raga: document.getElementById('editBhajanRaga').value.trim(),
+        level: document.getElementById('editBhajanLevel').value.trim(),
+        shruti: document.getElementById('editBhajanShrutiMale').value.trim(),
+        shruti_female: document.getElementById('editBhajanShrutiFemale').value.trim(),
+        language: document.getElementById('editBhajanLanguage').value.trim(),
+        sheet_filename: document.getElementById('editBhajanSheet').value.trim(),
+        lyrics: document.getElementById('editBhajanLyrics').value.trim()
+      };
+
+      var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
+      try {
+        var res = await fetch('/api/admin/update-master-bhajan/' + id, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrf
+          },
+          body: JSON.stringify(updatedData)
+        });
+        var data = await res.json();
+        if (data.success) {
+          var b = allData.find(function(x) { return String(x.id) === String(id); });
+          if (b) {
+            Object.assign(b, updatedData);
+            b.wm = getWesternScale(b.shruti);
+            b.wf = getWesternScale(b.shruti_female);
+          }
+          var cEntry = searchCatalog.find(function(x) { return String(x.item.id) === String(id); });
+          if (cEntry) {
+            cEntry.item = b;
+            cEntry.titleWords = normalizeSearch(b.title).split(' ').filter(Boolean);
+            cEntry.titleNorm = cEntry.titleWords.join(' ');
+            cEntry.deityLower = (b.deity || '').toLowerCase().trim();
+            cEntry.deityList = b.deity ? b.deity.split(/[,;&\/]+/).map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean) : [];
+            cEntry.tempoLower = (b.tempo || '').toLowerCase().trim();
+          }
+
+          window.filterMasterBank(true);
+          window.closeAdminEditBhajanModal();
+          window.showToast('Master Bhajan updated successfully!');
+        } else {
+          alert('Failed to update: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Failed to save changes. Please try again.');
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = origText;
+        }
+      }
+    };
+
+    window.deleteMasterRow = async function(id) {
+      if (!confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?")) return;
+      var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
+      try {
+        var res = await fetch('/api/admin/delete-master-bhajan/' + id, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrf
+          }
+        });
+        var data = await res.json();
+        if (data.success) {
+          var row = document.getElementById('row-' + id);
+          if (row) row.remove();
+          var card = document.getElementById('card-' + id);
+          if (card) card.remove();
+
+          allData = allData.filter(function(x) { return String(x.id) !== String(id); });
+          searchCatalog = searchCatalog.filter(function(x) { return String(x.item.id) !== String(id); });
+          window.filterMasterBank(true);
+          window.showToast('Bhajan archived successfully.');
+        } else {
+          alert('Error: ' + (data.error || 'Failed to delete'));
+        }
+      } catch (err) {
+        alert('Failed to delete bhajan.');
+      }
+    };
+
+    window.editMasterRow = function(id) {
+      window.openAdminEditBhajanModal(id);
     };
 
     window.copyQuickLyrics = function() {
       if (!activeQuickBhajan) return;
-      var text = activeQuickBhajan.title + '\nDeity: ' + (activeQuickBhajan.deity || 'Sai') + '\n\n' + (activeQuickBhajan.lyrics || '');
+      var text = activeQuickBhajan.title + '\nDeity: ' + (activeQuickBhajan.deity || 'Devotional') + '\n\n' + (activeQuickBhajan.lyrics || '');
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function() {
           var btn = document.getElementById('quickCopyBtn');
           if (btn) {
-            var orig = btn.innerHTML;
-            btn.innerHTML = '✅ Copied!';
-            setTimeout(function() { btn.innerHTML = orig; }, 1800);
+            var orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = orig; }, 1800);
           }
-          window.showToast('📋 Bhajan lyrics copied to clipboard!');
+          window.showToast('Bhajan lyrics copied to clipboard!');
         });
       }
     };
@@ -937,16 +1609,28 @@
     }
 
     function updateBookmarkStarsOnPage(id, isBookmarked) {
+      var starSvg = isBookmarked
+        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
       document.querySelectorAll('.btn-card-bookmark[data-id="' + id + '"]').forEach(function(b) {
         b.classList.toggle('active', isBookmarked);
         var star = b.querySelector('.bookmark-star');
-        if (star) star.textContent = isBookmarked ? '★' : '☆';
+        if (star) star.innerHTML = starSvg;
+      });
+
+      document.querySelectorAll('.admin-btn-star[data-id="' + id + '"]').forEach(function(b) {
+        b.classList.toggle('active', isBookmarked);
+        var svg = b.querySelector('svg');
+        if (svg) {
+          svg.setAttribute('fill', isBookmarked ? '#f59e0b' : 'none');
+          svg.setAttribute('stroke', isBookmarked ? '#f59e0b' : 'currentColor');
+        }
       });
 
       if (activeQuickBhajan && String(activeQuickBhajan.id) === String(id)) {
         var quickBmBtn = document.getElementById('quickBookmarkBtn');
         if (quickBmBtn) {
-          quickBmBtn.innerHTML = isBookmarked ? '★ In Songbook' : '⭐ Songbook';
+          quickBmBtn.textContent = isBookmarked ? 'In Songbook' : 'Save in Songbook';
           quickBmBtn.classList.toggle('bookmarked', isBookmarked);
         }
       }
@@ -956,7 +1640,7 @@
       var isNowBookmarked = !window.BOOKMARKED_BHAJAN_IDS.has(Number(id));
       if (isNowBookmarked) {
         window.BOOKMARKED_BHAJAN_IDS.add(Number(id));
-        window.showToast('⭐ Saved to your Personal Songbook!');
+        window.showToast('Saved to your Personal Songbook!');
       } else {
         window.BOOKMARKED_BHAJAN_IDS.delete(Number(id));
         window.showToast('Removed from Personal Songbook');
@@ -964,16 +1648,18 @@
       saveLocalBookmarks();
       updateBookmarkStarsOnPage(id, isNowBookmarked);
 
-      // Try server sync
+      var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+
       try {
         await fetch('/api/singer/songbook/toggle', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrf
+          },
           body: JSON.stringify({ master_id: id })
         });
-      } catch (err) {
-        // Fallback already saved locally
-      }
+      } catch (err) {}
     };
 
     window.toggleQuickBookmark = function() {
@@ -1004,15 +1690,40 @@
         }
       } catch (e) {}
 
-      // Update initial rendered cards
       document.querySelectorAll('.btn-card-bookmark').forEach(function(b) {
         var bid = Number(b.getAttribute('data-id'));
         if (window.BOOKMARKED_BHAJAN_IDS.has(bid)) {
           b.classList.add('active');
           var star = b.querySelector('.bookmark-star');
-          if (star) star.textContent = '★';
+          if (star) star.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+        }
+      });
+
+      document.querySelectorAll('.admin-btn-star').forEach(function(b) {
+        var bid = Number(b.getAttribute('data-id'));
+        if (window.BOOKMARKED_BHAJAN_IDS.has(bid)) {
+          b.classList.add('active');
+          var svg = b.querySelector('svg');
+          if (svg) {
+            svg.setAttribute('fill', '#f59e0b');
+            svg.setAttribute('stroke', '#f59e0b');
+          }
         }
       });
     })();
+
+    // Restore state upon page load / back navigation (Bug 2 Fix)
+    restoreBankFilterState();
+
+    // Initialize saved view mode preference (Cards Grid vs Minimalist Song Feed)
+    try {
+      var savedView = localStorage.getItem('bp_catalog_view') || 'grid';
+      window.setCatalogViewMode(savedView);
+    } catch (_) {}
   })();
   </script>
+
+  <!-- Live Tanpura Drone Module (Master Bank Only) -->
+  <link rel="stylesheet" href="/css/tanpura.css?v=2.2">
+  <%- include('partials/tanpura-widget') %>
+  <script src="/js/tanpura.js?v=2.2"></script>

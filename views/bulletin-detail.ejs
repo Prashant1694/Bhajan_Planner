@@ -1,19 +1,16 @@
 <div class="prasanthi-border"></div>
 <div class="bulletin-detail-container">
-  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/bulletins?_embed=1' : '/bulletins' %>" class="bulletin-back-link" onclick="handleBulletinBack(event, '/bulletins')">← Back to Updates</a>
+  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/bulletins?_embed=1' : '/bulletins' %>" class="bulletin-back-link" onclick="handleBulletinBack(event, '/bulletins')">&larr; Back to Updates</a>
 
   <div class="bulletin-detail-card">
     <div class="bulletin-detail-meta">
-      <% const catInfo=CATEGORY_INFO[bulletin.category] || CATEGORY_INFO.announcement; const isNew=bulletin.published_at
+      <% const catInfo = CATEGORY_INFO[bulletin.category] || CATEGORY_INFO.announcement; const isNew = bulletin.published_at
         && (Date.now() - new Date(bulletin.published_at).getTime()) < 5 * 24 * 60 * 60 * 1000; %>
         <span class="bulletin-category-badge" style="background:<%= catInfo.color %>">
-          <%= catInfo.icon %>
-            <%= catInfo.label %>
+          <%= catInfo.label %>
         </span>
-        <% if (isNew) { %><span class="bulletin-new-badge">🆕 NEW</span>
-          <% } %>
-            <% if (bulletin.is_pinned) { %><span class="bulletin-pin-badge">📌 Pinned</span>
-              <% } %>
+        <% if (isNew) { %><span class="bulletin-new-badge">NEW</span><% } %>
+        <% if (bulletin.is_pinned) { %><span class="bulletin-pin-badge">Pinned</span><% } %>
     </div>
 
     <h1>
@@ -22,9 +19,9 @@
 
     <div class="bulletin-card-date" style="margin-bottom: 20px;">
       <% if (bulletin.published_at) { %>
-        Published <%= new Date(bulletin.published_at).toLocaleDateString('en-GB', { weekday: 'long' , day: 'numeric' ,
-          month: 'long' , year: 'numeric' }) %>
-          <% } %>
+        Published <%= new Date(bulletin.published_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric',
+          month: 'long', year: 'numeric' }) %>
+      <% } %>
     </div>
 
     <div class="bulletin-detail-content">
@@ -33,7 +30,7 @@
   </div>
 
   <div style="text-align: center; margin-top: 24px;">
-    <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleHomeDirect(event)">🏠 Back to Home</a>
+    <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleHomeDirect(event)">Back to Home</a>
   </div>
 </div>
 

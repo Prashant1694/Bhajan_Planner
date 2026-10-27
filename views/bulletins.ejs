@@ -1,46 +1,44 @@
 <div class="prasanthi-border"></div>
 <div class="bulletin-list-container">
-  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleBulletinBack(event, '/')">← Back to Home</a>
+  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleBulletinBack(event, '/')">&larr; Back to Home</a>
 
   <div class="bulletin-list-header">
-    <h1>📢 Latest Updates</h1>
+    <h1>Latest Updates</h1>
     <p>Notices and announcements from the Samiti</p>
   </div>
 
-  <% if (bulletins && bulletins.length> 0) { %>
+  <% if (bulletins && bulletins.length > 0) { %>
     <% bulletins.forEach(function(b) { %>
-      <% const catInfo=CATEGORY_INFO[b.category] || CATEGORY_INFO.announcement; const isNew=b.published_at &&
+      <% const catInfo = CATEGORY_INFO[b.category] || CATEGORY_INFO.announcement; const isNew = b.published_at &&
         (Date.now() - new Date(b.published_at).getTime()) < 5 * 24 * 60 * 60 * 1000; %>
         <a href="/bulletins/<%= b.id %><%= (typeof _embed !== 'undefined' && _embed) ? '?_embed=1' : '' %>" class="bulletin-card">
           <div class="bulletin-card-header">
             <span class="bulletin-category-badge" style="background:<%= catInfo.color %>">
-              <%= catInfo.icon %>
-                <%= catInfo.label %>
+              <%= catInfo.label %>
             </span>
-            <% if (isNew) { %><span class="bulletin-new-badge">🆕 NEW</span>
-              <% } %>
-                <% if (b.is_pinned) { %><span class="bulletin-pin-badge">📌</span>
-                  <% } %>
+            <% if (isNew) { %><span class="bulletin-new-badge">NEW</span><% } %>
+            <% if (b.is_pinned) { %><span class="bulletin-pin-badge">Pinned</span><% } %>
           </div>
           <h3 class="bulletin-card-title">
             <%= b.title %>
           </h3>
-          <p class="bulletin-card-preview"><%- formatContent((b.content || '' ).substring(0, 120)) %>
-              <%= b.content && b.content.length> 120 ? '...' : '' %></p>
+          <p class="bulletin-card-preview"><%- formatContent((b.content || '').substring(0, 120)) %>
+            <%= b.content && b.content.length > 120 ? '...' : '' %></p>
           <div class="bulletin-card-date">
             <% if (b.published_at) { %>
-              <%= new Date(b.published_at).toLocaleDateString('en-GB', { day: 'numeric' , month: 'long' ,
-                year: 'numeric' }) %>
-                <% } %>
+              <%= new Date(b.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %>
+            <% } %>
           </div>
         </a>
-        <% }); %>
-          <% } else { %>
-            <div class="bulletin-empty">
-              <div class="bulletin-empty-icon">📭</div>
-              <p>No updates at this time. Check back later!</p>
-            </div>
-            <% } %>
+      <% }); %>
+  <% } else { %>
+    <div class="bulletin-empty">
+      <div class="bulletin-empty-icon" style="display:flex;align-items:center;justify-content:center;margin:0 auto 10px auto;color:#64748b;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </div>
+      <p>No updates at this time. Check back later!</p>
+    </div>
+  <% } %>
 </div>
 
 <script>

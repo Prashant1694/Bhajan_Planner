@@ -18,6 +18,11 @@ const PushSubscription = require("../models/PushSubscription");
 const Bulletin = require("../models/Bulletin");
 const BhajanReport = require("../models/BhajanReport");
 const SingerBookmark = require("../models/SingerBookmark");
+const Singer = require("../models/Singer");
+const SessionPermission = require("../models/SessionPermission");
+const SessionMeta = require("../models/SessionMeta");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 
 async function initializeSuperAdmin() {
   const superAdminCount = await AdminUser.count({
@@ -117,24 +122,34 @@ async function syncMasterBhajans() {
       for (const item of data) {
         let deityClean = item.deity;
         if (deityClean) {
-          deityClean = deityClean
-            .split(",")
-            .map((s) => {
-              const t = s.trim();
-              const l = t.toLowerCase();
-              if (
-                l === "anjaneya" ||
-                l === "aanjaneya" ||
-                l === "hanuman" ||
-                l === "maruti" ||
-                l === "maruthi"
-              )
-                return "Hanuman";
-              if (l === "vittala" || l === "vithhala" || l === "vithala" || l === "vitthala")
-                return "Vitthala";
-              return t;
-            })
-            .join(", ");
+          const seenDeities = new Set();
+          deityClean.split(/[,;&\/]+/).forEach((s) => {
+            const t = s.trim();
+            const l = t.toLowerCase();
+            if (
+              l === "anjaneya" ||
+              l === "aanjaneya" ||
+              l === "hanuman" ||
+              l === "maruti" ||
+              l === "maruthi"
+            ) {
+              seenDeities.add("Hanuman");
+            } else if (
+              l === "vittala" ||
+              l === "vithhala" ||
+              l === "vithala" ||
+              l === "vitthala"
+            ) {
+              seenDeities.add("Vitthala");
+            } else if (l === "devi" || l === "mata") {
+              seenDeities.add("Mata");
+            } else if (l === "sarva dharma" || l === "sarvadharma") {
+              seenDeities.add("SarvaDharma");
+            } else if (t) {
+              seenDeities.add(t);
+            }
+          });
+          deityClean = Array.from(seenDeities).join(", ");
         }
         await MasterBhajan.upsert(
           {
@@ -210,24 +225,33 @@ async function ensureSingerPinColumn() {
 
 async function initDeityRules() {
   try {
-    const count = await DeityRule.count({
-      where: { session_date: "default" }
-    });
-    if (count !== 0) return;
+    const { VALID_DEITIES } = require("../config/constants");
+    const defaultDeities = VALID_DEITIES || [
+      "Ganesha",
+      "Guru",
+      "Mata",
+      "SarvaDharma",
+      "Sai",
+      "Shiva",
+      "Krishna",
+      "Rama",
+      "Narayana",
+      "Vitthala",
+      "Hanuman"
+    ];
 
-    await DeityRule.bulkCreate([
-      { session_date: "default", deity_name: "Ganesha", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Guru", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Mata", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "SarvaDharma", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Sai", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Shiva", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Krishna", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Rama", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Vitthala", min_required: 0, max_allowed: 2 },
-      { session_date: "default", deity_name: "Hanuman", min_required: 0, max_allowed: 2 }
-    ]);
-    console.log("✅ Created default deity rules.");
+    for (const deity of defaultDeities) {
+      await DeityRule.findOrCreate({
+        where: { session_date: "default", deity_name: deity },
+        defaults: {
+          session_date: "default",
+          deity_name: deity,
+          min_required: 0,
+          max_allowed: 2
+        }
+      });
+    }
+    console.log("✅ Deity rules verified for all deities including Narayana.");
   } catch (error) {
     console.error("Error initializing deity rules:", error);
   }
@@ -353,6 +377,8 @@ async function ensureNotificationTables() {
     await Bulletin.sync();
     await BhajanReport.sync();
     await SingerBookmark.sync();
+    await SessionAudio.sync();
+    await SessionAudioTimestamp.sync();
 
     // Check singer_id column in bhajan_reports
     const [repCols] = await sequelize.query("PRAGMA table_info(bhajan_reports)");

@@ -31,7 +31,12 @@ const { doubleCsrfProtection, generateCsrfToken, invalidCsrfTokenError } = doubl
     );
   },
   skipCsrfProtection: (req) => {
-    return req.path === "/auth/google" || req.path === "/auth/google/recovery";
+    return (
+      req.path === "/auth/google" ||
+      req.path === "/auth/google/recovery" ||
+      req.path === "/api/notifications/mark-read" ||
+      req.path === "/api/notifications/mark-all-read"
+    );
   }
 });
 

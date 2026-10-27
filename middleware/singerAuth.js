@@ -168,6 +168,14 @@ async function requireSingerAuth(req, res, next) {
   }
 
   // Not logged in
+  if (
+    req.path.startsWith("/api/") ||
+    req.xhr ||
+    (req.headers.accept && req.headers.accept.includes("application/json"))
+  ) {
+    return res.status(401).json({ error: "Unauthorized", bookmarks: [] });
+  }
+
   const { safeRedirect } = require("../services/securityHelpers");
   const returnTo = encodeURIComponent(safeRedirect(req.originalUrl, "/submit-form"));
   const embedParam = req.query._embed === "1" ? "&_embed=1" : "";

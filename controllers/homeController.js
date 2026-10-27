@@ -15,40 +15,11 @@ exports.home = async (req, res) => {
     req.headers["sec-fetch-dest"] === "iframe" ||
     (Boolean(req.headers["referer"]) && req.headers["referer"].includes("_embed=1"));
 
-  // If not embed mode and not standalone, serve the Native App Shell with persistent tabs
+  // Serve the App Shell with the new header & footer for direct browser visits
   if (!isIframe && req.query.standalone !== "1") {
-    const isAuthAdmin = Boolean(req.session && (req.session.admin || req.session.adminUserId));
     let initialRoute = (req.query.route || req.query.url || "").trim();
     let initialTab = (req.query.tab || "").trim();
-
-    if (initialRoute) {
-      if (!initialRoute.startsWith("/")) initialRoute = "/" + initialRoute;
-      const lower = initialRoute.toLowerCase();
-      if (lower.startsWith("/admin-login") || lower.startsWith("/forgot-password")) {
-        return res.redirect(initialRoute);
-      } else if (lower.startsWith("/submit-form")) {
-        initialTab = "singer";
-      } else if (lower.startsWith("/master-bank") || lower.startsWith("/bhajan/")) {
-        initialTab = "bank";
-      } else if (lower.startsWith("/plan-view")) {
-        initialTab = "plan";
-      } else if (lower.startsWith("/my-hub") || lower.startsWith("/singer/")) {
-        initialTab = "hub";
-      } else if (lower.startsWith("/admin")) {
-        if (!isAuthAdmin) {
-          return res.redirect("/admin-login");
-        }
-        initialTab = "admin";
-      } else {
-        initialTab = "home";
-      }
-    } else if (!initialTab) {
-      initialTab = "home";
-    }
-
-    if (initialTab === "admin" && !isAuthAdmin) {
-      return res.redirect("/admin-login");
-    }
+    if (!initialTab) initialTab = "home";
 
     return res.render("app-shell", {
       layout: false,
@@ -89,7 +60,7 @@ exports.home = async (req, res) => {
           date: sp.date,
           type: sp.type || "special",
           label: sp.description || (sp.type === "festival" ? "Festival Bhajan" : "Special Session"),
-          tag: sp.type === "festival" ? "🎉 Festival" : "✨ Special",
+          tag: sp.type === "festival" ? "Festival" : "Special",
           isOpen: true,
           opensAt8pmToday: false,
           isToday,
@@ -106,7 +77,7 @@ exports.home = async (req, res) => {
           date: thuStatus.todayStr,
           type: "regular",
           label: "Thursday Mandir Bhajan",
-          tag: "🪔 Mandir Bhajan",
+          tag: "Mandir Bhajan",
           isOpen: false,
           isClosedForSubmissions: true,
           opensAt8pmToday: false,
@@ -123,7 +94,7 @@ exports.home = async (req, res) => {
         date: upcomingThuDate,
         type: "regular",
         label: "Thursday Mandir Bhajan",
-        tag: "🪔 Regular Session",
+        tag: "Regular Session",
         isOpen: !thuStatus.opensAt8pmToday,
         opensAt8pmToday: thuStatus.opensAt8pmToday,
         isToday: false,
@@ -166,6 +137,7 @@ exports.home = async (req, res) => {
 
   res.render("dashboard", {
     showLoader: true,
+    pageCSS: "dashboard-glass.css",
     bulletins,
     CATEGORY_INFO,
     upcomingSession,

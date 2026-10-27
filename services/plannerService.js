@@ -126,6 +126,9 @@ function generateDeityCardsHtml(deityStatus) {
     let onclick;
     const countClass = `count-${Math.min(status.count, 3)}`;
 
+    const starSvg = `<svg class="req-star-svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:-1px; margin-right:3px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+    const checkSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:-1px; margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>`;
+
     if (status.maxAllowed === 0) {
       return `<div class="deity-card disabled ${countClass}" style="opacity:0.4; pointer-events:none;"><div class="deity-name">${deity}</div><span class="badge badge-taken" style="background:#e03131;">Blocked</span></div>`;
     }
@@ -135,7 +138,7 @@ function generateDeityCardsHtml(deityStatus) {
 
     if (isFull) {
       cardClass = `deity-card taken ${countClass}`;
-      statusBadge = `<span class="badge badge-taken">&#10003; ${status.count} Taken</span>`;
+      statusBadge = `<span class="badge badge-taken">${checkSvg} ${status.count} Taken</span>`;
       onclick = `onclick="showDetails('${deity}', '${status.by.replace(/'/g, "\\'")}', '${status.bhajan.replace(/'/g, "\\'")}', '${status.scale}', '${status.speed}')" style="cursor:pointer;"`;
     } else {
       cardClass = `deity-card available ${countClass}`;
@@ -146,9 +149,9 @@ function generateDeityCardsHtml(deityStatus) {
     let mandatoryLabel = "";
     if (status.mandatory) {
       if (status.count >= status.minReq) {
-        mandatoryLabel = `<div class="rule-warning rule-fulfilled"><span class="req-star" aria-hidden="true">&#11088;</span> Required (${status.minReq}) &#10003;</div>`;
+        mandatoryLabel = `<div class="rule-warning rule-fulfilled">${starSvg} Required (${status.minReq}) ${checkSvg}</div>`;
       } else {
-        mandatoryLabel = `<div class="rule-warning"><span class="req-star" aria-hidden="true">&#11088;</span> Required (${status.minReq})</div>`;
+        mandatoryLabel = `<div class="rule-warning">${starSvg} Required (${status.minReq})</div>`;
       }
     }
 
