@@ -96,7 +96,9 @@ exports.showSingers = async (req, res) => {
       isAdminPage: true,
       pageCSS: "admin.css",
       page: "singers",
-      pinResetSuccess: req.query.pin_reset === "success"
+      pinResetSuccess: req.query.pin_reset === "success",
+      pinSetSuccess: req.query.pin_set === "success",
+      errorMessage: req.query.error || null
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] showSingers error:`, error);
@@ -168,7 +170,10 @@ exports.resetSingerPin = async (req, res) => {
     const { id } = req.params;
     const singer = await Singer.findByPk(id);
     if (!singer) {
-      return res.status(404).send("Singer not found");
+      if (req.xhr || req.headers.accept?.includes("application/json")) {
+        return res.status(404).json({ error: "Singer not found" });
+      }
+      return res.redirect("/admin/singers?error=Singer+not+found");
     }
     await singer.update({
       pin: null,
@@ -176,14 +181,16 @@ exports.resetSingerPin = async (req, res) => {
       failed_attempts: 0,
       locked_until: null
     });
+    if (req.xhr || req.headers.accept?.includes("application/json")) {
+      return res.json({ success: true, message: `PIN reset successfully for ${singer.name}` });
+    }
     res.redirect("/admin/singers?pin_reset=success");
   } catch (error) {
     console.error(`[Req ${req.id || ""}] resetSingerPin error:`, error);
-    res
-      .status(500)
-      .send(
-        '<h1>Error resetting PIN</h1><p>Failed to reset PIN.</p><a href="/admin/singers">Back</a>'
-      );
+    if (req.xhr || req.headers.accept?.includes("application/json")) {
+      return res.status(500).json({ error: "Failed to reset PIN." });
+    }
+    res.redirect("/admin/singers?error=Failed+to+reset+PIN");
   }
 };
 
@@ -193,11 +200,17 @@ exports.setSingerPin = async (req, res) => {
     const { pin } = req.body;
     const cleanPin = (pin || "").toString().trim();
     if (!/^\d{4}$/.test(cleanPin)) {
-      return res.status(400).send("PIN must be exactly 4 numeric digits.");
+      if (req.xhr || req.headers.accept?.includes("application/json")) {
+        return res.status(400).json({ error: "PIN must be exactly 4 numeric digits." });
+      }
+      return res.redirect("/admin/singers?error=PIN+must+be+exactly+4+numeric+digits");
     }
     const singer = await Singer.findByPk(id);
     if (!singer) {
-      return res.status(404).send("Singer not found");
+      if (req.xhr || req.headers.accept?.includes("application/json")) {
+        return res.status(404).json({ error: "Singer not found" });
+      }
+      return res.redirect("/admin/singers?error=Singer+not+found");
     }
     const hashed = await bcrypt.hash(cleanPin, 10);
     await singer.update({
@@ -206,11 +219,15 @@ exports.setSingerPin = async (req, res) => {
       failed_attempts: 0,
       locked_until: null
     });
+    if (req.xhr || req.headers.accept?.includes("application/json")) {
+      return res.json({ success: true, message: `PIN saved successfully for ${singer.name}` });
+    }
     res.redirect("/admin/singers?pin_set=success");
   } catch (error) {
     console.error(`[Req ${req.id || ""}] setSingerPin error:`, error);
-    res
-      .status(500)
-      .send('<h1>Error setting PIN</h1><p>Failed to set PIN.</p><a href="/admin/singers">Back</a>');
+    if (req.xhr || req.headers.accept?.includes("application/json")) {
+      return res.status(500).json({ error: "Failed to set PIN." });
+    }
+    res.redirect("/admin/singers?error=Failed+to+set+PIN");
   }
 };

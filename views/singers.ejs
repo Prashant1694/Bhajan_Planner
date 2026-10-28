@@ -2,6 +2,34 @@
 
   <!-- ═══ EXECUTIVE HEADER ═══ -->
   <header class="session-unified-header">
+    <% if (typeof pinResetSuccess !== 'undefined' && pinResetSuccess) { %>
+      <div style="margin-bottom:12px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#065f46; padding:10px 16px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600;">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Singer PIN has been reset successfully.
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+    <% } %>
+    <% if (typeof pinSetSuccess !== 'undefined' && pinSetSuccess) { %>
+      <div style="margin-bottom:12px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#065f46; padding:10px 16px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600;">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Singer PIN has been saved successfully.
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+    <% } %>
+    <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
+      <div style="margin-bottom:12px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#991b1b; padding:10px 16px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600;">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <%= errorMessage %>
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer; line-height:1;">&times;</button>
+      </div>
+    <% } %>
+
     <div class="session-header-top-row">
       <div class="session-header-identity">
         <div class="session-date-tile" style="background: #eef2ff; border-color: #4f46e5; display:flex; align-items:center; justify-content:center; color: #4f46e5;">
@@ -33,7 +61,7 @@
     <!-- Executive Metrics Grid -->
     <div class="session-metrics-deck" style="margin-top:14px;">
       <div class="metrics-grid">
-        <div class="metric-card">
+        <div class="metric-card" onclick="setGenderFilter('all')" style="cursor:pointer;" title="View all singers">
           <div class="metric-card-icon" style="color:#4f46e5;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
@@ -42,7 +70,7 @@
             <span class="metric-card-lbl">Total Singers</span>
           </div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="setGenderFilter('male')" style="cursor:pointer;" title="Filter male singers">
           <div class="metric-card-icon" style="color:#0284c7;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
@@ -51,7 +79,7 @@
             <span class="metric-card-lbl">Male (<%= metrics.total ? Math.round((metrics.male / metrics.total) * 100) : 0 %>%)</span>
           </div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="setGenderFilter('female')" style="cursor:pointer;" title="Filter female singers">
           <div class="metric-card-icon" style="color:#ec4899;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
@@ -60,7 +88,7 @@
             <span class="metric-card-lbl">Female (<%= metrics.total ? Math.round((metrics.female / metrics.total) * 100) : 0 %>%)</span>
           </div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="filterByPinProtected()" style="cursor:pointer;" title="Filter singers with active PIN protection">
           <div class="metric-card-icon" style="color:#10b981;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
@@ -102,7 +130,7 @@
     <div class="workspace-header-bar">
       <div class="workspace-filter-box">
         <input type="text" id="singerSearchInput" class="workspace-search-input" 
-               placeholder="Search singer name, gender, or status..." 
+               placeholder="Search singer name, gender, or status (e.g. pin, unset)..." 
                oninput="filterSingersTable(this.value)" 
                aria-label="Filter singers">
         
@@ -112,10 +140,16 @@
       </div>
 
       <div class="workspace-view-controls">
-        <div class="view-switcher-pill" role="group" aria-label="Gender filter">
+        <div class="view-switcher-pill" role="group" aria-label="Filter options">
           <button type="button" class="view-switch-btn active" id="btnGenderAll" onclick="setGenderFilter('all')">All</button>
           <button type="button" class="view-switch-btn" id="btnGenderMale" onclick="setGenderFilter('male')">Male</button>
           <button type="button" class="view-switch-btn" id="btnGenderFemale" onclick="setGenderFilter('female')">Female</button>
+          <button type="button" class="view-switch-btn" id="btnPinProtected" onclick="setPinFilter('protected')" title="Show only PIN protected singers">
+            🔒 Protected (<%= metrics.pinProtected %>)
+          </button>
+          <button type="button" class="view-switch-btn" id="btnPinUnset" onclick="setPinFilter('unset')" title="Show singers without PIN">
+            🔓 Not Set
+          </button>
         </div>
       </div>
     </div>
@@ -139,7 +173,7 @@
             <% singers.forEach((s, idx) => { %>
               <tr data-name="<%= (s.name || '').toLowerCase() %>" 
                   data-gender="<%= (s.gender || 'unset').toLowerCase() %>"
-                  data-pin="<%= s.pin ? 'yes' : 'no' %>">
+                  data-pin="<%= s.has_pin ? 'yes' : 'no' %>">
                 
                 <td style="text-align:center; color:var(--text-light); font-weight:700;">
                   <%= idx + 1 %>
@@ -185,26 +219,42 @@
                 </td>
 
                 <td>
-                  <% if (s.pin) { %>
-                    <span class="diag-chip pass" style="font-size:11px; padding:2px 8px;">
-                      Set
-                    </span>
-                    <% if (s.id) { %>
-                      <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="display:inline; margin-left:4px;" onsubmit="return confirm('Reset PIN for <%= s.name.replace(/'/g, "\\'") %>?');">
-                        <button type="submit" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:2px 6px; font-size:10px; width:auto;" title="Reset PIN">Reset</button>
-                      </form>
-                    <% } %>
+                  <% if (s.has_pin) { %>
+                    <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                      <span class="diag-chip pass" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Protected
+                      </span>
+                      <% if (s.id) { %>
+                        <button type="button" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--primary); font-weight:700;" onclick="openPinModal(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>', true)" title="Change 4-digit PIN for <%= s.name.replace(/'/g, "\\'") %>">
+                          Change
+                        </button>
+                        <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Reset PIN for <%= s.name.replace(/'/g, "\\'") %>? The singer will have no PIN until a new one is set.');">
+                          <button type="submit" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--danger, #ef4444); font-weight:700;" title="Reset / Clear PIN">
+                            Reset
+                          </button>
+                        </form>
+                      <% } %>
+                    </div>
                   <% } else { %>
-                    <span class="diag-chip warn" style="font-size:11px; padding:2px 8px;">
-                      Not set
-                    </span>
+                    <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                      <span class="diag-chip warn" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+                        Not set
+                      </span>
+                      <% if (s.id) { %>
+                        <button type="button" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--primary); font-weight:700;" onclick="openPinModal(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>', false)" title="Set initial 4-digit PIN for <%= s.name.replace(/'/g, "\\'") %>">
+                          + Set PIN
+                        </button>
+                      <% } %>
+                    </div>
                   <% } %>
                 </td>
 
                 <td style="text-align:right;">
                   <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
                     <% if (s.id) { %>
-                      <button type="button" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11.5px;" onclick="openEditModal(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>', '<%= s.gender || '' %>')" title="Edit singer">
+                      <button type="button" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11.5px;" onclick="openEditModal(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>', '<%= s.gender || '' %>')" title="Edit singer details">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
                       <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" onsubmit="return confirm('Delete this singer from the directory?');" style="margin:0; display:inline;">
@@ -270,10 +320,61 @@
     </div>
   </div>
 
+  <!-- ═══ SET / CHANGE SINGER PIN MODAL ═══ -->
+  <div id="pinSingerModal" class="session-modal-overlay">
+    <div class="session-modal-card" style="max-width:420px;">
+      <div class="session-modal-header">
+        <h3 id="pinModalTitle" style="display:flex; align-items:center; gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span id="pinModalHeadingText">Set Portal PIN</span>
+        </h3>
+        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closePinModal()">&times;</button>
+      </div>
+      <form id="pinSingerForm" method="POST">
+        <div class="session-modal-body" style="display:flex; flex-direction:column; gap:14px;">
+          <div style="background:var(--surface-raised, #f8fafc); padding:10px 14px; border-radius:8px; border:1px solid var(--border-color, #e2e8f0);">
+            <div style="font-size:11px; text-transform:uppercase; color:var(--text-light); font-weight:700; letter-spacing:0.5px;">Devotee Singer</div>
+            <div id="pinModalSingerName" style="font-size:15px; font-weight:700; color:var(--text); margin-top:2px;"></div>
+          </div>
+
+          <div>
+            <label for="pinInput" style="display:block; font-size:12px; font-weight:700; margin-bottom:6px; color:var(--text);">
+              4-Digit Numeric PIN
+            </label>
+            <div style="position:relative; display:flex; align-items:center;">
+              <input type="password" 
+                     name="pin" 
+                     id="pinInput" 
+                     required 
+                     pattern="[0-9]{4}" 
+                     maxlength="4" 
+                     minlength="4" 
+                     inputmode="numeric" 
+                     placeholder="e.g. 1234" 
+                     class="workspace-search-input" 
+                     style="width:100%; max-width:none; letter-spacing:6px; font-size:18px; font-weight:700; text-align:center; padding-right:40px;">
+              <button type="button" onclick="togglePinVisibility()" style="position:absolute; right:10px; background:none; border:none; color:var(--text-light); cursor:pointer; padding:4px;" title="Show / Hide PIN">
+                <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <small style="display:block; margin-top:6px; font-size:11.5px; color:var(--text-light); line-height:1.4;">
+              This 4-digit PIN allows the devotee to log into their personal Singer Portal and manage their preferences.
+            </small>
+          </div>
+        </div>
+        <div class="session-modal-footer">
+          <button type="button" class="sec-tool-btn" style="width:auto; min-height:36px; padding:0 14px;" onclick="closePinModal()">Cancel</button>
+          <button type="submit" class="cmd-btn cmd-btn-share" style="height:36px; padding:0 18px;" id="pinSubmitBtn">Save PIN</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
 
 <script>
   let activeGender = 'all';
+  let activePinFilter = 'all';
 
   function toggleAddSingerDrawer() {
     const d = document.getElementById('addSingerDrawer');
@@ -282,11 +383,26 @@
 
   function setGenderFilter(g) {
     activeGender = g;
+    activePinFilter = 'all';
     document.querySelectorAll('.view-switcher-pill .view-switch-btn').forEach(b => b.classList.remove('active'));
     if (g === 'male') document.getElementById('btnGenderMale')?.classList.add('active');
     else if (g === 'female') document.getElementById('btnGenderFemale')?.classList.add('active');
     else document.getElementById('btnGenderAll')?.classList.add('active');
     filterSingersTable(document.getElementById('singerSearchInput')?.value || '');
+  }
+
+  function setPinFilter(p) {
+    activePinFilter = p;
+    activeGender = 'all';
+    document.querySelectorAll('.view-switcher-pill .view-switch-btn').forEach(b => b.classList.remove('active'));
+    if (p === 'protected') document.getElementById('btnPinProtected')?.classList.add('active');
+    else if (p === 'unset') document.getElementById('btnPinUnset')?.classList.add('active');
+    else document.getElementById('btnGenderAll')?.classList.add('active');
+    filterSingersTable(document.getElementById('singerSearchInput')?.value || '');
+  }
+
+  function filterByPinProtected() {
+    setPinFilter('protected');
   }
 
   function filterSingersTable(query) {
@@ -297,9 +413,20 @@
     rows.forEach(r => {
       const name = r.getAttribute('data-name') || '';
       const gender = r.getAttribute('data-gender') || '';
-      const matchesSearch = !q || name.includes(q) || gender.includes(q);
+      const pinStatus = r.getAttribute('data-pin') || 'no'; // 'yes' or 'no'
+
+      const matchesSearch = !q || 
+        name.includes(q) || 
+        gender.includes(q) || 
+        ((q === 'pin' || q === 'protected' || q === 'password') && pinStatus === 'yes') ||
+        ((q === 'unset' || q === 'not set' || q === 'unprotected') && pinStatus === 'no');
+
       const matchesGender = (activeGender === 'all') || (gender === activeGender);
-      const visible = matchesSearch && matchesGender;
+      const matchesPin = (activePinFilter === 'all') || 
+        (activePinFilter === 'protected' && pinStatus === 'yes') ||
+        (activePinFilter === 'unset' && pinStatus === 'no');
+
+      const visible = matchesSearch && matchesGender && matchesPin;
       r.style.display = visible ? '' : 'none';
       if (visible) count++;
     });
@@ -325,4 +452,52 @@
     const modal = document.getElementById('editSingerModal');
     if (modal) modal.classList.remove('show');
   }
+
+  function openPinModal(id, name, isChange) {
+    const modal = document.getElementById('pinSingerModal');
+    const form = document.getElementById('pinSingerForm');
+    const nameElem = document.getElementById('pinModalSingerName');
+    const headingText = document.getElementById('pinModalHeadingText');
+    const submitBtn = document.getElementById('pinSubmitBtn');
+    const pinInput = document.getElementById('pinInput');
+
+    if (form) form.action = `/api/admin/set-singer-pin/${id}`;
+    if (nameElem) nameElem.textContent = name;
+    if (headingText) headingText.textContent = isChange ? 'Change Portal PIN' : 'Set Initial Portal PIN';
+    if (submitBtn) submitBtn.textContent = isChange ? 'Update PIN' : 'Save PIN';
+    if (pinInput) {
+      pinInput.value = '';
+      pinInput.type = 'password';
+    }
+    if (modal) modal.classList.add('show');
+    setTimeout(() => pinInput?.focus(), 100);
+  }
+
+  function closePinModal() {
+    const modal = document.getElementById('pinSingerModal');
+    if (modal) modal.classList.remove('show');
+  }
+
+  function togglePinVisibility() {
+    const pinInput = document.getElementById('pinInput');
+    if (!pinInput) return;
+    pinInput.type = pinInput.type === 'password' ? 'text' : 'password';
+  }
+
+  // Handle ESC and overlay clicks for closing modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeEditModal();
+      closePinModal();
+    }
+  });
+
+  document.querySelectorAll('.session-modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeEditModal();
+        closePinModal();
+      }
+    });
+  });
 </script>
