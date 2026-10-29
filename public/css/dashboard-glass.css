@@ -3,7 +3,6 @@
    Sri Sathya Sai Seva Organisations, Gandhinagar
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
 /* --- Reset & Layout Base --- */
 .zen-glass-stage {
@@ -19,7 +18,7 @@
 [data-theme="dark"] .zen-glass-stage,
 .dark .zen-glass-stage {
   color: #e7e5e4;
-  background-color: #0c0d12;
+  background-color: #12100e;
 }
 
 /* Prasanthi Sanctum Top Border */
@@ -44,17 +43,15 @@
 .sacred-orb {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
   pointer-events: none;
   z-index: 0;
   opacity: 0.65;
-  animation: floatAura 18s ease-in-out infinite alternate;
+  contain: strict;
 }
 
 [data-theme="dark"] .sacred-orb,
 .dark .sacred-orb {
   opacity: 0.35;
-  filter: blur(100px);
 }
 
 .sacred-orb-1 {
@@ -129,7 +126,7 @@
 
 [data-theme="dark"] .glass-panel,
 .dark .glass-panel {
-  background: rgba(18, 20, 28, 0.68);
+  background: rgba(28, 25, 23, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 
     0 20px 48px -12px rgba(0, 0, 0, 0.55),

@@ -1,114 +1,339 @@
+<%
+  const activeTabKey = (typeof initialTab !== 'undefined' && initialTab) ? initialTab : 'home';
+  const initRoute = (typeof initialRoute !== 'undefined' && initialRoute) ? initialRoute : '/';
+  const singerObj = (typeof currentSinger !== 'undefined' && currentSinger) ? currentSinger : null;
+  const adminObj = (typeof currentAdmin !== 'undefined' && currentAdmin) ? currentAdmin : null;
+%>
 <!DOCTYPE html>
 <html lang="en" class="shell-root">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>
-    <%= typeof pageTitle !=='undefined' ? pageTitle : 'Bhajan Planner | Sri Sathya Sai Seva Organisation' %>
-  </title>
-  <meta name="description"
-    content="Sri Sathya Sai Seva Organisations, Gandhinagar - Devotional Bhajan Management & Satsang Scheduling System">
-  <meta name="theme-color" content="#4f46e5">
-  <link rel="icon" type="image/png" href="/images/icons/icon-192x192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Bhajan Planner | Sri Sathya Sai Seva Organisation' %></title>
+  <meta name="description" content="Sri Sathya Sai Seva Organisations, Gandhinagar — Devotional Bhajan Management & Satsang Scheduling System">
+  <meta name="theme-color" content="#FAF7F2">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
-
-  <!-- Frame Guard: Prevent app-shell from ever nesting inside an iframe -->
-  <script>
-    if (window.self !== window.top) {
-      window.location.replace('/?_embed=1');
-    }
-  </script>
 
   <!-- Clean Native Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Core CSS -->
-  <link rel="stylesheet" href="/css/style.css?v=5.0">
-  <link rel="stylesheet" href="/css/notifications.css?v=5.0">
-  <link rel="stylesheet" href="/css/app-shell.css?v=5.0">
+  <!-- Core Shell & Component Stylesheets (v6.2) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.2">
+  <link rel="stylesheet" href="/css/pwa.css?v=6.2">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.2">
+  <link rel="stylesheet" href="/css/bulletin.css?v=6.2">
+  <link rel="stylesheet" href="/css/tanpura.css?v=6.2">
+  <link rel="stylesheet" href="/css/session-audio.css?v=6.2">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.2">
+  <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
+    <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.2">
+  <% } else if (activeTabKey === 'home') { %>
+    <link rel="stylesheet" href="/css/dashboard-glass.css?v=6.2">
+  <% } %>
 
-  <!-- Native Micro-Haptics Engine -->
-  <script src="/js/haptics.js"></script>
-
-  <!-- Theme Preference Initialization -->
+  <!-- Early Anti-FOUC Theme Initialization & Resilient Navigation Handlers -->
   <script>
     (function () {
       try {
         var t = localStorage.getItem('bp-theme');
-        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      } catch (e) { }
+        if (t === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          if (document.body) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.body.classList.add('dark');
+          }
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#12100E');
+        } else if (t === 'light') {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          if (document.body) {
+            document.body.removeAttribute('data-theme');
+            document.body.classList.remove('dark');
+          }
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#FAF7F2');
+        }
+      } catch (e) {}
     })();
+
+    window.applyTheme = function (isDark) {
+      try {
+        if (isDark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          if (document.body) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.body.classList.add('dark');
+          }
+          localStorage.setItem('bp-theme', 'dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#12100E');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          if (document.body) {
+            document.body.removeAttribute('data-theme');
+            document.body.classList.remove('dark');
+          }
+          localStorage.setItem('bp-theme', 'light');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#FAF7F2');
+        }
+        var btns = document.querySelectorAll('.theme-toggle, #themeToggle, #shellThemeToggle, #topbarThemeToggle, #themeToggleBtn, .admin-theme-toggle-btn');
+        btns.forEach(function (btn) {
+          btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          btn.setAttribute('data-tooltip', isDark ? 'Switch to Light' : 'Switch to Dark');
+          btn.setAttribute('title', isDark ? 'Switch to Light' : 'Switch to Dark');
+        });
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark: isDark } }));
+      } catch (e) {}
+    };
+
+    window.toggleTheme = function (e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var now = Date.now();
+      if (window._lastThemeToggle && (now - window._lastThemeToggle < 250)) return;
+      window._lastThemeToggle = now;
+      var stored = null;
+      try { stored = localStorage.getItem('bp-theme'); } catch (_) {}
+      var isDark = stored === 'dark' || (stored !== 'light' && (document.documentElement.getAttribute('data-theme') === 'dark' || document.documentElement.classList.contains('dark')));
+      window.applyTheme(!isDark);
+      if (window.haptics && typeof window.haptics.light === 'function') {
+        window.haptics.light();
+      }
+      if (typeof triggerToast === 'function') {
+        triggerToast(!isDark ? 'Switched to Dark Sanctum Theme' : 'Switched to Ivory Prasanthi Theme');
+      }
+    };
+
+    // Delegated click handler on document for resilient theme toggle clicks
+    document.addEventListener('click', function (e) {
+      var themeBtn = e.target && e.target.closest ? e.target.closest('#shellThemeToggle, #topbarThemeToggle, .theme-toggle, .admin-theme-toggle-btn') : null;
+      if (themeBtn) {
+        window.toggleTheme(e);
+      }
+    });
+
+    window.toggleShellSidebar = function () {
+      var s = document.getElementById('shellSidebar');
+      var o = document.getElementById('shellSidebarOverlay');
+      if (s) s.classList.toggle('open');
+      if (o) o.classList.toggle('open');
+    };
+    window.closeShellSidebar = function () {
+      var s = document.getElementById('shellSidebar');
+      var o = document.getElementById('shellSidebarOverlay');
+      if (s) s.classList.remove('open');
+      if (o) o.classList.remove('open');
+    };
+    window.handleNavClick = function (tab, url, evt) {
+      if (evt && evt.preventDefault) evt.preventDefault();
+      window.closeShellSidebar();
+      if (window.AppShell && typeof window.AppShell.switchTab === "function") {
+        window.AppShell.switchTab(tab, url);
+        return false;
+      }
+      window.__pendingNavTab = tab;
+      setTimeout(function () {
+        if (!window.AppShell || typeof window.AppShell.switchTab !== "function") {
+          window.location.href = url || '/';
+        }
+      }, 250);
+      return false;
+    };
+    window.handleDeepLink = function (route, parentTab, evt) {
+      if (evt && evt.preventDefault) evt.preventDefault();
+      window.closeShellSidebar();
+      if (window.AppShell && typeof window.AppShell.navigate === "function") {
+        window.AppShell.navigate(route);
+        return false;
+      }
+      window.__pendingNavRoute = { route: route, tab: parentTab };
+      setTimeout(function () {
+        if (!window.AppShell || typeof window.AppShell.navigate !== "function") {
+          window.location.href = route;
+        }
+      }, 250);
+      return false;
+    };
   </script>
 </head>
 
 <body class="shell-body">
 
+  <!-- Universal SSSO Print Letterhead -->
+  <%- include('partials/universal-print-header') %>
+
   <div class="shell-app-layout" id="shellAppLayout">
 
-    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <!-- 1. DESKTOP PERSISTENT SIDEBAR & MOBILE NAVIGATION DRAWER      -->
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <aside class="shell-sidebar" id="shellSidebar" aria-label="Primary Navigation">
+      <div class="shell-sidebar-brand">
+        <a href="/" class="shell-sidebar-logo-link">
+          <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="38" height="38" class="shell-sidebar-emblem">
+          <div class="shell-sidebar-brand-text">
+            <span class="shell-sidebar-title">Bhajan Planner</span>
+            <span class="shell-sidebar-sub">SSSO · GANDHINAGAR</span>
+          </div>
+        </a>
+        <button type="button" class="shell-sidebar-close" aria-label="Close navigation menu" onclick="closeShellSidebar()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <nav class="shell-sidebar-nav">
+        <div class="shell-nav-section-label">Primary Workspace</div>
+
+        <a href="/" class="sidebar-nav-item <%= activeTabKey === 'home' ? 'active' : '' %>" id="side-tab-home" data-tab="home" onclick="return handleNavClick('home', '/', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Home Dashboard</span>
+        </a>
+
+        <a href="/master-bank" class="sidebar-nav-item <%= activeTabKey === 'bank' ? 'active' : '' %>" id="side-tab-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Master Songbook</span>
+        </a>
+
+        <a href="/submit-form" class="sidebar-nav-item <%= activeTabKey === 'singer' ? 'active' : '' %>" id="side-tab-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          <span>Mark Bhajan</span>
+        </a>
+
+        <a href="/plan-view" class="sidebar-nav-item <%= activeTabKey === 'plan' ? 'active' : '' %>" id="side-tab-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Live Session Plan</span>
+        </a>
+
+        <a href="/singer/hub" class="sidebar-nav-item <%= activeTabKey === 'hub' ? 'active' : '' %>" id="side-tab-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Singer Hub</span>
+        </a>
+
+        <div class="shell-nav-section-label">Samiti Resources</div>
+
+        <a href="/database" class="sidebar-nav-item" data-route="/database" data-tab-parent="plan" onclick="return handleDeepLink('/database', 'plan', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Session Archives</span>
+        </a>
+
+        <a href="/bulletins" class="sidebar-nav-item" data-route="/bulletins" data-tab-parent="home" onclick="return handleDeepLink('/bulletins', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Samiti Bulletins</span>
+        </a>
+
+        <% if (adminObj) { %>
+          <a href="/admin/singers" class="sidebar-nav-item" data-no-shell="1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Singers Directory</span>
+          </a>
+        <% } else { %>
+          <a href="/singers" class="sidebar-nav-item" data-route="/singers" data-tab-parent="hub" onclick="return handleDeepLink('/singers', 'hub', event)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Singers Directory</span>
+          </a>
+        <% } %>
+
+        <a href="/my-reports" class="sidebar-nav-item" data-route="/my-reports" data-tab-parent="home" onclick="return handleDeepLink('/my-reports', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          <span>Reported Tickets</span>
+        </a>
+
+        <a href="/notification-settings" class="sidebar-nav-item" data-route="/notification-settings" data-tab-parent="home" onclick="return handleDeepLink('/notification-settings', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Notification Settings</span>
+        </a>
+      </nav>
+
+      <div class="shell-sidebar-footer">
+        <% if (adminObj) { %>
+          <a href="/admin" class="shell-sidebar-admin-link" data-no-shell="1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
+            <span>Open Admin Portal</span>
+          </a>
+        <% } else { %>
+          <a href="/admin-login" class="shell-sidebar-coord-link" data-no-shell="1">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Coordinator Login</span>
+          </a>
+        <% } %>
+      </div>
+    </aside>
+
+    <div class="shell-sidebar-overlay" id="shellSidebarOverlay" onclick="closeShellSidebar()"></div>
+
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <!-- 2. MAIN COLUMN (HEADER + SINGLE-DOM VIEWPORT + BOTTOM NAV)    -->
+    <!-- ═════════════════════════════════════════════════════════════ -->
     <div class="shell-main-column">
 
-      <!-- Top Header Bar (Height: 64px) -->
+      <!-- Top Header Bar -->
       <header class="shell-top-header" id="shellTopHeader" role="banner">
         <div class="header-left">
-          <!-- Mobile Drawer Toggle -->
-          <div class="header-brand-wrap" style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="switchTab('home')" title="Go to Dashboard">
-            <div class="header-logo-box" style="width:36px; height:36px; min-width:36px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-              <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" style="width:36px; height:36px; object-fit:contain; display:block;">
-            </div>
+          <button type="button" class="header-icon-btn shell-menu-btn" id="shellMenuBtn" aria-label="Open menu" onclick="toggleShellSidebar()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
 
-          <!-- Breadcrumb & Page Title (Fixed branding) -->
-          <div class="header-titles-box">
-            <h1 class="header-page-title" id="headerPageTitle">Bhajan Planner</h1>
-            <span class="header-breadcrumb" id="headerBreadcrumb">SSSO - GANDHINAGAR</span>
-          </div>
+          <div class="header-brand-wrap" title="Go to Home Dashboard">
+            <div class="header-logo-box">
+              <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="34" height="34">
+            </div>
+            <div class="header-titles-box">
+              <h1 class="header-page-title" id="headerPageTitle">Bhajan Planner</h1>
+              <span class="header-breadcrumb" id="headerBreadcrumb">SSSO · GANDHINAGAR</span>
+            </div>
           </div>
         </div>
 
-        <!-- Right Side Global Actions -->
         <div class="header-right">
+          <!-- Singer Identity Pill -->
+          <button type="button"
+            class="singer-profile-pill"
+            id="shellSingerPill"
+            title="Open My Singer Hub"
+            style="<%= singerObj ? 'display:inline-flex;' : 'display:none;' %>">
+            <span class="singer-avatar-dot" id="shellSingerPillInitial"><%= singerObj && singerObj.name ? singerObj.name.charAt(0).toUpperCase() : 'S' %></span>
+            <span class="singer-pill-name" id="shellSingerPillName"><%= singerObj && singerObj.name ? singerObj.name.split(' ')[0] : 'Singer' %></span>
+          </button>
 
-          <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-            <div class="admin-profile-pill" title="Logged in as <%= currentAdmin.displayName || currentAdmin.username %>">
-              <span class="admin-avatar-dot"><%= (currentAdmin.displayName || currentAdmin.username || "A").charAt(0).toUpperCase() %></span>
-              <span class="admin-pill-name"><%= currentAdmin.displayName || currentAdmin.username %></span>
-            </div>
+          <% if (adminObj) { %>
+            <a href="/admin" class="admin-profile-pill" data-no-shell="1" title="Logged in as <%= adminObj.displayName || adminObj.username %> — Open Admin Portal">
+              <span class="admin-avatar-dot"><%= (adminObj.displayName || adminObj.username || "A").charAt(0).toUpperCase() %></span>
+              <span class="admin-pill-name"><%= adminObj.displayName || adminObj.username %></span>
+            </a>
           <% } %>
 
-          <!-- Dark / Light Theme Toggle (Clean SVG Sun/Moon) -->
-          <button type="button" class="header-icon-btn" id="shellThemeToggle" aria-label="Toggle theme" title="Toggle dark mode">
+          <!-- Dark / Light Theme Toggle -->
+          <button type="button" class="header-icon-btn" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
             <span class="icon-moon" aria-hidden="true">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-              </svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             </span>
             <span class="icon-sun" aria-hidden="true">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="4"></circle>
-                <path d="M12 2v2"></path>
-                <path d="M12 20v2"></path>
-                <path d="m4.93 4.93 1.41 1.41"></path>
-                <path d="m17.66 17.66 1.41 1.41"></path>
-                <path d="M2 12h2"></path>
-                <path d="M20 12h2"></path>
-                <path d="m6.34 17.66-1.41 1.41"></path>
-                <path d="m19.07 4.93-1.41 1.41"></path>
-              </svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             </span>
           </button>
 
           <!-- Notification Bell -->
           <button type="button" class="header-icon-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
               <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
             </svg>
@@ -117,666 +342,188 @@
         </div>
       </header>
 
-      <!-- Hardware GPU Top Loading Progress Bar -->
-      <div class="shell-load-bar" id="shellLoadBar"></div>
+      <!-- GPU-Composited Top Loading Progress Bar -->
+      <div class="shell-load-bar" id="shellLoadBar" aria-hidden="true"></div>
 
-      <!-- ═════════════════════════════════════════════════════════ -->
-      <!-- 3. WORKSPACE CONTAINER (Viewport Stack with Zero-Lag)     -->
-      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <!-- 3. SINGLE-DOM WORKSPACE (5 CACHED PANES + SLIDE-OVER SHEET)   -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
       <main class="shell-workspace-container" id="shellViewport">
-        <% 
-          const activeTabKey = typeof initialTab !== 'undefined' && initialTab ? initialTab : 'home'; 
-          const initRoute = (typeof initialRoute !== 'undefined' && initialRoute) ? initialRoute : '';
+        <section id="pane-home" class="shell-pane <%= activeTabKey === 'home' ? 'active-pane' : '' %>" aria-label="Home Dashboard" aria-hidden="<%= activeTabKey === 'home' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'home' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-bank" class="shell-pane <%= activeTabKey === 'bank' ? 'active-pane' : '' %>" aria-label="Master Songbook" aria-hidden="<%= activeTabKey === 'bank' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'bank' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-singer" class="shell-pane <%= activeTabKey === 'singer' ? 'active-pane' : '' %>" aria-label="Mark Bhajan" aria-hidden="<%= activeTabKey === 'singer' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'singer' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-plan" class="shell-pane <%= activeTabKey === 'plan' ? 'active-pane' : '' %>" aria-label="Live Session Plan" aria-hidden="<%= activeTabKey === 'plan' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'plan' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-hub" class="shell-pane <%= activeTabKey === 'hub' ? 'active-pane' : '' %>" aria-label="Singer Hub" aria-hidden="<%= activeTabKey === 'hub' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'hub' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
 
-          function getTabSrc(tabKey, defaultPath) {
-            if (activeTabKey === tabKey && initRoute) {
-              return initRoute.includes('?') ? (initRoute + '&_embed=1') : (initRoute + '?_embed=1');
-            }
-            return defaultPath + '?_embed=1';
-          }
-        %>
-        <!-- Tab 0: Home -->
-        <iframe id="frame-home"
-          class="shell-frame <%= activeTabKey === 'home' ? 'active-frame' : '' %>"
-          <% if (activeTabKey === 'home') { %>src="<%= getTabSrc('home', '/') %>"<% } else { %>data-src="/?_embed=1"<% } %>
-          title="Home Dashboard" scrolling="yes" allow="autoplay" <%= activeTabKey === 'home' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-
-        <!-- Tab 1: Singer Zone (Mark Bhajan) -->
-        <iframe id="frame-singer"
-          class="shell-frame <%= activeTabKey === 'singer' ? 'active-frame' : '' %>"
-          <% if (activeTabKey === 'singer') { %>src="<%= getTabSrc('singer', '/submit-form') %>"<% } else { %>data-src="/submit-form?_embed=1"<% } %>
-          title="Singer Zone" scrolling="yes" allow="autoplay" <%= activeTabKey === 'singer' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-
-        <!-- Tab 2: Songbook (Master Bank) -->
-        <iframe id="frame-bank"
-          class="shell-frame <%= activeTabKey === 'bank' ? 'active-frame' : '' %>"
-          <% if (activeTabKey === 'bank') { %>src="<%= getTabSrc('bank', '/master-bank') %>"<% } else { %>data-src="/master-bank?_embed=1"<% } %>
-          title="Master Songbook" scrolling="yes" allow="autoplay" <%= activeTabKey === 'bank' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-
-        <!-- Tab 3: Live Plan -->
-        <iframe id="frame-plan"
-          class="shell-frame <%= activeTabKey === 'plan' ? 'active-frame' : '' %>"
-          <% if (activeTabKey === 'plan') { %>src="<%= getTabSrc('plan', '/plan-view') %>"<% } else { %>data-src="/plan-view?_embed=1"<% } %>
-          title="Live Session Plan" scrolling="yes" allow="autoplay" <%= activeTabKey === 'plan' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-
-        <!-- Tab 4: My Hub -->
-        <iframe id="frame-hub"
-          class="shell-frame <%= activeTabKey === 'hub' ? 'active-frame' : '' %>"
-          <% if (activeTabKey === 'hub') { %>src="<%= getTabSrc('hub', '/my-hub') %>"<% } else { %>data-src="/my-hub?_embed=1"<% } %>
-          title="Singer Hub" scrolling="yes" allow="autoplay" <%= activeTabKey === 'hub' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-
-        <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-          <!-- Tab 5: Admin Portal -->
-          <iframe id="frame-admin"
-            class="shell-frame <%= activeTabKey === 'admin' ? 'active-frame' : '' %>"
-            <% if (activeTabKey === 'admin') { %>src="<%= getTabSrc('admin', '/admin') %>"<% } else { %>data-src="/admin?_embed=1"<% } %>
-            title="Admin Portal" scrolling="yes" allow="autoplay" <%= activeTabKey === 'admin' ? 'aria-hidden="false"' : 'aria-hidden="true" tabindex="-1"' %>></iframe>
-        <% } %>
+        <!-- Native Slide-Over Detail Sheet (Preserves underlying tab DOM & exact scrollTop!) -->
+        <aside id="shellDetailSheet" class="shell-detail-sheet" aria-hidden="true" aria-label="Detail View">
+          <header class="shell-detail-header" id="shellDetailHeader">
+            <button type="button" class="shell-detail-back-btn" id="shellDetailBackBtn" aria-label="Go back">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back</span>
+            </button>
+            <h2 class="shell-detail-title" id="shellDetailTitle">Details</h2>
+            <div class="shell-detail-spacer"></div>
+          </header>
+          <div class="shell-detail-body" id="shellDetailBody"></div>
+        </aside>
       </main>
 
-      <!-- ═════════════════════════════════════════════════════════ -->
-      <!-- 4. NATIVE MOBILE BOTTOM NAVIGATION BAR (Phones only)      -->
-      <!-- ═════════════════════════════════════════════════════════ -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <!-- 4. NATIVE MOBILE BOTTOM NAVIGATION BAR                        -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
       <nav class="native-bottom-nav" id="nativeBottomNav" aria-label="Bottom Navigation">
         <div class="native-nav-inner">
-          <!-- 1. Home -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab === 'undefined' || initialTab === 'home' || !initialTab) ? 'active' : '' %>"
-            id="tab-btn-home" data-tab="home" onclick="switchTab('home')" aria-label="Home Tab">
+          <a href="/" class="nav-tab <%= activeTabKey === 'home' ? 'active' : '' %>" id="tab-btn-home" data-tab="home" onclick="return handleNavClick('home', '/', event)" aria-label="Home Tab">
             <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
             <span class="tab-label">Home</span>
-          </button>
+          </a>
 
-          <!-- 2. Songbook -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'bank') ? 'active' : '' %>"
-            id="tab-btn-bank" data-tab="bank" onclick="switchTab('bank')" aria-label="Songbook Tab">
+          <a href="/master-bank" class="nav-tab <%= activeTabKey === 'bank' ? 'active' : '' %>" id="tab-btn-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)" aria-label="Songbook Tab">
             <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
             <span class="tab-label">Songbook</span>
-          </button>
+          </a>
 
-          <!-- 3. Mark Bhajan -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'singer') ? 'active' : '' %>"
-            id="tab-btn-singer" data-tab="singer" onclick="switchTab('singer')" aria-label="Mark Bhajan Tab">
+          <a href="/submit-form" class="nav-tab <%= activeTabKey === 'singer' ? 'active' : '' %>" id="tab-btn-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)" aria-label="Mark Bhajan Tab">
             <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" x2="12" y1="19" y2="22"></line>
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
             </div>
             <span class="tab-label">Mark</span>
-          </button>
+          </a>
 
-          <!-- 4. Live Plan -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'plan') ? 'active' : '' %>"
-            id="tab-btn-plan" data-tab="plan" onclick="switchTab('plan')" aria-label="Live Plan Tab">
+          <a href="/plan-view" class="nav-tab <%= activeTabKey === 'plan' ? 'active' : '' %>" id="tab-btn-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)" aria-label="Live Plan Tab">
             <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
             <span class="tab-label">Plan</span>
-          </button>
+          </a>
 
-          <!-- 5. My Hub -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'hub') ? 'active' : '' %>"
-            id="tab-btn-hub" data-tab="hub" onclick="switchTab('hub')" aria-label="My Hub Tab">
+          <a href="/singer/hub" class="nav-tab <%= activeTabKey === 'hub' ? 'active' : '' %>" id="tab-btn-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)" aria-label="My Hub Tab">
             <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <span class="tab-label">Hub</span>
-          </button>
+          </a>
 
-          <!-- 6. Admin Portal (when active/logged in) -->
-          <button type="button"
-            class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'admin') ? 'active' : '' %>"
-            id="tab-btn-admin" data-tab="admin" onclick="switchTab('admin')" aria-label="Admin Portal Tab"
-            style="<%= (typeof currentAdmin !== 'undefined' && currentAdmin) ? '' : 'display: none;' %>">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="7" height="7" x="3" y="3"></rect>
-                <rect width="7" height="7" x="14" y="3"></rect>
-                <rect width="7" height="7" x="14" y="14"></rect>
-                <rect width="7" height="7" x="3" y="14"></rect>
-              </svg>
-            </div>
-            <span class="tab-label">Admin</span>
-          </button>
+          <% if (adminObj) { %>
+            <a href="/admin" class="nav-tab" id="tab-btn-admin" data-tab="admin" data-no-shell="1" aria-label="Admin Portal Tab">
+              <div class="tab-icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
+              </div>
+              <span class="tab-label">Admin</span>
+            </a>
+          <% } %>
         </div>
       </nav>
 
     </div>
   </div>
 
-  <!-- Notification Center Panel & Overlay (Zero Emoji) -->
-  <div class="notif-panel" id="notifPanel">
-    <div class="notif-panel-header">
-      <div class="notif-panel-title-wrap">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-        </svg>
-        <h3>Notifications</h3>
+  <!-- Universal SSSO Print Footer -->
+  <%- include('partials/universal-print-footer') %>
+
+  <!-- PWA Install Banner -->
+  <div class="pwa-install-overlay" id="pwaInstallOverlay">
+    <div class="pwa-install-banner">
+      <div class="pwa-banner-header">
+        <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" width="48" height="48" class="pwa-banner-icon">
+        <div class="pwa-banner-info">
+          <h3>Install Bhajan Planner</h3>
+          <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>
+        </div>
+        <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>
       </div>
-      <div class="notif-panel-actions">
-        <button class="notif-mark-all" id="notifMarkAllRead" title="Mark all as read">Mark All Read</button>
-        <button class="notif-close-btn" id="notifCloseBtn" aria-label="Close notifications">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+      <div class="pwa-banner-divider"></div>
+      <div class="pwa-banner-benefits">
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Faster loading</div>
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> Works like a native app</div>
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home screen access</div>
       </div>
-    </div>
-    <div class="notif-panel-body" id="notifPanelBody">
-      <div class="notif-loading">Loading notifications...</div>
+      <div class="pwa-banner-actions">
+        <button class="pwa-btn-install" id="pwaBtnInstall">Install App</button>
+        <button class="pwa-btn-dismiss" id="pwaBtnDismiss">Not Now</button>
+      </div>
+      <div class="pwa-manual-instructions" id="pwaManualInstructions" style="display:none">
+        <p id="pwaManualInstructionsText">Tap your browser menu (<strong>&vellip;</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+      </div>
+      <div class="pwa-ios-instructions" id="pwaIosInstructions" style="display:none">
+        <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">&uarr;</span> then <strong>"Add to Home Screen"</strong></p>
+      </div>
     </div>
   </div>
-  <div class="notif-overlay" id="notifOverlay" onclick="closeNotifPanel()"></div>
 
-  <!-- Session to LocalStorage Auto-Sync -->
+  <!-- Global Persistent Tanpura Shruti Drone (Never interrupted across tab switches) -->
+  <%- include('partials/tanpura-widget') %>
+
+  <!-- Unified Notification Panel & One-Time First-Visit Prompt -->
+  <%- include('partials/notification-bell') %>
+
+  <!-- What's New Modal -->
+  <%- include('partials/whats-new-modal') %>
+
+  <!-- Initial Shell Boot Configuration & Session Sync -->
   <script>
+    window.__SHELL_BOOT__ = {
+      initialTab: <%- JSON.stringify(activeTabKey) %>,
+      initialRoute: <%- JSON.stringify(initRoute) %>,
+      hasSinger: <%- Boolean(singerObj) %>,
+      hasAdmin: <%- Boolean(adminObj) %>
+    };
     try {
-      <% if (typeof currentSinger !== 'undefined' && currentSinger) { %>
-        localStorage.setItem('bp_singer_id', <%= JSON.stringify(currentSinger.id) %>);
-        localStorage.setItem('bp_singer_name', <%= JSON.stringify(currentSinger.name) %>);
-        localStorage.setItem('bp_singer_gender', <%= JSON.stringify(currentSinger.gender || '') %>);
-        localStorage.setItem('bp_singer_login_time', Date.now());
+      <% if (singerObj) { %>
+        localStorage.setItem('bp_singer_id', <%- JSON.stringify(String(singerObj.id)) %>);
+        localStorage.setItem('bp_singer_name', <%- JSON.stringify(singerObj.name || '') %>);
+        localStorage.setItem('bp_singer_gender', <%- JSON.stringify(singerObj.gender || '') %>);
+        localStorage.setItem('bp_singer_login_time', String(Date.now()));
+      <% } else { %>
+        localStorage.removeItem('bp_singer_id');
+        localStorage.removeItem('bp_singer_name');
+        localStorage.removeItem('bp_singer_gender');
       <% } %>
-      <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
+      <% if (adminObj) { %>
         localStorage.setItem('bp_is_admin', 'true');
-        localStorage.setItem('bp_admin_name', <%= JSON.stringify(currentAdmin.display_name || currentAdmin.displayName || currentAdmin.username) %>);
-        localStorage.setItem('bp_admin_role', <%= JSON.stringify(currentAdmin.role || 'admin') %>);
+        localStorage.setItem('bp_admin_name', <%- JSON.stringify(adminObj.display_name || adminObj.displayName || adminObj.username || 'Admin') %>);
+        localStorage.setItem('bp_admin_role', <%- JSON.stringify(adminObj.role || 'admin') %>);
       <% } else { %>
         localStorage.removeItem('bp_is_admin');
         localStorage.removeItem('bp_admin_name');
         localStorage.removeItem('bp_admin_role');
       <% } %>
-    } catch (_) { }
+    } catch (_) {}
   </script>
 
-  <!-- PWA Script -->
-  <script src="/js/pwa.js"></script>
-
-  <!-- Shell Controller Script: Ultra Fast, Zero-Lag, Instant Tab Switching -->
-  <script>
-    (function () {
-      const TAB_KEYS = ['home', 'singer', 'bank', 'plan', 'hub', 'admin'];
-      const TAB_ROUTES = {
-        home: '/',
-        singer: '/submit-form',
-        bank: '/master-bank',
-        plan: '/plan-view',
-        hub: '/my-hub',
-        admin: '/admin'
-      };
-
-      function mapPathToTab(p) {
-        if (!p) return 'home';
-        var lower = p.toLowerCase();
-        if (lower.startsWith('/submit-form')) return 'singer';
-        if (lower.startsWith('/master-bank') || lower.startsWith('/bhajan/')) return 'bank';
-        if (lower.startsWith('/plan-view')) return 'plan';
-        if (lower.startsWith('/my-hub') || lower.startsWith('/singer/')) return 'hub';
-        if (lower.startsWith('/admin')) return 'admin';
-        return 'home';
-      }
-
-      let currentTab = '<%= typeof initialTab !== "undefined" && initialTab ? initialTab : "home" %>';
-      if (!TAB_KEYS.includes(currentTab)) currentTab = 'home';
-
-      function updateHeaderTitles() {
-        const titleEl = document.getElementById('headerPageTitle');
-        const subEl = document.getElementById('headerBreadcrumb');
-        if (titleEl) titleEl.textContent = 'Bhajan Planner';
-        if (subEl) subEl.textContent = 'SSSO - GANDHINAGAR';
-      }
-      updateHeaderTitles();
-
-      // Frame navigation callback from child iframes
-      window.onFrameNavigated = function (cleanUrl, pathname) {
-        if (!cleanUrl) return;
-        try { sessionStorage.setItem('bp_current_path', cleanUrl); } catch (_) {}
-
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({ path: cleanUrl, tab: currentTab }, '', cleanUrl);
-        }
-
-        var expectedTab = mapPathToTab(pathname || cleanUrl);
-        if (expectedTab && expectedTab !== currentTab && TAB_KEYS.includes(expectedTab)) {
-          currentTab = expectedTab;
-          syncActiveNavStyles(expectedTab);
-          updateHeaderTitles(expectedTab);
-        }
-      };
-
-      // Progress bar controller (Hardware accelerated, never locks UI)
-      let progressTimer = null;
-      function startLoadProgress() {
-        clearTimeout(progressTimer);
-        const bar = document.getElementById('shellLoadBar');
-        if (bar) {
-          bar.classList.remove('is-done');
-          bar.classList.add('is-loading');
-        }
-        // Safety timeout to auto dismiss in case of slow assets
-        progressTimer = setTimeout(finishLoadProgress, 1200);
-      }
-
-      function finishLoadProgress() {
-        clearTimeout(progressTimer);
-        const bar = document.getElementById('shellLoadBar');
-        if (bar) {
-          bar.classList.remove('is-loading');
-          bar.classList.add('is-done');
-          setTimeout(function () {
-            bar.classList.remove('is-done');
-          }, 250);
-        }
-      }
-
-      function syncActiveNavStyles(tabKey) {
-        // Bottom nav buttons
-        document.querySelectorAll('.nav-tab').forEach(function (btn) {
-          btn.classList.toggle('active', btn.getAttribute('data-tab') === tabKey);
-        });
-        // Sidebar nav buttons
-        document.querySelectorAll('.sidebar-nav-item').forEach(function (btn) {
-          btn.classList.remove('active');
-        });
-        const activeSide = document.getElementById('side-tab-' + tabKey);
-        if (activeSide) activeSide.classList.add('active');
-      }
-
-      // 0ms Zero-Lag Tab Switching Function
-      function switchTab(tabKey, targetUrl, skipHistory) {
-        if (tabKey === 'admin') { window.location.href = '/admin'; return; }
-        if (!TAB_KEYS.includes(tabKey)) return;
-        const previousTab = currentTab;
-        currentTab = tabKey;
-        try { sessionStorage.setItem('bp_active_tab', tabKey); } catch (_) {}
-
-        if (window.haptics && typeof window.haptics.light === 'function') {
-          window.haptics.light();
-        }
-
-        syncActiveNavStyles(tabKey);
-        updateHeaderTitles(tabKey);
-
-        TAB_KEYS.forEach(function (k) {
-          const frame = document.getElementById('frame-' + k);
-          if (!frame) return;
-
-          if (k === tabKey) {
-            frame.classList.add('active-frame');
-            frame.setAttribute('aria-hidden', 'false');
-            frame.removeAttribute('tabindex');
-
-            // If frame has not yet been loaded, load it on demand now
-            const pendingSrc = frame.getAttribute('data-src');
-            if (pendingSrc && !frame.getAttribute('src')) {
-              startLoadProgress();
-              frame.setAttribute('src', pendingSrc);
-              frame.removeAttribute('data-src');
-              frame.addEventListener('load', function () {
-                finishLoadProgress();
-              }, { once: true });
-            } else if (!frame.getAttribute('src')) {
-              startLoadProgress();
-              frame.src = TAB_ROUTES[tabKey] + '?_embed=1';
-              frame.addEventListener('load', function () {
-                finishLoadProgress();
-              }, { once: true });
-            } else {
-              // Frame was already loaded in memory: 0ms switch without network touch!
-              finishLoadProgress();
-            }
-
-            // If a specific target route was requested (e.g. from session click)
-            if (targetUrl) {
-              const currentSrc = frame.getAttribute('src') || '';
-              const sep = targetUrl.includes('?') ? '&' : '?';
-              const fullEmbedUrl = targetUrl.includes('_embed') ? targetUrl : (targetUrl + sep + '_embed=1');
-              if (currentSrc !== fullEmbedUrl) {
-                startLoadProgress();
-                frame.src = fullEmbedUrl;
-              }
-            }
-          } else {
-            frame.classList.remove('active-frame');
-            frame.setAttribute('aria-hidden', 'true');
-            frame.setAttribute('tabindex', '-1');
-          }
-        });
-
-        // Sync browser address bar smoothly
-        const browserPath = (targetUrl && !targetUrl.includes('_embed')) ? targetUrl : TAB_ROUTES[tabKey];
-        try { sessionStorage.setItem('bp_current_path', browserPath); } catch (_) {}
-
-        if (!skipHistory && window.history && window.history.pushState) {
-          if (window.location.pathname + window.location.search !== browserPath) {
-            window.history.pushState({ tab: tabKey, path: browserPath }, '', browserPath);
-          }
-        } else if (window.history && window.history.replaceState) {
-          window.history.replaceState({ tab: tabKey, path: browserPath }, '', browserPath);
-        }
-      }
-
-      window.switchTab = switchTab;
-
-      // Handle navigation from sidebar items
-      window.handleNavClick = function (tabKey) {
-        closeShellSidebar();
-        switchTab(tabKey);
-      };
-
-      // Handle deep links from sidebar (e.g. /bulletins, /my-reports, /admin/reports)
-      window.handleDeepLink = function (routePath, tabKey) {
-        closeShellSidebar();
-        switchTab(tabKey, routePath);
-      };
-
-      // Responsive Mobile Sidebar Drawer Toggle
-      window.toggleShellSidebar = function () {
-        const sidebar = document.getElementById('shellSidebar');
-        const overlay = document.getElementById('shellSidebarOverlay');
-        if (!sidebar || !overlay) return;
-        const isOpen = sidebar.classList.contains('open');
-        if (isOpen) {
-          window.closeShellSidebar();
-        } else {
-          sidebar.classList.add('open');
-          overlay.classList.add('open');
-          if (window.haptics && typeof window.haptics.light === 'function') window.haptics.light();
-        }
-      };
-
-      window.closeShellSidebar = function () {
-        const sidebar = document.getElementById('shellSidebar');
-        const overlay = document.getElementById('shellSidebarOverlay');
-        if (sidebar) sidebar.classList.remove('open');
-        if (overlay) overlay.classList.remove('open');
-      };
-
-      // Browser popstate handler (Hardware & Browser Back Button)
-      window.addEventListener('popstate', function (e) {
-        const activeFrame = document.getElementById('frame-' + currentTab);
-        // If navigating within the active frame, allow child to manage history
-        if (activeFrame && activeFrame.contentWindow && activeFrame.contentWindow.history.length > 1) {
-          try {
-            // Keep current tab active
-            return;
-          } catch (_) {}
-        }
-
-        const path = window.location.pathname;
-        const routeToTab = {
-          '/': 'home',
-          '/submit-form': 'singer',
-          '/master-bank': 'bank',
-          '/plan-view': 'plan',
-          '/my-hub': 'hub',
-          '/admin': 'admin'
-        };
-        const targetTab = (e.state && e.state.tab) || routeToTab[path] || mapPathToTab(path);
-        switchTab(targetTab, null, true);
-      });
-
-      // Child iframes postMessage listener
-      window.addEventListener('message', function (e) {
-        if (!e.data) return;
-        if (e.data.type === 'bp_navigated' && e.data.path) {
-          window.onFrameNavigated(e.data.path, e.data.path.split('?')[0]);
-        }
-      });
-
-      // Theme Toggle Controller
-      const themeBtn = document.getElementById('shellThemeToggle');
-      function syncThemeToFrames(theme) {
-        document.querySelectorAll('.shell-frame').forEach(function (f) {
-          try {
-            if (f.contentDocument && f.contentDocument.documentElement) {
-              if (theme === 'dark') {
-                f.contentDocument.documentElement.setAttribute('data-theme', 'dark');
-              } else {
-                f.contentDocument.documentElement.removeAttribute('data-theme');
-              }
-            }
-          } catch (e) { }
-        });
-      }
-
-      if (themeBtn) {
-        themeBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-          const next = isDark ? 'light' : 'dark';
-          if (next === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            try { localStorage.setItem('bp-theme', 'dark'); } catch (_) { }
-          } else {
-            document.documentElement.removeAttribute('data-theme');
-            try { localStorage.setItem('bp-theme', 'light'); } catch (_) { }
-          }
-          syncThemeToFrames(next);
-        });
-      }
-
-      // Propagate theme when frames load
-      document.querySelectorAll('.shell-frame').forEach(function (f) {
-        f.addEventListener('load', function () {
-          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-          syncThemeToFrames(isDark ? 'dark' : 'light');
-        });
-      });
-
-      // Check admin status from localStorage if currentAdmin wasn't present at render time
-      try {
-        const isAdminLoggedIn = <%= (typeof currentAdmin !== 'undefined' && Boolean(currentAdmin)) ? 'true' : 'false' %> || (localStorage.getItem('bp_is_admin') === 'true');
-        if (isAdminLoggedIn) {
-          const adminTabBtn = document.getElementById('tab-btn-admin');
-          if (adminTabBtn) adminTabBtn.style.display = '';
-        }
-      } catch (_) {}
-
-      // ── Notification Center Panel ──
-      const notifBtn = document.getElementById('shellNotifBtn');
-      const notifPanel = document.getElementById('notifPanel');
-      const notifOverlay = document.getElementById('notifOverlay');
-      const notifCloseBtn = document.getElementById('notifCloseBtn');
-      const notifMarkAllReadBtn = document.getElementById('notifMarkAllRead');
-      const notifBadge = document.getElementById('shellNotifBadge');
-
-      function getDeviceId() {
-        let id = localStorage.getItem('bp_device_id');
-        if (!id) {
-          id = 'dev_' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2));
-          try { localStorage.setItem('bp_device_id', id); } catch (_) { }
-        }
-        return id;
-      }
-
-      function autoMarkAllRead() {
-        const devId = getDeviceId();
-        if (notifBadge) {
-          notifBadge.style.display = 'none';
-          notifBadge.textContent = '';
-          notifBadge.classList.remove('has-unread');
-        }
-        document.querySelectorAll('#notifPanelBody .notif-item.unread').forEach(function (el) {
-          el.classList.remove('unread');
-        });
-        const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
-        fetch('/api/notifications/mark-all-read', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrf
-          },
-          body: JSON.stringify({ device_id: devId })
-        }).then(function () {
-          checkBadge();
-        }).catch(function () {});
-      }
-
-      window.openNotifPanel = function () {
-        if (notifPanel) notifPanel.classList.add('open');
-        if (notifOverlay) notifOverlay.classList.add('show');
-        loadNotifs();
-        autoMarkAllRead();
-      };
-
-      window.closeNotifPanel = function () {
-        if (notifPanel) notifPanel.classList.remove('open');
-        if (notifOverlay) notifOverlay.classList.remove('show');
-        autoMarkAllRead();
-      };
-
-      window.handleShellNotifClick = function (link) {
-        closeNotifPanel();
-        if (!link || link === '#') return;
-        if (link.startsWith('/plan-view')) {
-          switchTab('plan', link);
-        } else if (link.startsWith('/my-hub')) {
-          switchTab('hub', link);
-        } else if (link.startsWith('/master-bank')) {
-          switchTab('bank', link);
-        } else if (link.startsWith('/submit-form')) {
-          switchTab('singer', link);
-        } else {
-          window.location.href = link;
-        }
-      };
-
-      if (notifBtn) {
-        notifBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (notifPanel && notifPanel.classList.contains('open')) {
-            closeNotifPanel();
-          } else {
-            openNotifPanel();
-          }
-        });
-      }
-
-      if (notifCloseBtn) notifCloseBtn.addEventListener('click', closeNotifPanel);
-
-      function loadNotifs() {
-        const body = document.getElementById('notifPanelBody');
-        if (!body) return;
-        body.innerHTML = '<div class="notif-loading">Loading notifications...</div>';
-        const devId = getDeviceId();
-        fetch('/api/notifications?device_id=' + encodeURIComponent(devId))
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            const items = data.notifications || [];
-            if (items.length === 0) {
-              body.innerHTML = '<div class="notif-empty"><p>No new notifications.<br>You are all caught up!</p></div>';
-              return;
-            }
-            body.innerHTML = items.map(function (n) {
-              const isRead = n.isRead || n.is_read;
-              const title = n.title || 'Notification';
-              const text = n.body || n.message || '';
-              const link = n.link || '';
-              let iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
-              if (n.type === 'session_audio_published') {
-                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
-              } else if (n.type === 'deadline_reminder') {
-                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-              } else if (n.type === 'schedule_published') {
-                iconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
-              }
-              return (
-                '<div class="notif-item ' + (isRead ? '' : 'unread') + '"' +
-                (link ? ' data-link="' + escapeHtml(link) + '" style="cursor:pointer;" onclick="handleShellNotifClick(this.getAttribute(\'data-link\'))"' : '') + '>' +
-                '<div class="notif-item-icon" style="flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(217,119,6,0.12); color:#d97706; margin-right:10px;">' + iconSvg + '</div>' +
-                '<div class="notif-item-content" style="flex:1; min-width:0;">' +
-                '<div class="notif-item-title">' + escapeHtml(title) + '</div>' +
-                '<div class="notif-item-body">' + escapeHtml(text) + '</div>' +
-                '</div>' +
-                '</div>'
-              );
-            }).join('');
-
-            // Automatically clear unread markers from newly rendered items when panel is active
-            setTimeout(function () {
-              document.querySelectorAll('#notifPanelBody .notif-item.unread').forEach(function (el) {
-                el.classList.remove('unread');
-              });
-              if (notifBadge) {
-                notifBadge.style.display = 'none';
-                notifBadge.textContent = '';
-                notifBadge.classList.remove('has-unread');
-              }
-            }, 50);
-          })
-          .catch(function () {
-            body.innerHTML = '<div class="notif-loading">Failed to load notifications</div>';
-          });
-      }
-
-      function escapeHtml(str) {
-        if (!str) return '';
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-      }
-
-      if (notifMarkAllReadBtn) {
-        notifMarkAllReadBtn.addEventListener('click', autoMarkAllRead);
-      }
-
-      // Check badge count
-      function checkBadge() {
-        if (notifPanel && notifPanel.classList.contains('open')) {
-          if (notifBadge) notifBadge.style.display = 'none';
-          return;
-        }
-        const devId = getDeviceId();
-        fetch('/api/notifications/unread-count?device_id=' + encodeURIComponent(devId))
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            const count = d.count || 0;
-            if (notifBadge) {
-              if (count > 0 && !(notifPanel && notifPanel.classList.contains('open'))) {
-                notifBadge.textContent = count > 99 ? '99+' : count;
-                notifBadge.style.display = 'flex';
-                notifBadge.classList.add('has-unread');
-              } else {
-                notifBadge.style.display = 'none';
-                notifBadge.textContent = '';
-                notifBadge.classList.remove('has-unread');
-              }
-            }
-          })
-          .catch(function () {});
-      }
-      checkBadge();
-      setInterval(checkBadge, 60000);
-    })();
-  </script>
-
+  <!-- Global Persistent Engines (v6.2) -->
+  <script src="/js/haptics.js?v=6.2"></script>
+  <script src="/js/tanpura.js?v=6.2"></script>
+  <script src="/js/session-audio-player.js?v=6.2"></script>
+  <script src="/js/script.js?v=6.2"></script>
+  <script src="/js/pwa.js?v=6.2"></script>
+  <script src="/js/notifications.js?v=6.2"></script>
+  <script src="/js/app-shell-router.js?v=6.2"></script>
 </body>
 
 </html>

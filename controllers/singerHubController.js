@@ -11,6 +11,11 @@ const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const { NINETY_DAYS_MS, resolveSingerForAdmin } = require("../middleware/singerAuth");
 const { getLocalDateStr } = require("../services/helpers");
 const { safeRedirect, DUMMY_BCRYPT_HASH } = require("../services/securityHelpers");
+const {
+  getMasterCatalog,
+  getSingersCatalog,
+  invalidateSingerCache
+} = require("../services/catalogCache");
 
 const MAX_SINGER_PIN_FAILURES = 5;
 const SINGER_LOCKOUT_MS = 15 * 60 * 1000; // 15-minute temporary lockout
@@ -22,7 +27,8 @@ exports.showLoginPage = async (req, res) => {
   try {
     const singers = await Singer.scope("withSecrets").findAll({
       order: [["name", "ASC"]],
-      attributes: ["id", "name", "gender", "pin"]
+      attributes: ["id", "name", "gender", "pin"],
+      raw: true
     });
 
     const redirectUrl = safeRedirect(req.query.redirect, "/submit-form");
@@ -72,12 +78,13 @@ exports.checkSingerPinStatus = async (req, res) => {
 };
 
 /**
- * Singer authentication handler with database-backed lockout,
- * constant-time dummy bcrypt path, and coordinator-issued claim protection.
+ * Singer authentication handler:
+ * - Supports first-login self-service 4-digit PIN setup when `singer.pin` is unset.
+ * - Enforces 5-attempt 15-minute lockout and constant-time bcrypt verification once set.
  */
 exports.login = async (req, res) => {
   try {
-    const { singer_id, pin, redirect } = req.body;
+    const { singer_id, pin, confirm_pin, redirect } = req.body;
 
     if (!singer_id) {
       return res.status(400).json({ error: "Please select your name from the list." });
@@ -95,68 +102,75 @@ exports.login = async (req, res) => {
         .json({ error: "Please enter a valid 4-digit numeric PIN (e.g. 1234)." });
     }
 
-    // Query singer with secrets for authentication
     const singer = await Singer.scope("withSecrets").findByPk(numericSingerId);
 
-    // Constant-time execution path if singer not found or not yet claimed with a PIN
-    if (!singer || !singer.pin) {
+    if (!singer) {
       await bcrypt.compare(cleanPin, DUMMY_BCRYPT_HASH);
-      if (!singer) {
-        return res.status(404).json({ error: "Singer record not found." });
+      return res.status(404).json({ error: "Singer record not found." });
+    }
+
+    let isFirstPinSetup = false;
+
+    if (!singer.pin) {
+      // First-time login: allow singer to create their 4-digit PIN
+      if (confirm_pin !== undefined && String(confirm_pin).trim() !== cleanPin) {
+        return res.status(400).json({ error: "PINs do not match. Please verify both entries." });
       }
-      // Coordinator-set first-time claim policy:
-      // Devotees cannot self-claim names with arbitrary PINs; a coordinator or admin must issue the initial PIN.
-      return res.status(403).json({
-        error:
-          "This singer profile has not been assigned a PIN yet. Please contact a coordinator or admin to issue your initial PIN."
+      const hashedPin = await bcrypt.hash(cleanPin, 10);
+      await singer.update({
+        pin: hashedPin,
+        pin_set_at: new Date(),
+        failed_attempts: 0,
+        locked_until: null,
+        last_login_at: new Date()
       });
-    }
-
-    // Check database-backed temporary lockout
-    const now = Date.now();
-    if (singer.locked_until && new Date(singer.locked_until).getTime() > now) {
-      const remainingSec = Math.ceil((new Date(singer.locked_until).getTime() - now) / 1000);
-      const mins = Math.ceil(remainingSec / 60);
-      return res.status(429).json({
-        error: `Account is temporarily locked due to 5 consecutive incorrect PIN attempts. Please wait ${mins} minute${mins === 1 ? "" : "s"} or contact a coordinator.`
-      });
-    }
-
-    // Constant-time PIN verification
-    const isMatch = await bcrypt.compare(cleanPin, singer.pin);
-    if (!isMatch) {
-      const nextFailures = (singer.failed_attempts || 0) + 1;
-      if (nextFailures >= MAX_SINGER_PIN_FAILURES) {
-        await singer.update({
-          failed_attempts: nextFailures,
-          locked_until: new Date(Date.now() + SINGER_LOCKOUT_MS)
-        });
+      invalidateSingerCache();
+      isFirstPinSetup = true;
+    } else {
+      // Check database-backed temporary lockout
+      const now = Date.now();
+      if (singer.locked_until && new Date(singer.locked_until).getTime() > now) {
+        const remainingSec = Math.ceil((new Date(singer.locked_until).getTime() - now) / 1000);
+        const mins = Math.ceil(remainingSec / 60);
         return res.status(429).json({
-          error:
-            "Account is now temporarily locked for 15 minutes due to 5 consecutive incorrect PIN attempts. Please contact a coordinator if you forgot your PIN."
+          error: `Account is temporarily locked due to 5 consecutive incorrect PIN attempts. Please wait ${mins} minute${mins === 1 ? "" : "s"} or contact a coordinator.`
         });
       }
 
-      await singer.update({ failed_attempts: nextFailures });
-      const remaining = MAX_SINGER_PIN_FAILURES - nextFailures;
-      return res.status(403).json({
-        error: `Incorrect 4-digit PIN for ${singer.name}. (${remaining} attempt${remaining === 1 ? "" : "s"} remaining before temporary lock)`
+      const isMatch = await bcrypt.compare(cleanPin, singer.pin);
+      if (!isMatch) {
+        const nextFailures = (singer.failed_attempts || 0) + 1;
+        if (nextFailures >= MAX_SINGER_PIN_FAILURES) {
+          await singer.update({
+            failed_attempts: nextFailures,
+            locked_until: new Date(Date.now() + SINGER_LOCKOUT_MS)
+          });
+          return res.status(429).json({
+            error:
+              "Account is now temporarily locked for 15 minutes due to 5 consecutive incorrect PIN attempts. Please contact a coordinator if you forgot your PIN."
+          });
+        }
+
+        await singer.update({ failed_attempts: nextFailures });
+        const remaining = MAX_SINGER_PIN_FAILURES - nextFailures;
+        return res.status(403).json({
+          error: `Incorrect 4-digit PIN for ${singer.name}. (${remaining} attempt${remaining === 1 ? "" : "s"} remaining before temporary lock)`
+        });
+      }
+
+      await singer.update({
+        failed_attempts: 0,
+        locked_until: null,
+        last_login_at: new Date()
       });
     }
-
-    // Success: clear failed attempts and update last login
-    await singer.update({
-      failed_attempts: 0,
-      locked_until: null,
-      last_login_at: new Date()
-    });
 
     const existingVisitorId = req.session?.visitorId;
     const existingAdmin = req.session?.admin;
     const existingAdminUserId = req.session?.adminUserId;
+    const existingAdminLastActive = req.session?.adminLastActive;
     const validatedRedirect = safeRedirect(redirect, "/submit-form");
 
-    // Regenerate session to eliminate session fixation risks
     req.session.regenerate((err) => {
       if (err) {
         console.error(`[Req ${req.id || ""}] Session regeneration failed:`, err);
@@ -166,13 +180,16 @@ exports.login = async (req, res) => {
       if (existingVisitorId) req.session.visitorId = existingVisitorId;
       if (existingAdmin) req.session.admin = existingAdmin;
       if (existingAdminUserId) req.session.adminUserId = existingAdminUserId;
+      if (existingAdminLastActive) req.session.adminLastActive = existingAdminLastActive;
 
+      const now = Date.now();
       req.session.singer = {
         id: singer.id,
         name: singer.name,
         gender: singer.gender,
         preferred_scale: singer.preferred_scale || null,
-        pinVerifiedAt: Date.now()
+        pinVerifiedAt: now,
+        lastSyncedAt: now
       };
 
       if (existingAdminUserId) {
@@ -184,9 +201,10 @@ exports.login = async (req, res) => {
       req.session.save(() => {
         res.json({
           success: true,
+          createdPin: isFirstPinSetup,
           redirect: validatedRedirect,
           singer: req.session.singer,
-          showIntro: false
+          showIntro: isFirstPinSetup
         });
       });
     });
@@ -197,13 +215,12 @@ exports.login = async (req, res) => {
 };
 
 /**
- * Render the full devotee hub (dashboard)
+ * Render the full devotee hub (dashboard) with parallelized queries
  */
 exports.showHubPage = async (req, res) => {
   try {
     const singerSession = req.session.singer;
     const isAdmin = Boolean(req.session && (req.session.admin || req.session.adminUserId));
-
     const embedParam = req.query._embed === "1" ? "&_embed=1" : "";
 
     if (!singerSession && !isAdmin) {
@@ -216,12 +233,14 @@ exports.showHubPage = async (req, res) => {
       const username = req.session.admin?.username;
       const resolved = await resolveSingerForAdmin(adminId, displayName, username);
       if (resolved) {
+        const now = Date.now();
         req.session.singer = {
           id: resolved.id,
           name: resolved.name,
           gender: resolved.gender,
           preferred_scale: resolved.preferred_scale || null,
-          pinVerifiedAt: Date.now(),
+          pinVerifiedAt: now,
+          lastSyncedAt: now,
           isAdminLinked: true
         };
       }
@@ -239,28 +258,56 @@ exports.showHubPage = async (req, res) => {
 
     const todayStr = getLocalDateStr(new Date());
 
-    const upcomingSubmissions = await BhajanSubmission.findAll({
-      where: {
-        session_date: { [Op.gte]: todayStr },
-        [Op.or]: [{ singer_name: singer.name }, { partner_name: singer.name }]
-      },
-      order: [
-        ["session_date", "ASC"],
-        ["created_at", "ASC"]
-      ],
-      limit: 10
-    });
+    // Execute all 5 Hub queries in parallel instead of sequentially
+    const [upcomingSubmissions, pastSubmissions, myBookmarks, myReports, singersCatalog] =
+      await Promise.all([
+        BhajanSubmission.findAll({
+          where: {
+            session_date: { [Op.gte]: todayStr },
+            [Op.or]: [{ singer_name: singer.name }, { partner_name: singer.name }]
+          },
+          order: [
+            ["session_date", "ASC"],
+            ["created_at", "ASC"]
+          ],
+          limit: 10
+        }),
+        BhajanSubmission.findAll({
+          where: {
+            session_date: { [Op.lt]: todayStr },
+            [Op.or]: [{ singer_name: singer.name }, { partner_name: singer.name }]
+          },
+          order: [["session_date", "DESC"]],
+          limit: 30
+        }),
+        SingerBookmark.findAll({
+          where: { singer_id: singer.id },
+          include: [
+            {
+              model: MasterBhajan,
+              as: "masterBhajan",
+              attributes: { exclude: ["lyrics"] }
+            }
+          ],
+          order: [["created_at", "DESC"]]
+        }),
+        BhajanReport.findAll({
+          where: {
+            [Op.or]: [
+              { singer_id: singer.id },
+              { reporter_name: singer.name },
+              { visitor_id: `singer_${singer.id}` }
+            ]
+          },
+          order: [["created_at", "DESC"]],
+          limit: 15
+        }),
+        isAdmin ? getSingersCatalog() : Promise.resolve({ rows: [] })
+      ]);
 
-    const pastSubmissions = await BhajanSubmission.findAll({
-      where: {
-        session_date: { [Op.lt]: todayStr },
-        [Op.or]: [{ singer_name: singer.name }, { partner_name: singer.name }]
-      },
-      order: [["session_date", "DESC"]],
-      limit: 30
-    });
+    const allSingers = isAdmin ? singersCatalog.rows : [];
 
-    // Fetch published audio recordings / timestamps for this singer (both lead and partner bhajans)
+    // Attach published audio timestamps if present
     try {
       const pastSubIds = pastSubmissions.map((s) => s.id).filter(Boolean);
       const orConditions = [{ singer_name: singer.name }];
@@ -302,32 +349,6 @@ exports.showHubPage = async (req, res) => {
       console.warn("Could not load singer audio timestamps:", audioErr.message);
     }
 
-    const myBookmarks = await SingerBookmark.findAll({
-      where: { singer_id: singer.id },
-      include: [{ model: MasterBhajan, as: "masterBhajan" }],
-      order: [["created_at", "DESC"]]
-    });
-
-    const myReports = await BhajanReport.findAll({
-      where: {
-        [Op.or]: [
-          { singer_id: singer.id },
-          { reporter_name: singer.name },
-          { visitor_id: `singer_${singer.id}` }
-        ]
-      },
-      order: [["created_at", "DESC"]],
-      limit: 15
-    });
-
-    let allSingers = [];
-    if (isAdmin) {
-      allSingers = await Singer.findAll({
-        attributes: ["id", "name", "gender"],
-        order: [["name", "ASC"]]
-      });
-    }
-
     const verifiedAt = req.session?.singer?.pinVerifiedAt || Date.now();
     const elapsedMs = Math.max(0, Date.now() - verifiedAt);
     const daysRemaining = Math.max(
@@ -360,8 +381,8 @@ exports.showHubPage = async (req, res) => {
       daysRemaining,
       showWelcome,
       todayStr,
-      pageCSS: "singer-hub.css",
-      pageJS: "singer-hub.js"
+      pageCSS: null,
+      pageJS: null
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Error loading singer hub:`, error);
@@ -374,13 +395,14 @@ exports.showHub = exports.showHubPage;
  * Devotee Logout (Preserves admin session if logged in)
  */
 exports.logout = (req, res) => {
+  const target = safeRedirect(req.query.redirect, "/singer/login");
   if (req.session) {
     delete req.session.singer;
     req.session.save(() => {
-      res.redirect(safeRedirect(req.query.redirect, "/submit-form"));
+      res.redirect(target);
     });
   } else {
-    res.redirect("/submit-form");
+    res.redirect(target);
   }
 };
 
@@ -404,12 +426,14 @@ exports.adminSwitchSinger = async (req, res) => {
       return res.status(404).json({ error: "Singer record not found." });
     }
 
+    const now = Date.now();
     req.session.singer = {
       id: singer.id,
       name: singer.name,
       gender: singer.gender,
       preferred_scale: singer.preferred_scale || null,
-      pinVerifiedAt: Date.now(),
+      pinVerifiedAt: now,
+      lastSyncedAt: now,
       isAdminLinked: true
     };
 
@@ -417,6 +441,8 @@ exports.adminSwitchSinger = async (req, res) => {
       const adminId = req.session.adminUserId || req.session.admin?.id;
       if (adminId) {
         await AdminUser.update({ singer_id: singer.id }, { where: { id: adminId } });
+        const { invalidateAdminCache } = require("../middleware/auth");
+        invalidateAdminCache(adminId);
       }
     }
 
@@ -466,8 +492,11 @@ exports.changePin = async (req, res) => {
     const hashed = await bcrypt.hash(cleanNew, 10);
     await singer.update({
       pin: hashed,
-      pin_set_at: new Date()
+      pin_set_at: new Date(),
+      failed_attempts: 0,
+      locked_until: null
     });
+    invalidateSingerCache();
 
     req.session.singer.pinVerifiedAt = Date.now();
 
@@ -517,7 +546,9 @@ exports.toggleSongbook = async (req, res) => {
       return res.status(400).json({ error: "Master Bhajan ID is required." });
     }
 
-    const master = await MasterBhajan.findByPk(master_id);
+    const catalog = await getMasterCatalog();
+    const master =
+      catalog.fullById.get(Number(master_id)) || (await MasterBhajan.findByPk(master_id));
     if (!master) {
       return res.status(404).json({ error: "Bhajan not found." });
     }
@@ -594,7 +625,13 @@ exports.getSongbookList = async (req, res) => {
     const singerId = req.session.singer.id;
     const bookmarks = await SingerBookmark.findAll({
       where: { singer_id: singerId },
-      include: [{ model: MasterBhajan, as: "masterBhajan" }],
+      include: [
+        {
+          model: MasterBhajan,
+          as: "masterBhajan",
+          attributes: { exclude: ["lyrics"] }
+        }
+      ],
       order: [["created_at", "DESC"]]
     });
 
@@ -619,6 +656,7 @@ exports.updatePreferredScale = async (req, res) => {
 
     const cleanScale = preferred_scale ? preferred_scale.trim() : null;
     await singer.update({ preferred_scale: cleanScale });
+    invalidateSingerCache();
 
     if (req.session?.singer) {
       req.session.singer.preferred_scale = cleanScale;

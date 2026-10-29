@@ -1,24 +1,18 @@
-// ============================================================
-// Notification Service — Bhajan Planner
-// Handles notification creation, push delivery, and read state
-// ============================================================
-
 const webpush = require("web-push");
 const Notification = require("../models/Notification");
 const NotificationRead = require("../models/NotificationRead");
 const PushSubscription = require("../models/PushSubscription");
 const { Sequelize } = require("sequelize");
 
-// ── VAPID configuration ──────────────────────────────────────
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
+const UNREAD_WINDOW_DAYS = 60;
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
-// ── Create a notification (idempotent via event_key) ─────────
 async function createNotification({
   type,
   title,
@@ -42,7 +36,6 @@ async function createNotification({
     });
     return { notification, created };
   } catch (error) {
-    // Handle unique constraint race condition gracefully
     if (error.name === "SequelizeUniqueConstraintError") {
       const existing = await Notification.findOne({ where: { event_key: eventKey } });
       return { notification: existing, created: false };
@@ -51,11 +44,22 @@ async function createNotification({
   }
 }
 
-// ── Send Web Push to ALL enabled subscriptions ───────────────
+async function dispatchBatchedPush(subscriptions, payload, batchSize = 15) {
+  const results = [];
+  for (let i = 0; i < subscriptions.length; i += batchSize) {
+    const batch = subscriptions.slice(i, i + batchSize);
+    const batchRes = await Promise.allSettled(batch.map((sub) => sendPush(sub, payload)));
+    results.push(...batchRes);
+  }
+  return results;
+}
+
 async function sendPushToAll(notification) {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return [];
 
   const subscriptions = await PushSubscription.findAll({ where: { enabled: true } });
+  if (subscriptions.length === 0) return [];
+
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
@@ -64,20 +68,16 @@ async function sendPushToAll(notification) {
     badge: "/images/icons/icon-192x192.png"
   });
 
-  const results = await Promise.allSettled(subscriptions.map((sub) => sendPush(sub, payload)));
-
-  return results;
+  return dispatchBatchedPush(subscriptions, payload, 15);
 }
 
-// ── Send Web Push to a specific Singer's devices ─────────────
 async function sendPushToSinger(singerId, notification) {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return [];
 
   const subscriptions = await PushSubscription.findAll({
     where: { singer_id: singerId, enabled: true }
   });
-
-  if (subscriptions.length === 0) return;
+  if (subscriptions.length === 0) return [];
 
   const payload = JSON.stringify({
     title: notification.title,
@@ -87,12 +87,9 @@ async function sendPushToSinger(singerId, notification) {
     badge: "/images/icons/icon-192x192.png"
   });
 
-  const results = await Promise.allSettled(subscriptions.map((sub) => sendPush(sub, payload)));
-
-  return results;
+  return dispatchBatchedPush(subscriptions, payload, 15);
 }
 
-// ── Internal: send push to a single subscription ─────────────
 async function sendPush(sub, payload) {
   if (!sub.endpoint || sub.endpoint.startsWith("in_app_") || !sub.p256dh || !sub.auth) {
     return;
@@ -106,9 +103,7 @@ async function sendPush(sub, payload) {
       payload
     );
   } catch (error) {
-    // 404/410 = subscription expired or unsubscribed — remove it
     if (error.statusCode === 404 || error.statusCode === 410) {
-      console.log(`[Push] Removing expired subscription ${sub.id}`);
       await sub.destroy();
     } else {
       console.error(`[Push] Failed to send to subscription ${sub.id}:`, error.message);
@@ -116,8 +111,6 @@ async function sendPush(sub, payload) {
   }
 }
 
-// ── Get notifications for a device ───────────────────────────
-// Returns broadcast notifications + personalized notifications for the device's singer
 async function getNotificationsForDevice(deviceId, singerId = null, limit = 30) {
   const whereClause = singerId
     ? {
@@ -128,46 +121,61 @@ async function getNotificationsForDevice(deviceId, singerId = null, limit = 30) 
   const notifications = await Notification.findAll({
     where: whereClause,
     order: [["created_at", "DESC"]],
-    limit
+    limit,
+    raw: true
   });
 
-  // Get read status for each notification
+  if (notifications.length === 0) return [];
+
   const notificationIds = notifications.map((n) => n.id);
   const reads = await NotificationRead.findAll({
     where: {
-      notification_id: { [Sequelize.Op.in]: notificationIds },
-      device_id: deviceId
-    }
+      device_id: deviceId,
+      notification_id: { [Sequelize.Op.in]: notificationIds }
+    },
+    attributes: ["notification_id"],
+    raw: true
   });
   const readSet = new Set(reads.map((r) => r.notification_id));
 
-  return notifications.map((n) => ({
-    id: n.id,
-    type: n.type,
-    title: n.title,
-    body: n.body,
-    link: n.link,
-    isRead: readSet.has(n.id),
-    createdAt: n.created_at,
-    metadata: n.metadata ? JSON.parse(n.metadata) : null
-  }));
+  return notifications.map((n) => {
+    let parsedMeta = null;
+    if (n.metadata) {
+      try {
+        parsedMeta = JSON.parse(n.metadata);
+      } catch (_) {}
+    }
+    return {
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      link: n.link,
+      isRead: readSet.has(n.id),
+      createdAt: n.created_at,
+      metadata: parsedMeta
+    };
+  });
 }
 
-// ── Get unread count for a device ────────────────────────────
 async function getUnreadCount(deviceId, singerId = null) {
-  const whereClause = singerId
-    ? {
-        [Sequelize.Op.or]: [{ target_singer_id: null }, { target_singer_id: singerId }]
-      }
+  const cutoff = new Date(Date.now() - UNREAD_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const targetCond = singerId
+    ? { [Sequelize.Op.or]: [{ target_singer_id: null }, { target_singer_id: singerId }] }
     : { target_singer_id: null };
 
-  // Since include with count can be tricky with SQLite, use a simpler approach
-  const allNotifications = await Notification.findAll({
-    where: whereClause,
-    attributes: ["id"]
+  const recentNotifications = await Notification.findAll({
+    where: {
+      ...targetCond,
+      created_at: { [Sequelize.Op.gte]: cutoff }
+    },
+    attributes: ["id"],
+    order: [["created_at", "DESC"]],
+    limit: 100,
+    raw: true
   });
-  const notificationIds = allNotifications.map((n) => n.id);
 
+  const notificationIds = recentNotifications.map((n) => n.id);
   if (notificationIds.length === 0) return 0;
 
   const readIds = await NotificationRead.count({
@@ -177,10 +185,9 @@ async function getUnreadCount(deviceId, singerId = null) {
     }
   });
 
-  return notificationIds.length - readIds;
+  return Math.max(0, notificationIds.length - readIds);
 }
 
-// ── Mark a notification as read ──────────────────────────────
 async function markRead(notificationId, deviceId) {
   try {
     await NotificationRead.findOrCreate({
@@ -194,18 +201,23 @@ async function markRead(notificationId, deviceId) {
   }
 }
 
-// ── Mark all notifications as read for a device ──────────────
 async function markAllRead(deviceId, singerId = null) {
-  const whereClause = singerId
-    ? {
-        [Sequelize.Op.or]: [{ target_singer_id: null }, { target_singer_id: singerId }]
-      }
+  const cutoff = new Date(Date.now() - UNREAD_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const targetCond = singerId
+    ? { [Sequelize.Op.or]: [{ target_singer_id: null }, { target_singer_id: singerId }] }
     : { target_singer_id: null };
 
   const notifications = await Notification.findAll({
-    where: whereClause,
-    attributes: ["id"]
+    where: {
+      ...targetCond,
+      created_at: { [Sequelize.Op.gte]: cutoff }
+    },
+    attributes: ["id"],
+    limit: 200,
+    raw: true
   });
+
+  if (notifications.length === 0) return true;
 
   const bulkData = notifications.map((n) => ({
     notification_id: n.id,
@@ -213,12 +225,10 @@ async function markAllRead(deviceId, singerId = null) {
     read_at: new Date()
   }));
 
-  // Use ignoreDuplicates to skip already-read ones
   await NotificationRead.bulkCreate(bulkData, { ignoreDuplicates: true });
   return true;
 }
 
-// ── Create and broadcast a notification ──────────────────────
 async function createAndBroadcast({ type, title, body, link, eventKey, metadata = null }) {
   const { notification, created } = await createNotification({
     type,
@@ -235,7 +245,6 @@ async function createAndBroadcast({ type, title, body, link, eventKey, metadata 
   return { notification, created };
 }
 
-// ── Create a personalized notification ───────────────────────
 async function createPersonalized({
   type,
   title,
@@ -260,7 +269,6 @@ async function createPersonalized({
   return { notification, created };
 }
 
-// ── Get all notifications (admin view) ───────────────────────
 async function getAllNotifications(limit = 100) {
   return Notification.findAll({
     order: [["created_at", "DESC"]],
@@ -268,7 +276,6 @@ async function getAllNotifications(limit = 100) {
   });
 }
 
-// ── Delete a notification ────────────────────────────────────
 async function deleteNotification(id) {
   await NotificationRead.destroy({ where: { notification_id: id } });
   await Notification.destroy({ where: { id } });

@@ -6,8 +6,7 @@ const { Op } = require("sequelize");
 const { resolveSingerForAdmin } = require("../middleware/singerAuth");
 const {
   safeJsonStringify,
-  validatePasswordPolicy,
-  safeRedirect
+  validatePasswordPolicy
 } = require("../services/securityHelpers");
 const { destroyAdminSessions } = require("../services/sessionManager");
 const { invalidateAdminCache } = require("../middleware/auth");
@@ -17,7 +16,7 @@ const googleClient = new OAuth2Client();
 async function createAdminSession(req, admin) {
   return new Promise((resolve, reject) => {
     const prevVisitorId = req.session?.visitorId;
-    const prevSinger = req.session?.singer; // Preserve existing singer session!
+    const prevSinger = req.session?.singer; // Preserve existing devotee singer session
 
     req.session.regenerate(async (regenErr) => {
       if (regenErr) {
@@ -26,8 +25,9 @@ async function createAdminSession(req, admin) {
       }
       if (prevVisitorId) req.session.visitorId = prevVisitorId;
 
+      const now = Date.now();
       req.session.adminUserId = admin.id;
-      req.session.adminLastActive = Date.now();
+      req.session.adminLastActive = now;
 
       req.session.admin = {
         id: admin.id,
@@ -39,7 +39,6 @@ async function createAdminSession(req, admin) {
         singer_id: admin.singer_id
       };
 
-      // Restore previously authenticated singer session OR auto-link admin's singer profile
       if (prevSinger) {
         req.session.singer = prevSinger;
       } else {
@@ -51,7 +50,8 @@ async function createAdminSession(req, admin) {
               name: singer.name,
               gender: singer.gender,
               preferred_scale: singer.preferred_scale || null,
-              pinVerifiedAt: Date.now(),
+              pinVerifiedAt: now,
+              lastSyncedAt: now,
               isAdminLinked: true
             };
           }
@@ -294,28 +294,7 @@ exports.logout = async (req, res) => {
     console.error("Logout presence update failed:", err.message);
   }
 
-  // Destroy admin session securely
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) console.error("Session destroy error on logout:", err);
-      res.clearCookie("connect.sid");
-      res.clearCookie("ps_csrf");
-      res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Logging out...</title></head><body>
-      <script>
-        try {
-          localStorage.removeItem('bp_is_admin');
-          localStorage.removeItem('bp_admin_name');
-          localStorage.removeItem('bp_admin_role');
-        } catch(_) {}
-        if (window.top && window.top !== window.self) {
-          window.top.location.href = '/?logged_out=' + Date.now();
-        } else {
-          window.location.href = '/?logged_out=' + Date.now();
-        }
-      </script>
-      </body></html>`);
-    });
-  } else {
+  const sendLogoutHtml = () => {
     res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Logging out...</title></head><body>
     <script>
       try {
@@ -330,6 +309,38 @@ exports.logout = async (req, res) => {
       }
     </script>
     </body></html>`);
+  };
+
+  if (req.session) {
+    // Preserve an independently PIN-verified 90-day devotee singer session if present
+    const hasIndependentSinger =
+      req.session.singer && !req.session.singer.isAdminLinked && req.session.singer.id;
+
+    if (hasIndependentSinger) {
+      delete req.session.admin;
+      delete req.session.adminUserId;
+      delete req.session.adminLastActive;
+      delete req.session.recoveryAdminId;
+      delete req.session.recoveryExpires;
+      delete req.session.passwordRecovery;
+      return req.session.save(() => sendLogoutHtml());
+    }
+
+    const cookieClearOpts = {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    };
+
+    req.session.destroy((err) => {
+      if (err) console.error("Session destroy error on logout:", err);
+      res.clearCookie("connect.sid", cookieClearOpts);
+      res.clearCookie("ps_csrf", cookieClearOpts);
+      res.clearCookie("ps_csrf_uid", cookieClearOpts);
+      sendLogoutHtml();
+    });
+  } else {
+    sendLogoutHtml();
   }
 };
 
@@ -346,7 +357,6 @@ exports.checkForgotPassword = async (req, res) => {
     where: { username, is_active: true }
   });
 
-  // Generic response to prevent account enumeration
   if (!admin || !admin.google_sub) {
     const superAdmin = await AdminUser.findOne({
       where: {
@@ -360,9 +370,8 @@ exports.checkForgotPassword = async (req, res) => {
     });
   }
 
-  // Bound to server-side session state: no admin id in the URL!
   req.session.recoveryAdminId = admin.id;
-  req.session.recoveryExpires = Date.now() + 10 * 60 * 1000; // 10 min validity
+  req.session.recoveryExpires = Date.now() + 10 * 60 * 1000;
 
   req.session.save(() => {
     res.redirect("/forgot-password/google");
@@ -477,7 +486,6 @@ exports.resetForgotPassword = async (req, res) => {
   admin.password_hash = await bcrypt.hash(password, 12);
   await admin.save();
 
-  // Invalidate any active sessions across devices and clear recovery tokens
   await destroyAdminSessions(admin.id);
   invalidateAdminCache(admin.id);
 

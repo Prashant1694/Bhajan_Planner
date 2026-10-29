@@ -9,50 +9,39 @@ const {
 const { Sequelize } = require("sequelize");
 
 exports.home = async (req, res) => {
+  const isShellFragment =
+    req.headers["x-app-shell"] === "1" || req.query._fragment === "1";
   const isIframe =
     req.query._embed === "1" ||
     req.query.embed === "1" ||
     req.headers["sec-fetch-dest"] === "iframe" ||
     (Boolean(req.headers["referer"]) && req.headers["referer"].includes("_embed=1"));
 
-  // Serve the App Shell with the new header & footer for direct browser visits
-  if (!isIframe && req.query.standalone !== "1") {
-    let initialRoute = (req.query.route || req.query.url || "").trim();
-    let initialTab = (req.query.tab || "").trim();
-    if (!initialTab) initialTab = "home";
+  const todayStr = getLocalDateStr();
+  const thuStatus = getThursdaySubmissionStatus();
 
-    return res.render("app-shell", {
-      layout: false,
-      pageTitle: "Bhajan Planner",
-      initialTab,
-      initialRoute: initialRoute || null,
-      currentAdmin: req.session?.admin || null,
-      currentSinger: req.session?.singer || null
-    });
-  }
+  const [bulletinsResult, specialSessionsResult] = await Promise.allSettled([
+    getLatestBulletins(5),
+    SessionPermission.findAll({
+      where: { date: { [Sequelize.Op.gte]: todayStr } },
+      order: [["date", "ASC"]],
+      limit: 3,
+      raw: true
+    })
+  ]);
 
-  let bulletins = [];
-  try {
-    bulletins = await getLatestBulletins(5);
-  } catch (err) {
-    console.error("Failed to load bulletins for home page:", err.message);
+  const bulletins = bulletinsResult.status === "fulfilled" ? bulletinsResult.value : [];
+  if (bulletinsResult.status === "rejected") {
+    console.error("Failed to load bulletins for home page:", bulletinsResult.reason?.message);
   }
 
   let upcomingSessions = [];
   try {
-    const todayStr = getLocalDateStr();
-    const thuStatus = getThursdaySubmissionStatus();
-
-    // 1. Fetch upcoming special / festival sessions
-    const specialSessions = await SessionPermission.findAll({
-      where: { date: { [Sequelize.Op.gte]: todayStr } },
-      order: [["date", "ASC"]],
-      limit: 3
-    });
-
+    const specialSessions =
+      specialSessionsResult.status === "fulfilled" ? specialSessionsResult.value : [];
     const sessionDatesMap = new Map();
 
-    // Add active / upcoming special sessions
+    // 1. Add active / upcoming special sessions
     for (const sp of specialSessions) {
       if (isSessionActiveOrUpcoming(sp.date, sp.description)) {
         const isToday = sp.date === todayStr;
@@ -70,21 +59,18 @@ exports.home = async (req, res) => {
     }
 
     // 2. Add Thursday session
-    // If today is Thursday and live plan active (before 8:30 PM):
-    if (thuStatus.isThursdayLiveActive) {
-      if (!sessionDatesMap.has(thuStatus.todayStr)) {
-        sessionDatesMap.set(thuStatus.todayStr, {
-          date: thuStatus.todayStr,
-          type: "regular",
-          label: "Thursday Mandir Bhajan",
-          tag: "Mandir Bhajan",
-          isOpen: false,
-          isClosedForSubmissions: true,
-          opensAt8pmToday: false,
-          isToday: true,
-          isLiveNow: true
-        });
-      }
+    if (thuStatus.isThursdayLiveActive && !sessionDatesMap.has(thuStatus.todayStr)) {
+      sessionDatesMap.set(thuStatus.todayStr, {
+        date: thuStatus.todayStr,
+        type: "regular",
+        label: "Thursday Mandir Bhajan",
+        tag: "Mandir Bhajan",
+        isOpen: false,
+        isClosedForSubmissions: true,
+        opensAt8pmToday: false,
+        isToday: true,
+        isLiveNow: true
+      });
     }
 
     // Add upcoming Thursday (the one open for submissions or opening at 8 PM)
@@ -102,16 +88,29 @@ exports.home = async (req, res) => {
       });
     }
 
-    // 3. For each session in map, format date and fetch submission counts
+    // 3. Batch submission count query (1 GROUP BY query instead of N sequential counts)
     const sortedEntries = Array.from(sessionDatesMap.values()).sort((a, b) =>
       a.date.localeCompare(b.date)
     );
 
-    for (const s of sortedEntries) {
-      const count = await BhajanSubmission.count({
-        where: { session_date: s.date }
+    const countByDate = new Map();
+    if (sortedEntries.length > 0) {
+      const dateKeys = sortedEntries.map((s) => s.date);
+      const countRows = await BhajanSubmission.findAll({
+        attributes: [
+          "session_date",
+          [Sequelize.fn("COUNT", Sequelize.col("id")), "cnt"]
+        ],
+        where: { session_date: { [Sequelize.Op.in]: dateKeys } },
+        group: ["session_date"],
+        raw: true
       });
+      countRows.forEach((r) => {
+        countByDate.set(r.session_date, parseInt(r.cnt, 10) || 0);
+      });
+    }
 
+    for (const s of sortedEntries) {
       let formattedDate = s.date;
       try {
         const [y, m, d] = s.date.split("-").map(Number);
@@ -126,7 +125,7 @@ exports.home = async (req, res) => {
       upcomingSessions.push({
         ...s,
         formattedDate,
-        submissionCount: count
+        submissionCount: countByDate.get(s.date) || 0
       });
     }
   } catch (err) {
@@ -136,7 +135,9 @@ exports.home = async (req, res) => {
   const upcomingSession = upcomingSessions[0] || null;
 
   res.render("dashboard", {
-    showLoader: true,
+    showLoader: !isIframe && !isShellFragment,
+    pageTitle: "Home — Bhajan Planner",
+    page: "home",
     pageCSS: "dashboard-glass.css",
     bulletins,
     CATEGORY_INFO,

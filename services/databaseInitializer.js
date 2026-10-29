@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
@@ -11,7 +12,6 @@ const DeityRule = require("../models/DeityRule");
 const ActivityLog = require("../models/ActivityLog");
 const UserPresence = require("../models/UserPresence");
 
-// New models for notification + bulletin system
 const Notification = require("../models/Notification");
 const NotificationRead = require("../models/NotificationRead");
 const PushSubscription = require("../models/PushSubscription");
@@ -85,6 +85,12 @@ async function ensureMasterBhajanSchema() {
     await sequelize.query(
       "CREATE INDEX IF NOT EXISTS idx_master_bhajans_is_active ON master_bhajans(is_active)"
     );
+    await sequelize.query(
+      "CREATE INDEX IF NOT EXISTS idx_master_bhajans_title_nocase ON master_bhajans(title COLLATE NOCASE)"
+    );
+    await sequelize.query(
+      "CREATE INDEX IF NOT EXISTS idx_master_bhajans_deity ON master_bhajans(deity)"
+    );
   } catch (err) {
     console.error("MasterBhajan schema check failed:", err.message);
   }
@@ -98,12 +104,31 @@ async function syncMasterBhajans() {
       return;
     }
 
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS _app_meta (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT
+      )
+    `);
+
+    const rawJson = fs.readFileSync(filePath, "utf8");
+    const contentHash = crypto.createHash("sha256").update(rawJson).digest("hex");
+    const data = JSON.parse(rawJson);
+
+    const [metaRows] = await sequelize.query(
+      "SELECT value FROM _app_meta WHERE key = 'master_bhajans_sha256' LIMIT 1"
+    );
+    const storedHash = metaRows && metaRows[0] ? metaRows[0].value : null;
+    const currentActiveCount = await MasterBhajan.count({ where: { is_active: true } });
+
+    if (storedHash === contentHash && currentActiveCount === data.length) {
+      return;
+    }
+
     const { Op } = require("sequelize");
-    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
     const validIds = new Set(data.map((item) => item.id));
 
-    // 1. Instantly deactivate all non-Prashanti Mandir bhajans
-    // This safely filters the active catalog to the 1,024 PMB bhajans while preserving historical references
+    // 1. Deactivate all non-Prashanti Mandir bhajans
     const [deactivated] = await MasterBhajan.update(
       { is_active: false },
       {
@@ -117,60 +142,90 @@ async function syncMasterBhajans() {
       console.log(`📦 Archived ${deactivated} non-Prashanti Mandir bhajans.`);
     }
 
-    // 2. Synchronize / upsert authoritative 1,024 Prashanti Mandir bhajans
-    await sequelize.transaction(async (t) => {
-      for (const item of data) {
-        let deityClean = item.deity;
-        if (deityClean) {
-          const seenDeities = new Set();
-          deityClean.split(/[,;&\/]+/).forEach((s) => {
-            const t = s.trim();
-            const l = t.toLowerCase();
-            if (
-              l === "anjaneya" ||
-              l === "aanjaneya" ||
-              l === "hanuman" ||
-              l === "maruti" ||
-              l === "maruthi"
-            ) {
-              seenDeities.add("Hanuman");
-            } else if (
-              l === "vittala" ||
-              l === "vithhala" ||
-              l === "vithala" ||
-              l === "vitthala"
-            ) {
-              seenDeities.add("Vitthala");
-            } else if (l === "devi" || l === "mata") {
-              seenDeities.add("Mata");
-            } else if (l === "sarva dharma" || l === "sarvadharma") {
-              seenDeities.add("SarvaDharma");
-            } else if (t) {
-              seenDeities.add(t);
-            }
-          });
-          deityClean = Array.from(seenDeities).join(", ");
-        }
-        await MasterBhajan.upsert(
-          {
-            id: item.id,
-            title: item.title,
-            deity: deityClean,
-            level: item.level || null,
-            tempo: item.tempo || null,
-            raga: item.raga || null,
-            raga_notes: item.raga_notes || null,
-            shruti: item.shruti || null,
-            shruti_female: item.shruti_female || null,
-            language: item.language || null,
-            lyrics: item.lyrics || null,
-            sheet_filename: item.sheet_filename || null,
-            is_active: true
-          },
-          { transaction: t }
-        );
+    // 2. Batch-upsert authoritative 1,024 Prashanti Mandir bhajans in safe parameter chunks
+    const preparedRows = data.map((item) => {
+      let deityClean = item.deity;
+      if (deityClean) {
+        const seenDeities = new Set();
+        deityClean.split(/[,;&\/]+/).forEach((s) => {
+          const t = s.trim();
+          const l = t.toLowerCase();
+          if (
+            l === "anjaneya" ||
+            l === "aanjaneya" ||
+            l === "hanuman" ||
+            l === "maruti" ||
+            l === "maruthi"
+          ) {
+            seenDeities.add("Hanuman");
+          } else if (
+            l === "vittala" ||
+            l === "vithhala" ||
+            l === "vithala" ||
+            l === "vitthala"
+          ) {
+            seenDeities.add("Vitthala");
+          } else if (l === "devi" || l === "mata") {
+            seenDeities.add("Mata");
+          } else if (l === "sarva dharma" || l === "sarvadharma") {
+            seenDeities.add("SarvaDharma");
+          } else if (t) {
+            seenDeities.add(t);
+          }
+        });
+        deityClean = Array.from(seenDeities).join(", ");
       }
+      return {
+        id: item.id,
+        title: item.title,
+        deity: deityClean,
+        level: item.level || null,
+        tempo: item.tempo || null,
+        raga: item.raga || null,
+        raga_notes: item.raga_notes || null,
+        shruti: item.shruti || null,
+        shruti_female: item.shruti_female || null,
+        language: item.language || null,
+        lyrics: item.lyrics || null,
+        sheet_filename: item.sheet_filename || null,
+        is_active: true
+      };
     });
+
+    const CHUNK_SIZE = 70;
+    const updateFields = [
+      "title",
+      "deity",
+      "level",
+      "tempo",
+      "raga",
+      "raga_notes",
+      "shruti",
+      "shruti_female",
+      "language",
+      "lyrics",
+      "sheet_filename",
+      "is_active"
+    ];
+
+    await sequelize.transaction(async (t) => {
+      for (let i = 0; i < preparedRows.length; i += CHUNK_SIZE) {
+        const chunk = preparedRows.slice(i, i + CHUNK_SIZE);
+        await MasterBhajan.bulkCreate(chunk, {
+          updateOnDuplicate: updateFields,
+          transaction: t
+        });
+      }
+      await sequelize.query(
+        "INSERT INTO _app_meta (key, value) VALUES ('master_bhajans_sha256', :hash) ON CONFLICT(key) DO UPDATE SET value = :hash",
+        { replacements: { hash: contentHash }, transaction: t }
+      );
+    });
+
+    try {
+      const { invalidateMasterCache } = require("./catalogCache");
+      invalidateMasterCache();
+    } catch (_) {}
 
     const activeCount = await MasterBhajan.count({ where: { is_active: true } });
     console.log(
@@ -240,18 +295,25 @@ async function initDeityRules() {
       "Hanuman"
     ];
 
-    for (const deity of defaultDeities) {
-      await DeityRule.findOrCreate({
-        where: { session_date: "default", deity_name: deity },
-        defaults: {
+    const existing = await DeityRule.findAll({
+      where: { session_date: "default" },
+      attributes: ["deity_name"],
+      raw: true
+    });
+    const existingSet = new Set(existing.map((r) => r.deity_name));
+    const missing = defaultDeities.filter((d) => !existingSet.has(d));
+
+    if (missing.length > 0) {
+      await DeityRule.bulkCreate(
+        missing.map((deity) => ({
           session_date: "default",
           deity_name: deity,
           min_required: 0,
           max_allowed: 2
-        }
-      });
+        })),
+        { ignoreDuplicates: true }
+      );
     }
-    console.log("✅ Deity rules verified for all deities including Narayana.");
   } catch (error) {
     console.error("Error initializing deity rules:", error);
   }
@@ -283,10 +345,12 @@ async function normalizeDeityNames() {
     await MasterBhajan.update({ deity: "SarvaDharma" }, { where: { deity: "Sarva dharma" } });
     await BhajanSubmission.update({ deity: "SarvaDharma" }, { where: { deity: "Sarva dharma" } });
 
-    // Normalize Vittala / Vithhala / Vithala -> Vitthala
+    // Only scan rows containing legacy misspellings (excluding already-normalized exact 'Vitthala')
     const [mbRows] = await sequelize.query(`
-      SELECT id, deity FROM master_bhajans 
-      WHERE LOWER(deity) LIKE '%vitt%' OR LOWER(deity) LIKE '%vith%'
+      SELECT id, deity FROM master_bhajans
+      WHERE deity IS NOT NULL
+        AND deity != 'Vitthala'
+        AND (LOWER(deity) LIKE '%vittala%' OR LOWER(deity) LIKE '%vithhala%' OR LOWER(deity) LIKE '%vithala%')
     `);
     for (const r of mbRows) {
       const parts = (r.deity || "")
@@ -309,18 +373,11 @@ async function normalizeDeityNames() {
       }
     }
 
-    const [subRows] = await sequelize.query(`
-      SELECT id, deity FROM bhajans_submitted_v2 
-      WHERE LOWER(deity) LIKE '%vitt%' OR LOWER(deity) LIKE '%vith%'
+    await sequelize.query(`
+      UPDATE bhajans_submitted_v2
+      SET deity = 'Vitthala'
+      WHERE LOWER(TRIM(deity)) IN ('vittala', 'vithhala', 'vithala')
     `);
-    for (const r of subRows) {
-      const low = (r.deity || "").toLowerCase().trim();
-      if (low === "vittala" || low === "vithhala" || low === "vithala") {
-        await sequelize.query(`UPDATE bhajans_submitted_v2 SET deity = 'Vitthala' WHERE id = :id`, {
-          replacements: { id: r.id }
-        });
-      }
-    }
   } catch (error) {
     console.error("Error normalizing deities:", error);
   }
@@ -347,7 +404,6 @@ async function ensureActivityTables() {
     await ActivityLog.sync();
     await UserPresence.sync();
 
-    // Double check session_id column in activity_logs
     const [actCols] = await sequelize.query("PRAGMA table_info(activity_logs)");
     if (actCols && !actCols.some((col) => col.name === "session_id")) {
       await sequelize.query(
@@ -355,7 +411,6 @@ async function ensureActivityTables() {
       );
     }
 
-    // Double check session_id column in user_presence
     const [presCols] = await sequelize.query("PRAGMA table_info(user_presence)");
     if (presCols && !presCols.some((col) => col.name === "session_id")) {
       await sequelize.query(
@@ -369,8 +424,6 @@ async function ensureActivityTables() {
 
 async function ensureNotificationTables() {
   try {
-    // These sync() calls only CREATE tables if they don't exist.
-    // They will NOT alter or drop existing tables.
     await Notification.sync();
     await NotificationRead.sync();
     await PushSubscription.sync();
@@ -380,7 +433,6 @@ async function ensureNotificationTables() {
     await SessionAudio.sync();
     await SessionAudioTimestamp.sync();
 
-    // Check singer_id column in bhajan_reports
     const [repCols] = await sequelize.query("PRAGMA table_info(bhajan_reports)");
     if (repCols && !repCols.some((col) => col.name === "singer_id")) {
       await sequelize.query("ALTER TABLE bhajan_reports ADD COLUMN singer_id INTEGER");
@@ -396,34 +448,36 @@ async function ensureNotificationTables() {
 }
 
 async function ensureDatabaseIndexes() {
-  try {
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_sub_session_date ON bhajans_submitted_v2(session_date)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_sub_singer_name ON bhajans_submitted_v2(singer_name)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_sub_partner_name ON bhajans_submitted_v2(partner_name)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_sub_date_title ON bhajans_submitted_v2(session_date, title)"
-    );
-    await sequelize.query("CREATE INDEX IF NOT EXISTS idx_singers_name ON singer_dictionary(name)");
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_bhajan_reports_status_created ON bhajan_reports(status, created_at)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_activity_logs_session_created ON activity_logs(session_id, created_at)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_activity_logs_ip_created ON activity_logs(ip_address, created_at)"
-    );
-    await sequelize.query(
-      "CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON user_presence(last_seen_at)"
-    );
-  } catch (err) {
-    console.error("Index creation notice:", err.message);
+  const indexStatements = [
+    "CREATE INDEX IF NOT EXISTS idx_sub_session_date ON bhajans_submitted_v2(session_date)",
+    "CREATE INDEX IF NOT EXISTS idx_sub_singer_name ON bhajans_submitted_v2(singer_name COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_sub_partner_name ON bhajans_submitted_v2(partner_name COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_sub_date_title ON bhajans_submitted_v2(session_date, title)",
+    "CREATE INDEX IF NOT EXISTS idx_sub_title_nocase ON bhajans_submitted_v2(title COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_singers_name ON singer_dictionary(name COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_bhajan_reports_status_created ON bhajan_reports(status, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_bhajan_reports_reporter_name ON bhajan_reports(reporter_name COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_push_sub_device_id ON push_subscriptions(device_id)",
+    "CREATE INDEX IF NOT EXISTS idx_push_sub_singer_enabled ON push_subscriptions(singer_id, enabled)",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_target_created ON notifications(target_singer_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_notif_reads_device_notif ON notification_reads(device_id, notification_id)",
+    "CREATE INDEX IF NOT EXISTS idx_bulletins_status_pin_pub ON bulletins(status, is_pinned, published_at)",
+    "CREATE INDEX IF NOT EXISTS idx_activity_logs_session_created ON activity_logs(session_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_activity_logs_ip_created ON activity_logs(ip_address, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_activity_logs_username_created ON activity_logs(username, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON user_presence(last_seen_at)",
+    "CREATE INDEX IF NOT EXISTS idx_singer_bookmarks_singer ON singer_bookmarks(singer_id)",
+    "CREATE INDEX IF NOT EXISTS idx_sessions_expires ON Sessions(expires)"
+  ];
+
+  for (const sql of indexStatements) {
+    try {
+      await sequelize.query(sql);
+    } catch (_) {
+      // Safe if an optional table (e.g. Sessions before sync) does not yet exist
+    }
   }
 }
 
@@ -435,23 +489,21 @@ async function initializeDatabase() {
     await ensureSingerPinColumn();
     await ensureActivityTables();
     await ensureNotificationTables();
-    await ensureDatabaseIndexes();
+    await ensureMasterBhajanSchema();
     const { runDiwaliMigration } = require("./diwaliMigration");
     await runDiwaliMigration();
+    await ensureDatabaseIndexes();
 
     await initializeSuperAdmin();
     await migrateLegacySubmissions();
-    await ensureMasterBhajanSchema();
     await syncMasterBhajans();
     await initDeityRules();
     await normalizeDeityNames();
 
     if (process.env.NODE_ENV !== "test") {
-      // Start session lifecycle scheduler for automatic notifications
       const { startSessionScheduler } = require("./sessionScheduler");
       startSessionScheduler();
 
-      // Start nightly database backup scheduler
       const { startNightlyBackupScheduler } = require("./backupService");
       startNightlyBackupScheduler();
     }

@@ -4,7 +4,6 @@ const activityService = require("../services/activityService");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const SessionPermission = require("../models/SessionPermission");
 const SessionMeta = require("../models/SessionMeta");
-const MasterBhajan = require("../models/MasterBhajan");
 const DeityRule = require("../models/DeityRule");
 const AdminUser = require("../models/AdminUser");
 const SessionAudio = require("../models/SessionAudio");
@@ -18,67 +17,73 @@ const {
   validateToggleLock
 } = require("../services/validators");
 const { createBackup, getOrGenerateBackup } = require("../services/backupService");
-
 const {
-  getNextThursday,
   getLocalDateStr,
-  formatDateHuman,
-  timeSince,
   deityOrderKey,
-  SPEED_ORDER,
   DEITY_ORDER,
   getWesternScale,
   getDeityIcon,
-  getNumberEmoji
+  invalidateMissingCount
 } = require("../services/helpers");
-
-const {
-  findSimilarBhajans,
-  buildMasterIndex,
-  matchWithIndex
-} = require("../services/fuzzyMatcher");
-
-const {
-  generateAdminCalendarHtml,
-  generateAdminSessionViewHtml,
-  generateAdminRulesHtml,
-  generateEditFormHtml,
-  generateSuccessHtml,
-  generateErrorHtml,
-  generateAdminImportSessionsHtml,
-  escapeHtml
-} = require("../templates");
+const { matchWithIndex } = require("../services/fuzzyMatcher");
+const { getMasterCatalog, normalizeTitleKey } = require("../services/catalogCache");
+const { escapeHtml } = require("../templates");
 const { parseBatchSessions } = require("../scripts/import_sessions");
-const requireLogin = require("../middleware/auth");
 
 exports.dashboard = async (req, res) => {
   try {
     const today = new Date();
-    const year = parseInt(req.query.year) || today.getFullYear();
-    const month = parseInt(req.query.month) || today.getMonth() + 1;
+    const year = parseInt(req.query.year, 10) || today.getFullYear();
+    const month = parseInt(req.query.month, 10) || today.getMonth() + 1;
 
     const startDateStr = `${year}-${String(month).padStart(2, "0")}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDateStr = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    // Fetch submissions for this month
-    const submissions = await BhajanSubmission.findAll({
-      where: {
-        session_date: {
-          [Sequelize.Op.between]: [startDateStr, endDateStr]
-        }
-      }
-    });
+    const [
+      submissions,
+      permissions,
+      totalSessions,
+      catalog,
+      totalSingers,
+      nextSession,
+      recentActivity
+    ] = await Promise.all([
+      BhajanSubmission.findAll({
+        attributes: ["session_date"],
+        where: {
+          session_date: {
+            [Sequelize.Op.between]: [startDateStr, endDateStr]
+          }
+        },
+        raw: true
+      }),
+      SessionPermission.findAll({
+        where: {
+          date: {
+            [Sequelize.Op.between]: [startDateStr, endDateStr]
+          }
+        },
+        raw: true
+      }),
+      SessionMeta.count(),
+      getMasterCatalog(),
+      BhajanSubmission.count({
+        distinct: true,
+        col: "singer_name"
+      }),
+      SessionPermission.findOne({
+        where: {
+          date: {
+            [Sequelize.Op.gte]: getLocalDateStr()
+          }
+        },
+        order: [["date", "ASC"]]
+      }),
+      activityService.getRecent(10)
+    ]);
 
-    // Fetch permissions
-    const permissions = await SessionPermission.findAll({
-      where: {
-        date: {
-          [Sequelize.Op.between]: [startDateStr, endDateStr]
-        }
-      }
-    });
-
+    const totalBhajans = catalog.lightRows.length;
     const permissionMap = {};
     const descriptionMap = {};
 
@@ -87,32 +92,11 @@ exports.dashboard = async (req, res) => {
       descriptionMap[p.date] = p.description;
     });
 
-    // Count events
     const eventCounts = {};
-
     submissions.forEach((s) => {
       eventCounts[s.session_date] = (eventCounts[s.session_date] || 0) + 1;
     });
 
-    // Dashboard statistics
-    const [totalSessions, totalBhajans, totalSingers, nextSession, recentActivity] =
-      await Promise.all([
-        SessionMeta.count(),
-        MasterBhajan.count({ where: { is_active: true } }),
-        BhajanSubmission.count({
-          distinct: true,
-          col: "singer_name"
-        }),
-        SessionPermission.findOne({
-          where: {
-            date: {
-              [Sequelize.Op.gte]: getLocalDateStr()
-            }
-          },
-          order: [["date", "ASC"]]
-        }),
-        activityService.getRecent(10)
-      ]);
     const monthNames = [
       "January",
       "February",
@@ -129,7 +113,6 @@ exports.dashboard = async (req, res) => {
     ];
 
     const currentMonthName = monthNames[month - 1];
-
     const daysInMonth = new Date(year, month, 0).getDate();
     const firstDayIndex = new Date(year, month - 1, 1).getDay();
 
@@ -140,7 +123,6 @@ exports.dashboard = async (req, res) => {
     }
 
     let calendarCells = "";
-
     for (let i = 0; i < firstDayIndex; i++) {
       calendarCells += `<div class="calendar-day empty"></div>`;
     }
@@ -151,7 +133,6 @@ exports.dashboard = async (req, res) => {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
       const count = eventCounts[dateStr] || 0;
       const perm = permissionMap[dateStr];
       const desc = descriptionMap[dateStr] || "";
@@ -177,7 +158,6 @@ exports.dashboard = async (req, res) => {
         pillHtml = `<div class="event-pill pill-missed">Missed Session</div>`;
       }
 
-      // Compact mobile-only indicators that fit inside 35-40px cells
       let mobileIndicatorHtml = "";
       if (count > 0) {
         mobileIndicatorHtml = `<span class="mobile-count-pill">${count}</span>`;
@@ -213,19 +193,16 @@ onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "
 
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
-
     const nextMonth = month === 12 ? 1 : month + 1;
     const nextYear = month === 12 ? year + 1 : year;
 
     res.render("admin-dashboard", {
       page: "dashboard",
       pageTitle: "Dashboard",
-      showLoader: true,
+      showLoader: false,
       isAdminPage: true,
-
       year,
       month,
-
       currentMonthName,
       calendarHeadersHtml,
       calendarCells,
@@ -233,11 +210,9 @@ onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "
       prevYear,
       nextMonth,
       nextYear,
-
       eventCounts,
       permissionMap,
       descriptionMap,
-
       stats: {
         totalSessions,
         totalBhajans,
@@ -247,15 +222,38 @@ onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "
       recentActivity
     });
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    console.error(`[Req ${req.id || ""}] admin dashboard error:`, error);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
+
 exports.sessionView = async (req, res) => {
   try {
     const { date } = req.params;
-    const submissions = await BhajanSubmission.findAll({
-      where: { session_date: date }
-    });
+
+    const [submissions, meta, sessionPerm, catalog, recentSessions, sessionAudio] =
+      await Promise.all([
+        BhajanSubmission.findAll({ where: { session_date: date } }),
+        SessionMeta.findByPk(date),
+        SessionPermission.findByPk(date),
+        getMasterCatalog(),
+        BhajanSubmission.findAll({
+          attributes: ["session_date", [Sequelize.fn("COUNT", Sequelize.col("id")), "bhajan_count"]],
+          where: { session_date: { [Sequelize.Op.ne]: date } },
+          group: ["session_date"],
+          order: [["session_date", "DESC"]],
+          limit: 12,
+          raw: true
+        }),
+        SessionAudio.findOne({
+          where: { session_date: date },
+          include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
+          order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
+        }).catch((audioErr) => {
+          console.warn("Could not load session audio:", audioErr.message);
+          return null;
+        })
+      ]);
 
     const sorted = submissions.sort((a, b) => {
       if (a.list_order > 0 || b.list_order > 0) {
@@ -268,30 +266,14 @@ exports.sessionView = async (req, res) => {
       return a.singer_name.toLowerCase().localeCompare(b.singer_name.toLowerCase());
     });
 
-    const meta = await SessionMeta.findByPk(date);
     const isLocked = meta ? meta.is_locked : false;
-
-    // Fetch session permission (festival, special, or regular)
-    const sessionPerm = await SessionPermission.findByPk(date);
-
-    // Enrich submissions with MasterBhajan references (sheet_filename, id)
-    const masterBhajans = await MasterBhajan.findAll({
-      where: { is_active: true },
-      attributes: ["id", "title", "sheet_filename"]
-    });
-    const masterMap = new Map();
-    const normalizeTitle = (t) =>
-      String(t || "")
-        .trim()
-        .replace(/\s+/g, " ")
-        .toLowerCase();
-    masterBhajans.forEach((mb) => {
-      masterMap.set(normalizeTitle(mb.title), mb);
-    });
 
     const enrichedSubmissions = sorted.map((sub, idx) => {
       const plain = sub.get ? sub.get({ plain: true }) : { ...sub };
-      const matched = masterMap.get(normalizeTitle(plain.title));
+      const lowerTitle = String(plain.title || "").trim().toLowerCase();
+      const matched =
+        catalog.byExactLowerTitle.get(lowerTitle) ||
+        catalog.byNormTitle.get(normalizeTitleKey(plain.title));
       if (matched) {
         plain.sheet_filename = matched.sheet_filename || null;
         plain.master_id = matched.id;
@@ -302,7 +284,6 @@ exports.sessionView = async (req, res) => {
       return plain;
     });
 
-    // Date formatting
     let humanDate = date;
     let dayOfWeek = "";
     try {
@@ -315,9 +296,8 @@ exports.sessionView = async (req, res) => {
         month: "short",
         year: "numeric"
       });
-    } catch (e) {}
+    } catch (_) {}
 
-    // Analytics & Session Quality
     const uniqueSingers = new Set(
       enrichedSubmissions.map((s) =>
         String(s.singer_name || "")
@@ -370,7 +350,6 @@ exports.sessionView = async (req, res) => {
       }
     }
 
-    // WhatsApp Export Pre-generation
     const protocol = req.protocol || "http";
     const host = req.get("host") || "localhost:8000";
     const livePlanUrl = `${protocol}://${host}/plan-view?session_date=${date}`;
@@ -395,36 +374,7 @@ exports.sessionView = async (req, res) => {
     whatsappText += `--------------------------------------------------\nSai Ram to all Accompanists & Devotees\nLive Plan: ${livePlanUrl}`;
     const whatsappEncoded = encodeURIComponent(whatsappText);
 
-    // Recent past sessions for quick copy
-    const recentSessions = await BhajanSubmission.findAll({
-      attributes: ["session_date", [Sequelize.fn("COUNT", Sequelize.col("id")), "bhajan_count"]],
-      where: {
-        session_date: { [Sequelize.Op.ne]: date }
-      },
-      group: ["session_date"],
-      order: [["session_date", "DESC"]],
-      limit: 12,
-      raw: true
-    });
-
     const isUpcoming = date >= getLocalDateStr();
-
-    // Session Audio Recording (if linked)
-    let sessionAudio = null;
-    try {
-      sessionAudio = await SessionAudio.findOne({
-        where: { session_date: date },
-        include: [
-          {
-            model: SessionAudioTimestamp,
-            as: "timestamps"
-          }
-        ],
-        order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
-      });
-    } catch (audioErr) {
-      console.warn("Could not load session audio:", audioErr.message);
-    }
 
     res.render("admin-session-view", {
       date,
@@ -454,7 +404,8 @@ exports.sessionView = async (req, res) => {
       page: "sessions"
     });
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    console.error(`[Req ${req.id || ""}] sessionView error:`, error);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
 
@@ -467,7 +418,7 @@ exports.editSubmissionForm = async (req, res) => {
       pageTitle: "Edit Bhajan Entry"
     });
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
 
@@ -489,9 +440,10 @@ exports.updateSubmission = async (req, res) => {
         where: { id: req.params.id }
       }
     );
+    invalidateMissingCount();
     res.redirect(`/admin/date/${session_date}`);
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
 
@@ -501,45 +453,59 @@ exports.deleteSubmission = async (req, res) => {
     if (submission) {
       const date = submission.session_date;
       await submission.destroy();
+      invalidateMissingCount();
       res.redirect(`/admin/date/${date}`);
     } else {
       res.redirect("/admin");
     }
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
+
 exports.showRules = async (req, res) => {
   try {
     const date = req.query.date || "default";
 
-    // Ensure all default deities including Narayana exist
     const defaultDeities = DEITY_ORDER || [
-      "Ganesha", "Guru", "Mata", "SarvaDharma", "Sai",
-      "Shiva", "Krishna", "Rama", "Narayana", "Vitthala", "Hanuman"
+      "Ganesha",
+      "Guru",
+      "Mata",
+      "SarvaDharma",
+      "Sai",
+      "Shiva",
+      "Krishna",
+      "Rama",
+      "Narayana",
+      "Vitthala",
+      "Hanuman"
     ];
-    for (const deity of defaultDeities) {
-      await DeityRule.findOrCreate({
-        where: { session_date: "default", deity_name: deity },
-        defaults: {
-          session_date: "default",
-          deity_name: deity,
-          min_required: 0,
-          max_allowed: 2
-        }
-      });
-    }
 
-    let rules = await DeityRule.findAll({
-      where: { session_date: date }
+    const existingDefaultRules = await DeityRule.findAll({
+      where: { session_date: "default" }
     });
-    if (rules.length === 0 && date !== "default") {
-      rules = await DeityRule.findAll({
-        where: { session_date: "default" }
-      });
+    const existingSet = new Set(existingDefaultRules.map((r) => r.deity_name));
+    const missingDefaults = defaultDeities
+      .filter((d) => !existingSet.has(d))
+      .map((d) => ({
+        session_date: "default",
+        deity_name: d,
+        min_required: 0,
+        max_allowed: 2
+      }));
+    if (missingDefaults.length > 0) {
+      await DeityRule.bulkCreate(missingDefaults, { ignoreDuplicates: true });
     }
 
-    // Sort by traditional Mandir flow order (Ganesha, Guru, Mata, etc.)
+    let rules =
+      date === "default" && missingDefaults.length === 0
+        ? existingDefaultRules
+        : await DeityRule.findAll({ where: { session_date: date } });
+
+    if (rules.length === 0 && date !== "default") {
+      rules = await DeityRule.findAll({ where: { session_date: "default" } });
+    }
+
     rules.sort((a, b) => deityOrderKey(a.deity_name) - deityOrderKey(b.deity_name));
 
     res.render("admin-rules", {
@@ -551,7 +517,7 @@ exports.showRules = async (req, res) => {
       page: "rules"
     });
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };
 
@@ -559,29 +525,39 @@ exports.updateRules = async (req, res) => {
   try {
     const newRules = req.body.rules;
     const date = req.body.date || "default";
-    for (let rule of newRules) {
-      const existing = await DeityRule.findOne({
-        where: { session_date: date, deity_name: rule.deity_name }
-      });
-      if (existing) {
-        await existing.update({
-          min_required: rule.min_required,
-          max_allowed: rule.max_allowed
+    await sequelize.transaction(async (t) => {
+      for (const rule of newRules) {
+        const existing = await DeityRule.findOne({
+          where: { session_date: date, deity_name: rule.deity_name },
+          transaction: t
         });
-      } else {
-        await DeityRule.create({
-          session_date: date,
-          deity_name: rule.deity_name,
-          min_required: rule.min_required,
-          max_allowed: rule.max_allowed
-        });
+        if (existing) {
+          await existing.update(
+            {
+              min_required: rule.min_required,
+              max_allowed: rule.max_allowed
+            },
+            { transaction: t }
+          );
+        } else {
+          await DeityRule.create(
+            {
+              session_date: date,
+              deity_name: rule.deity_name,
+              min_required: rule.min_required,
+              max_allowed: rule.max_allowed
+            },
+            { transaction: t }
+          );
+        }
       }
-    }
+    });
     res.json({ success: true, message: "Rules successfully saved!" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Failed to save deity rules." });
   }
 };
+
 exports.updatePermission = async (req, res) => {
   try {
     const validation = validateUpdatePermission(req.body);
@@ -610,7 +586,6 @@ exports.toggleLock = async (req, res) => {
     const { date, is_locked } = validation.data;
     await SessionMeta.upsert({ session_date: date, is_locked });
 
-    // When a session is locked, trigger schedule-published notification
     if (is_locked) {
       try {
         const { triggerSchedulePublished } = require("../services/sessionScheduler");
@@ -667,7 +642,7 @@ exports.copySession = async (req, res) => {
       const newSubs = sourceSubs.map((s) => {
         delete s.id;
         s.session_date = target_date;
-        s.list_order = 0; // Reset order for new session
+        s.list_order = 0;
         s.created_at = new Date();
         return s;
       });
@@ -717,16 +692,14 @@ exports.dangerResetHistory = async (req, res) => {
       });
     }
 
-    // Step 1: Create automatic backup before wipe
     await createBackup("before_danger_reset");
 
-    // Step 2: Transactional wipe
     await sequelize.transaction(async (t) => {
       await BhajanSubmission.destroy({ where: {}, truncate: true, transaction: t });
       await SessionMeta.destroy({ where: {}, truncate: true, transaction: t });
     });
+    invalidateMissingCount();
 
-    // Drop legacy table if exists
     try {
       await sequelize.query("DROP TABLE IF EXISTS bhajan_submissions");
     } catch (_) {}
@@ -783,6 +756,7 @@ exports.processImportSessions = async (req, res) => {
         pageTitle: "Import Past Sessions"
       });
     }
+    invalidateMissingCount();
 
     res.render("admin-import-sessions", {
       resultInfo: result,
@@ -798,22 +772,17 @@ exports.processImportSessions = async (req, res) => {
 
 exports.showMissingBhajans = async (req, res) => {
   try {
-    const submittedTitles = await BhajanSubmission.findAll({
-      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-      raw: true
-    });
-
-    const masterTitles = await MasterBhajan.findAll({
-      where: { is_active: true },
-      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-      raw: true
-    });
-
-    const masterSet = new Set(masterTitles.map((m) => (m.title || "").trim().toLowerCase()));
+    const [submittedTitles, catalog] = await Promise.all([
+      BhajanSubmission.findAll({
+        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
+        raw: true
+      }),
+      getMasterCatalog()
+    ]);
 
     const rawMissingTitles = submittedTitles
       .map((s) => (s.title || "").trim())
-      .filter((title) => title && !masterSet.has(title.toLowerCase()));
+      .filter((title) => title && !catalog.byExactLowerTitle.has(title.toLowerCase()));
 
     const totalMissing = rawMissingTitles.length;
     const PAGE_SIZE = 50;
@@ -825,22 +794,13 @@ exports.showMissingBhajans = async (req, res) => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const pageTitles = rawMissingTitles.slice(startIndex, startIndex + PAGE_SIZE);
 
-    let missingBhajans = [];
-    if (pageTitles.length > 0) {
-      const allMasterBhajans = await MasterBhajan.findAll({
-        where: { is_active: true },
-        attributes: ["id", "title", "deity", "raga", "shruti"],
-        raw: true
-      });
-
-      const masterIndex = buildMasterIndex(allMasterBhajans);
-
-      // Ultra-fast match computation (<200ms) for 50 items against 3,000+ master records
-      missingBhajans = pageTitles.map((submittedTitle) => ({
-        submittedTitle,
-        candidates: matchWithIndex(submittedTitle, masterIndex, 0.45, 4)
-      }));
-    }
+    const missingBhajans =
+      pageTitles.length > 0
+        ? pageTitles.map((submittedTitle) => ({
+            submittedTitle,
+            candidates: matchWithIndex(submittedTitle, catalog.fuzzyIndex, 0.45, 4)
+          }))
+        : [];
 
     res.render("admin-missing-bhajans", {
       page: "missing-bhajans",
@@ -857,6 +817,7 @@ exports.showMissingBhajans = async (req, res) => {
       endIndex: Math.min(startIndex + pageTitles.length, totalMissing)
     });
   } catch (error) {
-    res.status(500).send(`<h1>Error</h1><p>${error.message}</p>`);
+    console.error(`[Req ${req.id || ""}] showMissingBhajans error:`, error);
+    res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
 };

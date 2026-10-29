@@ -19,6 +19,15 @@
     });
   }
 
+  function getCsrfToken() {
+    return (
+      window.csrfToken ||
+      (document.querySelector('meta[name="csrf-token"]')
+        ? document.querySelector('meta[name="csrf-token"]').getAttribute("content")
+        : "")
+    );
+  }
+
   // ── Device ID management ─────────────────────────────────
   function getDeviceId() {
     let id = localStorage.getItem("bp_device_id");
@@ -32,39 +41,58 @@
   const deviceId = getDeviceId();
   window.BP_DEVICE_ID = deviceId;
 
-  // ── DOM elements ─────────────────────────────────────────
-  const bellBtn = document.getElementById("notifBellBtn");
-  const badge = document.getElementById("notifBadge");
+  // ── DOM elements (supports both App Shell header bell and standalone floating bell) ──
+  const bellButtons = [
+    document.getElementById("shellNotifBtn"),
+    document.getElementById("notifBellBtn")
+  ].filter(Boolean);
+  const badges = [
+    document.getElementById("shellNotifBadge"),
+    document.getElementById("notifBadge")
+  ].filter(Boolean);
+  const bellBtn = bellButtons[0];
   const panel = document.getElementById("notifPanel");
   const panelBody = document.getElementById("notifPanelBody");
   const overlay = document.getElementById("notifOverlay");
   const closeBtn = document.getElementById("notifCloseBtn");
   const markAllBtn = document.getElementById("notifMarkAllRead");
 
-  if (!bellBtn) return; // Admin pages don't have the floating bell
+  if (!bellBtn || !panel) return; // Admin pages don't have the user notification bell
+
+  // Prevent double-binding if script runs more than once
+  if (bellBtn.dataset.notifBound === "1") return;
+  bellButtons.forEach((b) => {
+    b.dataset.notifBound = "1";
+  });
+
+  function setBadgeCount(count) {
+    badges.forEach((b) => {
+      if (count > 0) {
+        b.textContent = count > 99 ? "99+" : String(count);
+        b.classList.add("has-unread");
+        b.style.display = "flex";
+      } else {
+        b.textContent = "";
+        b.classList.remove("has-unread");
+        b.style.display = "none";
+      }
+    });
+  }
 
   // ── Unread count polling ─────────────────────────────────
   function updateUnreadCount() {
+    if (document.hidden) return;
     fetch(`/api/notifications/unread-count?device_id=${encodeURIComponent(deviceId)}`)
       .then((r) => r.json())
       .then((data) => {
-        const count = data.count || 0;
-        if (count > 0) {
-          badge.textContent = count > 99 ? "99+" : count;
-          badge.classList.add("has-unread");
-          badge.style.display = "flex";
-        } else {
-          badge.textContent = "";
-          badge.classList.remove("has-unread");
-          badge.style.display = "none";
-        }
+        setBadgeCount(data.count || 0);
       })
       .catch(() => {});
   }
 
   // Initial count check + periodic refresh
   updateUnreadCount();
-  setInterval(updateUnreadCount, 60000); // every 60 seconds
+  setInterval(updateUnreadCount, 60000);
 
   // ── Time formatting ──────────────────────────────────────
   function timeAgo(dateStr) {
@@ -104,18 +132,13 @@
 
   // ── Mark all as read silently ────────────────────────────
   function markAllAsReadSilently() {
-    if (badge) {
-      badge.textContent = "";
-      badge.classList.remove("has-unread");
-      badge.style.display = "none";
-    }
+    setBadgeCount(0);
 
-    const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
     fetch("/api/notifications/mark-all-read", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": csrf
+        "X-CSRF-Token": getCsrfToken()
       },
       body: JSON.stringify({ device_id: deviceId })
     })
@@ -168,6 +191,16 @@
       });
   }
 
+  // Delegate clicks on notification items so panel closes cleanly before Single-DOM router handles link
+  if (panelBody) {
+    panelBody.addEventListener("click", (e) => {
+      const linkEl = e.target.closest(".notif-item");
+      if (linkEl) {
+        closePanel();
+      }
+    });
+  }
+
   // ── Escape HTML for safe rendering ───────────────────────
   function escapeHtml(str) {
     if (!str) return "";
@@ -178,12 +211,11 @@
 
   // ── Mark notification as read ────────────────────────────
   window._notifMarkRead = function (notificationId) {
-    const csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
     fetch("/api/notifications/mark-read", {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": csrf
+        "X-CSRF-Token": getCsrfToken()
       },
       body: JSON.stringify({ notification_id: notificationId, device_id: deviceId })
     })
@@ -203,7 +235,6 @@
   function openPanel() {
     panel.classList.add("open");
     overlay.classList.add("show");
-    // Automatically mark all notifications as read upon opening
     markAllAsReadSilently();
     loadNotifications();
   }
@@ -211,7 +242,6 @@
   function closePanel() {
     panel.classList.remove("open");
     overlay.classList.remove("show");
-    markAllAsReadSilently();
   }
 
   function handleBellToggle(e) {
@@ -226,12 +256,17 @@
     }
   }
 
-  bellBtn.addEventListener("click", handleBellToggle);
-
+  bellButtons.forEach((b) => b.addEventListener("click", handleBellToggle));
   if (closeBtn) closeBtn.addEventListener("click", closePanel);
   if (overlay) overlay.addEventListener("click", closePanel);
+  panel.addEventListener("click", (e) => {
+    if (e.target.closest(".notif-settings-link")) {
+      closePanel();
+    }
+  });
+  window.openNotifPanel = openPanel;
+  window.closeNotifPanel = closePanel;
 
-  // ── Mark all read button (hidden by default as read is automatic) ──
   if (markAllBtn) {
     markAllBtn.style.display = "none";
     markAllBtn.addEventListener("click", () => {
@@ -255,7 +290,7 @@
       localStorage.removeItem("bp_device_id");
     }
     const alreadyHandled = localStorage.getItem(PROMPT_KEY);
-    if (alreadyHandled) return; // Do not ask repeatedly
+    if (alreadyHandled) return;
 
     const promptOverlay = document.getElementById("notifPromptOverlay");
     const singerSelect = document.getElementById("notifPromptSingerSelect");
@@ -274,14 +309,12 @@
 
     if (!promptOverlay || !singerSelect || !enableBtn || !dismissBtn) return;
 
-    // PIN toggle visibility
     if (pinToggleBtn && pinInput) {
       pinToggleBtn.addEventListener("click", () => {
         pinInput.type = pinInput.type === "password" ? "text" : "password";
       });
     }
 
-    // Check if the device is already subscribed on server
     fetch(`/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`)
       .then((r) => r.json())
       .then((data) => {
@@ -290,7 +323,6 @@
           return;
         }
 
-        // Fetch singers to populate dropdown
         fetch("/api/singers")
           .then((r) => r.json())
           .then((singers) => {
@@ -306,7 +338,13 @@
               singerSelect.appendChild(opt);
             });
 
-            // Show prompt after a slight delay (1.5s) for smooth page load
+            // Pre-select if singer is already known locally
+            const savedSingerId = localStorage.getItem("bp_singer_id") || localStorage.getItem("bj_singer_id");
+            if (savedSingerId && singerSelect.querySelector(`option[value="${savedSingerId}"]`)) {
+              singerSelect.value = savedSingerId;
+              singerSelect.dispatchEvent(new Event("change"));
+            }
+
             setTimeout(() => {
               promptOverlay.style.display = "flex";
               setTimeout(() => promptOverlay.classList.add("show"), 10);
@@ -316,7 +354,6 @@
       })
       .catch(() => {});
 
-    // Singer selection queries PIN status and displays the PIN box
     singerSelect.addEventListener("change", async () => {
       const singerId = singerSelect.value;
       if (pinError) {
@@ -357,7 +394,7 @@
           if (pinDesc)
             pinDesc.textContent = `This 4-digit PIN secures your profile and prevents anyone else from claiming your name and receiving your partner notifications.`;
           if (pinReminder)
-            pinReminder.innerHTML = `<strong>Important:</strong> Please remember this PIN for receiving notifications on other devices (like your laptop or tablet). If you ever forget it, contact the coordinator / admin for a reset.`;
+            pinReminder.innerHTML = `<strong>Important:</strong> Please remember this PIN for signing in on other devices. If you ever forget it, contact the coordinator / admin for a reset.`;
           if (pinHelp) pinHelp.textContent = "Choose any 4 digits you will remember (e.g. 1234)";
         }
 
@@ -368,7 +405,6 @@
       }
     });
 
-    // Validate 4 digits on input
     if (pinInput) {
       pinInput.addEventListener("input", () => {
         pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 4);
@@ -378,14 +414,12 @@
       });
     }
 
-    // Dismiss button: mark as dismissed once and never ask again
     dismissBtn.addEventListener("click", () => {
       localStorage.setItem(PROMPT_KEY, "dismissed");
       promptOverlay.classList.remove("show");
       setTimeout(() => (promptOverlay.style.display = "none"), 300);
     });
 
-    // Enable button: subscribe device with PIN and request notification permission
     enableBtn.addEventListener("click", async () => {
       const singerId = singerSelect.value;
       const pin = pinInput ? pinInput.value.trim() : "";
@@ -415,15 +449,54 @@
         }
       }
 
-      // Associate device with singer + PIN
       try {
-        const res = await fetch("/api/notifications/subscribe", {
+        // Step 1: Authenticate / create first-login PIN via Singer Hub login API
+        const loginRes = await fetch("/api/singer/login", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": getCsrfToken()
+          },
           body: JSON.stringify({
             singer_id: parseInt(singerId, 10),
-            device_id: deviceId,
             pin: pin,
+            confirm_pin: pin
+          })
+        });
+        const loginData = await loginRes.json();
+
+        if (!loginRes.ok || !loginData.success) {
+          enableBtn.disabled = false;
+          enableBtn.textContent = "Enable Notifications";
+          if (pinError) {
+            pinError.textContent = loginData.error || "Failed to verify PIN.";
+            pinError.style.display = "block";
+          }
+          if (pinInput) pinInput.classList.add("is-invalid");
+          return;
+        }
+
+        if (loginData.singer) {
+          try {
+            localStorage.setItem("bp_singer_id", String(loginData.singer.id));
+            localStorage.setItem("bp_singer_name", loginData.singer.name || "");
+            localStorage.setItem("bj_singer_id", String(loginData.singer.id));
+            localStorage.setItem("bj_singer_name", loginData.singer.name || "");
+            if (window.AppShell && typeof window.AppShell.onAuthChange === "function") {
+              window.AppShell.onAuthChange(loginData.singer);
+            }
+          } catch (_) {}
+        }
+
+        // Step 2: Register push / in-app subscription for the now-authenticated singer session
+        const res = await fetch("/api/notifications/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": getCsrfToken()
+          },
+          body: JSON.stringify({
+            device_id: deviceId,
             subscription: subscription
           })
         });
@@ -438,7 +511,7 @@
           enableBtn.disabled = false;
           enableBtn.textContent = "Enable Notifications";
           if (pinError) {
-            pinError.textContent = data.error || "Failed to verify PIN.";
+            pinError.textContent = data.error || "Failed to register notifications.";
             pinError.style.display = "block";
           }
           if (pinInput) pinInput.classList.add("is-invalid");
@@ -465,6 +538,5 @@
     return outputArray;
   }
 
-  // Initialize prompt
   initFirstVisitPrompt();
 })();

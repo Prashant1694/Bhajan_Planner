@@ -3,16 +3,24 @@ const BhajanSubmission = require("../models/BhajanSubmission");
 const sequelize = require("../config/database");
 const { Sequelize } = require("sequelize");
 const { invalidateMissingCount } = require("../services/helpers");
+const {
+  getMasterCatalog,
+  invalidateMasterCache,
+  normalizeTitleKey
+} = require("../services/catalogCache");
 const ExcelJS = require("exceljs");
 
 exports.showMasterBank = async (req, res) => {
   try {
-    const bhajans = await MasterBhajan.findAll({
-      where: { is_active: true },
-      order: [["title", "ASC"]]
+    const catalog = await getMasterCatalog();
+    const isAdmin = !!(req.session && (req.session.adminUserId || req.session.admin));
+    res.render("master-bank", {
+      bhajans: catalog.lightRows,
+      aggregates: catalog.aggregates,
+      pageTitle: "Songbook — Prashanti Bhajan Catalog",
+      page: "master-bank",
+      isAdmin
     });
-    const isAdmin = !!(req.session && req.session.adminUserId);
-    res.render("master-bank", { bhajans, isAdmin });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] showMasterBank error:`, error);
     res.status(500).send("<h1>Error</h1><p>Failed to load master songbook.</p>");
@@ -76,6 +84,7 @@ exports.addMasterBhajan = async (req, res) => {
       sheet_filename,
       is_active: true
     });
+    invalidateMasterCache();
     invalidateMissingCount();
     res.json({ success: true });
   } catch (error) {
@@ -117,6 +126,8 @@ exports.updateMasterBhajan = async (req, res) => {
     }
 
     await MasterBhajan.update(updateFields, { where: { id: req.params.id } });
+    invalidateMasterCache();
+    invalidateMissingCount();
 
     res.json({ success: true, message: "Bhajan updated successfully!" });
   } catch (error) {
@@ -129,6 +140,8 @@ exports.deleteMasterBhajan = async (req, res) => {
   try {
     // Soft-delete / archive to preserve historical foreign references
     await MasterBhajan.update({ is_active: false }, { where: { id: req.params.id } });
+    invalidateMasterCache();
+    invalidateMissingCount();
     res.json({ success: true, message: "Bhajan archived successfully" });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] deleteMasterBhajan error:`, error);
@@ -138,10 +151,8 @@ exports.deleteMasterBhajan = async (req, res) => {
 
 exports.exportMaster = async (req, res) => {
   try {
-    const allBhajans = await MasterBhajan.findAll({
-      where: { is_active: true },
-      order: [["title", "ASC"]]
-    });
+    const catalog = await getMasterCatalog();
+    const allBhajans = catalog.fullRows;
 
     const format = (req.query.format || "json").toLowerCase();
     if (format === "excel" || format === "xlsx") {
@@ -232,15 +243,6 @@ exports.showArchivedMasterBank = async (req, res) => {
   }
 };
 
-function normalizeBhajanTitle(t) {
-  return (t || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "")
-    .trim();
-}
-
 exports.reconcileBhajan = async (req, res) => {
   try {
     const { submitted_title, action, master_bhajan_id } = req.body;
@@ -254,14 +256,13 @@ exports.reconcileBhajan = async (req, res) => {
         return res.status(400).json({ error: "master_bhajan_id is required for link action." });
       }
 
-      const master = await MasterBhajan.findOne({
-        where: { id: master_bhajan_id, is_active: true }
-      });
-      if (!master) {
+      const catalog = await getMasterCatalog();
+      const master = catalog.fullById.get(Number(master_bhajan_id));
+      if (!master || !master.is_active) {
         return res.status(404).json({ error: "Active Master bhajan not found." });
       }
 
-      const normSubmitted = normalizeBhajanTitle(submitted_title);
+      const normSubmitted = normalizeTitleKey(submitted_title);
 
       const allSubmissions = await BhajanSubmission.findAll({
         attributes: ["id", "title"],
@@ -269,7 +270,7 @@ exports.reconcileBhajan = async (req, res) => {
       });
 
       const toUpdate = allSubmissions.filter(
-        (s) => normalizeBhajanTitle(s.title) === normSubmitted
+        (s) => normalizeTitleKey(s.title) === normSubmitted
       );
 
       if (toUpdate.length > 0) {
@@ -307,18 +308,27 @@ exports.showBhajanDetails = async (req, res) => {
     }
 
     const trimmed = String(rawId).trim();
+    const catalog = await getMasterCatalog();
     let bhajan = null;
 
     if (/^\d+$/.test(trimmed)) {
-      bhajan = await MasterBhajan.findByPk(parseInt(trimmed, 10));
+      bhajan = catalog.fullById.get(parseInt(trimmed, 10)) || null;
     } else {
-      const decoded = decodeURIComponent(trimmed);
-      bhajan = await MasterBhajan.findOne({
-        where: {
-          is_active: true,
-          title: { [Sequelize.Op.like]: decoded }
-        }
-      });
+      const decoded = decodeURIComponent(trimmed).trim().toLowerCase();
+      bhajan =
+        catalog.byExactLowerTitle.get(decoded) ||
+        catalog.byNormTitle.get(normalizeTitleKey(decoded)) ||
+        null;
+      if (!bhajan) {
+        const dbRow = await MasterBhajan.findOne({
+          where: {
+            is_active: true,
+            title: { [Sequelize.Op.like]: decodeURIComponent(trimmed) }
+          },
+          raw: true
+        });
+        if (dbRow) bhajan = dbRow;
+      }
     }
 
     if (!bhajan || !bhajan.is_active) {
@@ -335,6 +345,7 @@ exports.showBhajanDetails = async (req, res) => {
       bhajan,
       pageTitle: `${bhajan.title} — Lyrics & Details`,
       pageCSS: "bhajan-details.css",
+      page: "bhajan-details",
       isAdmin
     });
   } catch (error) {

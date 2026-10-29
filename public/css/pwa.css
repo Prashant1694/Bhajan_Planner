@@ -93,6 +93,8 @@
 .pwa-banner-close {
   width: 32px;
   height: 32px;
+  min-height: 0;
+  padding: 0;
   border-radius: 50%;
   border: none;
   background: #f4f0e8;
@@ -259,6 +261,77 @@
     border-radius: 20px;
     margin: 24px;
   }
+}
+
+/* ── Dark Mode — Warm Obsidian Surfaces ────────────────────────────────── */
+[data-theme="dark"] .pwa-install-overlay {
+  background: rgba(10, 9, 8, 0.65);
+}
+
+[data-theme="dark"] .pwa-install-banner {
+  background: #1c1917;
+  border: 1px solid #332e29;
+  box-shadow: 0 -10px 44px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .pwa-banner-info h3 {
+  color: #f5f0e8;
+}
+
+[data-theme="dark"] .pwa-banner-size {
+  color: #a89f94;
+}
+
+[data-theme="dark"] .pwa-banner-size .size-dot {
+  background: #575049;
+}
+
+[data-theme="dark"] .pwa-banner-close {
+  background: #26221e;
+  color: #a89f94;
+}
+
+[data-theme="dark"] .pwa-banner-close:hover {
+  background: #332e29;
+  color: #f5f0e8;
+}
+
+[data-theme="dark"] .pwa-banner-divider {
+  background: #332e29;
+}
+
+[data-theme="dark"] .pwa-benefit {
+  background: #26221e;
+  color: #d6cfc5;
+  border: 1px solid #332e29;
+}
+
+[data-theme="dark"] .pwa-btn-dismiss {
+  color: #a89f94;
+  border-color: #332e29;
+}
+
+[data-theme="dark"] .pwa-btn-dismiss:hover {
+  background: #26221e;
+  color: #f5f0e8;
+  border-color: #4a433c;
+}
+
+[data-theme="dark"] .pwa-manual-instructions {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+[data-theme="dark"] .pwa-manual-instructions p {
+  color: #fde68a;
+}
+
+[data-theme="dark"] .pwa-ios-instructions {
+  border-top-color: #332e29;
+}
+
+[data-theme="dark"] .pwa-ios-instructions p {
+  color: #d6cfc5;
 }
 
 /* ── Reduced motion ────────────────────────────────────────────────────── */

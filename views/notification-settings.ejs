@@ -1,6 +1,6 @@
 <div class="prasanthi-border"></div>
 <div class="notif-settings-container">
-  <a href="<%= (typeof _embed !== 'undefined' && _embed) ? '/?_embed=1' : '/' %>" class="bulletin-back-link" onclick="handleSettingsBack(event)">&larr; Back to Home</a>
+  <a href="/" class="bulletin-back-link" onclick="handleSettingsBack(event)">&larr; Back to Home</a>
 
   <div class="notif-settings-card">
     <h2>Notification Settings</h2>
@@ -334,7 +334,7 @@
     changeBtn.disabled = !singerChangeSelect.value || settingsChangePinInput.value.length !== 4;
   });
 
-  // Subscribe with PIN
+  // Subscribe with PIN (first authenticates / creates PIN via /api/singer/login)
   async function subscribePush(singerId, pin, errorEl) {
     try {
       let subscription = null;
@@ -359,13 +359,36 @@
         }
       }
 
+      const loginRes = await fetch('/api/singer/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          singer_id: parseInt(singerId, 10),
+          pin: pin,
+          confirm_pin: pin
+        })
+      });
+      const loginData = await loginRes.json();
+      if (!loginRes.ok || !loginData.success) {
+        const msg = loginData.error || 'Failed to verify PIN';
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.style.display = 'block';
+        } else {
+          alert(msg);
+        }
+        return false;
+      }
+
+      if (loginData.singer && window.AppShell && typeof window.AppShell.onAuthChange === 'function') {
+        window.AppShell.onAuthChange(loginData.singer);
+      }
+
       const res = await fetch('/api/notifications/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          singer_id: parseInt(singerId),
           device_id: deviceId,
-          pin: pin,
           subscription: subscription
         })
       });
@@ -460,31 +483,12 @@ function handleSettingsBack(event) {
     event.stopPropagation();
   }
   if (window.triggerHaptic) window.triggerHaptic('light');
-
-  const inIframe = (window.self !== window.top);
-  const targetEmbed = '/?_embed=1';
-
-  if (inIframe) {
-    if (window.history && window.history.length > 1) {
-      window.history.back();
-      setTimeout(function() {
-        if (window.location.pathname.startsWith('/notification-settings')) {
-          window.location.href = targetEmbed;
-        }
-      }, 300);
-      return;
-    }
-    window.location.href = targetEmbed;
+  if (window.AppShell) {
+    window.AppShell.back('/');
     return;
   }
-
   if (window.history && window.history.length > 1) {
     window.history.back();
-    setTimeout(function() {
-      if (window.location.pathname.startsWith('/notification-settings')) {
-        window.location.href = '/';
-      }
-    }, 300);
   } else {
     window.location.href = '/';
   }

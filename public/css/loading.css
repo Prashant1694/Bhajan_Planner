@@ -134,44 +134,53 @@
 }
 
 /* Dark Theme Complement */
+[data-theme="dark"] .sarva-dharma-loader,
 body.dark-theme .sarva-dharma-loader {
-  background: radial-gradient(circle at 50% 32%, #221b2d 0%, #171120 48%, #0d0a13 100%);
+  background: radial-gradient(circle at 50% 32%, #291f19 0%, #1c1613 48%, #12100e 100%);
 }
 
+[data-theme="dark"] .loader-title-sairam,
 body.dark-theme .loader-title-sairam {
   background: linear-gradient(135deg, #ffffff 0%, #fef08a 50%, #f59e0b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+[data-theme="dark"] .loader-org-name,
 body.dark-theme .loader-org-name {
-  color: rgba(254, 240, 138, 0.8);
+  color: rgba(254, 240, 138, 0.82);
 }
 
+[data-theme="dark"] .mandir-quote-card,
 body.dark-theme .mandir-quote-card {
-  background: rgba(30, 20, 48, 0.7);
+  background: rgba(38, 34, 30, 0.8);
   border-color: rgba(251, 191, 36, 0.24);
 }
 
+[data-theme="dark"] .mandir-quote-text,
 body.dark-theme .mandir-quote-text {
   color: #fef9c3;
 }
 
+[data-theme="dark"] .mandir-status-text,
 body.dark-theme .mandir-status-text {
   color: #fef08a;
 }
 
+[data-theme="dark"] .mandir-progress-num,
 body.dark-theme .mandir-progress-num {
   color: #fbbf24;
 }
 
+[data-theme="dark"] .mandir-progress-track,
 body.dark-theme .mandir-progress-track {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(251, 191, 36, 0.3);
 }
 
+[data-theme="dark"] .loader-skip-btn,
 body.dark-theme .loader-skip-btn {
-  background: rgba(45, 30, 65, 0.85);
+  background: rgba(38, 34, 30, 0.9);
   color: #fef08a;
   border-color: rgba(251, 191, 36, 0.3);
 }

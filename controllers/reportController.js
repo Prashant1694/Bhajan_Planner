@@ -1,8 +1,9 @@
 const crypto = require("crypto");
 const { Sequelize, Op } = require("sequelize");
 const BhajanReport = require("../models/BhajanReport");
-const MasterBhajan = require("../models/MasterBhajan");
 const ActivityLog = require("../models/ActivityLog");
+const { getMasterCatalog } = require("../services/catalogCache");
+const { resolveVisitorId } = require("../middleware/activityTracker");
 
 function generateTicketCode() {
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -69,13 +70,18 @@ exports.submitReport = async (req, res) => {
 
     let mid = null;
     if (master_id && !isNaN(parseInt(master_id, 10))) {
-      const mb = await MasterBhajan.findByPk(parseInt(master_id, 10));
+      const catalog = await getMasterCatalog();
+      const mb = catalog.fullById.get(parseInt(master_id, 10));
       if (mb) mid = mb.id;
     }
 
     let code = generateTicketCode();
     for (let attempts = 0; attempts < 5; attempts++) {
-      const exists = await BhajanReport.findOne({ where: { ticket_code: code } });
+      const exists = await BhajanReport.findOne({
+        where: { ticket_code: code },
+        attributes: ["id"],
+        raw: true
+      });
       if (!exists) break;
       code = generateTicketCode();
     }
@@ -99,6 +105,8 @@ exports.submitReport = async (req, res) => {
       Array.isArray(categories) ? categories : categories ? [categories] : []
     );
 
+    const resolvedVisitor = visitor_id || resolveVisitorId(req, res) || null;
+
     const report = await BhajanReport.create({
       ticket_code: code,
       master_id: mid,
@@ -111,18 +119,18 @@ exports.submitReport = async (req, res) => {
         : null,
       reporter_name: effectiveReporterName,
       reporter_contact: reporter_contact ? reporter_contact.trim().slice(0, 100) : null,
-      visitor_id: visitor_id || req.session?.visitorId || null,
+      visitor_id: resolvedVisitor,
       status: "pending"
     });
 
     try {
       await ActivityLog.create({
-        session_id: req.session?.visitorId || "guest",
+        session_id: resolvedVisitor || "guest",
         user_type: req.session?.admin ? "admin" : req.session?.singer ? "singer" : "guest",
         username: effectiveReporterName || "Anonymous Devotee",
         action: "REPORT_SUBMITTED",
         details: `Report ${code} filed for "${cleanTitle}"`,
-        ip_address: req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "127.0.0.1",
+        ip_address: req.ip || req.socket?.remoteAddress || "127.0.0.1",
         user_agent: req.headers["user-agent"] || "",
         created_at: new Date()
       });
@@ -142,7 +150,7 @@ exports.submitReport = async (req, res) => {
 
 exports.getMyReports = async (req, res) => {
   try {
-    const visitorId = req.query.visitor_id || req.session?.visitorId || null;
+    const visitorId = req.query.visitor_id || req.cookies?.bp_vid || req.session?.visitorId || null;
     const ticketCodes = req.query.tickets
       ? req.query.tickets
           .split(",")
@@ -271,11 +279,19 @@ exports.showAdminReports = async (req, res) => {
       ];
     }
 
-    const reports = await BhajanReport.findAll({
-      where,
-      order: [["created_at", "DESC"]],
-      limit: 200
-    });
+    // Parallelize filtered report fetch + single GROUP BY status count query
+    const [reports, statusGroups] = await Promise.all([
+      BhajanReport.findAll({
+        where,
+        order: [["created_at", "DESC"]],
+        limit: 200
+      }),
+      BhajanReport.findAll({
+        attributes: ["status", [Sequelize.fn("COUNT", Sequelize.col("id")), "cnt"]],
+        group: ["status"],
+        raw: true
+      })
+    ]);
 
     const parsedReports = reports.map((r) => {
       const plain = r.toJSON();
@@ -287,15 +303,22 @@ exports.showAdminReports = async (req, res) => {
       return plain;
     });
 
-    const totalCount = await BhajanReport.count();
     const counts = {
-      all: totalCount,
-      total: totalCount,
-      pending: await BhajanReport.count({ where: { status: "pending" } }),
-      under_review: await BhajanReport.count({ where: { status: "under_review" } }),
-      resolved: await BhajanReport.count({ where: { status: "resolved" } }),
-      closed: await BhajanReport.count({ where: { status: "closed" } })
+      all: 0,
+      total: 0,
+      pending: 0,
+      under_review: 0,
+      resolved: 0,
+      closed: 0
     };
+    statusGroups.forEach((g) => {
+      const n = parseInt(g.cnt, 10) || 0;
+      counts.all += n;
+      counts.total += n;
+      if (g.status && counts[g.status] !== undefined) {
+        counts[g.status] = n;
+      }
+    });
 
     res.render("admin-reports", {
       page: "reports",
@@ -358,7 +381,7 @@ exports.updateReport = async (req, res) => {
           type: "report_update",
           title: notifTitle,
           body: notifBody,
-          link: `/singer/hub#tab-reports`,
+          link: `/my-hub#tab-reports`,
           eventKey: `ticket_update:${report.id}:${Date.now()}`,
           singerId: report.singer_id,
           metadata: { ticket_code: report.ticket_code, report_id: report.id, status }

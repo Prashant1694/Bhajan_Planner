@@ -8,6 +8,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-height: 0;
   background: rgba(217, 119, 6, 0.09);
   color: #b45309;
   border: 1px solid rgba(217, 119, 6, 0.28);
@@ -180,13 +181,31 @@
   border-top: 1px solid rgba(217, 119, 6, 0.22);
   box-shadow: 0 -8px 28px rgba(180, 83, 9, 0.08), 0 -2px 6px rgba(0, 0, 0, 0.03);
   padding: 10px 24px 14px 24px;
-  transform: translateY(115%);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(calc(100% + 220px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.24s ease,
+    visibility 0.24s ease;
   box-sizing: border-box;
 }
 
 .sticky-audio-bar.is-visible {
-  transform: translateY(0);
+  display: block !important;
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.sticky-audio-bar:not(.is-visible) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transform: translateY(calc(100% + 220px)) !important;
 }
 
 [data-theme="dark"] .sticky-audio-bar {
@@ -344,6 +363,8 @@
   cursor: pointer;
   width: 36px;
   height: 36px;
+  min-height: 0;
+  padding: 0;
   border-radius: 50%;
   color: #78350f;
   display: flex;
@@ -399,6 +420,7 @@
   background: rgba(217, 119, 6, 0.08);
   border: 1px solid rgba(217, 119, 6, 0.24);
   border-radius: 7px;
+  min-height: 0;
   padding: 5px 10px;
   font-size: 12px;
   font-weight: 700;
@@ -443,20 +465,51 @@
 }
 
 .audio-close-bar-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  min-height: 40px;
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--ink-soft, #64748b);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 0;
   line-height: 1;
-  border-radius: 6px;
-  transition: all 0.15s;
+  border-radius: 50%;
+  transition: all 0.16s ease;
+  flex-shrink: 0;
+  position: relative;
+  touch-action: manipulation;
+  z-index: 10001;
+}
+
+.audio-close-bar-btn::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
 }
 
 .audio-close-bar-btn:hover {
-  color: var(--danger, #ef4444);
-  background: rgba(239, 68, 68, 0.08);
+  color: #ffffff;
+  background: var(--danger, #ef4444);
+  border-color: var(--danger, #ef4444);
+}
+
+[data-theme="dark"] .audio-close-bar-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .audio-close-bar-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
 }
 
 /* Mobile responsive rules */
@@ -525,8 +578,11 @@
   }
 
   .audio-close-bar-btn {
-    font-size: 18px;
-    padding: 2px 4px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 24px;
   }
 }
 
@@ -538,6 +594,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 0;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -637,10 +694,10 @@
 }
 
 [data-theme="dark"] .audio-markers-sheet {
-  background: rgba(24, 24, 27, 0.97);
+  background: rgba(28, 25, 23, 0.97);
   border-top-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.65);
-  color: #f43f5e;
+  color: #f5f0e8;
 }
 
 /* On Desktop & Tablet: Centered Dialog */
@@ -735,6 +792,8 @@
 .audio-markers-close-btn {
   width: 30px;
   height: 30px;
+  min-height: 0;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.04);
@@ -981,4 +1040,3 @@
   color: #78716c;
   font-size: 12.5px;
 }
-[diff_block_end]

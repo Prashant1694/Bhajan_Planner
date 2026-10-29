@@ -1,13 +1,13 @@
-const MasterBhajan = require("../models/MasterBhajan");
 const { Sequelize } = require("sequelize");
 const BhajanSubmission = require("../models/BhajanSubmission");
-const Singer = require("../models/Singer");
 const DeityRule = require("../models/DeityRule");
+const UserPresence = require("../models/UserPresence");
+const { getSectionName, resolveVisitorId } = require("../middleware/activityTracker");
+const { getMasterCatalog, getSingersCatalog } = require("../services/catalogCache");
 
 const {
   DEITY_ALIASES,
-  DEITY_TITLE_MATCHERS,
-  DEITY_TITLE_SEARCH_TERMS
+  DEITY_TITLE_MATCHERS
 } = require("../config/constants");
 
 exports.getMasterBhajans = async (req, res) => {
@@ -15,53 +15,61 @@ exports.getMasterBhajans = async (req, res) => {
     const deity = req.params.deity;
     const aliases = DEITY_ALIASES[deity] || [deity];
     const titleMatcher = DEITY_TITLE_MATCHERS[deity];
-    const titleSearchTerms = DEITY_TITLE_SEARCH_TERMS[deity] || [];
+    const lowerAliases = aliases.map((a) => a.toLowerCase().trim());
 
-    // Match exact deity or multi-deity substring (e.g. "Devi, Guru")
-    const deityLikeConditions = aliases.map((a) => ({
-      deity: { [Sequelize.Op.like]: `%${a}%` }
-    }));
+    const catalog = await getMasterCatalog();
 
-    const orConditions = [{ deity: { [Sequelize.Op.in]: aliases } }, ...deityLikeConditions];
-
-    if (titleMatcher && titleSearchTerms.length > 0) {
-      orConditions.push(
-        ...titleSearchTerms.map((term) => ({
-          title: { [Sequelize.Op.like]: `%${term}%` }
-        }))
-      );
-    }
-
-    const bhajans = await MasterBhajan.findAll({
-      where: {
-        is_active: true,
-        [Sequelize.Op.or]: orConditions
-      }
+    // Filter directly in memory (< 0.4ms vs full SQLite LIKE scan)
+    const relevantBhajans = catalog.lightRows.filter((bhajan) => {
+      const bDeityTokens = (bhajan.deity || "")
+        .split(/[,;&/]+/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+      const hasDeity = bDeityTokens.some((d) => {
+        if (lowerAliases.includes(d)) return true;
+        if (lowerAliases.some((la) => d.includes(la) || la.includes(d))) return true;
+        const tokenAliases = (DEITY_ALIASES[d] || []).map((x) => x.toLowerCase());
+        return tokenAliases.some((ta) => lowerAliases.includes(ta));
+      });
+      return hasDeity || Boolean(titleMatcher && titleMatcher.test(bhajan.title));
     });
 
-    // Deduplicate by ID and verify deity match or title match before returning to UI
-    const lowerAliases = aliases.map((a) => a.toLowerCase());
-    const seenIds = new Set();
-    const relevantBhajans = bhajans
-      .filter((bhajan) => {
-        const bDeityTokens = (bhajan.deity || "").split(/[,;&\/]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
-        const hasDeity = bDeityTokens.some((d) => {
-          if (lowerAliases.includes(d)) return true;
-          const tokenAliases = (DEITY_ALIASES[d] || []).map((x) => x.toLowerCase());
-          return tokenAliases.some((ta) => lowerAliases.includes(ta));
-        });
-        return hasDeity || (titleMatcher && titleMatcher.test(bhajan.title));
-      })
-      .filter((bhajan) => {
-        if (seenIds.has(bhajan.id)) return false;
-        seenIds.add(bhajan.id);
-        return true;
-      })
-      .sort((a, b) => a.title.localeCompare(b.title));
     res.json(relevantBhajans);
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Failed to get master bhajans:`, error);
     res.status(500).json({ error: "Failed to retrieve bhajans." });
+  }
+};
+
+exports.getBhajanLyrics = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ error: "Invalid bhajan ID." });
+    }
+    const catalog = await getMasterCatalog();
+    const item = catalog.fullById.get(id);
+    if (!item || !item.is_active) {
+      return res.status(404).json({ error: "Bhajan not found." });
+    }
+    res.set("Cache-Control", "public, max-age=300");
+    return res.json({
+      id: item.id,
+      title: item.title,
+      deity: item.deity,
+      raga: item.raga,
+      raga_notes: item.raga_notes,
+      tempo: item.tempo,
+      level: item.level,
+      shruti: item.shruti,
+      shruti_female: item.shruti_female,
+      language: item.language,
+      sheet_filename: item.sheet_filename,
+      lyrics: item.lyrics || ""
+    });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] Failed to get bhajan lyrics:`, error);
+    res.status(500).json({ error: "Failed to load lyrics." });
   }
 };
 
@@ -78,7 +86,8 @@ exports.checkCooldown = async (req, res) => {
         title: { [Sequelize.Op.like]: title },
         session_date: { [Sequelize.Op.gte]: thirtyDaysAgo.toISOString().split("T")[0] }
       },
-      order: [["session_date", "DESC"]]
+      order: [["session_date", "DESC"]],
+      raw: true
     });
 
     res.json(recentSubmission);
@@ -96,95 +105,94 @@ exports.getScaleSuggestions = async (req, res) => {
     }
 
     const cleanTitle = title.trim();
-    let singerPreviousScale = null;
-    let mostCommonGenderScale = null;
+    const singersCatalog = await getSingersCatalog();
 
-    // Feature 1: Singer's Previous Scale
-    if (singer_name && singer_name.trim()) {
-      const cleanSinger = singer_name.trim();
-      const prevSubmission = await BhajanSubmission.findOne({
-        where: {
-          title: { [Sequelize.Op.like]: cleanTitle },
-          singer_name: { [Sequelize.Op.like]: cleanSinger },
-          scale: {
-            [Sequelize.Op.and]: [
-              { [Sequelize.Op.ne]: null },
-              { [Sequelize.Op.ne]: "" },
-              { [Sequelize.Op.ne]: "Not specified" }
-            ]
-          }
-        },
-        order: [
-          ["created_at", "DESC"],
-          ["session_date", "DESC"],
-          ["id", "DESC"]
-        ]
-      });
-
-      if (prevSubmission && prevSubmission.scale) {
-        singerPreviousScale = prevSubmission.scale.trim();
-      }
-    }
-
-    // Feature 2: Most Common Scale by Gender
     let targetGender = gender ? gender.trim() : null;
     if (!targetGender && singer_name && singer_name.trim()) {
-      const singerObj = await Singer.findOne({
-        where: { name: { [Sequelize.Op.like]: singer_name.trim() } }
-      });
+      const singerObj = singersCatalog.byLowerName.get(singer_name.trim().toLowerCase());
       if (singerObj && singerObj.gender) {
         targetGender = singerObj.gender;
       }
     }
 
-    if (targetGender && ["Male", "Female"].includes(targetGender)) {
-      const sameGenderSingers = await Singer.findAll({
-        where: { gender: targetGender },
-        attributes: ["name"],
-        raw: true
-      });
-      const singerNamesList = sameGenderSingers.map((s) => s.name);
+    const validScaleCondition = {
+      [Sequelize.Op.and]: [
+        { [Sequelize.Op.ne]: null },
+        { [Sequelize.Op.ne]: "" },
+        { [Sequelize.Op.ne]: "Not specified" }
+      ]
+    };
 
-      const genderSubmissions = await BhajanSubmission.findAll({
+    const prevSubPromise =
+      singer_name && singer_name.trim()
+        ? BhajanSubmission.findOne({
+            where: {
+              title: { [Sequelize.Op.like]: cleanTitle },
+              singer_name: { [Sequelize.Op.like]: singer_name.trim() },
+              scale: validScaleCondition
+            },
+            order: [
+              ["created_at", "DESC"],
+              ["session_date", "DESC"],
+              ["id", "DESC"]
+            ],
+            attributes: ["scale"],
+            raw: true
+          })
+        : Promise.resolve(null);
+
+    let genderSubPromise = Promise.resolve([]);
+    if (targetGender && ["Male", "Female"].includes(targetGender)) {
+      const singerNamesList = singersCatalog.rows
+        .filter((s) => s.gender === targetGender)
+        .map((s) => s.name);
+
+      genderSubPromise = BhajanSubmission.findAll({
         where: {
           title: { [Sequelize.Op.like]: cleanTitle },
           [Sequelize.Op.or]: [
             { gender: targetGender },
-            { singer_name: { [Sequelize.Op.in]: singerNamesList } }
+            ...(singerNamesList.length > 0
+              ? [{ singer_name: { [Sequelize.Op.in]: singerNamesList } }]
+              : [])
           ],
-          scale: {
-            [Sequelize.Op.and]: [
-              { [Sequelize.Op.ne]: null },
-              { [Sequelize.Op.ne]: "" },
-              { [Sequelize.Op.ne]: "Not specified" }
-            ]
-          }
+          scale: validScaleCondition
         },
-        attributes: ["scale"]
+        attributes: ["scale"],
+        raw: true
       });
+    }
 
-      if (genderSubmissions && genderSubmissions.length > 0) {
-        const counts = {};
-        let maxCount = 0;
-        let topScale = null;
+    const [prevSubmission, genderSubmissions] = await Promise.all([
+      prevSubPromise,
+      genderSubPromise
+    ]);
 
-        for (const sub of genderSubmissions) {
-          const s = (sub.scale || "").trim();
-          if (s && s !== "Not specified") {
-            counts[s] = (counts[s] || 0) + 1;
-            if (counts[s] > maxCount) {
-              maxCount = counts[s];
-              topScale = s;
-            }
+    const singerPreviousScale =
+      prevSubmission && prevSubmission.scale ? prevSubmission.scale.trim() : null;
+
+    let mostCommonGenderScale = null;
+    if (genderSubmissions && genderSubmissions.length > 0) {
+      const counts = {};
+      let maxCount = 0;
+      let topScale = null;
+
+      for (const sub of genderSubmissions) {
+        const s = (sub.scale || "").trim();
+        if (s && s !== "Not specified") {
+          counts[s] = (counts[s] || 0) + 1;
+          if (counts[s] > maxCount) {
+            maxCount = counts[s];
+            topScale = s;
           }
         }
+      }
 
-        if (topScale) {
-          mostCommonGenderScale = {
-            gender: targetGender,
-            scale: topScale
-          };
-        }
+      if (topScale) {
+        mostCommonGenderScale = {
+          gender: targetGender,
+          scale: topScale
+        };
       }
     }
 
@@ -200,10 +208,12 @@ exports.getScaleSuggestions = async (req, res) => {
 
 exports.getSingers = async (req, res) => {
   try {
-    const singers = await Singer.findAll({
-      attributes: ["id", "name", "gender"],
-      order: [["name", "ASC"]]
-    });
+    const singersCatalog = await getSingersCatalog();
+    const singers = singersCatalog.rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      gender: s.gender || null
+    }));
     res.json(singers);
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Failed to load singers:`, error);
@@ -215,48 +225,53 @@ exports.getDeityRules = async (req, res) => {
   try {
     const { deityOrderKey } = require("../services/helpers");
     const date = req.query.date || "default";
-    let rules = await DeityRule.findAll({ where: { session_date: date } });
+    let rules = await DeityRule.findAll({ where: { session_date: date }, raw: true });
     if (rules.length === 0 && date !== "default") {
-      rules = await DeityRule.findAll({ where: { session_date: "default" } });
+      rules = await DeityRule.findAll({ where: { session_date: "default" }, raw: true });
     }
-    const plainRules = rules.map((r) => r.toJSON ? r.toJSON() : r);
-    plainRules.sort((a, b) => deityOrderKey(a.deity_name) - deityOrderKey(b.deity_name));
-    res.json(plainRules);
+    rules.sort((a, b) => deityOrderKey(a.deity_name) - deityOrderKey(b.deity_name));
+    res.json(rules);
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Failed to load deity rules:`, error);
     res.status(500).json({ error: "Failed to load deity rules." });
   }
 };
 
-const UserPresence = require("../models/UserPresence");
-const ActivityLog = require("../models/ActivityLog");
-const { getSectionName } = require("../middleware/activityTracker");
-
 exports.recordHeartbeat = async (req, res) => {
   try {
-    const sessionId = req.session?.visitorId;
+    const sessionId = resolveVisitorId(req, res);
     if (!sessionId) return res.json({ success: false });
 
-    const admin = req.session.admin || null;
-    const userType = admin ? (admin.role === "super_admin" ? "super_admin" : "admin") : "user";
+    const admin = req.session?.admin || null;
+    const singer = req.session?.singer || null;
+    const userType = admin
+      ? admin.role === "super_admin"
+        ? "super_admin"
+        : "admin"
+      : singer
+        ? "singer"
+        : "user";
     const adminId = admin ? admin.id : null;
-    const adminName = admin
-      ? admin.display_name || admin.displayName || admin.username || "Admin"
-      : "Guest User";
-    const adminTitleStr = admin && admin.title ? ` (${admin.title})` : "";
-    const username = admin ? `${adminName}${adminTitleStr}` : "Guest User";
+    let username = "Guest User";
+    if (admin) {
+      const adminName = admin.display_name || admin.displayName || admin.username || "Admin";
+      const adminTitleStr = admin.title ? ` (${admin.title})` : "";
+      username = `${adminName}${adminTitleStr}`;
+    } else if (singer && singer.name) {
+      username = singer.name;
+    }
+
     const pageUrl = req.body.page || "/";
     const section = getSectionName(pageUrl.split("?")[0]);
-    const duration = parseInt(req.body.duration || 0, 10);
 
     await UserPresence.upsert({
       session_id: sessionId,
       admin_id: adminId,
-      username: username,
+      username,
       user_type: userType,
       current_page: pageUrl,
       last_section: section,
-      ip_address: req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "127.0.0.1",
+      ip_address: req.ip || req.socket?.remoteAddress || "127.0.0.1",
       last_seen_at: new Date()
     });
 
@@ -269,7 +284,7 @@ exports.recordHeartbeat = async (req, res) => {
 
 exports.recordOffline = async (req, res) => {
   try {
-    const sessionId = req.session?.visitorId;
+    const sessionId = req.cookies?.bp_vid || req.session?.visitorId;
     if (sessionId) {
       await UserPresence.update(
         { last_seen_at: new Date(0) },

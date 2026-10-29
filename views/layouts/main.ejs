@@ -1,373 +1,281 @@
-<% 
-  // Embed mode: when loaded inside the app shell iframe, suppress chrome
-  const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false); 
+<%
+  // Chromeless embed fallback (e.g. ?standalone=1 or test suite)
+  const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false);
+  const isAuthAdmin = (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin);
 %>
-  <!DOCTYPE html>
-  <html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 
-  <head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF7F2">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-    <meta charset="UTF-8">
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#fbf8f2">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title><%= typeof pageTitle !== "undefined" ? pageTitle : "Bhajan Planner" %></title>
 
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
-    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-    <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
+  <!-- Google Fonts Direct Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <title>
-      <%= typeof pageTitle !=="undefined" ? pageTitle : "Bhajan Planner" %>
-    </title>
-    <!-- Google Fonts Direct Preconnect -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Global CSS (v6.2) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.2">
+  <link rel="stylesheet" href="/css/pwa.css?v=6.2">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.2">
+  <link rel="stylesheet" href="/css/bulletin.css?v=6.2">
 
-    <!-- Global CSS with Cache Busting -->
-    <link rel="stylesheet" href="/css/style.css?v=5.5">
-    <link rel="stylesheet" href="/css/pwa.css?v=5.5">
-    <link rel="stylesheet" href="/css/notifications.css?v=5.5">
-    <link rel="stylesheet" href="/css/bulletin.css?v=5.5">
+  <% if (!isEmbed && typeof showLoader !== "undefined" && showLoader) { %>
+    <link rel="stylesheet" href="/css/loading.css?v=6.2">
+  <% } %>
 
-    <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
-      <link rel="stylesheet" href="/css/loading.css?v=5.5">
-    <% } %>
+  <% if (typeof isAdminPage !== "undefined" && isAdminPage) { %>
+    <link rel="stylesheet" href="/css/admin.css?v=6.2">
+  <% } %>
 
-    <% if (typeof isAdminPage !=="undefined" && isAdminPage) { %>
-      <link rel="stylesheet" href="/css/admin.css?v=5.5">
-    <% } %>
+  <% if (pageCSS && (!(typeof isAdminPage !== "undefined" && isAdminPage) || pageCSS !== "admin.css")) { %>
+    <link rel="stylesheet" href="/css/<%= pageCSS %>?v=6.2">
+  <% } %>
 
-    <!-- Optional page-specific CSS -->
-    <% if (pageCSS) { %>
-      <link rel="stylesheet" href="/css/<%= pageCSS %>?v=5.5">
-    <% } %>
+  <!-- Early Anti-FOUC Dark Mode Init -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('bp-theme');
+        if (t === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#12100E');
+        } else if (t === 'light') {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#FAF7F2');
+        }
+      } catch (e) {}
+    })();
 
+    window.applyTheme = function (isDark) {
+      try {
+        if (isDark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          if (document.body) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.body.classList.add('dark');
+          }
+          localStorage.setItem('bp-theme', 'dark');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#12100E');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          if (document.body) {
+            document.body.removeAttribute('data-theme');
+            document.body.classList.remove('dark');
+          }
+          localStorage.setItem('bp-theme', 'light');
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', '#FAF7F2');
+        }
+        var btns = document.querySelectorAll('.theme-toggle, #themeToggle, #shellThemeToggle, #topbarThemeToggle, #themeToggleBtn, .admin-theme-toggle-btn');
+        btns.forEach(function (btn) {
+          btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          btn.setAttribute('data-tooltip', isDark ? 'Switch to Light' : 'Switch to Dark');
+          btn.setAttribute('title', isDark ? 'Switch to Light' : 'Switch to Dark');
+        });
+        if (window.top && window.top !== window) {
+          try {
+            if (typeof window.top.applyTheme === 'function' && window.top !== window) {
+              window.top.applyTheme(isDark);
+            }
+          } catch (_) {}
+        }
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark: isDark } }));
+      } catch (e) {}
+    };
 
-                <!-- Critical Anti-FOUC for Floating Theme Toggle & Absolute Print Elimination -->
-                <style>
-                  @media screen {
-                    .floating-theme-toggle {
-                      position: fixed !important;
-                      bottom: 88px !important;
-                      right: 24px !important;
-                      z-index: 9995 !important;
-                      width: 52px !important;
-                      height: 52px !important;
-                      border-radius: 50% !important;
-                      display: flex !important;
-                      align-items: center !important;
-                      justify-content: center !important;
-                    }
+    window.toggleTheme = function (e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var now = Date.now();
+      if (window._lastThemeToggle && (now - window._lastThemeToggle < 250)) return;
+      window._lastThemeToggle = now;
+      var stored = null;
+      try { stored = localStorage.getItem('bp-theme'); } catch (_) {}
+      var isDark = stored === 'dark' || (stored !== 'light' && (document.documentElement.getAttribute('data-theme') === 'dark' || document.documentElement.classList.contains('dark')));
+      window.applyTheme(!isDark);
+      if (window.haptics && typeof window.haptics.light === 'function') {
+        window.haptics.light();
+      }
+      if (typeof triggerToast === 'function') {
+        triggerToast(!isDark ? 'Switched to Dark Sanctum Theme' : 'Switched to Ivory Prasanthi Theme');
+      }
+    };
 
-                    @media (max-width: 768px) {
-                      .floating-theme-toggle {
-                        width: 44px !important;
-                        height: 44px !important;
-                        bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
-                        right: 14px !important;
-                        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
-                      }
-                    }
+    window.toggleAdminSidebar = function (e) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (window.innerWidth <= 768) {
+        document.body.classList.remove('mobile-sidebar-open');
+        return;
+      }
+      document.body.classList.toggle('sidebar-collapsed');
+      try {
+        localStorage.setItem('admin_sidebar_collapsed', String(document.body.classList.contains('sidebar-collapsed')));
+      } catch (_) {}
+    };
 
-                    body:has(.modal.show) .floating-theme-toggle,
-                    body.modal-open .floating-theme-toggle {
-                      display: none !important;
-                      pointer-events: none !important;
-                    }
-                  }
+    window.toggleMobileSidebar = function (e) {
+      if (e && e.preventDefault) e.preventDefault();
+      document.body.classList.toggle('mobile-sidebar-open');
+    };
 
-                  @media print {
+    window.closeMobileSidebar = function () {
+      document.body.classList.remove('mobile-sidebar-open');
+    };
 
-                    .theme-toggle,
-                    #themeToggle,
-                    .notif-bell-btn,
-                    #notifBellBtn,
-                    .notif-badge,
-                    .notif-panel,
-                    .notif-overlay,
-                    .notif-prompt-overlay,
-                    .pwa-install-overlay,
-                    #pwaInstallOverlay,
-                    .notification-bell-container {
-                      display: none !important;
-                      visibility: hidden !important;
-                      opacity: 0 !important;
-                      position: fixed !important;
-                      left: -9999px !important;
-                      top: -9999px !important;
-                      width: 0 !important;
-                      height: 0 !important;
-                      pointer-events: none !important;
-                    }
-                  }
-                </style>
+    // Delegated click handler on document for resilient theme toggle clicks
+    document.addEventListener('click', function (e) {
+      var themeBtn = e.target && e.target.closest ? e.target.closest('#topbarThemeToggle, #shellThemeToggle, .admin-theme-toggle-btn') : null;
+      if (themeBtn) {
+        window.toggleTheme(e);
+      }
+    });
+  </script>
+</head>
 
-                <!-- Dark mode & Native Shell Router: early script to prevent flash -->
-                <script>
-                  (function () {
-                    try {
-                      var t = localStorage.getItem('bp-theme');
-                      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-                    } catch (e) { }
+<body class="<%= isAuthAdmin ? 'admin-page' : '' %> <%= isEmbed ? 'embed-page' : '' %>">
 
-                    try {
-                      // Tag embedded iframes immediately before render to suppress duplicate navigation chrome
-                      if (window.self !== window.top) {
-                        document.documentElement.classList.add('in-iframe');
+  <!-- Universal SSSO Print Letterhead -->
+  <%- include('../partials/universal-print-header') %>
 
-                        // Notify parent shell of current clean URL (stripping _embed)
-                        var cleanUrl = (function() {
-                          try {
-                            var u = new URL(window.location.href);
-                            u.searchParams.delete('_embed');
-                            u.searchParams.delete('embed');
-                            var qs = u.searchParams.toString();
-                            return u.pathname + (qs ? ('?' + qs) : '');
-                          } catch (_) {
-                            return window.location.pathname;
-                          }
-                        })();
+  <div id="top-nav-bar" class="top-nav-progress" aria-hidden="true">
+    <div id="top-nav-fill" class="top-nav-fill">
+      <div class="top-nav-glow"></div>
+    </div>
+  </div>
 
-                        try {
-                          sessionStorage.setItem('bp_current_path', cleanUrl);
-                        } catch (_) {}
-
-                        if (window.top && typeof window.top.onFrameNavigated === 'function') {
-                          window.top.onFrameNavigated(cleanUrl, window.location.pathname);
-                        } else if (window.top && window.top.history && window.top.history.replaceState) {
-                          window.top.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-                        }
-
-                        // Seamless cross-tab link delegator
-                        document.addEventListener('click', function (e) {
-                          var a = e.target && e.target.closest('a');
-                          if (!a || !a.href) return;
-                          if (a.target === '_blank' || a.hasAttribute('download')) return;
-                          var rawHref = a.getAttribute('href') || '';
-                          if (rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
-
-                          try {
-                            var dest = new URL(a.href, window.location.origin);
-                            if (dest.origin !== window.location.origin) return; // external
-
-                            var path = dest.pathname.toLowerCase();
-                            if (path.startsWith('/admin')) {
-                              // Direct top-level navigation to admin portal
-                              e.preventDefault();
-                              e.stopPropagation();
-                              window.top.location.href = dest.pathname + dest.search;
-                              return;
-                            }
-
-                            var targetTab = null;
-                            if (path === '/' || path === '') targetTab = 'home';
-                            else if (path.startsWith('/submit-form')) targetTab = 'singer';
-                            else if (path.startsWith('/master-bank')) targetTab = 'bank';
-                            else if (path.startsWith('/plan-view')) targetTab = 'plan';
-                            else if (path.startsWith('/my-hub')) targetTab = 'hub';
-
-                            var frameId = (window.frameElement && window.frameElement.id) || '';
-                            var myTab = frameId.replace('frame-', '');
-
-                            // If this link leads to a different shell tab, delegate smoothly to parent shell
-                            if (targetTab && myTab && targetTab !== myTab && window.top && typeof window.top.switchTab === 'function') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              var cleanDest = dest.pathname + dest.search;
-                              window.top.switchTab(targetTab, cleanDest);
-                            }
-                          } catch (_) {}
-                        }, true);
-                      }
-                    } catch (e) { }
-                  })();
-                </script>
-                <style>
-                  /* In any embedded frame, unconditionally hide duplicate bottom nav, top bars, and floating widgets */
-                  .in-iframe #appBottomNav,
-                  .in-iframe .app-bottom-nav,
-                  .in-iframe .native-bottom-nav,
-                  .in-iframe #nativeTopBar,
-                  .in-iframe .native-top-bar,
-                  .in-iframe #themeToggle,
-                  .in-iframe .floating-theme-toggle,
-                  .in-iframe #notifBellBtn,
-                  .in-iframe .notif-bell-btn,
-                  .in-iframe .topbar-quick-link,
-                  .in-iframe .outer-shell-only-bottom-nav,
-                  .in-iframe .pwa-install-overlay,
-                  .in-iframe #pwaInstallOverlay,
-                  body.embed-page .pwa-install-overlay,
-                  body.embed-page #pwaInstallOverlay {
-                    display: none !important;
-                    visibility: hidden !important;
-                    height: 0 !important;
-                    max-height: 0 !important;
-                    overflow: hidden !important;
-                    pointer-events: none !important;
-                    opacity: 0 !important;
-                  }
-
-                  html.in-iframe,
-                  html.embed-page {
-                    width: 100% !important;
-                    height: 100% !important;
-                    overflow-y: auto !important;
-                    overflow-x: hidden !important;
-                    -webkit-overflow-scrolling: touch !important;
-                  }
-
-                  body.in-iframe,
-                  body.embed-page,
-                  .in-iframe body {
-                    width: 100% !important;
-                    min-height: 100% !important;
-                    height: auto !important;
-                    overflow-y: visible !important;
-                    overflow-x: hidden !important;
-                    -webkit-overflow-scrolling: touch !important;
-                    box-sizing: border-box !important;
-                    padding-bottom: 48px !important;
-                  }
-                </style>
-  </head>
-
-  <body
-    class="<%= (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin) ? 'admin-page' : '' %> <%= isEmbed ? 'embed-page in-iframe' : '' %>">
-
-    <!-- Universal SSSO Print Letterhead for every printable page -->
-    <%- include('../partials/universal-print-header') %>
-      <div id="top-nav-bar" class="top-nav-progress" aria-hidden="true">
-        <div id="top-nav-fill" class="top-nav-fill">
-          <div class="top-nav-glow"></div>
+  <% if (!isEmbed) { %>
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-overlay" id="pwaInstallOverlay">
+      <div class="pwa-install-banner">
+        <div class="pwa-banner-header">
+          <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" width="48" height="48" class="pwa-banner-icon">
+          <div class="pwa-banner-info">
+            <h3>Install Bhajan Planner</h3>
+            <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>
+          </div>
+          <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>
+        </div>
+        <div class="pwa-banner-divider"></div>
+        <div class="pwa-banner-benefits">
+          <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Faster loading</div>
+          <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> Works like a native app</div>
+          <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home screen access</div>
+        </div>
+        <div class="pwa-banner-actions">
+          <button class="pwa-btn-install" id="pwaBtnInstall">Install App</button>
+          <button class="pwa-btn-dismiss" id="pwaBtnDismiss">Not Now</button>
+        </div>
+        <div class="pwa-manual-instructions" id="pwaManualInstructions" style="display:none">
+          <p id="pwaManualInstructionsText">Tap your browser menu (<strong>&vellip;</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+        </div>
+        <div class="pwa-ios-instructions" id="pwaIosInstructions" style="display:none">
+          <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">&uarr;</span> then <strong>"Add to Home Screen"</strong></p>
         </div>
       </div>
+    </div>
+  <% } %>
 
-      <% if (!isEmbed) { %>
-      <!-- PWA Install Banner -->
-      <div class="pwa-install-overlay" id="pwaInstallOverlay">
-        <div class="pwa-install-banner">
-          <div class="pwa-banner-header">
-            <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" class="pwa-banner-icon">
-            <div class="pwa-banner-info">
-              <h3>Install Bhajan Planner</h3>
-              <p class="pwa-banner-size">App size <span class="size-dot"></span> <span
-                  id="pwaBannerSize">calculating…</span></p>
-            </div>
-            <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>
-          </div>
-          <div class="pwa-banner-divider"></div>
-          <div class="pwa-banner-benefits">
-            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Faster loading</div>
-            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> Works like a native app</div>
-            <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home screen access</div>
-          </div>
-          <div class="pwa-banner-actions">
-            <button class="pwa-btn-install" id="pwaBtnInstall">Install App</button>
-            <button class="pwa-btn-dismiss" id="pwaBtnDismiss">Not Now</button>
-          </div>
-          <div class="pwa-manual-instructions" id="pwaManualInstructions" style="display:none">
-            <p id="pwaManualInstructionsText">Tap your browser menu (<strong>&vellip;</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
-          </div>
-          <div class="pwa-ios-instructions" id="pwaIosInstructions" style="display:none">
-            <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">&uarr;</span> then <strong>"Add to Home
-                Screen"</strong></p>
-          </div>
-        </div>
-      </div>
-      <% } %>
+  <% if (!isEmbed && typeof showLoader !== "undefined" && showLoader) { %>
+    <%- include("../partials/loading") %>
+  <% } %>
 
-      <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
-        <%- include("../partials/loading") %>
-      <% } %>
+  <% if (!isEmbed && !isAuthAdmin) { %>
+    <!-- Floating Dark Mode Toggle for standalone views -->
+    <button class="theme-toggle floating-theme-toggle" id="themeToggle" aria-label="Toggle dark mode" aria-pressed="false" data-tooltip="Switch to Dark">
+      <span class="icon-moon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </span>
+      <span class="icon-sun" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </span>
+    </button>
 
-            <% const isAuthAdmin=(typeof isAdminPage !=='undefined' && isAdminPage && currentAdmin); %>
-              <% if (!isEmbed && !isAuthAdmin) { %>
-                <!-- Dark Mode Toggle (floating, above notification bell) -->
-                <button class="theme-toggle floating-theme-toggle" id="themeToggle" aria-label="Toggle dark mode"
-                  aria-pressed="false" data-tooltip="Switch to Dark">
-                  <span class="icon-moon" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                  </span>
-                  <span class="icon-sun" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                  </span>
-                </button>
+    <%- include("../partials/notification-bell") %>
+    <%- include("../partials/whats-new-modal") %>
+  <% } %>
 
-                <!-- Notification Center (user-facing) -->
-                <%- include("../partials/notification-bell") %>
+  <% if (!isEmbed && isAuthAdmin) { %>
+    <div class="admin-layout">
+      <%- include('../partials/sidebar') %>
+      <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+      <main class="main-content">
+        <%- include('../partials/topbar') %>
+        <div class="page-body"><%- body %></div>
+      </main>
+    </div>
+  <% } else { %>
+    <%- body %>
+  <% } %>
 
-                  <!-- What's New Update Popup (Appears once per device) -->
-                  <%- include("../partials/whats-new-modal") %>
-                    <% } /* end !isEmbed && !isAuthAdmin */ %>
+  <!-- Universal SSSO Print Footer -->
+  <%- include('../partials/universal-print-footer') %>
 
-                      <% if (!isEmbed && typeof isAdminPage !== "undefined" && isAdminPage && currentAdmin) { %>
-                        <div class="admin-layout">
-                          <%- include('../partials/sidebar') %>
-                          <div class="sidebar-overlay" id="sidebarOverlay"></div>
-                          <main class="main-content">
-                            <%- include('../partials/topbar') %>
-                            <div class="page-body"><%- body %></div>
-                          </main>
-                        </div>
-                      <% } else { %>
-                        <%- body %>
-                      <% } %>
+  <!-- Global JS (v6.2) -->
+  <script src="/js/haptics.js?v=6.2"></script>
+  <script src="/js/script.js?v=6.2"></script>
+  <% if (!isEmbed) { %>
+    <script src="/js/pwa.js?v=6.2"></script>
+    <script src="/js/notifications.js?v=6.2"></script>
+  <% } %>
+  <script>
+    (function () {
+      try {
+        var hasDots = document.getElementById('homeReportDot') || document.getElementById('bankReportDot') || document.getElementById('unreadReplyDot');
+        if (!hasDots) return;
+        var storedTickets = JSON.parse(localStorage.getItem('bp_my_report_tickets') || '[]');
+        var devId = localStorage.getItem('bp_device_id') || '';
+        if (storedTickets.length === 0 && !devId) return;
 
-                                  <!-- Universal SSSO Print Footer for every printable page -->
-                                  <%- include('../partials/universal-print-footer') %>
+        var p = [];
+        if (storedTickets.length > 0) p.push('tickets=' + encodeURIComponent(storedTickets.join(',')));
+        if (devId) p.push('visitor_id=' + encodeURIComponent(devId));
 
-                                    <!-- Global JS -->
-                                    <script src="/js/haptics.js"></script>
-                                    <script src="/js/script.js?v=3.1"></script>
-                                    <% if (!isEmbed) { %>
-                                      <script src="/js/pwa.js"></script>
-                                      <script src="/js/notifications.js"></script>
-                                    <% } %>
-                                    <script>
-                                      (function () {
-                                        try {
-                                          var hasDots = document.getElementById('homeReportDot') || document.getElementById('bankReportDot') || document.getElementById('unreadReplyDot');
-                                          if (!hasDots) return;
-                                          var storedTickets = JSON.parse(localStorage.getItem('bp_my_report_tickets') || '[]');
-                                          var devId = localStorage.getItem('bp_device_id') || '';
-                                          if (storedTickets.length === 0 && !devId) return;
+        fetch('/api/reports/my-reports?' + p.join('&'))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.has_unread_reply) {
+              ['homeReportDot', 'bankReportDot', 'unreadReplyDot'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.style.display = 'block';
+              });
+            }
+          })
+          .catch(function () {});
+      } catch (e) {}
+    })();
+  </script>
 
-                                          var p = [];
-                                          if (storedTickets.length > 0) p.push('tickets=' + encodeURIComponent(storedTickets.join(',')));
-                                          if (devId) p.push('visitor_id=' + encodeURIComponent(devId));
+  <% if (!isEmbed && typeof showLoader !== "undefined" && showLoader) { %>
+    <script src="/js/loading.js?v=6.2"></script>
+  <% } %>
 
-                                          fetch('/api/reports/my-reports?' + p.join('&'))
-                                            .then(function (r) { return r.json(); })
-                                            .then(function (data) {
-                                              if (data && data.has_unread_reply) {
-                                                ['homeReportDot', 'bankReportDot', 'unreadReplyDot'].forEach(function (id) {
-                                                  var el = document.getElementById(id);
-                                                  if (el) el.style.display = 'block';
-                                                });
-                                              }
-                                            })
-                                            .catch(function () { });
-                                        } catch (e) { }
-                                      })();
-                                    </script>
+  <% if (typeof pageJS !== "undefined" && pageJS) { %>
+    <script src="/js/<%= pageJS %>?v=6.2"></script>
+  <% } %>
+</body>
 
-                                    <% if (!isEmbed && typeof showLoader !=="undefined" && showLoader) { %>
-                                      <script src="/js/loading.js?v=3.4"></script>
-                                    <% } %>
-
-                                        <!-- Optional page-specific JS -->
-                                        <% if (typeof pageJS !=="undefined" && pageJS) { %>
-                                          <script src="/js/<%= pageJS %>"></script>
-                                          <% } %>
-
-  </body>
-
-  </html>
+</html>

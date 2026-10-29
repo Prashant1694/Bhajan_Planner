@@ -4,7 +4,7 @@
   }
 %>
 
-<link rel="stylesheet" href="/css/session-audio.css">
+<link rel="stylesheet" href="/css/session-audio.css?v=6.1">
 <style>
   .archive-session-audio-btn {
     display: inline-flex;
@@ -420,39 +420,13 @@
         activeFilterTag.style.display = isFiltering ? 'inline-block' : 'none';
       }
 
-      // If active filter is set, make sure we dynamically inject any unrendered session from remainingSessions
-      // that matches the filter, so complete past archives are searchable!
+      // Render all remaining archived sessions once on first filter so complete history is searchable without duplicate DOM injection!
       if (isFiltering && remainingSessions.length > 0 && currentIndex < remainingSessions.length) {
-        var unrenderedMatches = [];
-        for (var idx = currentIndex; idx < remainingSessions.length; idx++) {
-          var s = remainingSessions[idx];
-          if (dateVal && s.date !== dateVal) continue;
-
-          var sessionMatches = false;
-          if (!query) {
-            sessionMatches = true;
-          } else {
-            for (var bIdx = 0; bIdx < s.bhajans.length; bIdx++) {
-              var b = s.bhajans[bIdx];
-              var bTitle = (b.title || '').toLowerCase();
-              var bSinger = (b.singer_name || '').toLowerCase();
-
-              if (bTitle.includes(query) || bSinger.includes(query)) {
-                sessionMatches = true;
-                break;
-              }
-            }
-          }
-
-          if (sessionMatches) {
-            unrenderedMatches.push(s);
-          }
+        var remainingBatch = remainingSessions.slice(currentIndex);
+        if (remainingBatch.length > 0 && dynamicContainer) {
+          dynamicContainer.insertAdjacentHTML('beforeend', remainingBatch.map(renderSessionHtml).join(''));
         }
-
-        if (unrenderedMatches.length > 0 && dynamicContainer) {
-          var html = unrenderedMatches.map(renderSessionHtml).join('');
-          dynamicContainer.insertAdjacentHTML('beforeend', html);
-        }
+        currentIndex = remainingSessions.length;
       }
 
       var allSections = document.querySelectorAll('.history-session');
@@ -561,4 +535,6 @@
   })();
 </script>
 
-<script src="/js/session-audio-player.js"></script>
+<% if (!locals.isShellFragment) { %>
+<script src="/js/session-audio-player.js?v=6.1"></script>
+<% } %>

@@ -1,7 +1,7 @@
 <header class="native-top-bar admin-topbar" id="adminTopBar" role="banner">
 
     <div class="native-top-left" style="display:flex; align-items:center; gap:8px;">
-        <button type="button" id="mobileSidebarToggle" class="native-action-btn admin-sidebar-toggle-btn" aria-label="Open Admin Menu" title="Admin Navigation Menu" style="margin-right:2px;">
+        <button type="button" id="mobileSidebarToggle" class="native-action-btn admin-sidebar-toggle-btn" aria-label="Open Admin Menu" title="Admin Navigation Menu" style="margin-right:2px;" onclick="if(typeof window.toggleMobileSidebar==='function'){window.toggleMobileSidebar(event);}">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -37,7 +37,7 @@
             id="topbarThemeToggle"
             aria-label="Toggle dark mode"
             title="Toggle dark / light mode"
-            onclick="if(typeof toggleTheme==='function'){toggleTheme(event);}else if(window.top&&typeof window.top.toggleTheme==='function'){window.top.toggleTheme(event);}"
+            onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}else if(window.top&&typeof window.top.toggleTheme==='function'){window.top.toggleTheme(event);}"
         >
             <span class="icon-moon" aria-hidden="true">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>

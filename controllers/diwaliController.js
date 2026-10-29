@@ -4,11 +4,11 @@ const diwaliExportService = require("../services/diwaliExportService");
 const diwaliImportService = require("../services/diwaliImportService");
 const activityService = require("../services/activityService");
 const {
-  MasterBhajan,
   DiwaliParticipant,
   DiwaliParticipantBhajan
 } = require("../models/diwaliModels");
 const BhajanSubmission = require("../models/BhajanSubmission");
+const { getMasterCatalog } = require("../services/catalogCache");
 
 // Pitch-shift calculation matching Thursday Bhajan form
 function femaleFallbackShruti(maleShruti) {
@@ -61,18 +61,14 @@ async function resolveSelectedEvent(req) {
 exports.dashboard = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const allEvents = await diwaliService.getAllEvents();
-    const stats = await diwaliService.getStats(selectedEvent.id);
+    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences] = await Promise.all([
+      diwaliService.getAllEvents(),
+      diwaliService.getStats(selectedEvent.id),
+      diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Gents" }),
+      diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Ladies" }),
+      diwaliService.getFullSequences(selectedEvent.id)
+    ]);
 
-    const gentsBhajans = await diwaliService.getFlatBhajanRows(selectedEvent.id, {
-      gender: "Gents"
-    });
-    const ladiesBhajans = await diwaliService.getFlatBhajanRows(selectedEvent.id, {
-      gender: "Ladies"
-    });
-    const sequences = await diwaliService.getFullSequences(selectedEvent.id);
-
-    // Extract unique deities and scales for filter dropdowns
     const allBhajans = [...gentsBhajans, ...ladiesBhajans];
     const deities = [...new Set(allBhajans.map((b) => b.deity).filter(Boolean))].sort();
     const scales = [...new Set(allBhajans.map((b) => b.scale).filter(Boolean))].sort();
@@ -93,7 +89,7 @@ exports.dashboard = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in diwaliController.dashboard:", error);
-    res.status(500).send("Error loading Diwali dashboard: " + error.message);
+    res.status(500).send("Error loading Diwali dashboard.");
   }
 };
 
@@ -113,7 +109,7 @@ exports.showEntryForm = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in diwaliController.showEntryForm:", error);
-    res.status(500).send("Error loading Diwali entry form: " + error.message);
+    res.status(500).send("Error loading Diwali entry form.");
   }
 };
 
@@ -123,7 +119,6 @@ exports.createParticipant = async (req, res) => {
     const selectedEvent = await resolveSelectedEvent(req);
     let { lead_name, partner_name, gender, remarks, bhajans } = req.body;
 
-    // Support both JSON API and form-encoded data
     if (typeof bhajans === "string") {
       try {
         bhajans = JSON.parse(bhajans);
@@ -133,7 +128,6 @@ exports.createParticipant = async (req, res) => {
     }
 
     if (!Array.isArray(bhajans) && req.body["bhajan_title"] !== undefined) {
-      // If submitted as traditional multi-inputs
       const rawTitles = req.body.bhajan_title;
       const titles = Array.isArray(rawTitles) ? rawTitles : [rawTitles];
       const masterIds = Array.isArray(req.body.master_bhajan_id)
@@ -215,7 +209,7 @@ exports.getParticipantJson = async (req, res) => {
     }
     res.json({ success: true, participant });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: "Failed to load participant." });
   }
 };
 
@@ -329,7 +323,7 @@ exports.showImport = async (req, res) => {
       allEvents
     });
   } catch (error) {
-    res.status(500).send("Error loading import page: " + error.message);
+    res.status(500).send("Error loading import page.");
   }
 };
 
@@ -375,8 +369,8 @@ exports.confirmImport = async (req, res) => {
 exports.exportYearly = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const format = req.query.format || "excel"; // "excel", "pdf"
-    const category = req.query.category || "Both"; // "Gents", "Ladies", "Both"
+    const format = req.query.format || "excel";
+    const category = req.query.category || "Both";
 
     await activityService.log(
       req.session.admin,
@@ -408,7 +402,7 @@ exports.exportYearly = async (req, res) => {
     }
   } catch (error) {
     console.error("Error exporting yearly data:", error);
-    res.status(500).send("Error exporting yearly data: " + error.message);
+    res.status(500).send("Error exporting yearly data.");
   }
 };
 
@@ -439,8 +433,10 @@ exports.makeSequence = async (req, res) => {
 exports.showSequenceEditor = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const allEvents = await diwaliService.getAllEvents();
-    const sequences = await diwaliService.getFullSequences(selectedEvent.id);
+    const [allEvents, sequences] = await Promise.all([
+      diwaliService.getAllEvents(),
+      diwaliService.getFullSequences(selectedEvent.id)
+    ]);
 
     res.render("diwali/sequence-editor", {
       pageTitle: `Sequence Editor — ${selectedEvent.name}`,
@@ -451,7 +447,7 @@ exports.showSequenceEditor = async (req, res) => {
     });
   } catch (error) {
     console.error("Error loading sequence editor:", error);
-    res.status(500).send("Error loading sequence editor: " + error.message);
+    res.status(500).send("Error loading sequence editor.");
   }
 };
 
@@ -522,7 +518,7 @@ exports.finalizeSequence = async (req, res) => {
 exports.exportSequence = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const format = req.query.format || "excel"; // "excel", "pdf"
+    const format = req.query.format || "excel";
     const sequenceId = req.query.sequenceId ? parseInt(req.query.sequenceId, 10) : null;
     const category = req.query.category || "Both";
 
@@ -558,11 +554,11 @@ exports.exportSequence = async (req, res) => {
     }
   } catch (error) {
     console.error("Error exporting sequence:", error);
-    res.status(500).send("Error exporting sequence: " + error.message);
+    res.status(500).send("Error exporting sequence.");
   }
 };
 
-// 20. Search Master Bhajans (Autocomplete API)
+// 20. Search Master Bhajans (Autocomplete API) — In-memory catalog + batched historical scale lookup
 exports.searchMasterBhajans = async (req, res) => {
   try {
     const q = (req.query.q || "").trim();
@@ -571,70 +567,126 @@ exports.searchMasterBhajans = async (req, res) => {
       return res.json([]);
     }
 
-    const tokens = q.split(/\s+/).filter(Boolean);
-    const likeConditions = tokens.map((tok) => ({
-      title: { [Op.like]: `%${tok}%` }
-    }));
+    const catalog = await getMasterCatalog();
+    const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
 
-    const bhajans = await MasterBhajan.findAll({
-      where: {
-        is_active: true,
-        [Op.and]: likeConditions
-      },
-      limit: 15,
-      order: [["title", "ASC"]]
-    });
+    const bhajans = [];
+    for (const row of catalog.lightRows) {
+      const lowerTitle = row.title.toLowerCase();
+      if (tokens.every((tok) => lowerTitle.includes(tok))) {
+        bhajans.push(row);
+        if (bhajans.length >= 15) break;
+      }
+    }
 
-    const results = [];
+    const missingScaleItems = [];
+    const precomputedScales = new Map();
+
     for (const b of bhajans) {
-      let scale = calculateScaleForGender(b, gender);
-      if (!scale) {
-        const cleanTitle = b.title.replace(/\s*\(\d+\)$/, "").trim();
-        const targetGender = gender === "Ladies" || gender === "Female" ? "Female" : "Male";
-        const prev = await BhajanSubmission.findOne({
+      const scale = calculateScaleForGender(b, gender);
+      if (scale) {
+        precomputedScales.set(b.id, scale);
+      } else {
+        missingScaleItems.push(b);
+      }
+    }
+
+    if (missingScaleItems.length > 0) {
+      const targetGender = gender === "Ladies" || gender === "Female" ? "Female" : "Male";
+      const diwaliGender = gender === "Ladies" || gender === "Female" ? "Ladies" : "Gents";
+      const lookupTitlesSet = new Set();
+      missingScaleItems.forEach((b) => {
+        lookupTitlesSet.add(b.title.toLowerCase());
+        const cleanTitle = b.title.replace(/\s*\(\d+\)$/, "").trim().toLowerCase();
+        if (cleanTitle) lookupTitlesSet.add(cleanTitle);
+      });
+      const lookupTitles = Array.from(lookupTitlesSet);
+
+      const [prevSubs, diwaliSubs] = await Promise.all([
+        BhajanSubmission.findAll({
           where: {
-            title: { [Op.or]: [{ [Op.like]: b.title }, { [Op.like]: cleanTitle }] },
-            scale: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: "Not specified" }] },
-            [Op.or]: [{ gender: targetGender }, { gender: gender }]
+            [Op.and]: [
+              Sequelize.where(Sequelize.fn("LOWER", Sequelize.col("title")), {
+                [Op.in]: lookupTitles
+              }),
+              {
+                scale: {
+                  [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }, { [Op.ne]: "Not specified" }]
+                }
+              },
+              { [Op.or]: [{ gender: targetGender }, { gender }] }
+            ]
           },
           order: [["created_at", "DESC"]],
-          attributes: ["scale"]
-        });
-        if (prev && prev.scale) scale = prev.scale.trim();
+          attributes: ["title", "scale"],
+          raw: true
+        }),
+        DiwaliParticipantBhajan.findAll({
+          where: {
+            [Op.and]: [
+              Sequelize.where(Sequelize.fn("LOWER", Sequelize.col("bhajan_title")), {
+                [Op.in]: lookupTitles
+              }),
+              { scale: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }] } }
+            ]
+          },
+          include: [
+            {
+              model: DiwaliParticipant,
+              as: "participant",
+              where: { gender: diwaliGender },
+              attributes: []
+            }
+          ],
+          order: [["created_at", "DESC"]],
+          attributes: ["bhajan_title", "scale"],
+          raw: true
+        })
+      ]);
 
-        if (!scale) {
-          const diwaliPrev = await DiwaliParticipantBhajan.findOne({
-            where: {
-              bhajan_title: { [Op.or]: [{ [Op.like]: b.title }, { [Op.like]: cleanTitle }] },
-              scale: { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }] }
-            },
-            include: [
-              {
-                model: DiwaliParticipant,
-                as: "participant",
-                where: { gender: gender === "Ladies" || gender === "Female" ? "Ladies" : "Gents" }
-              }
-            ],
-            order: [["created_at", "DESC"]]
-          });
-          if (diwaliPrev && diwaliPrev.scale) scale = diwaliPrev.scale.trim();
+      const subScaleByLower = new Map();
+      prevSubs.forEach((p) => {
+        const k = String(p.title || "").trim().toLowerCase();
+        if (k && p.scale && !subScaleByLower.has(k)) {
+          subScaleByLower.set(k, p.scale.trim());
         }
-      }
+      });
 
-      results.push({
-        id: b.id,
-        title: b.title,
-        deity: b.deity || "",
-        tempo: b.tempo || "",
-        shruti: b.shruti || "",
-        shruti_female: b.shruti_female || "",
-        genderScale: scale || ""
+      const diwaliScaleByLower = new Map();
+      diwaliSubs.forEach((p) => {
+        const k = String(p.bhajan_title || "").trim().toLowerCase();
+        if (k && p.scale && !diwaliScaleByLower.has(k)) {
+          diwaliScaleByLower.set(k, p.scale.trim());
+        }
+      });
+
+      missingScaleItems.forEach((b) => {
+        const t1 = b.title.toLowerCase();
+        const t2 = b.title.replace(/\s*\(\d+\)$/, "").trim().toLowerCase();
+        const resolved =
+          subScaleByLower.get(t1) ||
+          subScaleByLower.get(t2) ||
+          diwaliScaleByLower.get(t1) ||
+          diwaliScaleByLower.get(t2) ||
+          "";
+        precomputedScales.set(b.id, resolved);
       });
     }
 
+    const results = bhajans.map((b) => ({
+      id: b.id,
+      title: b.title,
+      deity: b.deity || "",
+      tempo: b.tempo || "",
+      shruti: b.shruti || "",
+      shruti_female: b.shruti_female || "",
+      genderScale: precomputedScales.get(b.id) || ""
+    }));
+
     res.json(results);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(`[Req ${req.id || ""}] diwali searchMasterBhajans error:`, error);
+    res.status(500).json({ error: "Failed to search bhajans." });
   }
 };
 

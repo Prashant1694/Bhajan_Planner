@@ -1,7 +1,7 @@
 // ============================================================
 // BHAJAN SCHEDULER - Node.js + Express + SQLite
 // Sri Sathya Sai Seva Organisation - Gandhinagar
-// Native App Shell & Persistent Tabs v3.5
+// Enterprise Single-DOM App Shell v6.0
 // ============================================================
 
 require("dotenv").config();
@@ -32,21 +32,26 @@ const logger = require("./services/logger");
 const sessionStore = new SequelizeStore({
   db: sequelize,
   tableName: "Sessions",
-  checkExpirationInterval: 15 * 60 * 1000, // Automatically prune expired sessions every 15 min
+  checkExpirationInterval: 15 * 60 * 1000, // Prune expired sessions every 15 min
   expiration: 90 * 24 * 60 * 60 * 1000 // 90 days persistent devotee session duration
 });
 
-// Ensure session table exists in SQLite
 sessionStore.sync();
+if (
+  sessionStore._expirationInterval &&
+  typeof sessionStore._expirationInterval.unref === "function"
+) {
+  sessionStore._expirationInterval.unref();
+}
 
 const {
-  securityHeaders,
   blockCrossSiteWrites,
   generalWriteLimit,
   sanitizeInputs
 } = require("./middleware/security");
 const { doubleCsrfProtection, generateToken } = require("./middleware/csrfProtection");
 const { initializeDatabase } = require("./services/databaseInitializer");
+const { getMasterCatalog, getSingersCatalog } = require("./services/catalogCache");
 
 // ============================================================
 // EXPRESS APP SETUP
@@ -83,10 +88,9 @@ app.get("/healthz", async (req, res) => {
   }
 });
 
-// configure layout
+// Configure EJS & Layouts
 app.use(expressLayouts);
 app.set("layout", "layouts/main");
-// Configure EJS Templating Engine
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -99,7 +103,6 @@ app.use((req, res, next) => {
   req.id = reqId;
   res.setHeader("X-Request-Id", reqId);
   res.locals.requestId = reqId;
-  res.locals.nonce = crypto.randomBytes(16).toString("base64");
   next();
 });
 
@@ -115,57 +118,107 @@ app.use(
         mediaSrc: ["'self'", "data:", "blob:", "https:"],
         imgSrc: ["'self'", "data:", "https:"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        styleSrcAttr: ["'unsafe-inline'"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+        scriptSrcAttr: ["'unsafe-inline'"],
         connectSrc: ["'self'", "https://accounts.google.com", "https://oauth2.googleapis.com"],
         frameSrc: ["'self'", "https://accounts.google.com"],
         workerSrc: ["'self'"],
         manifestSrc: ["'self'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
-        frameAncestors: ["'self'"]
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: process.env.NODE_ENV === "production" ? [] : null
       }
     },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-    crossOriginResourcePolicy: { policy: "same-origin" }
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" }
   })
 );
 
-app.use(securityHeaders);
-// Reject oversized payloads before they can consume server resources.
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  next();
+});
+
+// Reject oversized payloads before they can consume server resources
 app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 100 }));
 app.use(express.json({ limit: "100kb" }));
 app.use(sanitizeInputs);
 app.use(blockCrossSiteWrites);
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/activity/")) return next();
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method))
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return generalWriteLimit(req, res, next);
+  }
   next();
 });
 
-// Static Files
-app.use(express.static("public"));
+// Static Files — 7-day browser caching with ETag validation (sw.js always revalidates)
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    maxAge: "7d",
+    etag: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    }
+  })
+);
 
 // Official Music Sheets PDF Storage
-app.use("/sheets", express.static(path.join(__dirname, "public", "sheets")));
+app.use(
+  "/sheets",
+  express.static(path.join(__dirname, "public", "sheets"), {
+    maxAge: "7d",
+    etag: true
+  })
+);
 
-// Submission and admin pages contain time-sensitive data. Do not allow Chrome
-// to restore an old form from its back/forward cache when navigating back.
+// Scoped Cache-Control & Vary headers (do not blanket-disable caching on read-only views)
+const NO_STORE_PREFIXES = [
+  "/admin",
+  "/admin-login",
+  "/forgot-password",
+  "/logout",
+  "/submit-form",
+  "/singer/login",
+  "/singer/logout",
+  "/api/singer",
+  "/api/admin",
+  "/api/notifications"
+];
+
 app.use((req, res, next) => {
-  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
-  res.set("Pragma", "no-cache");
-  res.set("Expires", "0");
+  res.vary("X-App-Shell");
+  res.vary("Sec-Fetch-Dest");
+
+  const p = req.path.toLowerCase();
+  const mustNoStore =
+    req.method !== "GET" ||
+    NO_STORE_PREFIXES.some((prefix) => p === prefix || p.startsWith(prefix + "/"));
+
+  if (mustNoStore) {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+  } else {
+    res.set("Cache-Control", "private, no-cache");
+  }
   next();
 });
 
-// Session Setup with persistent SQLite storage (no MemoryStore leak)
+// Session Setup with persistent SQLite storage & sliding 90-day renewal
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "bhajan-planner-session-secret-gandhinagar-2026",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -189,41 +242,55 @@ app.use(attachAuthLocals);
 const BhajanReport = require("./models/BhajanReport");
 
 const ADMIN_PATH_PREFIXES = [
-  "/admin", // /admin, /admin/*, /admin/admin-users/*
+  "/admin",
   "/admin-login",
-  "/forgot-password" // login-recovery flow shares the admin visual language
+  "/forgot-password"
 ];
 
 const { getCachedMissingCount } = require("./services/helpers");
 
 app.use(async (req, res, next) => {
   try {
-    if (req.session && !req.session.initialized) {
-      req.session.initialized = true;
-    }
     res.locals.csrfToken =
       typeof req.csrfToken === "function" ? req.csrfToken() : generateToken(req, res);
   } catch (_) {
     res.locals.csrfToken = "";
   }
-  res.locals.currentAdmin = req.session.admin || null;
+  res.locals.currentAdmin = req.session?.admin || null;
   res.locals.page = "";
   res.locals.pageTitle = "Bhajan Planner";
   res.locals.pageCSS = null;
   res.locals.pageJS = null;
   res.locals.showLoader = false;
-  // Embed mode: page is rendered inside the app shell iframe — suppress chrome
+
+  const isShellFragment =
+    req.headers["x-app-shell"] === "1" || req.query._fragment === "1";
+  res.locals.isShellFragment = isShellFragment;
+
+  // Backward-compatible embed flag for legacy/test chromeless requests
   res.locals._embed =
+    isShellFragment ||
     req.query._embed === "1" ||
     req.query.embed === "1" ||
     req.headers["sec-fetch-dest"] === "iframe";
+
   res.locals.isAdminPage = ADMIN_PATH_PREFIXES.some(
     (prefix) => req.path === prefix || req.path.startsWith(prefix + "/")
   );
+
+  if (isShellFragment && !res.locals.isAdminPage) {
+    res.locals.layout = "layouts/fragment";
+    res.setHeader("X-Shell-Url", req.originalUrl);
+  }
+
   if (res.locals.isAdminPage && req.session && req.session.admin) {
     try {
-      res.locals.missingCount = await getCachedMissingCount();
-      res.locals.pendingReportCount = await BhajanReport.count({ where: { status: "pending" } });
+      const [missingCount, pendingReportCount] = await Promise.all([
+        getCachedMissingCount(),
+        BhajanReport.count({ where: { status: "pending" } })
+      ]);
+      res.locals.missingCount = missingCount;
+      res.locals.pendingReportCount = pendingReportCount;
     } catch (_) {
       res.locals.missingCount = 0;
       res.locals.pendingReportCount = 0;
@@ -234,6 +301,7 @@ app.use(async (req, res, next) => {
   }
   next();
 });
+
 const homeRoutes = require("./routes/home");
 const plannerRoutes = require("./routes/planner");
 const apiRoutes = require("./routes/api");
@@ -249,14 +317,20 @@ const diwaliRoutes = require("./routes/diwali");
 const reportsRoutes = require("./routes/reports");
 const singerHubRoutes = require("./routes/singerHub");
 
-// Native App Shell for top-level browser navigation and refresh
+// Native Single-DOM App Shell mapping for top-level browser navigation & refresh
 const SHELL_TAB_MAP = {
   "/": "home",
   "/submit-form": "singer",
+  "/submission-status": "singer",
   "/master-bank": "bank",
   "/plan-view": "plan",
+  "/session-select": "plan",
+  "/database": "plan",
   "/my-hub": "hub",
-  "/singer-dictionary": "singer",
+  "/singer/hub": "hub",
+  "/singer/login": "hub",
+  "/singers": "hub",
+  "/singer-dictionary": "hub",
   "/my-activity": "hub",
   "/my-reports": "home",
   "/notification-settings": "home"
@@ -266,8 +340,10 @@ app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (process.env.NODE_ENV === "test") return next();
 
-  // If this is an iframe embedding, standalone mode, or API/static asset, do not wrap
+  // Do not wrap fragment fetches, embed requests, or standalone views
   if (
+    req.headers["x-app-shell"] === "1" ||
+    req.query._fragment === "1" ||
     req.query._embed === "1" ||
     req.query.embed === "1" ||
     req.query.standalone === "1" ||
@@ -279,18 +355,20 @@ app.use((req, res, next) => {
 
   const cleanPath = req.path.toLowerCase();
 
-  // Admin routes and auth pages render standalone with admin layout (sidebar is only in admin!)
+  // Admin routes and auth pages render standalone with admin layout
   if (
     cleanPath.startsWith("/admin") ||
     cleanPath === "/admin-login" ||
-    cleanPath === "/forgot-password" ||
-    cleanPath === "/logout"
+    cleanPath.startsWith("/forgot-password") ||
+    cleanPath === "/logout" ||
+    cleanPath === "/singer/logout"
   ) {
     return next();
   }
 
-  // Must be a top-level HTML navigation from a browser (or explicit wrap=1)
-  const acceptsHtml = req.accepts ? req.accepts("html") : (req.headers.accept && req.headers.accept.includes("text/html"));
+  const acceptsHtml = req.accepts
+    ? req.accepts("html")
+    : req.headers.accept && req.headers.accept.includes("text/html");
   if (!acceptsHtml) return next();
   if (req.xhr || req.headers["x-requested-with"] === "XMLHttpRequest") return next();
 
@@ -302,14 +380,71 @@ app.use((req, res, next) => {
 
   if (!matchedTab) return next();
 
-  return res.render("app-shell", {
-    layout: false,
-    pageTitle: "Bhajan Planner",
-    initialTab: matchedTab,
-    initialRoute: req.originalUrl,
-    currentAdmin: req.session?.admin || null,
-    currentSinger: req.session?.singer || null
-  });
+  // For top-level browser visits to shell tab routes:
+  // Hook res.render so the route handler executes, compiles data, and renders its view fragment first (SSR).
+  // The fragment is injected directly into the active pane of app-shell, delivering instant 0ms FCP and never a blank viewport.
+  const originalRender = res.render.bind(res);
+  let hasRenderedShell = false;
+
+  res.render = function (view, options, callback) {
+    if (hasRenderedShell) {
+      return originalRender(view, options, callback);
+    }
+    hasRenderedShell = true;
+
+    let opts = typeof options === "object" ? Object.assign({}, options) : {};
+    let cb = typeof options === "function" ? options : callback;
+
+    const mergedLocals = Object.assign({}, res.locals, opts);
+    mergedLocals.layout = "layouts/fragment";
+
+    req.app.render(view, mergedLocals, (err, fragmentHtml) => {
+      if (err) {
+        console.error("[SSR] Failed to render initial fragment for " + view + ":", err.message);
+        return originalRender(
+          "app-shell",
+          {
+            layout: false,
+            pageTitle: opts.pageTitle || "Bhajan Planner",
+            initialTab: matchedTab,
+            initialRoute: req.originalUrl,
+            currentAdmin: req.session?.admin || null,
+            currentSinger: req.session?.singer || null,
+            initialFragmentHtml: "",
+            initialPageCss: opts.pageCSS || ""
+          },
+          cb
+        );
+      }
+
+      let finalFragment = fragmentHtml;
+      if (!finalFragment.includes("shell-fragment-root")) {
+        const pageTitle = opts.pageTitle || res.locals.pageTitle || "Bhajan Planner";
+        const pageCSS = opts.pageCSS || res.locals.pageCSS || "";
+        const pageJS = opts.pageJS || res.locals.pageJS || "";
+        const pageId = opts.page || res.locals.page || "";
+        const csrfToken = res.locals.csrfToken || "";
+        finalFragment = `<div class="shell-fragment-root" data-page-title="${pageTitle}" data-page-css="${pageCSS}" data-page-js="${pageJS}" data-page-id="${pageId}" data-csrf-token="${csrfToken}">${finalFragment}</div>`;
+      }
+
+      return originalRender(
+        "app-shell",
+        {
+          layout: false,
+          pageTitle: opts.pageTitle || "Bhajan Planner",
+          initialTab: matchedTab,
+          initialRoute: req.originalUrl,
+          currentAdmin: req.session?.admin || null,
+          currentSinger: req.session?.singer || null,
+          initialFragmentHtml: finalFragment,
+          initialPageCss: opts.pageCSS || ""
+        },
+        cb
+      );
+    });
+  };
+
+  return next();
 });
 
 app.use("/", homeRoutes);
@@ -360,7 +495,7 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
-// Do not expose stack traces or database details to visitors.
+// Global 500 error handler
 app.use((error, req, res, next) => {
   if (error?.type === "entity.too.large") {
     return res.status(413).send("Request payload is too large.");
@@ -394,7 +529,6 @@ async function gracefulShutdown(signal) {
   isShuttingDown = true;
   logger.info({ signal }, `Received ${signal}. Initiating graceful shutdown...`);
 
-  // Flush activity log and presence buffer
   try {
     const { flushActivityBuffer } = require("./middleware/activityTracker");
     await flushActivityBuffer();
@@ -429,7 +563,7 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 process.on("unhandledRejection", (reason, promise) => {
-  logger.fatal({ reason, promise }, "Unhandled Promise Rejection detected. Shutting down.");
+  logger.fatal({ err: reason, reason, promise }, "Unhandled Promise Rejection detected. Shutting down.");
   process.exit(1);
 });
 
@@ -444,12 +578,17 @@ process.on("uncaughtException", (error) => {
 async function startServer() {
   try {
     await initializeDatabase();
+    // Warm in-memory catalog caches right after DB init so first request is 0ms
+    await Promise.allSettled([getMasterCatalog(), getSingersCatalog()]);
 
-    serverInstance = app.listen(PORT, () => {
-      logger.info(`🕉️ Sai Ram! Bhajan Scheduler running on port ${PORT}`);
-      console.log(`🕉️ Sai Ram! Bhajan Scheduler is running on http://localhost:${PORT}`);
+    return new Promise((resolve, reject) => {
+      serverInstance = app.listen(PORT, () => {
+        logger.info(`🕉️ Sai Ram! Bhajan Scheduler running on port ${PORT}`);
+        console.log(`🕉️ Sai Ram! Bhajan Scheduler is running on http://localhost:${PORT}`);
+        resolve(serverInstance);
+      });
+      serverInstance.on("error", reject);
     });
-    return serverInstance;
   } catch (error) {
     logger.fatal({ error }, "Server startup failed");
     console.error("❌ Server startup failed:", error);

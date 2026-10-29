@@ -748,89 +748,137 @@ body {
 }
 
 /* ============================================================
-   DARK MODE — NOTIFICATION CENTER & SETTINGS
+   DARK MODE — NOTIFICATION CENTER, PROMPT & SETTINGS
    ============================================================ */
 
 [data-theme="dark"] .notif-panel {
-  background: #151824;
-  border-left: 1px solid #262d40;
-  border-top: 1px solid #262d40;
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  background: #1c1917;
+  border-left: 1px solid #332e29;
+  border-top: 1px solid #332e29;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.65);
 }
 
 [data-theme="dark"] .notif-panel-header {
-  border-bottom-color: #262d40;
+  border-bottom-color: #332e29;
 }
 
 [data-theme="dark"] .notif-panel-header h3 {
-  color: #f8fafc;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-mark-all {
-  border-color: #262d40;
-  color: #cbd5e1;
+  border-color: #332e29;
+  color: #d6cfc5;
 }
 
 [data-theme="dark"] .notif-mark-all:hover {
-  background: #1e2538;
-  color: #f8fafc;
+  background: #26221e;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-close-btn {
-  color: #94a3b8;
+  color: #a89f94;
 }
 
 [data-theme="dark"] .notif-close-btn:hover {
-  color: #f8fafc;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-item {
-  background: #151824;
-  border-bottom-color: #1f2537;
+  background: #1c1917;
+  border-bottom-color: #292521;
 }
 
 [data-theme="dark"] .notif-item:hover {
-  background: #1a1f2e;
+  background: #26221e;
 }
 
 [data-theme="dark"] .notif-item.unread {
-  background: #1a2236;
+  background: rgba(217, 119, 6, 0.1);
 }
 
 [data-theme="dark"] .notif-item-title {
-  color: #f8fafc;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-item-body {
-  color: #cbd5e1;
+  color: #d6cfc5;
 }
 
 [data-theme="dark"] .notif-item-time {
-  color: #94a3b8;
+  color: #a89f94;
 }
 
 [data-theme="dark"] .notif-empty {
-  color: #94a3b8;
+  color: #a89f94;
+}
+
+/* Prompt Modal (Dark Mode) */
+[data-theme="dark"] .notif-prompt-modal {
+  background: #1c1917;
+  border: 1px solid #332e29;
+  box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .notif-prompt-icon {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .notif-prompt-title {
+  color: #f5f0e8;
+}
+
+[data-theme="dark"] .notif-prompt-subtitle,
+[data-theme="dark"] .notif-prompt-footer {
+  color: #a89f94;
+}
+
+[data-theme="dark"] .notif-prompt-desc {
+  color: #d6cfc5;
+}
+
+[data-theme="dark"] .notif-prompt-label {
+  color: #e7e0d6;
+}
+
+[data-theme="dark"] .notif-prompt-select {
+  background: #26221e;
+  border-color: #3f3832;
+  color: #f5f0e8;
+}
+
+[data-theme="dark"] .notif-prompt-select:focus {
+  border-color: #f59e0b;
+  background: #1c1917;
+}
+
+[data-theme="dark"] .notif-btn-prompt-dismiss {
+  color: #a89f94;
+}
+
+[data-theme="dark"] .notif-btn-prompt-dismiss:hover {
+  color: #f5f0e8;
 }
 
 /* Settings Page */
 [data-theme="dark"] .notif-settings-card {
-  background: #151824;
-  border: 1px solid #262d40;
+  background: #1c1917;
+  border: 1px solid #332e29;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .notif-settings-card h2 {
-  color: #f8fafc;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-settings-card .subtitle {
-  color: #94a3b8;
+  color: #a89f94;
 }
 
 [data-theme="dark"] .notif-benefits-box {
-  background: #1a1f2e;
-  border-color: #262d40;
+  background: #26221e;
+  border-color: #332e29;
 }
 
 [data-theme="dark"] .notif-benefits-title {
@@ -838,43 +886,43 @@ body {
 }
 
 [data-theme="dark"] .notif-benefits-list li {
-  color: #cbd5e1;
+  color: #d6cfc5;
 }
 
 [data-theme="dark"] .notif-status-card {
-  background: #1a1f2e;
-  border-color: #262d40;
+  background: #26221e;
+  border-color: #332e29;
 }
 
 [data-theme="dark"] .notif-status-label {
-  color: #94a3b8;
+  color: #a89f94;
 }
 
 [data-theme="dark"] .notif-status-value {
-  color: #f8fafc;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-singer-select {
-  background: #1a1f2e;
-  border-color: #2e374c;
-  color: #f8fafc;
+  background: #26221e;
+  border-color: #3f3832;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-pin-section {
-  background: #1a1f2e;
-  border-color: #262d40;
+  background: #26221e;
+  border-color: #332e29;
 }
 
 [data-theme="dark"] .notif-pin-security-notice {
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(245, 158, 11, 0.1);
   border-color: rgba(245, 158, 11, 0.25);
-  color: #cbd5e1;
+  color: #d6cfc5;
 }
 
 [data-theme="dark"] .notif-pin-input {
-  background: #131722;
-  border-color: #2e374c;
-  color: #f8fafc;
+  background: #12100e;
+  border-color: #3f3832;
+  color: #f5f0e8;
 }
 
 [data-theme="dark"] .notif-pin-input:focus {
@@ -883,19 +931,19 @@ body {
 }
 
 [data-theme="dark"] .notif-pin-toggle-btn {
-  background: #202638;
-  border-color: #2e374c;
-  color: #cbd5e1;
+  background: #2e2924;
+  border-color: #3f3832;
+  color: #d6cfc5;
 }
 
 [data-theme="dark"] .notif-pin-help {
-  color: #94a3b8;
+  color: #a89f94;
 }
 
 [data-theme="dark"] .notif-prompt-banner {
-  background: #151824;
-  border-color: #262d40;
-  color: #f8fafc;
+  background: #1c1917;
+  border-color: #332e29;
+  color: #f5f0e8;
 }
 
 /* ── Print Media: Completely Suppress Notification UI ── */

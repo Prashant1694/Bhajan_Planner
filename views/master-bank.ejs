@@ -1,45 +1,49 @@
 <%
-    // Extract single unique deities (split by comma for multi-deity bhajans)
-    const deityMap = new Map();
-    bhajans.forEach(b => {
-      if (!b.deity) return;
-      const parts = b.deity.split(',').map(s => s.trim()).filter(Boolean);
-      parts.forEach(d => {
-        let name = d;
-        let key = d.toLowerCase();
-        if (key === 'vittala' || key === 'vithhala' || key === 'vithala' || key === 'vitthala') {
-          name = 'Vitthala';
-          key = 'vitthala';
-        }
-        if (key === 'anjaneya' || key === 'aanjaneya' || key === 'hanuman' || key === 'maruti' || key === 'maruthi') {
-          name = 'Hanuman';
-          key = 'hanuman';
-        }
-        if (!deityMap.has(key)) {
-          deityMap.set(key, { name: name, count: 0 });
-        }
-        deityMap.get(key).count++;
+    // Use precomputed catalogCache aggregates when available (0ms), with safe fallback
+    let uniqueDeities, uniqueTempos, uniqueRagas;
+    if (locals.aggregates && locals.aggregates.uniqueDeities) {
+      uniqueDeities = locals.aggregates.uniqueDeities;
+      uniqueTempos = locals.aggregates.uniqueTempos;
+      uniqueRagas = locals.aggregates.uniqueRagas;
+    } else {
+      const deityMap = new Map();
+      bhajans.forEach(b => {
+        if (!b.deity) return;
+        const parts = b.deity.split(',').map(s => s.trim()).filter(Boolean);
+        parts.forEach(d => {
+          let name = d;
+          let key = d.toLowerCase();
+          if (key === 'vittala' || key === 'vithhala' || key === 'vithala' || key === 'vitthala') {
+            name = 'Vitthala';
+            key = 'vitthala';
+          }
+          if (key === 'anjaneya' || key === 'aanjaneya' || key === 'hanuman' || key === 'maruti' || key === 'maruthi') {
+            name = 'Hanuman';
+            key = 'hanuman';
+          }
+          if (!deityMap.has(key)) {
+            deityMap.set(key, { name: name, count: 0 });
+          }
+          deityMap.get(key).count++;
+        });
       });
-    });
-    const uniqueDeities = Array.from(deityMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-
-    const uniqueTempos = [...new Set(bhajans.map(b => (b.tempo || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
-    // Extract single unique ragas (split by comma for multi-raga bhajans)
-    const ragaMap = new Map();
-    bhajans.forEach(b => {
-      if (!b.raga) return;
-      const cleanRaga = b.raga.replace(/~/g, '').trim();
-      const parts = cleanRaga.split(',').map(s => s.trim()).filter(Boolean);
-      parts.forEach(r => {
-        const key = r.toLowerCase();
-        if (!ragaMap.has(key)) {
-          ragaMap.set(key, { name: r, count: 0 });
-        }
-        ragaMap.get(key).count++;
+      uniqueDeities = Array.from(deityMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+      uniqueTempos = [...new Set(bhajans.map(b => (b.tempo || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+      const ragaMap = new Map();
+      bhajans.forEach(b => {
+        if (!b.raga) return;
+        const cleanRaga = b.raga.replace(/~/g, '').trim();
+        const parts = cleanRaga.split(',').map(s => s.trim()).filter(Boolean);
+        parts.forEach(r => {
+          const key = r.toLowerCase();
+          if (!ragaMap.has(key)) {
+            ragaMap.set(key, { name: r, count: 0 });
+          }
+          ragaMap.get(key).count++;
+        });
       });
-    });
-    const uniqueRagas = Array.from(ragaMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+      uniqueRagas = Array.from(ragaMap.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
 
     // Canonical lists for Admin Edit Modal dropdowns to prevent discrepancies
     const primaryDeities = ['Ganesha', 'Guru', 'Hanuman', 'Krishna', 'Mata', 'Narasimha', 'Narayana', 'Rama', 'Sai', 'SarvaDharma', 'Shiva', 'Subrahmanya', 'Surya', 'Vitthala', 'Ayyappa'];
@@ -676,7 +680,24 @@
         .replace(/"/g, '&quot;');
     }
 
-    // ── Bug 2: Filter & Search State Persistence in sessionStorage ──
+    // ── Filter & Scroll State Persistence (Supports both Single-DOM Shell Pane & Standalone Window) ──
+    function getBankScrollEl() {
+      var pane = document.getElementById('pane-bank');
+      if (pane && pane.contains(document.getElementById('filterBankTitle'))) return pane;
+      return null;
+    }
+
+    function getBankScrollTop() {
+      var pane = getBankScrollEl();
+      return pane ? pane.scrollTop : (window.scrollY || document.documentElement.scrollTop || 0);
+    }
+
+    function setBankScrollTop(y) {
+      var pane = getBankScrollEl();
+      if (pane) pane.scrollTop = y;
+      else window.scrollTo({ top: y, behavior: 'instant' });
+    }
+
     function saveBankFilterState(lastId) {
       try {
         var titleIn = document.getElementById('filterBankTitle');
@@ -684,7 +705,7 @@
         var tempoIn = document.getElementById('filterBankTempo');
         var ragaIn = document.getElementById('filterBankRaga');
 
-        var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        var scrollY = getBankScrollTop();
         var existing = {};
         try {
           existing = JSON.parse(sessionStorage.getItem('bp_bank_filter_state') || '{}');
@@ -742,8 +763,10 @@
           window.filterMasterBank(true);
         }
 
-        // Restore scroll position or smooth scroll to last viewed bhajan card
-        if (state.lastBhajanId) {
+        // Only restore initial scroll when not already preserved by cached AppShell pane
+        if (window.AppShell && getBankScrollTop() > 0) return;
+
+        if (state.lastBhajanId && !window.AppShell) {
           setTimeout(function() {
             var target = document.getElementById('card-' + state.lastBhajanId) || document.getElementById('row-' + state.lastBhajanId);
             if (target) {
@@ -753,11 +776,11 @@
                 target.classList.remove('highlight-pulse');
               }, 2500);
             } else if (state.scrollY) {
-              window.scrollTo({ top: state.scrollY, behavior: 'instant' });
+              setBankScrollTop(state.scrollY);
             }
           }, 150);
         } else if (state.scrollY) {
-          window.scrollTo({ top: state.scrollY, behavior: 'instant' });
+          setBankScrollTop(state.scrollY);
         }
       } catch (_) {}
     }
@@ -1288,17 +1311,37 @@
       if (maleElem) maleElem.textContent = scaleM;
       if (femaleElem) femaleElem.textContent = scaleF;
 
-      if (textElem) {
-        if (b.lyrics && b.lyrics.trim().length > 0) {
-          var stanzas = b.lyrics.trim().split(/\r?\n\s*\r?\n/);
+      function renderQuickLyricsText(lyricsStr) {
+        if (!textElem) return;
+        if (lyricsStr && lyricsStr.trim().length > 0) {
+          var stanzas = lyricsStr.trim().split(/\r?\n\s*\r?\n/);
           textElem.innerHTML = stanzas.map(function(st) {
             return '<div class="quick-lyrics-stanza">' + escapeHtml(st).replace(/\n/g, '<br/>') + '</div>';
           }).join('');
         } else {
           textElem.innerHTML = '<div class="empty-lyrics-prompt">' +
             '<p>Lyrics are being synchronized into the master catalog.</p>' +
-            '<a href="/bhajan/' + b.id + '" class="button secondary" style="display:inline-block; font-size:12px; margin-top:8px;">Open Full Details</a>' +
+            '<a href="/bhajan/' + b.id + '" onclick="window.closeQuickLyrics()" class="button secondary" style="display:inline-block; font-size:12px; margin-top:8px;">Open Full Details</a>' +
             '</div>';
+        }
+      }
+
+      if (textElem) {
+        if (typeof b.lyrics === 'string') {
+          renderQuickLyricsText(b.lyrics);
+        } else {
+          textElem.innerHTML = '<div class="empty-lyrics-prompt"><p>Loading lyrics...</p></div>';
+          fetch('/api/bhajan/' + encodeURIComponent(b.id) + '/lyrics')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              b.lyrics = (data && typeof data.lyrics === 'string') ? data.lyrics : '';
+              if (activeQuickBhajan && String(activeQuickBhajan.id) === String(b.id)) {
+                renderQuickLyricsText(b.lyrics);
+              }
+            })
+            .catch(function() {
+              renderQuickLyricsText('');
+            });
         }
       }
 
@@ -1439,7 +1482,28 @@
       if (shrutiFemField) setSelectVal(shrutiFemField, b.shruti_female);
       if (langField) setSelectVal(langField, b.language);
       if (sheetField) setSelectVal(sheetField, b.sheet_filename);
-      if (lyricsField) lyricsField.value = b.lyrics || '';
+      if (lyricsField) {
+        if (typeof b.lyrics === 'string') {
+          lyricsField.value = b.lyrics;
+          lyricsField.disabled = false;
+        } else {
+          lyricsField.value = 'Loading lyrics...';
+          lyricsField.disabled = true;
+          fetch('/api/bhajan/' + encodeURIComponent(b.id) + '/lyrics')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              b.lyrics = (data && typeof data.lyrics === 'string') ? data.lyrics : '';
+              if (idField && String(idField.value) === String(b.id)) {
+                lyricsField.value = b.lyrics;
+                lyricsField.disabled = false;
+              }
+            })
+            .catch(function() {
+              lyricsField.value = '';
+              lyricsField.disabled = false;
+            });
+        }
+      }
 
       var modal = document.getElementById('adminEditBhajanModal');
       if (modal) {
@@ -1637,29 +1701,50 @@
     }
 
     window.toggleSongbookBookmark = async function(id, btnElem) {
-      var isNowBookmarked = !window.BOOKMARKED_BHAJAN_IDS.has(Number(id));
+      var numId = Number(id);
+      var wasBookmarked = window.BOOKMARKED_BHAJAN_IDS.has(numId);
+      var isNowBookmarked = !wasBookmarked;
       if (isNowBookmarked) {
-        window.BOOKMARKED_BHAJAN_IDS.add(Number(id));
-        window.showToast('Saved to your Personal Songbook!');
+        window.BOOKMARKED_BHAJAN_IDS.add(numId);
       } else {
-        window.BOOKMARKED_BHAJAN_IDS.delete(Number(id));
-        window.showToast('Removed from Personal Songbook');
+        window.BOOKMARKED_BHAJAN_IDS.delete(numId);
       }
-      saveLocalBookmarks();
-      updateBookmarkStarsOnPage(id, isNowBookmarked);
+      updateBookmarkStarsOnPage(numId, isNowBookmarked);
 
       var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
 
       try {
-        await fetch('/api/singer/songbook/toggle', {
+        var res = await fetch('/api/singer/songbook/toggle', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRF-Token': csrf
           },
-          body: JSON.stringify({ master_id: id })
+          body: JSON.stringify({ master_id: numId })
         });
-      } catch (err) {}
+        if (res.status === 401) {
+          // Revert optimistic state and prompt Singer PIN verification
+          if (wasBookmarked) window.BOOKMARKED_BHAJAN_IDS.add(numId);
+          else window.BOOKMARKED_BHAJAN_IDS.delete(numId);
+          updateBookmarkStarsOnPage(numId, wasBookmarked);
+          window.showToast('Please verify your Singer PIN to save to your Songbook');
+          setTimeout(function() {
+            var loginUrl = '/singer/login?redirect=' + encodeURIComponent('/master-bank');
+            if (window.AppShell) window.AppShell.navigate(loginUrl);
+            else window.location.href = loginUrl;
+          }, 900);
+          return;
+        }
+        if (!res.ok) throw new Error('Failed');
+        saveLocalBookmarks();
+        window.showToast(isNowBookmarked ? 'Saved to your Personal Songbook!' : 'Removed from Personal Songbook');
+        if (window.AppShell) window.AppShell.markStale(['hub']);
+      } catch (err) {
+        if (wasBookmarked) window.BOOKMARKED_BHAJAN_IDS.add(numId);
+        else window.BOOKMARKED_BHAJAN_IDS.delete(numId);
+        updateBookmarkStarsOnPage(numId, wasBookmarked);
+        window.showToast('Unable to update Songbook right now');
+      }
     };
 
     window.toggleQuickBookmark = function() {
@@ -1723,7 +1808,8 @@
   })();
   </script>
 
-  <!-- Live Tanpura Drone Module (Master Bank Only) -->
-  <link rel="stylesheet" href="/css/tanpura.css?v=2.2">
+  <% if (!locals.isShellFragment) { %>
+  <link rel="stylesheet" href="/css/tanpura.css?v=6.0">
   <%- include('partials/tanpura-widget') %>
-  <script src="/js/tanpura.js?v=2.2"></script>
+  <script src="/js/tanpura.js?v=6.0"></script>
+  <% } %>

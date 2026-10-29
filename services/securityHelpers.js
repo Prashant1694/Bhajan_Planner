@@ -1,5 +1,3 @@
-const crypto = require("crypto");
-
 /**
  * Validates and normalizes redirect URLs to prevent open redirect vulnerabilities.
  * Strictly permits only relative URLs beginning with a single forward slash
@@ -8,7 +6,6 @@ const crypto = require("crypto");
 function safeRedirect(url, fallback = "/") {
   if (typeof url !== "string") return fallback;
   const trimmed = url.trim();
-  // Regex ensures it starts with '/' and is not followed by '/' or '\' and contains no newlines
   const regex = /^\/(?!\/|\\)[^\r\n]*$/;
   if (regex.test(trimmed)) {
     return trimmed;
@@ -66,9 +63,9 @@ function validatePasswordPolicy(password, username = "") {
 }
 
 /**
- * Dummy bcrypt hash for constant-time comparisons when accounts are missing or unclaimed
+ * Valid 60-character bcrypt hash (cost 10) for constant-time comparisons when accounts are missing
  */
-const DUMMY_BCRYPT_HASH = "$2b$10$abcdefghijklmnopqrstuvwxyz012345678901234567890123456789";
+const DUMMY_BCRYPT_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 module.exports = {
   safeRedirect,

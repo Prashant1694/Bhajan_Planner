@@ -7,16 +7,6 @@
 (function () {
   "use strict";
 
-  // ── Guard: don't run if already installed as standalone ─────
-  if (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true
-  ) {
-    // Still register the SW for offline support inside the app
-    registerServiceWorker();
-    return;
-  }
-
   // ── Service Worker Registration ─────────────────────────────
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
@@ -24,8 +14,6 @@
         navigator.serviceWorker
           .register("/sw.js", { updateViaCache: "none" })
           .then((reg) => {
-            console.log("[PWA] Service Worker registered – scope:", reg.scope);
-            // Check for updates every 60 minutes
             setInterval(() => reg.update(), 60 * 60 * 1000);
           })
           .catch((err) => console.error("[PWA] SW registration failed:", err));
@@ -33,12 +21,29 @@
     }
   }
 
+  // ── Guard: don't show install banner if already installed as standalone ──
+  if (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  ) {
+    registerServiceWorker();
+    window.BPWirePwaButtons = function () {
+      const btn = document.getElementById("footerPwaInstallBtn");
+      if (!btn) return;
+      btn.innerHTML =
+        '<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Installed on Device</span>';
+      btn.classList.add("installed");
+      btn.disabled = true;
+    };
+    return;
+  }
+
   registerServiceWorker();
 
   // ── Constants ───────────────────────────────────────────────
   const DISMISS_KEY = "pwa-install-dismissed";
   const DISMISS_DAYS = 7;
-  const BANNER_DELAY = 2500; // ms before showing banner
+  const BANNER_DELAY = 2500;
 
   let deferredPrompt = null;
 
@@ -54,20 +59,14 @@
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   }
 
-  /**
-   * Calculate the total size of assets in the service-worker cache.
-   * Uses the Storage Estimate API safely, falling back to '< 2 MB'.
-   */
   async function getEstimatedSize() {
     try {
       if (navigator.storage && navigator.storage.estimate) {
         const { usage } = await navigator.storage.estimate();
         if (usage > 0) return formatBytes(usage);
       }
-    } catch (e) {
-      console.warn("[PWA] Could not estimate size:", e);
-    }
-    return "< 2 MB"; // safe fallback
+    } catch (_) {}
+    return "< 2 MB";
   }
 
   function formatBytes(bytes) {
@@ -82,13 +81,11 @@
     const overlay = document.getElementById("pwaInstallOverlay");
     if (!overlay) return;
 
-    // Populate size
     getEstimatedSize().then((size) => {
       const el = document.getElementById("pwaBannerSize");
       if (el) el.textContent = size;
     });
 
-    // Show iOS-specific instructions if needed
     if (isIOS()) {
       const iosEl = document.getElementById("pwaIosInstructions");
       const installBtn = document.getElementById("pwaBtnInstall");
@@ -104,7 +101,8 @@
           location.hostname !== "localhost" &&
           location.hostname !== "127.0.0.1";
         if (isInsecure && manualText) {
-          manualText.innerHTML = `<strong>Over Wi-Fi IP (HTTP):</strong> Mobile browsers restrict automated install without HTTPS.<br>Tap your browser menu (<strong>⋮</strong>) &rarr; select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.`;
+          manualText.innerHTML =
+            '<strong>Over Wi-Fi IP (HTTP):</strong> Mobile browsers restrict automated install without HTTPS.<br>Tap your browser menu (<strong>⋮</strong>) &rarr; select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.';
         }
       }
     }
@@ -131,8 +129,7 @@
 
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choice) => {
-        console.log("[PWA] Install prompt outcome:", choice.outcome);
+      deferredPrompt.userChoice.then(() => {
         deferredPrompt = null;
         hideBanner();
       });
@@ -145,7 +142,7 @@
     }
   };
 
-  // ── Wire up footer install button if present ────────────────
+  // ── Wire up footer install button if present (idempotent across dynamic mounts) ──
   function wireFooterInstallBtn() {
     const btn = document.getElementById("footerPwaInstallBtn");
     if (!btn) return;
@@ -155,16 +152,22 @@
       window.navigator.standalone === true;
 
     if (isStandalone) {
-      btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Installed on Device</span>';
+      btn.innerHTML =
+        '<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Installed on Device</span>';
       btn.classList.add("installed");
       btn.disabled = true;
       return;
     }
 
+    if (btn.dataset.pwaBound === "1") return;
+    btn.dataset.pwaBound = "1";
+
     if (isIOS()) {
-      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Install on iPhone / iPad';
+      btn.innerHTML =
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Install on iPhone / iPad';
     } else {
-      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Install Bhajan Planner App';
+      btn.innerHTML =
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Install Bhajan Planner App';
     }
 
     btn.addEventListener("click", (e) => {
@@ -173,9 +176,11 @@
     });
   }
 
+  window.BPWirePwaButtons = wireFooterInstallBtn;
+
   // ── Intercept Chrome / Edge install prompt ──────────────────
   window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); // suppress the browser's mini-infobar
+    e.preventDefault();
     deferredPrompt = e;
 
     if (!wasDismissedRecently()) {
@@ -191,7 +196,6 @@
 
     wireFooterInstallBtn();
 
-    // Install
     installBtn?.addEventListener("click", async () => {
       if (!deferredPrompt) {
         showBanner(0);
@@ -204,19 +208,18 @@
             location.hostname !== "localhost" &&
             location.hostname !== "127.0.0.1";
           if (isInsecure && manualText) {
-            manualText.innerHTML = `<strong>Over Wi-Fi IP (HTTP):</strong> Mobile browsers restrict automated install without HTTPS.<br>Tap your browser menu (<strong>⋮</strong>) &rarr; select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.`;
+            manualText.innerHTML =
+              '<strong>Over Wi-Fi IP (HTTP):</strong> Mobile browsers restrict automated install without HTTPS.<br>Tap your browser menu (<strong>⋮</strong>) &rarr; select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.';
           }
         }
         return;
       }
       deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log("[PWA] Install prompt outcome:", outcome);
+      await deferredPrompt.userChoice;
       deferredPrompt = null;
       hideBanner();
     });
 
-    // Dismiss / close
     function dismiss() {
       localStorage.setItem(DISMISS_KEY, Date.now().toString());
       hideBanner();
@@ -224,13 +227,11 @@
     dismissBtn?.addEventListener("click", dismiss);
     closeBtn?.addEventListener("click", dismiss);
 
-    // Close on overlay click (outside the banner card)
     const overlay = document.getElementById("pwaInstallOverlay");
     overlay?.addEventListener("click", (e) => {
       if (e.target === overlay) dismiss();
     });
 
-    // ── iOS: no beforeinstallprompt event, show manual banner ─
     if (isIOS() && !wasDismissedRecently()) {
       setTimeout(() => showBanner(), 4000);
     }
@@ -242,9 +243,9 @@
     deferredPrompt = null;
     const btn = document.getElementById("footerPwaInstallBtn");
     if (btn) {
-      btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Installed on Device</span>';
+      btn.innerHTML =
+        '<span style="display:inline-flex; align-items:center; gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Installed on Device</span>';
       btn.disabled = true;
     }
-    console.log("[PWA] Bhajan Planner installed successfully!");
   });
 })();

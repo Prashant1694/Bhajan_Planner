@@ -5,6 +5,7 @@ const {
   getThursdaySubmissionStatus,
   isSessionActiveOrUpcoming
 } = require("./helpers");
+const { escapeHtml } = require("../templates");
 
 const normalizeBhajanTitle = (title) =>
   String(title || "")
@@ -21,7 +22,8 @@ const getAvailableDates = async () => {
 
   const specialDays = await SessionPermission.findAll({
     where: { date: { [Sequelize.Op.gte]: todayStr } },
-    order: [["date", "ASC"]]
+    order: [["date", "ASC"]],
+    raw: true
   });
 
   const dates = new Map();
@@ -115,6 +117,10 @@ function buildDeityStatus(rules, submissions) {
   };
 }
 
+function escapeJsSingleQuoted(val) {
+  return escapeHtml(String(val || "")).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 /**
  * Generates deity HTML cards from deity status map
  */
@@ -130,7 +136,7 @@ function generateDeityCardsHtml(deityStatus) {
     const checkSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:-1px; margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>`;
 
     if (status.maxAllowed === 0) {
-      return `<div class="deity-card disabled ${countClass}" style="opacity:0.4; pointer-events:none;"><div class="deity-name">${deity}</div><span class="badge badge-taken" style="background:#e03131;">Blocked</span></div>`;
+      return `<div class="deity-card disabled ${countClass}" style="opacity:0.4; pointer-events:none;"><div class="deity-name">${escapeHtml(deity)}</div><span class="badge badge-taken" style="background:#e03131;">Blocked</span></div>`;
     }
 
     const isFull = status.count >= status.maxAllowed;
@@ -139,7 +145,7 @@ function generateDeityCardsHtml(deityStatus) {
     if (isFull) {
       cardClass = `deity-card taken ${countClass}`;
       statusBadge = `<span class="badge badge-taken">${checkSvg} ${status.count} Taken</span>`;
-      onclick = `onclick="showDetails('${deity}', '${status.by.replace(/'/g, "\\'")}', '${status.bhajan.replace(/'/g, "\\'")}', '${status.scale}', '${status.speed}')" style="cursor:pointer;"`;
+      onclick = `onclick="showDetails('${escapeJsSingleQuoted(deity)}', '${escapeJsSingleQuoted(status.by)}', '${escapeJsSingleQuoted(status.bhajan)}', '${escapeJsSingleQuoted(status.scale)}', '${escapeJsSingleQuoted(status.speed)}')" style="cursor:pointer;"`;
     } else {
       cardClass = `deity-card available ${countClass}`;
       statusBadge = `<span class="badge badge-available">${bhajanText}</span>`;
@@ -156,8 +162,8 @@ function generateDeityCardsHtml(deityStatus) {
     }
 
     return `
-      <div class="${cardClass}" data-deity="${deity}" ${onclick}>
-        <div class="deity-name">${deity}</div>
+      <div class="${cardClass}" data-deity="${escapeHtml(deity)}" ${onclick}>
+        <div class="deity-name">${escapeHtml(deity)}</div>
         ${statusBadge}
         ${mandatoryLabel}
       </div>
@@ -177,40 +183,32 @@ function generateDeityCardsHtml(deityStatus) {
     "Vitthala"
   ];
   let otherDeitiesHtml = "";
-  otherDeities.forEach((d) => (otherDeitiesHtml += generateCard(d)));
+  otherDeities.forEach((d) => {
+    otherDeitiesHtml += generateCard(d);
+  });
   const hanumanCard = generateCard("Hanuman").replace("deity-card", "deity-card hanuman-card");
 
   return { ganeshaCardHtml, otherDeitiesHtml, hanumanCard };
 }
 
 /**
- * Renders selection screen HTML for choosing an open session date
+ * Builds structured session option objects for views/session-select.ejs
  */
-function renderSelectionScreenHtml(msg, availableDates, isAdmin) {
+function buildSessionOptions(availableDates, isAdmin) {
   const sortedDates = Array.from(availableDates.keys()).sort();
-  let optionsHtml = "";
   const adminParam = isAdmin ? "&admin=true" : "";
-
-  sortedDates.forEach((date) => {
+  return sortedDates.map((date) => {
     const info = availableDates.get(date);
     const type = info.label;
-    const descText = info.desc ? ` - ${info.desc}` : "";
-    const displayLabel = `${type} (${date})${descText}`;
-    let btnStyle = "margin-bottom:10px; width:100%; display:block; text-decoration:none;";
-    if (type === "Festival") {
-      btnStyle += " background: #ff922b; border:none; color:white;";
-    } else if (type === "Special") {
-      btnStyle += " background: #4dabf7; border:none; color:white;";
-    } else {
-      btnStyle += " background: linear-gradient(135deg, #ff9933 0%, #ff7700 100%); color:white;";
-    }
-    optionsHtml += `<a href="/submit-form?session_date=${date}${adminParam}" class="button" style="${btnStyle}">${displayLabel}</a>`;
+    const descText = info.desc ? ` — ${info.desc}` : "";
+    return {
+      date,
+      type,
+      href: `/submit-form?session_date=${encodeURIComponent(date)}${adminParam}`,
+      label: `${type} (${date})${descText}`,
+      variant: "primary"
+    };
   });
-
-  const themeHeadScript = `<script>(function(){try{var t=localStorage.getItem('bp-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>`;
-  const themeToggleBtn = `<button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" aria-pressed="false" data-tooltip="Switch to Dark"><span class="icon-moon">&#127769;</span><span class="icon-sun">&#9728;&#65039;</span></button>`;
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Select Session</title><meta name="viewport" content="width=device-width, initial-scale=1" /><link rel="stylesheet" href="/css/style.css">${themeHeadScript}</head><body>${themeToggleBtn}<div class="container" style="text-align:center; padding:40px; max-width:500px;"><h2 style="color:var(--saffron); margin-bottom:20px;">📅 Select Session</h2><p style="color:var(--ink-soft); margin-bottom:20px;">${msg}</p><div style="background:var(--surface); padding:20px; border-radius:12px; border:1px solid var(--border);"><div style="display:flex; flex-direction:column; gap:10px;">${optionsHtml}</div></div></div><script src="/js/script.js"></script></body></html>`;
 }
 
 module.exports = {
@@ -218,5 +216,5 @@ module.exports = {
   getAvailableDates,
   buildDeityStatus,
   generateDeityCardsHtml,
-  renderSelectionScreenHtml
+  buildSessionOptions
 };
