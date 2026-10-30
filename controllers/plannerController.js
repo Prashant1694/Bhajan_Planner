@@ -429,11 +429,11 @@ exports.submitForm = async (req, res) => {
           partner_name: partner_name ? partner_name.trim() : null,
           title,
           deity,
-          scale: scale || "Not specified",
-          speed,
-          raga,
-          level,
-          language
+          scale: (scale && scale.trim()) || masterBhajan.shruti || "Not specified",
+          speed: (speed && speed.trim()) || masterBhajan.tempo || "Medium",
+          raga: (raga && raga.trim()) || masterBhajan.raga || null,
+          level: (level && level.trim()) || masterBhajan.level || null,
+          language: (language && language.trim()) || masterBhajan.language || null
         },
         { transaction: t }
       );
@@ -533,6 +533,33 @@ exports.submitForm = async (req, res) => {
         backLabel: "Sign In"
       });
     }
+    if (error.name === "SequelizeValidationError") {
+      const msg =
+        error.errors && error.errors.length
+          ? error.errors.map((e) => e.message).join(", ")
+          : error.message;
+      return renderStatusPage(res, 400, {
+        heading: "Submission Validation Error",
+        messageHtml: `Please check your inputs: <strong>${escapeHtml(msg)}</strong>`,
+        backHref: backUrl,
+        backLabel: "Return to Form",
+        variant: "danger"
+      });
+    }
+    if (
+      error.parent?.code === "SQLITE_BUSY" ||
+      error.name === "SequelizeTimeoutError" ||
+      (error.message && error.message.includes("database is locked"))
+    ) {
+      return renderStatusPage(res, 503, {
+        heading: "Server Busy",
+        messageHtml:
+          "The database is currently processing multiple offerings. Please tap below to try again in a moment.",
+        backHref: backUrl,
+        backLabel: "Retry Submission",
+        variant: "warning"
+      });
+    }
     if (error.name === "SequelizeUniqueConstraintError") {
       return renderStatusPage(res, 409, {
         heading: "Slot Already Taken",
@@ -547,9 +574,14 @@ exports.submitForm = async (req, res) => {
       });
     }
     console.error(`[Req ${req.id || ""}] submitForm error:`, error);
-    res
-      .status(500)
-      .send("<h1>Error</h1><p>An unexpected error occurred while processing your bhajan submission.</p>");
+    return renderStatusPage(res, 500, {
+      heading: "Unable to Complete Submission",
+      messageHtml:
+        "An unexpected error occurred while processing your bhajan submission. Your inputs remain available &mdash; please tap below to return and try again.",
+      backHref: backUrl,
+      backLabel: "Return to Form",
+      variant: "danger"
+    });
   }
 };
 

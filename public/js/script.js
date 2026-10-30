@@ -123,10 +123,8 @@ function getGlobalCsrfToken() {
       btn.setAttribute("title", isDark ? "Switch to Light" : "Switch to Dark");
       btn.setAttribute("aria-pressed", isDark ? "true" : "false");
     });
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      metaTheme.setAttribute("content", isDark ? "#12100E" : "#FAF7F2");
-    }
+    const metaThemes = document.querySelectorAll('meta[name="theme-color"]');
+    metaThemes.forEach((m) => m.setAttribute("content", isDark ? "#12100E" : "#FAF7F2"));
     if (window.top && window.top !== window) {
       try {
         if (typeof window.top.applyTheme === "function") {
@@ -254,6 +252,17 @@ function closeConfirmModal() {
 }
 window.closeConfirmModal = closeConfirmModal;
 
+function openConfirmModal() {
+  const modal = document.getElementById("confirmSubmitModal");
+  if (modal) {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+    modal.classList.add("show");
+  }
+}
+window.openConfirmModal = openConfirmModal;
+
 function closeSelectBhajanModal() {
   const modal = document.getElementById("selectBhajanModal");
   if (modal) modal.classList.remove("show");
@@ -264,7 +273,12 @@ window.closeSelectBhajanModal = closeSelectBhajanModal;
 
 function openSelectBhajanModal() {
   const modal = document.getElementById("selectBhajanModal");
-  if (modal) modal.classList.add("show");
+  if (modal) {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+    modal.classList.add("show");
+  }
 }
 window.openSelectBhajanModal = openSelectBhajanModal;
 
@@ -1083,7 +1097,7 @@ function initSubmitFormPage(root) {
     const modScale = document.getElementById("modScale");
     if (modScale) modScale.textContent = document.getElementById("scaleInput")?.value || "Not specified";
 
-    confirmSubmitModal?.classList.add("show");
+    openConfirmModal();
   });
 
   editBtn?.addEventListener("click", closeConfirmModal);

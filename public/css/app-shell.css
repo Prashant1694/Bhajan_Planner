@@ -908,15 +908,10 @@ a.nav-link {
   display: none;
   padding-bottom: 40px;
   box-sizing: border-box;
-  contain: content;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 .shell-pane.active-pane {
   display: block;
-  contain: layout style;
   animation: shellPaneFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1338,19 +1333,33 @@ html, body {
     pointer-events: none !important;
   }
 
-  /* Top header right shows only circular theme toggle */
+  /* Top header right shows circular theme toggle & notification bell */
   .header-right {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
   }
 
+  .header-icon-btn,
+  #shellNotifBtn,
   .circular-theme-toggle,
-  .header-icon-btn.circular-theme-toggle {
+  .header-icon-btn.circular-theme-toggle,
+  #shellThemeToggle {
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;
     min-height: 36px !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
   }
 
   /* Floating Bottom Capsule: Fixed pill dock centered horizontally */
@@ -1381,7 +1390,7 @@ html, body {
     backdrop-filter: blur(24px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
     border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
     padding: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
@@ -1390,12 +1399,16 @@ html, body {
   }
 
   [data-theme="dark"] .mobile-bottom-capsule,
+  [data-theme="dark"] #mobileBottomCapsule,
   [data-theme="dark"] .native-bottom-nav,
+  [data-theme="dark"] #nativeBottomNav,
   .dark .mobile-bottom-capsule,
-  .dark .native-bottom-nav {
-    background: rgba(14, 22, 33, 0.90) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+  .dark #mobileBottomCapsule,
+  .dark .native-bottom-nav,
+  .dark #nativeBottomNav {
+    background: rgba(24, 22, 20, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.12) !important;
   }
 
   /* Horizontal Scroll Track inside the capsule */
@@ -1426,7 +1439,9 @@ html, body {
 
   /* Pill Items: Inline flex with clean 15x15px vector SVG icons and text labels (strictly NO emojis) */
   .capsule-pill,
-  .native-bottom-nav .nav-tab {
+  .native-bottom-nav .nav-tab,
+  #capsuleTrack .capsule-pill,
+  #capsuleTrack .nav-tab {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -1440,7 +1455,7 @@ html, body {
     border-radius: 9999px !important;
     font-size: 13px !important;
     font-weight: 500 !important;
-    color: var(--shell-muted, #78716c) !important;
+    color: #57534e !important;
     background: transparent !important;
     border: 1px solid transparent !important;
     cursor: pointer !important;
@@ -1449,10 +1464,16 @@ html, body {
   }
 
   [data-theme="dark"] .capsule-pill,
+  [data-theme="dark"] #capsuleTrack .capsule-pill,
   [data-theme="dark"] .native-bottom-nav .nav-tab,
+  [data-theme="dark"] #capsuleTrack .nav-tab,
   .dark .capsule-pill,
-  .dark .native-bottom-nav .nav-tab {
-    color: rgba(255, 255, 255, 0.65) !important;
+  .dark #capsuleTrack .capsule-pill,
+  .dark .native-bottom-nav .nav-tab,
+  .dark #capsuleTrack .nav-tab {
+    color: #d6d0c9 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
   }
 
   .capsule-pill:hover,
@@ -1477,14 +1498,29 @@ html, body {
   /* 15x15px clean vector SVG icons */
   .capsule-icon,
   .capsule-pill svg,
-  .native-bottom-nav .nav-tab svg {
+  .native-bottom-nav .nav-tab svg,
+  #capsuleTrack .capsule-pill svg,
+  #capsuleTrack .nav-tab svg {
     width: 15px !important;
     height: 15px !important;
     max-width: 15px !important;
     max-height: 15px !important;
     flex-shrink: 0 !important;
-    stroke: currentColor !important;
+    stroke: #57534e !important;
     stroke-width: 2 !important;
+  }
+
+  [data-theme="dark"] .capsule-icon,
+  [data-theme="dark"] .capsule-pill svg,
+  [data-theme="dark"] .native-bottom-nav .nav-tab svg,
+  [data-theme="dark"] #capsuleTrack .capsule-pill svg,
+  [data-theme="dark"] #capsuleTrack .nav-tab svg,
+  .dark .capsule-icon,
+  .dark .capsule-pill svg,
+  .dark .native-bottom-nav .nav-tab svg,
+  .dark #capsuleTrack .capsule-pill svg,
+  .dark #capsuleTrack .nav-tab svg {
+    stroke: #d6d0c9 !important;
   }
 
   .capsule-label,
@@ -1496,26 +1532,35 @@ html, body {
 
   /* Mobile Active Highlight: Warm Mandir Saffron & Prasanthi Gold */
   .capsule-pill.active,
-  .native-bottom-nav .nav-tab.active {
+  .native-bottom-nav .nav-tab.active,
+  #capsuleTrack .capsule-pill.active,
+  #capsuleTrack .nav-tab.active {
     background: rgba(200, 90, 23, 0.12) !important;
-    border: 1px solid rgba(200, 90, 23, 0.35) !important;
+    border: 1px solid rgba(200, 90, 23, 0.4) !important;
     color: #c85a17 !important;
     border-radius: 9999px !important;
     font-weight: 600 !important;
   }
 
   [data-theme="dark"] .capsule-pill.active,
+  [data-theme="dark"] #capsuleTrack .capsule-pill.active,
   [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+  [data-theme="dark"] #capsuleTrack .nav-tab.active,
   .dark .capsule-pill.active,
-  .dark .native-bottom-nav .nav-tab.active {
-    background: rgba(245, 158, 11, 0.16) !important;
-    border: 1px solid rgba(245, 158, 11, 0.45) !important;
+  .dark #capsuleTrack .capsule-pill.active,
+  .dark .native-bottom-nav .nav-tab.active,
+  .dark #capsuleTrack .nav-tab.active {
+    background: rgba(245, 158, 11, 0.18) !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
     color: #fbbf24 !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
   }
 
   .capsule-pill.active .capsule-icon,
   .capsule-pill.active svg,
-  .native-bottom-nav .nav-tab.active svg {
+  .native-bottom-nav .nav-tab.active svg,
+  #capsuleTrack .capsule-pill.active svg,
+  #capsuleTrack .nav-tab.active svg {
     stroke: #c85a17 !important;
   }
 
@@ -1524,7 +1569,9 @@ html, body {
   .dark .capsule-pill.active .capsule-icon,
   .dark .capsule-pill.active svg,
   [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
-  .dark .native-bottom-nav .nav-tab.active svg {
+  .dark .native-bottom-nav .nav-tab.active svg,
+  [data-theme="dark"] #capsuleTrack .capsule-pill.active svg,
+  .dark #capsuleTrack .capsule-pill.active svg {
     stroke: #fbbf24 !important;
   }
 }

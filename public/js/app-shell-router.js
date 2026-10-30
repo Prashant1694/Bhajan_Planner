@@ -1809,10 +1809,8 @@
       btn.setAttribute("data-tooltip", isDark ? "Switch to Light" : "Switch to Dark");
       btn.setAttribute("title", isDark ? "Switch to Light" : "Switch to Dark");
     });
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) {
-      metaTheme.setAttribute("content", isDark ? "#12100E" : "#FAF7F2");
-    }
+    const metaThemes = document.querySelectorAll('meta[name="theme-color"]');
+    metaThemes.forEach((m) => m.setAttribute("content", isDark ? "#12100E" : "#FAF7F2"));
     if (window.top && window.top !== window) {
       try {
         if (typeof window.top.applyTheme === "function" && window.top !== window) {

@@ -1147,8 +1147,14 @@ body.embed-page {
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
   border: 1px solid rgba(255, 255, 255, 0.9) !important;
-  border-radius: 20px !important;
+  border-radius: 20px;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22) !important;
+}
+
+@media (max-width: 1024px) {
+  .modal-content {
+    border-radius: 28px 28px 0 0 !important;
+  }
 }
 
 [data-theme="dark"] .modal-content {

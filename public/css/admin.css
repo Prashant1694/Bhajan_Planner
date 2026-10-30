@@ -1898,25 +1898,59 @@ body.sidebar-collapsed .sidebar:hover .sidebar-badge-dot {
 }
 
 /* ==========================================================================
-   SCROLLBAR
+   SCROLLBAR (Mobile: completely hidden native scrolling; Desktop: subtle themed track)
    ========================================================================== */
 
-::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+@media (max-width: 1024px), (pointer: coarse) {
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  html, body, .admin-page, .main-content, .page-body {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg);
+@media (min-width: 1025px) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.16);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.28);
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-thumb,
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #d8d0bf;
-  border-radius: 50px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #c5bba5;
+/* Suppress floating pseudo-element tooltips on topbar header buttons */
+.admin-topbar .theme-toggle::before,
+.native-top-bar .theme-toggle::before,
+.header-icon-btn::before,
+#topbarThemeToggle::before,
+#shellThemeToggle::before {
+  display: none !important;
+  content: none !important;
 }
 
 /* ==========================================================================

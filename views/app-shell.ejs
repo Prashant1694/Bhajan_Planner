@@ -12,6 +12,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Bhajan Planner | Sri Sathya Sai Seva Organisation' %></title>
   <meta name="description" content="Sri Sathya Sai Seva Organisations, Gandhinagar — Devotional Bhajan Management & Satsang Scheduling System">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F2">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100E">
   <meta name="theme-color" content="#FAF7F2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -271,14 +273,84 @@
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
+        flex: 0 0 auto !important;
+        flex-shrink: 0 !important;
       }
-      .circular-theme-toggle {
+      .header-icon-btn,
+      #shellNotifBtn,
+      .circular-theme-toggle,
+      #shellThemeToggle {
         width: 36px !important;
         height: 36px !important;
         min-width: 36px !important;
         min-height: 36px !important;
         border-radius: 50% !important;
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        background: rgba(0, 0, 0, 0.03) !important;
+        color: var(--shell-ink, #1c1917) !important;
+        position: relative !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease !important;
       }
+      .header-icon-btn:active,
+      #shellNotifBtn:active,
+      .circular-theme-toggle:active,
+      #shellThemeToggle:active {
+        transform: scale(0.92) !important;
+      }
+      [data-theme="dark"] .header-icon-btn,
+      [data-theme="dark"] #shellNotifBtn,
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .header-icon-btn,
+      .dark #shellNotifBtn,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        border-color: rgba(255, 255, 255, 0.14) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #d6d0c9 !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        color: #fbbf24 !important;
+      }
+
+      /* Critical Theme Toggle Icon Visibility */
+      #shellThemeToggle .icon-moon,
+      #shellThemeToggle .icon-sun {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        line-height: 1 !important;
+      }
+      #shellThemeToggle .icon-sun {
+        display: none !important;
+      }
+      [data-theme="dark"] #shellThemeToggle .icon-moon,
+      .dark #shellThemeToggle .icon-moon,
+      #shellThemeToggle[aria-pressed="true"] .icon-moon {
+        display: none !important;
+      }
+      [data-theme="dark"] #shellThemeToggle .icon-sun,
+      .dark #shellThemeToggle .icon-sun,
+      #shellThemeToggle[aria-pressed="true"] .icon-sun {
+        display: inline-flex !important;
+        color: #fbbf24 !important;
+      }
+
+      /* Universal Floating Bottom Capsule (<= 1024px) */
       .mobile-bottom-capsule,
       .native-bottom-nav,
       #mobileBottomCapsule,
@@ -304,19 +376,26 @@
         backdrop-filter: blur(24px) saturate(180%) !important;
         -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
         border: 1px solid rgba(0, 0, 0, 0.08) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
         padding: 0 !important;
         margin: 0 !important;
         overflow: hidden !important;
       }
+
+      /* Dark Mode Capsule (High specificity matching IDs so it NEVER falls back to white) */
       [data-theme="dark"] .mobile-bottom-capsule,
+      [data-theme="dark"] #mobileBottomCapsule,
       [data-theme="dark"] .native-bottom-nav,
+      [data-theme="dark"] #nativeBottomNav,
       .dark .mobile-bottom-capsule,
-      .dark .native-bottom-nav {
-        background: rgba(14, 22, 33, 0.90) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+      .dark #mobileBottomCapsule,
+      .dark .native-bottom-nav,
+      .dark #nativeBottomNav {
+        background: rgba(24, 22, 20, 0.94) !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.12) !important;
       }
+
       .capsule-track,
       .native-nav-inner {
         display: flex !important;
@@ -337,8 +416,12 @@
         width: 0 !important;
         height: 0 !important;
       }
+
+      /* Inactive Pills in Light Mode */
       .capsule-pill,
-      .native-bottom-nav .nav-tab {
+      .native-bottom-nav .nav-tab,
+      #capsuleTrack .capsule-pill,
+      #capsuleTrack .nav-tab {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -352,46 +435,87 @@
         border-radius: 9999px !important;
         font-size: 13px !important;
         font-weight: 500 !important;
-        color: var(--shell-muted, #78716c) !important;
+        color: #57534e !important;
         background: transparent !important;
         border: 1px solid transparent !important;
         cursor: pointer !important;
         transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
       }
-      [data-theme="dark"] .capsule-pill,
-      [data-theme="dark"] .native-bottom-nav .nav-tab,
-      .dark .capsule-pill,
-      .dark .native-bottom-nav .nav-tab {
-        color: rgba(255, 255, 255, 0.65) !important;
+      .capsule-pill svg,
+      .native-bottom-nav .nav-tab svg,
+      #capsuleTrack .capsule-pill svg,
+      #capsuleTrack .nav-tab svg {
+        width: 15px !important;
+        height: 15px !important;
+        stroke: #57534e !important;
+        stroke-width: 2 !important;
+        flex-shrink: 0 !important;
       }
-      /* Mobile Active Highlight: Warm Mandir Saffron & Prasanthi Gold */
+
+      /* Inactive Pills in Dark Mode (High Specificity matching capsule track) */
+      [data-theme="dark"] .capsule-pill,
+      [data-theme="dark"] #capsuleTrack .capsule-pill,
+      [data-theme="dark"] .native-bottom-nav .nav-tab,
+      [data-theme="dark"] #capsuleTrack .nav-tab,
+      .dark .capsule-pill,
+      .dark #capsuleTrack .capsule-pill,
+      .dark .native-bottom-nav .nav-tab,
+      .dark #capsuleTrack .nav-tab {
+        color: #d6d0c9 !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+      }
+      [data-theme="dark"] .capsule-pill svg,
+      [data-theme="dark"] #capsuleTrack .capsule-pill svg,
+      [data-theme="dark"] .native-bottom-nav .nav-tab svg,
+      [data-theme="dark"] #capsuleTrack .nav-tab svg,
+      .dark .capsule-pill svg,
+      .dark #capsuleTrack .capsule-pill svg,
+      .dark .native-bottom-nav .nav-tab svg,
+      .dark #capsuleTrack .nav-tab svg {
+        stroke: #d6d0c9 !important;
+      }
+
+      /* Active Highlight in Light Mode: Warm Mandir Saffron */
       .capsule-pill.active,
-      .native-bottom-nav .nav-tab.active {
+      .native-bottom-nav .nav-tab.active,
+      #capsuleTrack .capsule-pill.active,
+      #capsuleTrack .nav-tab.active {
         background: rgba(200, 90, 23, 0.12) !important;
-        border: 1px solid rgba(200, 90, 23, 0.35) !important;
+        border: 1px solid rgba(200, 90, 23, 0.4) !important;
         color: #c85a17 !important;
         border-radius: 9999px !important;
         font-weight: 600 !important;
       }
-      [data-theme="dark"] .capsule-pill.active,
-      [data-theme="dark"] .native-bottom-nav .nav-tab.active,
-      .dark .capsule-pill.active,
-      .dark .native-bottom-nav .nav-tab.active {
-        background: rgba(245, 158, 11, 0.16) !important;
-        border: 1px solid rgba(245, 158, 11, 0.45) !important;
-        color: #fbbf24 !important;
-      }
       .capsule-pill.active .capsule-icon,
       .capsule-pill.active svg,
-      .native-bottom-nav .nav-tab.active svg {
+      .native-bottom-nav .nav-tab.active svg,
+      #capsuleTrack .capsule-pill.active svg {
         stroke: #c85a17 !important;
+      }
+
+      /* Active Highlight in Dark Mode: Prasanthi Gold */
+      [data-theme="dark"] .capsule-pill.active,
+      [data-theme="dark"] #capsuleTrack .capsule-pill.active,
+      [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+      [data-theme="dark"] #capsuleTrack .nav-tab.active,
+      .dark .capsule-pill.active,
+      .dark #capsuleTrack .capsule-pill.active,
+      .dark .native-bottom-nav .nav-tab.active,
+      .dark #capsuleTrack .nav-tab.active {
+        background: rgba(245, 158, 11, 0.18) !important;
+        border: 1px solid rgba(245, 158, 11, 0.5) !important;
+        color: #fbbf24 !important;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
       }
       [data-theme="dark"] .capsule-pill.active .capsule-icon,
       [data-theme="dark"] .capsule-pill.active svg,
       .dark .capsule-pill.active .capsule-icon,
       .dark .capsule-pill.active svg,
       [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
-      .dark .native-bottom-nav .nav-tab.active svg {
+      .dark .native-bottom-nav .nav-tab.active svg,
+      [data-theme="dark"] #capsuleTrack .capsule-pill.active svg,
+      .dark #capsuleTrack .capsule-pill.active svg {
         stroke: #fbbf24 !important;
       }
       .capsule-icon,
@@ -403,6 +527,44 @@
         stroke-width: 2 !important;
         flex-shrink: 0 !important;
       }
+
+      /* Critical Mobile Modal & Bottom Sheet Guard (Guarantees modals are pinned to bottom of viewport) */
+      .modal.show {
+        position: fixed !important;
+        inset: 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        background: rgba(18, 16, 14, 0.72) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        z-index: 100050 !important;
+      }
+      .modal.show .modal-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 28px 28px 0 0 !important;
+        max-height: 85vh !important;
+        max-height: 85dvh !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+        padding: 16px 20px max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px)) 20px !important;
+        animation: appBottomSheetSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+        box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.45) !important;
+        border-top: 1.5px solid rgba(217, 138, 43, 0.3) !important;
+        position: relative !important;
+        z-index: 100051 !important;
+        box-sizing: border-box !important;
+      }
     }
   </style>
 
@@ -411,24 +573,26 @@
     (function () {
       try {
         var t = localStorage.getItem('bp-theme');
-        if (t === 'dark') {
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var isDark = t === 'dark' || (t !== 'light' && prefersDark);
+        if (isDark) {
           document.documentElement.setAttribute('data-theme', 'dark');
           document.documentElement.classList.add('dark');
           if (document.body) {
             document.body.setAttribute('data-theme', 'dark');
             document.body.classList.add('dark');
           }
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#12100E');
-        } else if (t === 'light') {
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#12100E'); });
+        } else {
           document.documentElement.removeAttribute('data-theme');
           document.documentElement.classList.remove('dark');
           if (document.body) {
             document.body.removeAttribute('data-theme');
             document.body.classList.remove('dark');
           }
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#FAF7F2');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#FAF7F2'); });
         }
       } catch (e) {}
     })();
@@ -443,8 +607,8 @@
             document.body.classList.add('dark');
           }
           localStorage.setItem('bp-theme', 'dark');
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#12100E');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#12100E'); });
         } else {
           document.documentElement.removeAttribute('data-theme');
           document.documentElement.classList.remove('dark');
@@ -453,8 +617,8 @@
             document.body.classList.remove('dark');
           }
           localStorage.setItem('bp-theme', 'light');
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#FAF7F2');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#FAF7F2'); });
         }
         var btns = document.querySelectorAll('.theme-toggle, #themeToggle, #shellThemeToggle, #topbarThemeToggle, #themeToggleBtn, .admin-theme-toggle-btn');
         btns.forEach(function (btn) {
@@ -699,23 +863,23 @@
 
         <!-- Right: Circular theme toggle button and identity pills -->
         <div class="header-right">
-          <!-- Notification Bell -->
-          <button type="button" class="header-icon-btn desktop-only-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-            </svg>
-            <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
-          </button>
-
           <!-- Circular Dark / Light Theme Toggle -->
-          <button type="button" class="header-icon-btn circular-theme-toggle theme-toggle" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
+          <button type="button" class="header-icon-btn circular-theme-toggle" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
             <span class="icon-moon" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             </span>
             <span class="icon-sun" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             </span>
+          </button>
+
+          <!-- Notification Bell -->
+          <button type="button" class="header-icon-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
           </button>
 
           <!-- Singer Identity Pill (Desktop) -->

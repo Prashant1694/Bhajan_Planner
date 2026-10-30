@@ -391,8 +391,7 @@ img, svg, video, canvas {
   background: #1c2436 !important;
 }
 
-.segmented-pill,
-.capsule-pill {
+.segmented-pill {
   padding: 6px 14px !important;
   border-radius: 6px !important;
   font-size: 12.5px !important;
@@ -404,16 +403,14 @@ img, svg, video, canvas {
   transition: all 0.15s ease !important;
 }
 
-.segmented-pill.active,
-.capsule-pill.active {
+.segmented-pill.active {
   background: #ffffff !important;
   color: var(--primary) !important;
   font-weight: 700 !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
 }
 
-[data-theme="dark"] .segmented-pill.active,
-[data-theme="dark"] .capsule-pill.active {
+[data-theme="dark"] .segmented-pill.active {
   background: #232d42 !important;
   color: #ffffff !important;
 }
@@ -3982,7 +3979,7 @@ input.search-box {
 }
 
 /* Tooltip */
-.theme-toggle::before {
+.theme-toggle:not(.header-icon-btn):not(#shellThemeToggle):not(#topbarThemeToggle)::before {
   content: attr(data-tooltip);
   position: absolute;
   right: calc(100% + 10px);
@@ -4000,8 +3997,17 @@ input.search-box {
   transition: opacity 0.15s var(--ease);
 }
 
-.theme-toggle:hover::before {
+.theme-toggle:not(.header-icon-btn):not(#shellThemeToggle):not(#topbarThemeToggle):hover::before {
   opacity: 1;
+}
+
+.header-right .theme-toggle::before,
+.native-top-actions .theme-toggle::before,
+.header-icon-btn::before,
+#shellThemeToggle::before,
+#topbarThemeToggle::before {
+  display: none !important;
+  content: none !important;
 }
 
 @media (max-width: 600px) {
@@ -9112,13 +9118,25 @@ body.modal-open #appBottomNav {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .modal.show {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    width: 100vw !important;
+    height: 100% !important;
+    height: 100dvh !important;
     align-items: flex-end !important;
     justify-content: center !important;
     padding: 0 !important;
-    backdrop-filter: blur(6px) !important;
-    -webkit-backdrop-filter: blur(6px) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    background: rgba(18, 16, 14, 0.72) !important;
+    z-index: 100050 !important;
   }
 
   .modal-content {
@@ -9126,14 +9144,16 @@ body.modal-open #appBottomNav {
     width: 100% !important;
     margin: 0 !important;
     border-radius: 28px 28px 0 0 !important;
-    max-height: 88vh !important;
+    max-height: 85vh !important;
+    max-height: 85dvh !important;
     overflow-y: auto !important;
-    padding: 16px 20px max(36px, calc(env(safe-area-inset-bottom, 0px) + 26px)) 20px !important;
-    animation: appBottomSheetSlideUp 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.35) !important;
+    overscroll-behavior: contain !important;
+    padding: 16px 20px max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px)) 20px !important;
+    animation: appBottomSheetSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.45) !important;
     border-top: 1.5px solid rgba(217, 138, 43, 0.3) !important;
     position: relative !important;
-    z-index: 100001 !important;
+    z-index: 100051 !important;
     box-sizing: border-box !important;
   }
 
@@ -9149,7 +9169,7 @@ body.modal-open #appBottomNav {
 
   [data-theme="dark"] .modal-content {
     border-top-color: rgba(251, 191, 36, 0.3) !important;
-    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.6) !important;
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.65) !important;
   }
 
   [data-theme="dark"] .sheet-drag-handle {
@@ -13178,6 +13198,8 @@ html, body {
     display: none !important;
   }
 
+  .header-icon-btn,
+  #shellNotifBtn,
   .circular-theme-toggle,
   .header-icon-btn.circular-theme-toggle,
   #shellThemeToggle {
@@ -13185,6 +13207,39 @@ html, body {
     height: 36px !important;
     min-width: 36px !important;
     min-height: 36px !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Critical Theme Toggle Icon Visibility */
+  #shellThemeToggle .icon-moon,
+  #shellThemeToggle .icon-sun {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+  #shellThemeToggle .icon-sun {
+    display: none !important;
+  }
+  [data-theme="dark"] #shellThemeToggle .icon-moon,
+  .dark #shellThemeToggle .icon-moon,
+  #shellThemeToggle[aria-pressed="true"] .icon-moon {
+    display: none !important;
+  }
+  [data-theme="dark"] #shellThemeToggle .icon-sun,
+  .dark #shellThemeToggle .icon-sun,
+  #shellThemeToggle[aria-pressed="true"] .icon-sun {
+    display: inline-flex !important;
+    color: #fbbf24 !important;
   }
 
   .mobile-bottom-capsule,
@@ -13194,23 +13249,100 @@ html, body {
     display: block !important;
     visibility: visible !important;
     pointer-events: auto !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  }
+
+  /* Dark Mode Capsule (High specificity matching IDs so it NEVER falls back to white) */
+  [data-theme="dark"] .mobile-bottom-capsule,
+  [data-theme="dark"] #mobileBottomCapsule,
+  [data-theme="dark"] .native-bottom-nav,
+  [data-theme="dark"] #nativeBottomNav,
+  .dark .mobile-bottom-capsule,
+  .dark #mobileBottomCapsule,
+  .dark .native-bottom-nav,
+  .dark #nativeBottomNav {
+    background: rgba(24, 22, 20, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.12) !important;
+  }
+
+  /* Inactive items in Light Mode */
+  .capsule-pill,
+  .native-bottom-nav .nav-tab,
+  #capsuleTrack .capsule-pill,
+  #capsuleTrack .nav-tab {
+    color: #57534e !important;
+    background: transparent !important;
+  }
+  .capsule-pill svg,
+  .native-bottom-nav .nav-tab svg,
+  #capsuleTrack .capsule-pill svg,
+  #capsuleTrack .nav-tab svg {
+    stroke: #57534e !important;
+  }
+
+  /* Inactive items in Dark Mode */
+  [data-theme="dark"] .capsule-pill,
+  [data-theme="dark"] #capsuleTrack .capsule-pill,
+  [data-theme="dark"] .native-bottom-nav .nav-tab,
+  [data-theme="dark"] #capsuleTrack .nav-tab,
+  .dark .capsule-pill,
+  .dark #capsuleTrack .capsule-pill,
+  .dark .native-bottom-nav .nav-tab,
+  .dark #capsuleTrack .nav-tab {
+    color: #d6d0c9 !important;
+    background: transparent !important;
+  }
+  [data-theme="dark"] .capsule-pill svg,
+  [data-theme="dark"] #capsuleTrack .capsule-pill svg,
+  [data-theme="dark"] .native-bottom-nav .nav-tab svg,
+  [data-theme="dark"] #capsuleTrack .nav-tab svg,
+  .dark .capsule-pill svg,
+  .dark #capsuleTrack .capsule-pill svg,
+  .dark .native-bottom-nav .nav-tab svg,
+  .dark #capsuleTrack .nav-tab svg {
+    stroke: #d6d0c9 !important;
   }
 
   /* Mobile Active Pill: Mandir Saffron */
   .capsule-pill.active,
-  .native-bottom-nav .nav-tab.active {
+  .native-bottom-nav .nav-tab.active,
+  #capsuleTrack .capsule-pill.active,
+  #capsuleTrack .nav-tab.active {
     background: rgba(200, 90, 23, 0.12) !important;
-    border: 1px solid rgba(200, 90, 23, 0.35) !important;
+    border: 1px solid rgba(200, 90, 23, 0.4) !important;
     color: #c85a17 !important;
+  }
+  .capsule-pill.active .capsule-icon,
+  .capsule-pill.active svg,
+  .native-bottom-nav .nav-tab.active svg,
+  #capsuleTrack .capsule-pill.active svg {
+    stroke: #c85a17 !important;
   }
 
   [data-theme="dark"] .capsule-pill.active,
+  [data-theme="dark"] #capsuleTrack .capsule-pill.active,
   [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+  [data-theme="dark"] #capsuleTrack .nav-tab.active,
   .dark .capsule-pill.active,
-  .dark .native-bottom-nav .nav-tab.active {
-    background: rgba(245, 158, 11, 0.16) !important;
-    border: 1px solid rgba(245, 158, 11, 0.45) !important;
+  .dark #capsuleTrack .capsule-pill.active,
+  .dark .native-bottom-nav .nav-tab.active,
+  .dark #capsuleTrack .nav-tab.active {
+    background: rgba(245, 158, 11, 0.18) !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
     color: #fbbf24 !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
+  }
+  [data-theme="dark"] .capsule-pill.active .capsule-icon,
+  [data-theme="dark"] .capsule-pill.active svg,
+  .dark .capsule-pill.active .capsule-icon,
+  .dark .capsule-pill.active svg,
+  [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
+  .dark .native-bottom-nav .nav-tab.active svg,
+  [data-theme="dark"] #capsuleTrack .capsule-pill.active svg,
+  .dark #capsuleTrack .capsule-pill.active svg {
+    stroke: #fbbf24 !important;
   }
 }
 

@@ -9,6 +9,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F2">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100E">
   <meta name="theme-color" content="#FAF7F2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -75,8 +77,8 @@
             document.body.classList.add('dark');
           }
           localStorage.setItem('bp-theme', 'dark');
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#12100E');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#12100E'); });
         } else {
           document.documentElement.removeAttribute('data-theme');
           document.documentElement.classList.remove('dark');
@@ -85,8 +87,8 @@
             document.body.classList.remove('dark');
           }
           localStorage.setItem('bp-theme', 'light');
-          var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#FAF7F2');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#FAF7F2'); });
         }
         var btns = document.querySelectorAll('.theme-toggle, #themeToggle, #shellThemeToggle, #topbarThemeToggle, #themeToggleBtn, .admin-theme-toggle-btn');
         btns.forEach(function (btn) {

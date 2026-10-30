@@ -38,7 +38,8 @@ const BhajanSubmission = sequelize.define(
     },
     speed: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true,
+      defaultValue: "Medium"
     },
     list_order: { type: DataTypes.INTEGER, defaultValue: 0 },
     raga: { type: DataTypes.STRING, allowNull: true },
