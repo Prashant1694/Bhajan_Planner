@@ -342,9 +342,9 @@ a {
   color: var(--ink);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .admin-sidebar-toggle-btn {
-    display: inline-flex;
+    display: inline-flex !important;
   }
 }
 
@@ -471,6 +471,14 @@ a {
   background: var(--surface);
   color: var(--primary);
   border-color: var(--primary);
+}
+
+.sidebar-mobile-close-icon {
+  display: none;
+}
+
+.sidebar-desktop-icon {
+  display: block;
 }
 
 body.sidebar-collapsed .sidebar {
@@ -1945,30 +1953,34 @@ body.sidebar-collapsed .sidebar:hover .sidebar-badge-dot {
 }
 
 /* ============================================================
-   MOBILE — sidebar becomes a full-screen overlay
+   MOBILE — sidebar becomes a full-screen off-canvas drawer
    ============================================================ */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* Show the hamburger button in the topbar */
-  .mobile-menu-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    font-size: 18px;
-    border-radius: 9px;
+  .admin-sidebar-toggle-btn,
+  .mobile-menu-btn,
+  #mobileSidebarToggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    font-size: 18px !important;
+    border-radius: 9px !important;
+    cursor: pointer !important;
   }
 
   /* Topbar: sleek, single row on mobile with zero clipping */
-  .topbar {
-    padding: 8px 12px;
-    min-height: 52px;
-    padding-top: max(8px, env(safe-area-inset-top));
-    gap: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .topbar,
+  .admin-topbar {
+    padding: 8px 12px !important;
+    min-height: 52px !important;
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+    gap: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
 
   /* Hide desktop-only quick links and breadcrumbs on mobile */
@@ -2047,54 +2059,86 @@ body.sidebar-collapsed .sidebar:hover .sidebar-badge-dot {
     display: none !important;
   }
 
-  /* Hide the desktop sidebar completely */
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 80vw;
-    max-width: 300px;
-    height: 100vh;
-    height: 100dvh;
-    z-index: 1000;
-    transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: none;
-    padding: max(26px, env(safe-area-inset-top)) 20px max(26px, env(safe-area-inset-bottom))
-      max(20px, env(safe-area-inset-left));
+  /* Mobile drawer sidebar: off-canvas drawer */
+  .sidebar,
+  #adminSidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    max-width: 86vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 10005 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+    background: var(--surface) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   /* Show sidebar when mobile-sidebar-open is on body */
-  body.mobile-sidebar-open .sidebar {
-    transform: translateX(0);
-    box-shadow: 4px 0 32px rgba(34, 30, 42, 0.22);
+  body.mobile-sidebar-open .sidebar,
+  body.mobile-sidebar-open #adminSidebar {
+    transform: translateX(0) !important;
+    box-shadow: 6px 0 36px rgba(0, 0, 0, 0.35) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  /* Prevent page scrolling when mobile sidebar is open */
+  body.mobile-sidebar-open {
+    overflow: hidden !important;
+    touch-action: none !important;
   }
 
   /* Dim overlay behind sidebar */
-  .sidebar-overlay {
+  .sidebar-overlay,
+  #sidebarOverlay {
     display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(34, 30, 42, 0.5);
-    z-index: 999;
-    backdrop-filter: blur(2px);
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    z-index: 10000 !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    opacity: 0;
+    transition: opacity 0.25s ease !important;
+    pointer-events: none !important;
   }
 
-  body.mobile-sidebar-open .sidebar-overlay {
-    display: block;
+  body.mobile-sidebar-open .sidebar-overlay,
+  body.mobile-sidebar-open #sidebarOverlay {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Main content takes full width on mobile */
+  .main-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
   }
 
   /* Collapsed state has NO effect on mobile (sidebar is hidden via transform) */
   body.sidebar-collapsed .sidebar {
-    width: 80vw !important;
-    max-width: 300px !important;
-    padding-left: max(20px, env(safe-area-inset-left)) !important;
-    padding-right: 20px !important;
+    width: 290px !important;
+    max-width: 86vw !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: 16px !important;
   }
 
   body.sidebar-collapsed .sidebar-header {
     justify-content: flex-start !important;
-    margin-bottom: 38px;
+    margin-bottom: 24px;
   }
 
   body.sidebar-collapsed .sidebar-header > .logo,
@@ -2132,6 +2176,19 @@ body.sidebar-collapsed .sidebar:hover .sidebar-badge-dot {
 
   .sidebar-toggle {
     margin-left: auto;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .sidebar-desktop-icon {
+    display: none !important;
+  }
+
+  .sidebar-mobile-close-icon {
+    display: block !important;
   }
 
   .sidebar-nav a,

@@ -29,9 +29,9 @@
   --shell-sidebar-hover: rgba(245, 158, 11, 0.09);
   --shell-sidebar-active-bg: linear-gradient(135deg, #c85a17 0%, #b45309 100%);
 
-  --shell-sidebar-width: 256px;
-  --shell-header-height: 60px;
-  --shell-bottom-nav-height: 62px;
+  --shell-sidebar-width: 0px;
+  --shell-header-height: 70px;
+  --shell-bottom-nav-height: 52px;
 }
 
 [data-theme="dark"],
@@ -381,80 +381,111 @@ body.shell-body #standaloneHeaderWrap {
   background: var(--shell-bg);
 }
 
+/* ==========================================================================
+   3. RESPONSIVE DUAL-LAYOUT TOP HEADER BAR
+   ========================================================================== */
+
 .shell-top-header {
-  height: calc(var(--shell-header-height) + env(safe-area-inset-top, 0px));
-  min-height: calc(var(--shell-header-height) + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) 18px 0 18px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--shell-border);
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 70px;
+  min-height: 70px;
+  padding: 0 28px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  z-index: 60;
+  gap: 16px;
+  z-index: 900;
   flex-shrink: 0;
+  box-sizing: border-box;
+  transform: translateZ(0);
+  will-change: box-shadow;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 [data-theme="dark"] .shell-top-header,
 .dark .shell-top-header {
-  background: rgba(28, 25, 23, 0.92) !important;
-  border-bottom-color: var(--shell-border) !important;
+  background: rgba(14, 22, 33, 0.90) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Elevation shadow on scroll */
+.shell-top-header.scrolled,
+.shell-top-header.is-scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .shell-top-header.scrolled,
+.dark .shell-top-header.scrolled {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* Left: Brand symbol square + logo text */
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  flex: 1;
-}
-
-.shell-menu-btn {
-  display: none !important;
-}
-
-@media (max-width: 1023px) {
-  .shell-top-header {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .shell-menu-btn {
-    display: inline-flex !important;
-  }
-}
-
-.header-brand-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  min-width: 0;
-  user-select: none;
-}
-
-.header-logo-box {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: var(--shell-surface-subtle);
-  border: 1px solid var(--shell-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
   flex-shrink: 0;
 }
 
-/* On desktop, sidebar already shows the emblem, so keep header clean */
-@media (min-width: 1024px) {
-  .header-logo-box {
-    display: none;
-  }
+.header-brand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none !important;
+  color: inherit;
+  cursor: pointer;
+  user-select: none;
 }
 
+.header-brand-wrap *,
+.header-brand-wrap span {
+  text-decoration: none !important;
+}
+
+.brand-symbol-square,
+.header-logo-box {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  background: var(--shell-surface-subtle, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--shell-border, rgba(0, 0, 0, 0.08));
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="dark"] .brand-symbol-square,
+[data-theme="dark"] .header-logo-box,
+.dark .brand-symbol-square,
+.dark .header-logo-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.header-brand-wrap:hover .brand-symbol-square,
+.header-brand-wrap:hover .header-logo-box {
+  transform: scale(1.04);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.brand-symbol-img,
 .header-logo-box img {
   width: 100%;
   height: 100%;
@@ -471,32 +502,213 @@ body.shell-body #standaloneHeaderWrap {
 .header-page-title {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;
-  font-size: 16.5px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--shell-ink);
+  color: var(--shell-ink, #1c1917);
   letter-spacing: -0.015em;
   line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none !important;
+}
+
+[data-theme="dark"] .header-page-title,
+.dark .header-page-title {
+  color: #f5f0eb;
 }
 
 .header-breadcrumb {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.75px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--shell-saffron);
+  color: var(--shell-saffron, #d97706);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none !important;
 }
 
+/* Center: Horizontal navigation links with hover states and animated cyan underline */
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 16px;
+}
+
+.desktop-nav .nav-link,
+.desktop-nav a.nav-link,
+a.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--shell-ink-soft, #57534e) !important;
+  text-decoration: none !important;
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+[data-theme="dark"] .desktop-nav .nav-link,
+.dark .desktop-nav .nav-link {
+  color: var(--shell-ink-soft, #d6d0c9) !important;
+}
+
+.desktop-nav .nav-link:hover,
+.desktop-nav a.nav-link:hover {
+  color: var(--shell-ink, #1c1917) !important;
+  background-color: rgba(0, 0, 0, 0.04);
+  text-decoration: none !important;
+}
+
+[data-theme="dark"] .desktop-nav .nav-link:hover,
+.dark .desktop-nav .nav-link:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Animated warm Mandir saffron underline for active tab */
+.desktop-nav .nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #c85a17 0%, #d97706 100%);
+  border-radius: 9999px;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  opacity: 0;
+}
+
+[data-theme="dark"] .desktop-nav .nav-link::after,
+.dark .desktop-nav .nav-link::after {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+.desktop-nav .nav-link:hover::after {
+  width: 36%;
+  opacity: 0.5;
+}
+
+.desktop-nav .nav-link.active {
+  color: var(--shell-saffron, #c85a17) !important;
+  font-weight: 600;
+  text-decoration: none !important;
+}
+
+[data-theme="dark"] .desktop-nav .nav-link.active,
+.dark .desktop-nav .nav-link.active {
+  color: #fbbf24 !important;
+}
+
+.desktop-nav .nav-link.active::after {
+  width: 75% !important;
+  opacity: 1 !important;
+  background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+  box-shadow: 0 0 8px rgba(200, 90, 23, 0.45);
+}
+
+[data-theme="dark"] .desktop-nav .nav-link.active::after,
+.dark .desktop-nav .nav-link.active::after {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.55), 0 0 2px #fbbf24;
+}
+
+/* Right: Circular theme toggle button and pill CTA button */
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.circular-theme-toggle,
+.header-icon-btn.circular-theme-toggle {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: var(--shell-surface-subtle, rgba(0, 0, 0, 0.03)) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--shell-ink, #1c1917) !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-theme="dark"] .circular-theme-toggle,
+[data-theme="dark"] .header-icon-btn.circular-theme-toggle,
+.dark .circular-theme-toggle,
+.dark .header-icon-btn.circular-theme-toggle {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f5f0eb !important;
+}
+
+.circular-theme-toggle:hover,
+.header-icon-btn.circular-theme-toggle:hover {
+  transform: rotate(15deg) scale(1.05);
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .circular-theme-toggle:hover,
+.dark .circular-theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Pill CTA Button */
+.pill-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #0284c7 0%, #00bcd4 100%);
+  color: #ffffff !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none !important;
+  box-shadow: 0 3px 12px rgba(0, 188, 212, 0.35);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, filter 0.2s ease;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+}
+
+.pill-cta-btn:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(0, 188, 212, 0.45);
+  filter: brightness(1.06);
+}
+
+.pill-cta-btn:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+.pill-cta-btn svg {
+  stroke: #ffffff;
   flex-shrink: 0;
 }
 
@@ -681,6 +893,7 @@ body.shell-body #standaloneHeaderWrap {
   width: 100%;
   overflow: hidden;
   background: var(--shell-bg);
+  contain: layout size;
 }
 
 .shell-pane {
@@ -695,10 +908,25 @@ body.shell-body #standaloneHeaderWrap {
   display: none;
   padding-bottom: 40px;
   box-sizing: border-box;
+  contain: content;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .shell-pane.active-pane {
   display: block;
+  contain: layout style;
+  animation: shellPaneFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes shellPaneFadeIn {
+  0% {
+    opacity: 0.92;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Keep ambient orb canvases scoped inside their scroll pane */
@@ -931,98 +1159,374 @@ body.shell-body #standaloneHeaderWrap {
 }
 
 /* ==========================================================================
-   7. NATIVE MOBILE BOTTOM NAVIGATION BAR (< 1024px)
+   7. RESPONSIVE DUAL-LAYOUT NAVIGATION SYSTEM
+      - Desktop Navigation (> 1024px): Top bar with centered links, hover & cyan active indicator.
+      - Mobile Navigation (<= 1024px): Telegram acrylic floating bottom capsule dock.
+      - The mobile bottom bar must be completely hidden on desktop (display: none !important).
    ========================================================================== */
 
-.native-bottom-nav {
-  height: calc(var(--shell-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  min-height: calc(var(--shell-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid var(--shell-border);
-  z-index: 65;
-  flex-shrink: 0;
-  user-select: none;
+/* Base Rule: Prevent horizontal page wobble */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
-[data-theme="dark"] .native-bottom-nav,
-.dark .native-bottom-nav {
-  background: rgba(24, 21, 18, 0.95);
-  border-top-color: var(--shell-border);
+/* Universal Floating Mobile Navbar Default:
+   Strictly hidden on desktop and by default outside mobile breakpoint */
+.mobile-bottom-capsule,
+.native-bottom-nav,
+#mobileBottomCapsule,
+#nativeBottomNav,
+.app-bottom-nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-@media (min-width: 1024px) {
-  .native-bottom-nav {
+/* ──────────────────────────────────────────────────────────────────────────
+   A. DESKTOP NAVIGATION (> 1024px)
+   ────────────────────────────────────────────────────────────────────────── */
+@media (min-width: 1025px) {
+  /* Strictly isolate and completely hide mobile bottom bar and drawer on desktop */
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav,
+  .app-bottom-nav,
+  .shell-sidebar,
+  .shell-sidebar-overlay,
+  .shell-menu-btn {
     display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  body,
+  body.shell-body {
+    padding-bottom: 0 !important;
+  }
+
+  /* Desktop Top Header Layout Hardening (> 1024px) */
+  .shell-top-header {
+    height: 70px !important;
+    min-height: 70px !important;
+    padding: 0 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .header-left {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .desktop-nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    margin: 0 16px !important;
+    gap: 4px !important;
+  }
+
+  .header-right {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  /* Compact Desktop Adjustments (1025px - 1240px) */
+  @media (max-width: 1240px) {
+    .shell-top-header {
+      padding: 0 14px !important;
+    }
+    .desktop-nav {
+      margin: 0 6px !important;
+      gap: 2px !important;
+    }
+    .desktop-nav .nav-link,
+    .desktop-nav a.nav-link {
+      padding: 6px 10px !important;
+      font-size: 13px !important;
+    }
+    .pill-cta-btn {
+      padding: 0 14px !important;
+      font-size: 12.5px !important;
+    }
+    .singer-pill-name,
+    .admin-pill-name {
+      max-width: 70px !important;
+    }
+  }
+
+  /* Tight Desktop Adjustments (1025px - 1140px) */
+  @media (max-width: 1140px) {
+    .desktop-nav .nav-link,
+    .desktop-nav a.nav-link {
+      padding: 6px 8px !important;
+      font-size: 12.5px !important;
+    }
+    .singer-profile-pill,
+    .admin-profile-pill {
+      display: none !important;
+    }
   }
 }
 
-.native-nav-inner {
-  max-width: 560px;
-  height: var(--shell-bottom-nav-height);
-  margin: 0 auto;
-  padding: 4px 6px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: center;
-  gap: 2px;
-}
+/* ──────────────────────────────────────────────────────────────────────────
+   B. MOBILE FLOATING CAPSULE NAVBAR (<= 1024px)
+   ────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Content Clearance: floating bottom nav never covers page content or footers */
+  body,
+  body.shell-body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
 
-.native-bottom-nav .nav-tab {
-  min-height: 0 !important;
-  height: 52px;
-  border: none;
-  background: transparent;
-  color: var(--shell-muted);
-  text-decoration: none !important;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 4px 2px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 0.16s ease, transform 0.12s ease;
-}
+  .shell-pane,
+  .shell-detail-body {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+  }
 
-.native-bottom-nav .nav-tab:active {
-  transform: scale(0.93);
-}
+  /* Fixed Top Header (<= 1024px):
+     Displays ONLY the brand logo and theme toggle.
+     Bulky dropdowns and drawers removed. */
+  .shell-top-header {
+    height: 58px !important;
+    min-height: 58px !important;
+    padding: 0 16px !important;
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 990 !important;
+    box-sizing: border-box !important;
+  }
 
-.native-bottom-nav .tab-icon-box {
-  width: 44px;
-  height: 28px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.18s ease, color 0.18s ease;
-}
+  [data-theme="dark"] .shell-top-header,
+  .dark .shell-top-header {
+    background: rgba(14, 22, 33, 0.90) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  }
 
-.native-bottom-nav .tab-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.1px;
-  line-height: 1.1;
-  white-space: nowrap;
-}
+  /* Hide bulky hamburger button, sidebar drawer, desktop nav & desktop CTA */
+  .shell-menu-btn,
+  #shellMenuBtn,
+  .shell-sidebar,
+  .shell-sidebar-overlay,
+  .desktop-nav,
+  #desktopNav,
+  .pill-cta-btn,
+  #headerCtaBtn,
+  .desktop-only-btn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
 
-.native-bottom-nav .nav-tab.active {
-  color: var(--shell-saffron);
-}
+  /* Top header right shows only circular theme toggle */
+  .header-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
 
-.native-bottom-nav .nav-tab.active .tab-icon-box {
-  background: var(--shell-saffron-soft);
-  color: var(--shell-saffron);
-}
+  .circular-theme-toggle,
+  .header-icon-btn.circular-theme-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
 
-.native-bottom-nav .nav-tab.active .tab-label {
-  font-weight: 800;
+  /* Floating Bottom Capsule: Fixed pill dock centered horizontally */
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style;
+    width: calc(100% - 24px) !important;
+    max-width: 520px !important;
+    height: 52px !important;
+    border-radius: 9999px !important;
+    z-index: 1000 !important;
+    box-sizing: border-box !important;
+
+    /* Telegram Acrylic Aesthetic */
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  [data-theme="dark"] .mobile-bottom-capsule,
+  [data-theme="dark"] .native-bottom-nav,
+  .dark .mobile-bottom-capsule,
+  .dark .native-bottom-nav {
+    background: rgba(14, 22, 33, 0.90) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+  }
+
+  /* Horizontal Scroll Track inside the capsule */
+  .capsule-track,
+  .native-nav-inner {
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    width: 100% !important;
+    gap: 4px !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    contain: layout style;
+  }
+
+  .capsule-track::-webkit-scrollbar,
+  .native-nav-inner::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Pill Items: Inline flex with clean 15x15px vector SVG icons and text labels (strictly NO emojis) */
+  .capsule-pill,
+  .native-bottom-nav .nav-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    text-decoration: none !important;
+    border-radius: 9999px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--shell-muted, #78716c) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+
+  [data-theme="dark"] .capsule-pill,
+  [data-theme="dark"] .native-bottom-nav .nav-tab,
+  .dark .capsule-pill,
+  .dark .native-bottom-nav .nav-tab {
+    color: rgba(255, 255, 255, 0.65) !important;
+  }
+
+  .capsule-pill:hover,
+  .native-bottom-nav .nav-tab:hover {
+    color: var(--shell-ink, #1c1917) !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+  }
+
+  [data-theme="dark"] .capsule-pill:hover,
+  [data-theme="dark"] .native-bottom-nav .nav-tab:hover,
+  .dark .capsule-pill:hover,
+  .dark .native-bottom-nav .nav-tab:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .capsule-pill:active,
+  .native-bottom-nav .nav-tab:active {
+    transform: scale(0.95);
+  }
+
+  /* 15x15px clean vector SVG icons */
+  .capsule-icon,
+  .capsule-pill svg,
+  .native-bottom-nav .nav-tab svg {
+    width: 15px !important;
+    height: 15px !important;
+    max-width: 15px !important;
+    max-height: 15px !important;
+    flex-shrink: 0 !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+  }
+
+  .capsule-label,
+  .native-bottom-nav .tab-label {
+    font-size: 12.5px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  /* Mobile Active Highlight: Warm Mandir Saffron & Prasanthi Gold */
+  .capsule-pill.active,
+  .native-bottom-nav .nav-tab.active {
+    background: rgba(200, 90, 23, 0.12) !important;
+    border: 1px solid rgba(200, 90, 23, 0.35) !important;
+    color: #c85a17 !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+  }
+
+  [data-theme="dark"] .capsule-pill.active,
+  [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+  .dark .capsule-pill.active,
+  .dark .native-bottom-nav .nav-tab.active {
+    background: rgba(245, 158, 11, 0.16) !important;
+    border: 1px solid rgba(245, 158, 11, 0.45) !important;
+    color: #fbbf24 !important;
+  }
+
+  .capsule-pill.active .capsule-icon,
+  .capsule-pill.active svg,
+  .native-bottom-nav .nav-tab.active svg {
+    stroke: #c85a17 !important;
+  }
+
+  [data-theme="dark"] .capsule-pill.active .capsule-icon,
+  [data-theme="dark"] .capsule-pill.active svg,
+  .dark .capsule-pill.active .capsule-icon,
+  .dark .capsule-pill.active svg,
+  [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
+  .dark .native-bottom-nav .nav-tab.active svg {
+    stroke: #fbbf24 !important;
+  }
 }
 
 /* ==========================================================================

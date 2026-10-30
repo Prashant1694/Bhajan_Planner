@@ -7830,6 +7830,10 @@ input.search-box {
    App-First Native Edge-to-Edge Bottom Navigation (Flutter/Material 3 Style)
    ========================================================================== */
 .app-bottom-nav,
+.mobile-bottom-capsule,
+.native-bottom-nav,
+#mobileBottomCapsule,
+#nativeBottomNav,
 .outer-shell-only-bottom-nav,
 .in-iframe .app-bottom-nav,
 .in-iframe #appBottomNav,
@@ -7841,23 +7845,40 @@ body.in-iframe .app-bottom-nav {
   pointer-events: none !important;
 }
 
-body:not(.admin-page) {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+@media (min-width: 1025px) {
+  body:not(.admin-page) {
+    padding-bottom: 0 !important;
+  }
 }
 
-/* Suppress floating tool buttons - they now live neatly in the top header on the right end */
-.theme-toggle:not(.native-action-btn):not(#topbarThemeToggle):not(.admin-theme-toggle-btn),
-#themeToggle:not(.native-action-btn):not(#topbarThemeToggle):not(.admin-theme-toggle-btn),
-.notif-bell-btn:not(.native-action-btn),
-#notifBellBtn:not(.native-action-btn) {
+@media (max-width: 1024px) {
+  body:not(.admin-page) {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* Suppress legacy floating tool buttons - top header action buttons are excluded */
+.theme-toggle:not(.native-action-btn):not(#topbarThemeToggle):not(.admin-theme-toggle-btn):not(#shellThemeToggle):not(.circular-theme-toggle),
+#themeToggle:not(.native-action-btn):not(#topbarThemeToggle):not(.admin-theme-toggle-btn):not(#shellThemeToggle):not(.circular-theme-toggle),
+.notif-bell-btn:not(.native-action-btn):not(#shellNotifBtn),
+#notifBellBtn:not(.native-action-btn):not(#shellNotifBtn) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
 /* Completely hide bottom nav and floating buttons when ANY modal/sheet is open */
-body.modal-open .theme-toggle:not(#topbarThemeToggle):not(.admin-theme-toggle-btn),
-body.modal-open #themeToggle,
+body.modal-open .theme-toggle:not(#topbarThemeToggle):not(.admin-theme-toggle-btn):not(#shellThemeToggle):not(.circular-theme-toggle),
+body.modal-open #themeToggle:not(#shellThemeToggle),
 body.modal-open .notif-bell-btn,
 body.modal-open #notifBellBtn,
 body.modal-open .app-bottom-nav,
@@ -12990,5 +13011,208 @@ select.admin-input-control option {
     text-align: center;
   }
 }
+
+/* ==========================================================================
+   RESPONSIVE DUAL-LAYOUT NAVIGATION SYSTEM (DESKTOP TOP BAR & TELEGRAM CAPSULE)
+   ========================================================================== */
+
+/* Prevent horizontal page wobble */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Universal Base Rule: Hide mobile bottom capsule on desktop by default */
+.mobile-bottom-capsule,
+.native-bottom-nav,
+#mobileBottomCapsule,
+#nativeBottomNav {
+  display: none !important;
+}
+
+@media (min-width: 1025px) {
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  body {
+    padding-bottom: 0 !important;
+  }
+
+  .desktop-nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .desktop-nav .nav-link,
+  .desktop-nav a.nav-link,
+  a.nav-link {
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-soft, #57534e) !important;
+  }
+
+  .desktop-nav .nav-link:hover,
+  .desktop-nav a.nav-link:hover {
+    color: var(--ink, #1c1917) !important;
+    text-decoration: none !important;
+  }
+
+  /* Mandir Saffron Active Tab & Animated Underline */
+  .desktop-nav .nav-link.active {
+    color: #c85a17 !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+  }
+
+  [data-theme="dark"] .desktop-nav .nav-link.active,
+  .dark .desktop-nav .nav-link.active {
+    color: #fbbf24 !important;
+  }
+
+  .desktop-nav .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2.5px;
+    background: linear-gradient(90deg, #c85a17 0%, #d97706 100%);
+    border-radius: 9999px;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    opacity: 0;
+  }
+
+  [data-theme="dark"] .desktop-nav .nav-link::after,
+  .dark .desktop-nav .nav-link::after {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+  }
+
+  .desktop-nav .nav-link:hover::after {
+    width: 36%;
+    opacity: 0.5;
+  }
+
+  .desktop-nav .nav-link.active::after {
+    width: 75% !important;
+    opacity: 1 !important;
+    background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+    box-shadow: 0 0 8px rgba(200, 90, 23, 0.45);
+  }
+
+  [data-theme="dark"] .desktop-nav .nav-link.active::after,
+  .dark .desktop-nav .nav-link.active::after {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.55), 0 0 2px #fbbf24;
+  }
+}
+
+/* Circular Theme UI Toggle Button */
+.circular-theme-toggle,
+.header-icon-btn.circular-theme-toggle,
+#shellThemeToggle {
+  display: inline-flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(0, 0, 0, 0.03) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--ink, #1c1917) !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-theme="dark"] .circular-theme-toggle,
+[data-theme="dark"] .header-icon-btn.circular-theme-toggle,
+[data-theme="dark"] #shellThemeToggle,
+.dark .circular-theme-toggle,
+.dark .header-icon-btn.circular-theme-toggle,
+.dark #shellThemeToggle {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fbbf24 !important;
+}
+
+.circular-theme-toggle:hover,
+#shellThemeToggle:hover {
+  transform: rotate(15deg) scale(1.05);
+  background-color: rgba(200, 90, 23, 0.08) !important;
+  border-color: rgba(200, 90, 23, 0.3) !important;
+  color: #c85a17 !important;
+}
+
+[data-theme="dark"] .circular-theme-toggle:hover,
+[data-theme="dark"] #shellThemeToggle:hover,
+.dark .circular-theme-toggle:hover,
+.dark #shellThemeToggle:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
+}
+
+@media (max-width: 1024px) {
+  body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .desktop-nav,
+  #desktopNav,
+  .pill-cta-btn,
+  #headerCtaBtn {
+    display: none !important;
+  }
+
+  .circular-theme-toggle,
+  .header-icon-btn.circular-theme-toggle,
+  #shellThemeToggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  /* Mobile Active Pill: Mandir Saffron */
+  .capsule-pill.active,
+  .native-bottom-nav .nav-tab.active {
+    background: rgba(200, 90, 23, 0.12) !important;
+    border: 1px solid rgba(200, 90, 23, 0.35) !important;
+    color: #c85a17 !important;
+  }
+
+  [data-theme="dark"] .capsule-pill.active,
+  [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+  .dark .capsule-pill.active,
+  .dark .native-bottom-nav .nav-tab.active {
+    background: rgba(245, 158, 11, 0.16) !important;
+    border: 1px solid rgba(245, 158, 11, 0.45) !important;
+    color: #fbbf24 !important;
+  }
+}
+
 
 

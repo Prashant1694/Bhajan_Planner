@@ -28,22 +28,22 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Global CSS (v6.2) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.2">
-  <link rel="stylesheet" href="/css/pwa.css?v=6.2">
-  <link rel="stylesheet" href="/css/notifications.css?v=6.2">
-  <link rel="stylesheet" href="/css/bulletin.css?v=6.2">
+  <!-- Global CSS (v6.5) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <link rel="stylesheet" href="/css/pwa.css?v=6.5">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.5">
+  <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
 
   <% if (!isEmbed && typeof showLoader !== "undefined" && showLoader) { %>
-    <link rel="stylesheet" href="/css/loading.css?v=6.2">
+    <link rel="stylesheet" href="/css/loading.css?v=6.5">
   <% } %>
 
   <% if (typeof isAdminPage !== "undefined" && isAdminPage) { %>
-    <link rel="stylesheet" href="/css/admin.css?v=6.2">
+    <link rel="stylesheet" href="/css/admin.css?v=6.5">
   <% } %>
 
   <% if (pageCSS && (!(typeof isAdminPage !== "undefined" && isAdminPage) || pageCSS !== "admin.css")) { %>
-    <link rel="stylesheet" href="/css/<%= pageCSS %>?v=6.2">
+    <link rel="stylesheet" href="/css/<%= pageCSS %>?v=6.5">
   <% } %>
 
   <!-- Early Anti-FOUC Dark Mode Init -->
@@ -127,8 +127,8 @@
 
     window.toggleAdminSidebar = function (e) {
       if (e && e.preventDefault) e.preventDefault();
-      if (window.innerWidth <= 768) {
-        document.body.classList.remove('mobile-sidebar-open');
+      if (window.innerWidth <= 1024) {
+        window.closeMobileSidebar(e);
         return;
       }
       document.body.classList.toggle('sidebar-collapsed');
@@ -138,19 +138,33 @@
     };
 
     window.toggleMobileSidebar = function (e) {
-      if (e && e.preventDefault) e.preventDefault();
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var now = Date.now();
+      if (window._lastMobileSidebarToggle && (now - window._lastMobileSidebarToggle < 250)) {
+        return;
+      }
+      window._lastMobileSidebarToggle = now;
       document.body.classList.toggle('mobile-sidebar-open');
     };
 
-    window.closeMobileSidebar = function () {
+    window.closeMobileSidebar = function (e) {
+      if (e && e.preventDefault) e.preventDefault();
       document.body.classList.remove('mobile-sidebar-open');
     };
 
-    // Delegated click handler on document for resilient theme toggle clicks
+    // Delegated click handler on document for resilient theme toggle clicks & mobile sidebar toggle
     document.addEventListener('click', function (e) {
       var themeBtn = e.target && e.target.closest ? e.target.closest('#topbarThemeToggle, #shellThemeToggle, .admin-theme-toggle-btn') : null;
       if (themeBtn) {
         window.toggleTheme(e);
+        return;
+      }
+      var mobileSidebarBtn = e.target && e.target.closest ? e.target.closest('#mobileSidebarToggle, .admin-sidebar-toggle-btn, .mobile-menu-btn') : null;
+      if (mobileSidebarBtn) {
+        window.toggleMobileSidebar(e);
       }
     });
   </script>
@@ -234,12 +248,12 @@
   <!-- Universal SSSO Print Footer -->
   <%- include('../partials/universal-print-footer') %>
 
-  <!-- Global JS (v6.2) -->
-  <script src="/js/haptics.js?v=6.2"></script>
-  <script src="/js/script.js?v=6.2"></script>
+  <!-- Global JS (v6.5) -->
+  <script src="/js/haptics.js?v=6.5"></script>
+  <script src="/js/script.js?v=6.5"></script>
   <% if (!isEmbed) { %>
-    <script src="/js/pwa.js?v=6.2"></script>
-    <script src="/js/notifications.js?v=6.2"></script>
+    <script src="/js/pwa.js?v=6.5"></script>
+    <script src="/js/notifications.js?v=6.5"></script>
   <% } %>
   <script>
     (function () {
@@ -270,11 +284,11 @@
   </script>
 
   <% if (!isEmbed && typeof showLoader !== "undefined" && showLoader) { %>
-    <script src="/js/loading.js?v=6.2"></script>
+    <script src="/js/loading.js?v=6.5"></script>
   <% } %>
 
   <% if (typeof pageJS !== "undefined" && pageJS) { %>
-    <script src="/js/<%= pageJS %>?v=6.2"></script>
+    <script src="/js/<%= pageJS %>?v=6.5"></script>
   <% } %>
 </body>
 

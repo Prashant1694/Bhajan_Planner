@@ -7,28 +7,28 @@
 // - Network-first for HTML & App Shell fragments (never injects HTML offline page into fragment JSON/pane fetches)
 // ============================================================
 
-const CACHE_VERSION = "v6.2";
+const CACHE_VERSION = "v6.5"; // CACHE_VERSION = "v6.2" compatibility
 const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/offline.html",
-  "/css/style.css?v=6.2",
-  "/css/app-shell.css?v=6.2",
-  "/css/dashboard-glass.css?v=6.2",
-  "/css/loading.css?v=6.2",
-  "/css/pwa.css?v=6.2",
-  "/css/notifications.css?v=6.2",
-  "/css/bulletin.css?v=6.2",
-  "/css/tanpura.css?v=6.2",
-  "/css/session-audio.css?v=6.2",
-  "/js/haptics.js?v=6.2",
-  "/js/app-shell-router.js?v=6.2",
-  "/js/script.js?v=6.2",
-  "/js/loading.js?v=6.2",
-  "/js/pwa.js?v=6.2",
-  "/js/notifications.js?v=6.2",
-  "/js/tanpura.js?v=6.2",
-  "/js/session-audio-player.js?v=6.2",
+  "/css/style.css?v=6.5",
+  "/css/app-shell.css?v=6.5",
+  "/css/dashboard-glass.css?v=6.5",
+  "/css/loading.css?v=6.5",
+  "/css/pwa.css?v=6.5",
+  "/css/notifications.css?v=6.5",
+  "/css/bulletin.css?v=6.5",
+  "/css/tanpura.css?v=6.5",
+  "/css/session-audio.css?v=6.5",
+  "/js/haptics.js?v=6.5",
+  "/js/app-shell-router.js?v=6.5",
+  "/js/script.js?v=6.5",
+  "/js/loading.js?v=6.5",
+  "/js/pwa.js?v=6.5",
+  "/js/notifications.js?v=6.5",
+  "/js/tanpura.js?v=6.5",
+  "/js/session-audio-player.js?v=6.5",
   "/images/logo_birthday.png",
   "/images/logo.png",
   "/images/icons/icon-192x192.png",

@@ -29,19 +29,382 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Core Shell & Component Stylesheets (v6.2) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.2">
-  <link rel="stylesheet" href="/css/pwa.css?v=6.2">
-  <link rel="stylesheet" href="/css/notifications.css?v=6.2">
-  <link rel="stylesheet" href="/css/bulletin.css?v=6.2">
-  <link rel="stylesheet" href="/css/tanpura.css?v=6.2">
-  <link rel="stylesheet" href="/css/session-audio.css?v=6.2">
-  <link rel="stylesheet" href="/css/app-shell.css?v=6.2">
+  <!-- Core Shell & Component Stylesheets (v6.5) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <link rel="stylesheet" href="/css/pwa.css?v=6.5">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.5">
+  <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
+  <link rel="stylesheet" href="/css/tanpura.css?v=6.5">
+  <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.5">
   <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
-    <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.2">
+    <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.5">
   <% } else if (activeTabKey === 'home') { %>
-    <link rel="stylesheet" href="/css/dashboard-glass.css?v=6.2">
+    <link rel="stylesheet" href="/css/dashboard-glass.css?v=6.5">
   <% } %>
+
+  <style id="nav-core-critical">
+    /* Universal Mobile Bottom Capsule Default: Completely hidden on desktop */
+    .mobile-bottom-capsule,
+    .native-bottom-nav,
+    #mobileBottomCapsule,
+    #nativeBottomNav,
+    .app-bottom-nav {
+      display: none !important;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Desktop Navigation (> 1024px) */
+    @media (min-width: 1025px) {
+      .mobile-bottom-capsule,
+      .native-bottom-nav,
+      #mobileBottomCapsule,
+      #nativeBottomNav,
+      .app-bottom-nav,
+      .shell-sidebar,
+      .shell-sidebar-overlay,
+      .shell-menu-btn {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      body, body.shell-body {
+        padding-bottom: 0 !important;
+      }
+      .shell-top-header {
+        height: 70px !important;
+        min-height: 70px !important;
+        padding: 0 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      .header-left {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+      }
+      .header-brand-wrap {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        text-decoration: none !important;
+        color: inherit !important;
+      }
+      .header-brand-wrap * {
+        text-decoration: none !important;
+      }
+      .brand-symbol-square,
+      .header-logo-box {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .desktop-nav {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        margin: 0 16px !important;
+        gap: 4px !important;
+      }
+      .desktop-nav .nav-link,
+      .desktop-nav a.nav-link,
+      a.nav-link {
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 8px 14px !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        font-size: 13.5px !important;
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+        color: var(--shell-ink-soft, #57534e) !important;
+        text-decoration: none !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        transition: color 0.2s ease, background-color 0.2s ease !important;
+      }
+      .desktop-nav .nav-link:hover,
+      .desktop-nav a.nav-link:hover {
+        color: var(--shell-ink, #1c1917) !important;
+        background-color: rgba(0, 0, 0, 0.04) !important;
+        text-decoration: none !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link,
+      .dark .desktop-nav .nav-link {
+        color: #d6d0c9 !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link:hover,
+      .dark .desktop-nav .nav-link:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.06) !important;
+      }
+      .desktop-nav .nav-link.active {
+        color: #c85a17 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link.active,
+      .dark .desktop-nav .nav-link.active {
+        color: #fbbf24 !important;
+      }
+      .desktop-nav .nav-link::after {
+        content: "" !important;
+        position: absolute !important;
+        bottom: 0px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 0 !important;
+        height: 2.5px !important;
+        background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+        border-radius: 9999px !important;
+        transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+        opacity: 0 !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link::after,
+      .dark .desktop-nav .nav-link::after {
+        background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+      }
+      .desktop-nav .nav-link:hover::after {
+        width: 36% !important;
+        opacity: 0.5 !important;
+      }
+      .desktop-nav .nav-link.active::after {
+        width: 75% !important;
+        opacity: 1 !important;
+        background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+        box-shadow: 0 0 8px rgba(200, 90, 23, 0.45) !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link.active::after,
+      .dark .desktop-nav .nav-link.active::after {
+        background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.55), 0 0 2px #fbbf24 !important;
+      }
+      .header-right {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+      }
+      .circular-theme-toggle,
+      .header-icon-btn.circular-theme-toggle,
+      #shellThemeToggle {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        background: rgba(0, 0, 0, 0.03) !important;
+        color: var(--shell-ink, #1c1917) !important;
+        transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #fbbf24 !important;
+      }
+      .circular-theme-toggle:hover,
+      #shellThemeToggle:hover {
+        transform: rotate(15deg) scale(1.05);
+        background-color: rgba(200, 90, 23, 0.08) !important;
+        border-color: rgba(200, 90, 23, 0.3) !important;
+        color: #c85a17 !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle:hover,
+      [data-theme="dark"] #shellThemeToggle:hover,
+      .dark .circular-theme-toggle:hover,
+      .dark #shellThemeToggle:hover {
+        background-color: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(251, 191, 36, 0.4) !important;
+        color: #fbbf24 !important;
+      }
+    }
+
+    /* Mobile Floating Capsule Navbar (<= 1024px) */
+    @media (max-width: 1024px) {
+      body, body.shell-body {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+      }
+      .shell-pane, .shell-detail-body {
+        padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+      }
+      .shell-top-header {
+        height: 58px !important;
+        min-height: 58px !important;
+        padding: 0 16px !important;
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      .desktop-nav, #desktopNav, .pill-cta-btn, #headerCtaBtn, .desktop-only-btn,
+      .shell-menu-btn, #shellMenuBtn, .shell-sidebar, .shell-sidebar-overlay {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      .header-right {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+      .circular-theme-toggle {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        border-radius: 50% !important;
+      }
+      .mobile-bottom-capsule,
+      .native-bottom-nav,
+      #mobileBottomCapsule,
+      #nativeBottomNav {
+        display: block !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        position: fixed !important;
+        bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) translateZ(0) !important;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        contain: layout style;
+        width: calc(100% - 24px) !important;
+        max-width: 520px !important;
+        height: 52px !important;
+        border-radius: 9999px !important;
+        z-index: 1000 !important;
+        box-sizing: border-box !important;
+        background: rgba(255, 255, 255, 0.92) !important;
+        backdrop-filter: blur(24px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+      [data-theme="dark"] .mobile-bottom-capsule,
+      [data-theme="dark"] .native-bottom-nav,
+      .dark .mobile-bottom-capsule,
+      .dark .native-bottom-nav {
+        background: rgba(14, 22, 33, 0.90) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+      }
+      .capsule-track,
+      .native-nav-inner {
+        display: flex !important;
+        align-items: center !important;
+        height: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+        padding: 0 8px !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      .capsule-track::-webkit-scrollbar,
+      .native-nav-inner::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+      .capsule-pill,
+      .native-bottom-nav .nav-tab {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 14px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        text-decoration: none !important;
+        border-radius: 9999px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: var(--shell-muted, #78716c) !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        cursor: pointer !important;
+        transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+      }
+      [data-theme="dark"] .capsule-pill,
+      [data-theme="dark"] .native-bottom-nav .nav-tab,
+      .dark .capsule-pill,
+      .dark .native-bottom-nav .nav-tab {
+        color: rgba(255, 255, 255, 0.65) !important;
+      }
+      /* Mobile Active Highlight: Warm Mandir Saffron & Prasanthi Gold */
+      .capsule-pill.active,
+      .native-bottom-nav .nav-tab.active {
+        background: rgba(200, 90, 23, 0.12) !important;
+        border: 1px solid rgba(200, 90, 23, 0.35) !important;
+        color: #c85a17 !important;
+        border-radius: 9999px !important;
+        font-weight: 600 !important;
+      }
+      [data-theme="dark"] .capsule-pill.active,
+      [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+      .dark .capsule-pill.active,
+      .dark .native-bottom-nav .nav-tab.active {
+        background: rgba(245, 158, 11, 0.16) !important;
+        border: 1px solid rgba(245, 158, 11, 0.45) !important;
+        color: #fbbf24 !important;
+      }
+      .capsule-pill.active .capsule-icon,
+      .capsule-pill.active svg,
+      .native-bottom-nav .nav-tab.active svg {
+        stroke: #c85a17 !important;
+      }
+      [data-theme="dark"] .capsule-pill.active .capsule-icon,
+      [data-theme="dark"] .capsule-pill.active svg,
+      .dark .capsule-pill.active .capsule-icon,
+      .dark .capsule-pill.active svg,
+      [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
+      .dark .native-bottom-nav .nav-tab.active svg {
+        stroke: #fbbf24 !important;
+      }
+      .capsule-icon,
+      .capsule-pill svg,
+      .native-bottom-nav .nav-tab svg {
+        width: 15px !important;
+        height: 15px !important;
+        stroke: currentColor !important;
+        stroke-width: 2 !important;
+        flex-shrink: 0 !important;
+      }
+    }
+  </style>
 
   <!-- Early Anti-FOUC Theme Initialization & Resilient Navigation Handlers -->
   <script>
@@ -146,6 +509,12 @@
     window.handleNavClick = function (tab, url, evt) {
       if (evt && evt.preventDefault) evt.preventDefault();
       window.closeShellSidebar();
+      var links = document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link");
+      links.forEach(function (el) {
+        var isMatch = el.getAttribute("data-tab") === tab && !el.getAttribute("data-route");
+        el.classList.toggle("active", isMatch);
+        el.setAttribute("aria-current", isMatch ? "page" : "false");
+      });
       if (window.AppShell && typeof window.AppShell.switchTab === "function") {
         window.AppShell.switchTab(tab, url);
         return false;
@@ -161,6 +530,13 @@
     window.handleDeepLink = function (route, parentTab, evt) {
       if (evt && evt.preventDefault) evt.preventDefault();
       window.closeShellSidebar();
+      var links = document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link");
+      links.forEach(function (el) {
+        var r = el.getAttribute("data-route");
+        var isMatch = Boolean(r && (route === r || route.startsWith(r + "/")));
+        el.classList.toggle("active", isMatch);
+        el.setAttribute("aria-current", isMatch ? "page" : "false");
+      });
       if (window.AppShell && typeof window.AppShell.navigate === "function") {
         window.AppShell.navigate(route);
         return false;
@@ -186,7 +562,7 @@
     <!-- ═════════════════════════════════════════════════════════════ -->
     <!-- 1. DESKTOP PERSISTENT SIDEBAR & MOBILE NAVIGATION DRAWER      -->
     <!-- ═════════════════════════════════════════════════════════════ -->
-    <aside class="shell-sidebar" id="shellSidebar" aria-label="Primary Navigation">
+    <aside class="shell-sidebar" id="shellSidebar" aria-label="Primary Navigation" style="display: none !important;">
       <div class="shell-sidebar-brand">
         <a href="/" class="shell-sidebar-logo-link">
           <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="38" height="38" class="shell-sidebar-emblem">
@@ -278,7 +654,7 @@
       </div>
     </aside>
 
-    <div class="shell-sidebar-overlay" id="shellSidebarOverlay" onclick="closeShellSidebar()"></div>
+    <div class="shell-sidebar-overlay" id="shellSidebarOverlay" onclick="closeShellSidebar()" style="display: none !important;"></div>
 
     <!-- ═════════════════════════════════════════════════════════════ -->
     <!-- 2. MAIN COLUMN (HEADER + SINGLE-DOM VIEWPORT + BOTTOM NAV)    -->
@@ -287,42 +663,53 @@
 
       <!-- Top Header Bar -->
       <header class="shell-top-header" id="shellTopHeader" role="banner">
+        <!-- Left: Brand symbol square + logo text -->
         <div class="header-left">
-          <button type="button" class="header-icon-btn shell-menu-btn" id="shellMenuBtn" aria-label="Open menu" onclick="toggleShellSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          </button>
-
-          <div class="header-brand-wrap" title="Go to Home Dashboard">
-            <div class="header-logo-box">
-              <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="34" height="34">
+          <a href="/" class="header-brand-wrap" onclick="return handleNavClick('home', '/', event)" title="Bhajan Planner - SSSO Gandhinagar">
+            <div class="brand-symbol-square header-logo-box">
+              <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="34" height="34" class="brand-symbol-img">
             </div>
             <div class="header-titles-box">
-              <h1 class="header-page-title" id="headerPageTitle">Bhajan Planner</h1>
+              <span class="header-page-title" id="headerPageTitle">Bhajan Planner</span>
               <span class="header-breadcrumb" id="headerBreadcrumb">SSSO · GANDHINAGAR</span>
             </div>
-          </div>
+          </a>
         </div>
 
+        <!-- Center: Horizontal navigation links with hover states and animated Mandir Saffron underline -->
+        <%
+          const initPathClean = (typeof initRoute !== 'undefined' && initRoute) ? initRoute.split('?')[0].split('#')[0].toLowerCase() : '/';
+          const isArchivesSsr = (initPathClean === '/database' || initPathClean.startsWith('/database/'));
+          const isBulletinsSsr = (initPathClean === '/bulletins' || initPathClean.startsWith('/bulletins/'));
+          const isAdminSsr = (initPathClean === '/admin' || initPathClean.startsWith('/admin/'));
+          const isDeepRouteSsr = isArchivesSsr || isBulletinsSsr || isAdminSsr;
+        %>
+        <nav class="desktop-nav" id="desktopNav" aria-label="Desktop Primary Navigation">
+          <a href="/" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'home') ? 'active' : '' %>" id="desktop-tab-home" data-tab="home" onclick="return handleNavClick('home', '/', event)">Home</a>
+          <a href="/master-bank" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'bank') ? 'active' : '' %>" id="desktop-tab-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)">Songbook</a>
+          <a href="/submit-form" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'singer') ? 'active' : '' %>" id="desktop-tab-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)">Mark Bhajan</a>
+          <a href="/plan-view" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'plan') ? 'active' : '' %>" id="desktop-tab-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)">Live Plan</a>
+          <a href="/singer/hub" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'hub') ? 'active' : '' %>" id="desktop-tab-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)">Singer Hub</a>
+          <a href="/database" class="nav-link <%= isArchivesSsr ? 'active' : '' %>" id="desktop-tab-database" data-route="/database" data-tab-parent="plan" onclick="return handleDeepLink('/database', 'plan', event)">Archives</a>
+          <a href="/bulletins" class="nav-link <%= isBulletinsSsr ? 'active' : '' %>" id="desktop-tab-bulletins" data-route="/bulletins" data-tab-parent="home" onclick="return handleDeepLink('/bulletins', 'home', event)">Bulletins</a>
+          <% if (adminObj) { %>
+            <a href="/admin" class="nav-link <%= isAdminSsr ? 'active' : '' %>" id="desktop-tab-admin" data-route="/admin" data-no-shell="1">Admin</a>
+          <% } %>
+        </nav>
+
+        <!-- Right: Circular theme toggle button and identity pills -->
         <div class="header-right">
-          <!-- Singer Identity Pill -->
-          <button type="button"
-            class="singer-profile-pill"
-            id="shellSingerPill"
-            title="Open My Singer Hub"
-            style="<%= singerObj ? 'display:inline-flex;' : 'display:none;' %>">
-            <span class="singer-avatar-dot" id="shellSingerPillInitial"><%= singerObj && singerObj.name ? singerObj.name.charAt(0).toUpperCase() : 'S' %></span>
-            <span class="singer-pill-name" id="shellSingerPillName"><%= singerObj && singerObj.name ? singerObj.name.split(' ')[0] : 'Singer' %></span>
+          <!-- Notification Bell -->
+          <button type="button" class="header-icon-btn desktop-only-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
           </button>
 
-          <% if (adminObj) { %>
-            <a href="/admin" class="admin-profile-pill" data-no-shell="1" title="Logged in as <%= adminObj.displayName || adminObj.username %> — Open Admin Portal">
-              <span class="admin-avatar-dot"><%= (adminObj.displayName || adminObj.username || "A").charAt(0).toUpperCase() %></span>
-              <span class="admin-pill-name"><%= adminObj.displayName || adminObj.username %></span>
-            </a>
-          <% } %>
-
-          <!-- Dark / Light Theme Toggle -->
-          <button type="button" class="header-icon-btn" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
+          <!-- Circular Dark / Light Theme Toggle -->
+          <button type="button" class="header-icon-btn circular-theme-toggle theme-toggle" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
             <span class="icon-moon" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             </span>
@@ -331,14 +718,23 @@
             </span>
           </button>
 
-          <!-- Notification Bell -->
-          <button type="button" class="header-icon-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
-            </svg>
-            <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
+          <!-- Singer Identity Pill (Desktop) -->
+          <button type="button"
+            class="singer-profile-pill desktop-only-btn"
+            id="shellSingerPill"
+            title="Open My Singer Hub"
+            style="<%= singerObj ? 'display:inline-flex;' : 'display:none;' %>"
+            onclick="return handleNavClick('hub', '/singer/hub', event)">
+            <span class="singer-avatar-dot" id="shellSingerPillInitial"><%= singerObj && singerObj.name ? singerObj.name.charAt(0).toUpperCase() : 'S' %></span>
+            <span class="singer-pill-name" id="shellSingerPillName"><%= singerObj && singerObj.name ? singerObj.name.split(' ')[0] : 'Singer' %></span>
           </button>
+
+          <% if (adminObj) { %>
+            <a href="/admin" class="admin-profile-pill desktop-only-btn" data-no-shell="1" title="Logged in as <%= adminObj.displayName || adminObj.username %> — Open Admin Portal">
+              <span class="admin-avatar-dot"><%= (adminObj.displayName || adminObj.username || "A").charAt(0).toUpperCase() %></span>
+              <span class="admin-pill-name"><%= adminObj.displayName || adminObj.username %></span>
+            </a>
+          <% } %>
         </div>
       </header>
 
@@ -390,51 +786,40 @@
       </main>
 
       <!-- ═════════════════════════════════════════════════════════════ -->
-      <!-- 4. NATIVE MOBILE BOTTOM NAVIGATION BAR                        -->
+      <!-- 4. TELEGRAM-STYLE MOBILE FLOATING CAPSULE NAVBAR (<= 1024px) -->
       <!-- ═════════════════════════════════════════════════════════════ -->
-      <nav class="native-bottom-nav" id="nativeBottomNav" aria-label="Bottom Navigation">
-        <div class="native-nav-inner">
-          <a href="/" class="nav-tab <%= activeTabKey === 'home' ? 'active' : '' %>" id="tab-btn-home" data-tab="home" onclick="return handleNavClick('home', '/', event)" aria-label="Home Tab">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            </div>
-            <span class="tab-label">Home</span>
+      <nav class="mobile-bottom-capsule native-bottom-nav" id="mobileBottomCapsule" aria-label="Mobile Navigation Capsule">
+        <div class="capsule-track native-nav-inner" id="capsuleTrack">
+          <a href="/" class="capsule-pill nav-tab <%= activeTabKey === 'home' ? 'active' : '' %>" id="tab-btn-home" data-tab="home" onclick="return handleNavClick('home', '/', event)" aria-label="Home">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="capsule-label">Home</span>
           </a>
 
-          <a href="/master-bank" class="nav-tab <%= activeTabKey === 'bank' ? 'active' : '' %>" id="tab-btn-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)" aria-label="Songbook Tab">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            </div>
-            <span class="tab-label">Songbook</span>
+          <a href="/master-bank" class="capsule-pill nav-tab <%= activeTabKey === 'bank' ? 'active' : '' %>" id="tab-btn-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)" aria-label="Songbook">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span class="capsule-label">Songbook</span>
           </a>
 
-          <a href="/submit-form" class="nav-tab <%= activeTabKey === 'singer' ? 'active' : '' %>" id="tab-btn-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)" aria-label="Mark Bhajan Tab">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-            </div>
-            <span class="tab-label">Mark</span>
+          <a href="/submit-form" class="capsule-pill nav-tab <%= activeTabKey === 'singer' ? 'active' : '' %>" id="tab-btn-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)" aria-label="Mark Bhajan">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <span class="capsule-label">Mark</span>
           </a>
 
-          <a href="/plan-view" class="nav-tab <%= activeTabKey === 'plan' ? 'active' : '' %>" id="tab-btn-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)" aria-label="Live Plan Tab">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <span class="tab-label">Plan</span>
+          <a href="/plan-view" class="capsule-pill nav-tab <%= activeTabKey === 'plan' ? 'active' : '' %>" id="tab-btn-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)" aria-label="Live Session Plan">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="capsule-label">Plan</span>
           </a>
 
-          <a href="/singer/hub" class="nav-tab <%= activeTabKey === 'hub' ? 'active' : '' %>" id="tab-btn-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)" aria-label="My Hub Tab">
-            <div class="tab-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-            <span class="tab-label">Hub</span>
+          <a href="/singer/hub" class="capsule-pill nav-tab <%= activeTabKey === 'hub' ? 'active' : '' %>" id="tab-btn-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)" aria-label="Singer Hub">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="capsule-label">Hub</span>
           </a>
+
 
           <% if (adminObj) { %>
-            <a href="/admin" class="nav-tab" id="tab-btn-admin" data-tab="admin" data-no-shell="1" aria-label="Admin Portal Tab">
-              <div class="tab-icon-box">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
-              </div>
-              <span class="tab-label">Admin</span>
+            <a href="/admin" class="capsule-pill nav-tab" id="tab-btn-admin" data-tab="admin" data-no-shell="1" aria-label="Admin Portal">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
+              <span class="capsule-label">Admin</span>
             </a>
           <% } %>
         </div>
@@ -516,14 +901,14 @@
     } catch (_) {}
   </script>
 
-  <!-- Global Persistent Engines (v6.2) -->
-  <script src="/js/haptics.js?v=6.2"></script>
-  <script src="/js/tanpura.js?v=6.2"></script>
-  <script src="/js/session-audio-player.js?v=6.2"></script>
-  <script src="/js/script.js?v=6.2"></script>
-  <script src="/js/pwa.js?v=6.2"></script>
-  <script src="/js/notifications.js?v=6.2"></script>
-  <script src="/js/app-shell-router.js?v=6.2"></script>
+  <!-- Global Persistent Engines (v6.5) -->
+  <script src="/js/haptics.js?v=6.5"></script>
+  <script src="/js/tanpura.js?v=6.5"></script>
+  <script src="/js/session-audio-player.js?v=6.5"></script>
+  <script src="/js/script.js?v=6.5"></script>
+  <script src="/js/pwa.js?v=6.5"></script>
+  <script src="/js/notifications.js?v=6.5"></script>
+  <script src="/js/app-shell-router.js?v=6.5"></script>
 </body>
 
 </html>

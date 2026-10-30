@@ -12,7 +12,7 @@
     window.history.scrollRestoration = "manual";
   }
 
-  const ASSET_VERSION = "6.2";
+  const ASSET_VERSION = "6.4";
   const TAB_KEYS = ["home", "bank", "singer", "plan", "hub"];
   const TAB_DEFAULTS = {
     home: "/",
@@ -72,6 +72,12 @@
   let progressTimer = null;
   let reportCheckDone = false;
   let cachedReportUnread = false;
+
+  // ── High-Performance In-Memory Fragment Cache ────────────────────────────
+  const fragmentCache = new Map();
+  const MAX_CACHE_SIZE = 36;
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  const inFlightPrefetches = new Set();
 
   // ── Utility Helpers ──────────────────────────────────────────────────────
   function cleanAssetPath(href) {
@@ -276,27 +282,176 @@
     });
   }
 
-  // ── UI State Synchronization ─────────────────────────────────────────────
+  // ── UI State Synchronization (Zero-Jank Throttled Header & Capsule) ──────
+  let scrollTicking = false;
+  let lastScrolledElevation = null;
+
+  function updateHeaderElevation() {
+    const header = document.getElementById("shellTopHeader") || document.querySelector(".shell-top-header");
+    if (!header) return;
+    const activePane = document.querySelector(".shell-pane.active-pane");
+    const paneScroll = activePane ? activePane.scrollTop : 0;
+    const windowScroll = window.scrollY || document.documentElement.scrollTop || 0;
+    const isScrolled = paneScroll > 8 || windowScroll > 8;
+
+    if (isScrolled !== lastScrolledElevation) {
+      lastScrolledElevation = isScrolled;
+      header.classList.toggle("scrolled", isScrolled);
+      header.classList.toggle("is-scrolled", isScrolled);
+    }
+  }
+
+  function onThrottledScroll() {
+    if (!scrollTicking) {
+      scrollTicking = true;
+      requestAnimationFrame(() => {
+        updateHeaderElevation();
+        scrollTicking = false;
+      });
+    }
+  }
+
+  let autoCenterRaf = null;
+  function smoothCenterPill(pill) {
+    if (!pill || typeof pill.scrollIntoView !== "function") return;
+    if (autoCenterRaf) cancelAnimationFrame(autoCenterRaf);
+    autoCenterRaf = requestAnimationFrame(() => {
+      try {
+        pill.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } catch (_) {}
+    });
+  }
+
   function syncNavIndicators(tabKey) {
-    document.querySelectorAll(".nav-tab").forEach((btn) => {
-      const isMatch = btn.getAttribute("data-tab") === tabKey;
-      btn.classList.toggle("active", isMatch);
-      btn.setAttribute("aria-current", isMatch ? "page" : "false");
-    });
-
-    document.querySelectorAll(".sidebar-nav-item[data-tab]").forEach((btn) => {
-      const isMatch = btn.getAttribute("data-tab") === tabKey && !detailOpen;
-      btn.classList.toggle("active", isMatch);
-    });
-
     const currentPath = extractPathname(
       detailOpen && currentDetailUrl ? currentDetailUrl : paneState[tabKey]?.url || "/"
     );
+    const currentHash = window.location.hash || "";
+
+    // 1. Synchronize Desktop Navigation Links (.desktop-nav .nav-link) — Strictly mutually exclusive
+    const desktopLinks = Array.from(document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link"));
+    let activeDesktopLink = null;
+
+    // A. Priority 1: Match deep routes explicitly (e.g. /bulletins, /database, /admin)
+    activeDesktopLink = desktopLinks.find((link) => {
+      const linkRoute = link.getAttribute("data-route");
+      return Boolean(linkRoute && (currentPath === linkRoute || currentPath.startsWith(linkRoute + "/")));
+    }) || null;
+
+    // B. Priority 2: Match by hash if present and no deep route matched
+    if (!activeDesktopLink && currentHash) {
+      activeDesktopLink = desktopLinks.find((link) => {
+        const linkHref = link.getAttribute("href") || "";
+        return Boolean(linkHref.endsWith(currentHash) || linkHref.includes(currentHash));
+      }) || null;
+    }
+
+    // C. Priority 3: Match primary tab key (strictly only when detail view is not open)
+    if (!activeDesktopLink && !detailOpen) {
+      activeDesktopLink = desktopLinks.find((link) => {
+        const linkTab = link.getAttribute("data-tab");
+        const linkRoute = link.getAttribute("data-route");
+        return Boolean(linkTab && linkTab === tabKey && !linkRoute);
+      }) || null;
+    }
+
+    // Apply strictly to the single winner: exactly ONE desktop link is active, all others deactivated
+    desktopLinks.forEach((link) => {
+      const isMatch = Boolean(activeDesktopLink && link === activeDesktopLink);
+      link.classList.toggle("active", isMatch);
+      link.setAttribute("aria-current", isMatch ? "page" : "false");
+    });
+
+    // 2. Synchronize Mobile Bottom Capsule Navigation — Strictly mutually exclusive
+    const mobilePills = Array.from(
+      document.querySelectorAll(".capsule-pill, .mobile-bottom-capsule .nav-tab, .native-bottom-nav .nav-tab")
+    );
+    let activePill = null;
+
+    // A. Priority 1: Match deep routes explicitly
+    activePill = mobilePills.find((pill) => {
+      const pillRoute = pill.getAttribute("data-route");
+      return Boolean(pillRoute && (currentPath === pillRoute || currentPath.startsWith(pillRoute + "/")));
+    }) || null;
+
+    // B. Priority 2: Match by hash
+    if (!activePill && currentHash) {
+      activePill = mobilePills.find((pill) => {
+        const pillHref = pill.getAttribute("href") || "";
+        return Boolean(pillHref.endsWith(currentHash) || pillHref.includes(currentHash));
+      }) || null;
+    }
+
+    // C. Priority 3: Match primary tab key (strictly only when detail view is not open)
+    if (!activePill && !detailOpen) {
+      activePill = mobilePills.find((pill) => {
+        const pillTab = pill.getAttribute("data-tab");
+        const pillRoute = pill.getAttribute("data-route");
+        return Boolean(pillTab && pillTab === tabKey && !pillRoute);
+      }) || null;
+    }
+
+    // Apply strictly to the single winner: exactly ONE mobile capsule pill is active
+    mobilePills.forEach((pill) => {
+      const isMatch = Boolean(activePill && pill === activePill);
+      pill.classList.toggle("active", isMatch);
+      pill.setAttribute("aria-current", isMatch ? "page" : "false");
+    });
+
+    // 3. Fallback compatibility for sidebar items if present
+    document.querySelectorAll(".sidebar-nav-item[data-tab]").forEach((btn) => {
+      const isMatch = !activeDesktopLink && btn.getAttribute("data-tab") === tabKey && !detailOpen;
+      btn.classList.toggle("active", isMatch);
+    });
     document.querySelectorAll(".sidebar-nav-item[data-route]").forEach((btn) => {
       const route = btn.getAttribute("data-route");
-      btn.classList.toggle("active", Boolean(route && currentPath.startsWith(route)));
+      const isMatch = Boolean(route && (currentPath === route || currentPath.startsWith(route + "/")));
+      btn.classList.toggle("active", isMatch);
     });
+
+    // 4. Auto-center the active pill horizontally within the mobile capsule
+    if (activePill) {
+      smoothCenterPill(activePill);
+    }
+
+    // 5. Synchronize header elevation shadow based on current scroll position
+    updateHeaderElevation();
   }
+
+  // Bind zero-lag throttled global listeners
+  window.addEventListener("scroll", onThrottledScroll, { passive: true });
+  document.addEventListener("scroll", onThrottledScroll, { passive: true });
+  window.addEventListener("hashchange", function () {
+    syncNavIndicators(activeTab);
+  });
+
+  // Zero-lag mutual exclusivity on direct clicks (Capture Phase)
+  document.addEventListener(
+    "click",
+    function (e) {
+      // Direct click on Desktop Navigation Link: immediately switch visual indicator
+      const desktopLink = e.target && e.target.closest ? e.target.closest(".desktop-nav .nav-link, #desktopNav .nav-link") : null;
+      if (desktopLink) {
+        document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link").forEach((link) => {
+          const isMatch = (link === desktopLink);
+          link.classList.toggle("active", isMatch);
+          link.setAttribute("aria-current", isMatch ? "page" : "false");
+        });
+      }
+
+      // Direct click on Mobile Capsule Pill: immediately switch visual indicator & center
+      const pill = e.target && e.target.closest ? e.target.closest(".capsule-pill, .mobile-bottom-capsule .nav-tab, .native-bottom-nav .nav-tab") : null;
+      if (pill) {
+        document.querySelectorAll(".capsule-pill, .mobile-bottom-capsule .nav-tab, .native-bottom-nav .nav-tab").forEach((p) => {
+          const isMatch = (p === pill);
+          p.classList.toggle("active", isMatch);
+          p.setAttribute("aria-current", isMatch ? "page" : "false");
+        });
+        smoothCenterPill(pill);
+      }
+    },
+    { capture: true }
+  );
 
   function syncContextualWidgets() {
     const effectiveUrl = detailOpen && currentDetailUrl
@@ -602,8 +757,23 @@
 
     applyReportDots();
 
+    const cleanResolvedUrl = normalizeInternalUrl(resolvedUrl);
+    fragmentCache.set(stripHash(cleanResolvedUrl), {
+      html: fragmentRoot.innerHTML,
+      pageTitle,
+      pageCss,
+      pageJs,
+      csrfToken,
+      resolvedUrl: cleanResolvedUrl,
+      timestamp: Date.now()
+    });
+    if (fragmentCache.size > MAX_CACHE_SIZE) {
+      const oldest = fragmentCache.keys().next().value;
+      fragmentCache.delete(oldest);
+    }
+
     return {
-      resolvedUrl: normalizeInternalUrl(resolvedUrl),
+      resolvedUrl: cleanResolvedUrl,
       pageTitle
     };
   }
@@ -646,6 +816,7 @@
     detailOpen = false;
     currentDetailUrl = null;
     currentDetailTitle = "";
+    syncNavIndicators(activeTab);
   }
 
   function renderDetailSkeleton() {
@@ -699,13 +870,54 @@
     const body = getDetailBodyEl();
     if (!body) return;
 
+    const reqKey = stripHash(normUrl);
+    const cached = fragmentCache.get(reqKey);
     const alreadyShowingSame =
       detailOpen &&
       currentDetailUrl &&
-      stripHash(currentDetailUrl) === stripHash(normUrl) &&
+      stripHash(currentDetailUrl) === reqKey &&
       !opts.forceReload;
 
+    // Fast Path: Instant 0ms memory render if cached
+    if (cached && !opts.forceReload && !alreadyShowingSame) {
+      openDetailSheetDom(cached.pageTitle || "Details");
+      body.innerHTML = cached.html;
+      if (cached.pageCss) ensureStylesheet(cached.pageCss);
+      if (cached.csrfToken) setCsrfToken(cached.csrfToken);
+
+      currentDetailUrl = cached.resolvedUrl || normUrl;
+      currentDetailTitle = cached.pageTitle || "Details";
+
+      const titleEl = document.getElementById("shellDetailTitle");
+      if (titleEl) titleEl.textContent = cleanDetailHeaderTitle(currentDetailTitle);
+      updateDocumentTitle(currentDetailTitle);
+
+      scrollHashOrTop(body, currentDetailUrl, opts.restoreScroll);
+      syncNavIndicators(activeTab);
+      syncContextualWidgets();
+
+      if (typeof window.initPageEnhancements === "function") {
+        try { window.initPageEnhancements(body); } catch (_) {}
+      }
+      if (typeof window.BPWirePwaButtons === "function") {
+        try { window.BPWirePwaButtons(); } catch (_) {}
+      }
+      applyReportDots();
+
+      if (!opts.fromPopState) {
+        commitNavigationHistory(currentDetailUrl, Boolean(opts.replace));
+      }
+
+      // Stale-while-revalidate: if cache older than 60s, silently refresh in background
+      if (Date.now() - cached.timestamp > 60000) {
+        revalidateDetailRoute(normUrl, body);
+      }
+      return;
+    }
+
+    currentDetailUrl = normUrl;
     openDetailSheetDom(currentDetailTitle || "Loading...");
+    syncNavIndicators(activeTab);
 
     if (!alreadyShowingSame) {
       renderDetailSkeleton();
@@ -822,6 +1034,7 @@
 
     activeTab = tabKey;
     setActivePaneDom(tabKey);
+    syncNavIndicators(tabKey);
 
     const desiredUrl = normalizeInternalUrl(
       targetUrl || paneState[tabKey].url || TAB_DEFAULTS[tabKey]
@@ -917,6 +1130,185 @@
         `;
       }
     }
+  }
+
+  // ── Speculative Prewarming & Detail Revalidation ─────────────────────────
+  function revalidateDetailRoute(url, body) {
+    const reqKey = stripHash(url);
+    fetch(reqKey, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "X-App-Shell": "1", Accept: "text/html" }
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
+        if (!fragmentRoot) return;
+
+        const pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
+        const pageCss = fragmentRoot.getAttribute("data-page-css") || "";
+        const pageJs = fragmentRoot.getAttribute("data-page-js") || "";
+        const csrfToken = fragmentRoot.getAttribute("data-csrf-token") || "";
+
+        fragmentCache.set(reqKey, {
+          html: fragmentRoot.innerHTML,
+          pageTitle,
+          pageCss,
+          pageJs,
+          csrfToken,
+          resolvedUrl: url,
+          timestamp: Date.now()
+        });
+
+        if (detailOpen && currentDetailUrl && stripHash(currentDetailUrl) === reqKey) {
+          body.innerHTML = fragmentRoot.innerHTML;
+          if (pageCss) ensureStylesheet(pageCss);
+          if (typeof window.initPageEnhancements === "function") {
+            try { window.initPageEnhancements(body); } catch (_) {}
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
+  function prefetchRoute(rawUrl) {
+    if (!rawUrl) return;
+    const normUrl = normalizeInternalUrl(rawUrl);
+    const pathname = extractPathname(normUrl);
+    if (isBypassPath(pathname)) return;
+
+    const targetTab = mapPathToTab(pathname);
+    if (!isDetailRoute(pathname) && targetTab && !paneState[targetTab].loaded) {
+      prefetchTab(targetTab);
+      return;
+    }
+
+    const reqKey = stripHash(normUrl);
+    if (fragmentCache.has(reqKey) || inFlightPrefetches.has(reqKey)) return;
+    inFlightPrefetches.add(reqKey);
+
+    fetch(reqKey, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: { "X-App-Shell": "1", Accept: "text/html" }
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
+        if (!fragmentRoot) return;
+
+        const pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
+        const pageCss = fragmentRoot.getAttribute("data-page-css") || "";
+        const pageJs = fragmentRoot.getAttribute("data-page-js") || "";
+        const csrfToken = fragmentRoot.getAttribute("data-csrf-token") || "";
+
+        if (pageCss) ensureStylesheet(pageCss);
+
+        fragmentCache.set(reqKey, {
+          html: fragmentRoot.innerHTML,
+          pageTitle,
+          pageCss,
+          pageJs,
+          csrfToken,
+          resolvedUrl: normUrl,
+          timestamp: Date.now()
+        });
+
+        if (fragmentCache.size > MAX_CACHE_SIZE) {
+          const oldest = fragmentCache.keys().next().value;
+          fragmentCache.delete(oldest);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        inFlightPrefetches.delete(reqKey);
+      });
+  }
+
+  function prefetchTab(tabKey) {
+    if (!TAB_KEYS.includes(tabKey) || paneState[tabKey].loaded) return;
+    const pane = getPaneEl(tabKey);
+    if (!pane) return;
+
+    fetchAndMountFragment(TAB_DEFAULTS[tabKey], pane, null)
+      .then((res) => {
+        if (res) {
+          paneState[tabKey].loaded = true;
+          paneState[tabKey].stale = false;
+          paneState[tabKey].url = res.resolvedUrl;
+          paneState[tabKey].title = res.pageTitle;
+          paneState[tabKey].scrollTop = 0;
+        }
+      })
+      .catch(() => {});
+  }
+
+  function scheduleIdlePrewarm() {
+    const remainingTabs = TAB_KEYS.filter((k) => !paneState[k].loaded);
+    if (remainingTabs.length === 0) return;
+
+    let idx = 0;
+    function warmNext() {
+      if (idx >= remainingTabs.length) return;
+      const k = remainingTabs[idx++];
+      const pane = getPaneEl(k);
+      if (!pane || paneState[k].loaded) {
+        warmNext();
+        return;
+      }
+
+      fetchAndMountFragment(TAB_DEFAULTS[k], pane, null)
+        .then((res) => {
+          if (res) {
+            paneState[k].loaded = true;
+            paneState[k].stale = false;
+            paneState[k].url = res.resolvedUrl;
+            paneState[k].title = res.pageTitle;
+            paneState[k].scrollTop = 0;
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(warmNext, { timeout: 2000 });
+          } else {
+            setTimeout(warmNext, 300);
+          }
+        });
+    }
+
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(warmNext, { timeout: 1500 });
+    } else {
+      setTimeout(warmNext, 400);
+    }
+  }
+
+  function bindNavIntent() {
+    const onIntent = (e) => {
+      const target = e.target && e.target.closest ? e.target.closest("a, button[data-tab], button[data-route]") : null;
+      if (!target) return;
+
+      const tab = target.getAttribute("data-tab");
+      if (tab && TAB_KEYS.includes(tab) && !paneState[tab].loaded) {
+        prefetchTab(tab);
+        return;
+      }
+
+      const route = target.getAttribute("data-route") || target.getAttribute("href");
+      if (route && typeof route === "string" && route.startsWith("/") && !route.startsWith("//")) {
+        prefetchRoute(route);
+      }
+    };
+
+    document.addEventListener("pointerenter", onIntent, { passive: true, capture: true });
+    document.addEventListener("touchstart", onIntent, { passive: true });
   }
 
   async function navigate(rawUrl, options) {
@@ -1503,6 +1895,8 @@
     markStale,
     onAuthChange,
     syncContextualWidgets,
+    prefetchTab,
+    prefetchRoute,
     isActive: true,
     getState: () => ({
       activeTab,
@@ -1526,6 +1920,10 @@
       : mapPathToTab(initPath);
 
     activeTab = bootTab;
+    if (isDetailRoute(initPath)) {
+      detailOpen = true;
+      currentDetailUrl = initialRoute;
+    }
     setActivePaneDom(activeTab);
     syncNavIndicators(activeTab);
 
@@ -1601,6 +1999,11 @@
     } else {
       commitNavigationHistory(initialRoute, true);
     }
+
+    // Schedule background idle pre-warming of remaining tabs for instant 0ms switching
+    scheduleIdlePrewarm();
+    // Bind touchstart / hover intent preloading for instant responsiveness
+    bindNavIntent();
 
     if (window.__pendingNavRoute) {
       const p = window.__pendingNavRoute;
