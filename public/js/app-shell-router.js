@@ -830,7 +830,26 @@
     });
   }
 
+  function dismissActiveModals() {
+    if (typeof window.closeQuickLyrics === "function") {
+      try { window.closeQuickLyrics(); } catch (_) {}
+    }
+    const openModals = document.querySelectorAll(".modal.show");
+    openModals.forEach((m) => {
+      m.classList.remove("show");
+    });
+    if (window.BPSheet && typeof window.BPSheet.closeAll === "function") {
+      try { window.BPSheet.closeAll(); } catch (_) {}
+    }
+    const hasRemaining = document.querySelectorAll(".modal.show, .bp-sheet-container.show").length > 0;
+    if (!hasRemaining) {
+      document.documentElement.classList.remove("bp-sheet-lock");
+      document.body.classList.remove("modal-open");
+    }
+  }
+
   function openDetailSheetDom(initialTitle) {
+    dismissActiveModals();
     const sheet = getDetailSheetEl();
     if (!sheet) return;
     detailOpen = true;
@@ -1069,6 +1088,7 @@
     }
 
     closeShellSidebar();
+    dismissActiveModals();
     if (detailOpen) {
       closeDetailSheetDom();
     }
@@ -1332,6 +1352,7 @@
   }
 
   async function navigate(rawUrl, options) {
+    dismissActiveModals();
     const opts = options || {};
     if (!rawUrl) return;
 
@@ -1643,6 +1664,7 @@
       return; // allow normal top-level browser navigation
     }
 
+    dismissActiveModals();
     e.preventDefault();
     closeShellSidebar();
     navigate(dest.pathname + dest.search + dest.hash);
@@ -1713,6 +1735,7 @@
 
   // ── Browser History Popstate Handler ─────────────────────────────────────
   window.addEventListener("popstate", (e) => {
+    dismissActiveModals();
     const state = e.state;
     const browserUrl = window.location.pathname + window.location.search + window.location.hash;
 
@@ -1915,6 +1938,7 @@
     syncContextualWidgets,
     prefetchTab,
     prefetchRoute,
+    dismissActiveModals,
     isActive: true,
     getState: () => ({
       activeTab,

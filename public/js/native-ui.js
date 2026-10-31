@@ -213,6 +213,12 @@
 
         BPSheet.open(sheet);
       });
+    },
+
+    closeAll: function () {
+      while (activeSheets.length > 0) {
+        BPSheet.close(activeSheets[activeSheets.length - 1]);
+      }
     }
   };
   window.BPSheet = BPSheet;

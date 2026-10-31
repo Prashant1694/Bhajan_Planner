@@ -264,3 +264,28 @@ test("Native Layer: Quick lyrics modal locks background scroll and dismisses on 
     "native-ui.js must observe and sync scroll locks for open modals"
   );
 });
+
+test("Native Layer: Quick lyrics modal collapses on navigation to full page or route change", () => {
+  const masterBankEjs = fs.readFileSync(path.join(__dirname, "../views/master-bank.ejs"), "utf8");
+  const routerJs = fs.readFileSync(path.join(__dirname, "../public/js/app-shell-router.js"), "utf8");
+
+  // quickFullPageBtn and quickScheduleBtn must trigger modal close
+  assert.ok(
+    masterBankEjs.includes('id="quickFullPageBtn"') && masterBankEjs.includes("closeQuickLyrics"),
+    "quickFullPageBtn must close quick lyrics modal"
+  );
+  assert.ok(
+    masterBankEjs.includes('id="quickScheduleBtn"') && masterBankEjs.includes("closeQuickLyrics"),
+    "quickScheduleBtn must close quick lyrics modal"
+  );
+
+  // Router dismisses active modals on route navigation
+  assert.ok(
+    routerJs.includes("dismissActiveModals") && routerJs.includes("closeQuickLyrics"),
+    "app-shell-router must dismiss quick lyrics modal on route transitions"
+  );
+  assert.ok(
+    routerJs.includes("openDetailSheetDom") && routerJs.includes("dismissActiveModals"),
+    "openDetailSheetDom must dismiss active modals"
+  );
+});

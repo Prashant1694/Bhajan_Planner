@@ -492,10 +492,10 @@
         <button type="button" id="quickBookmarkBtn" class="button secondary btn-modal-edit" onclick="toggleQuickBookmark()">
           Save in Songbook
         </button>
-        <a id="quickScheduleBtn" href="/submit-form" class="button button-confirm btn-modal-confirm" style="text-decoration:none;">
+        <a id="quickScheduleBtn" href="/submit-form" class="button button-confirm btn-modal-confirm" style="text-decoration:none;" onclick="if(typeof window.closeQuickLyrics==='function')window.closeQuickLyrics();">
           Schedule
         </a>
-        <a id="quickFullPageBtn" href="#" class="button secondary btn-modal-edit" style="text-decoration:none;">
+        <a id="quickFullPageBtn" href="#" class="button secondary btn-modal-edit" style="text-decoration:none;" onclick="if(typeof window.closeQuickLyrics==='function')window.closeQuickLyrics();">
           Full Page ↗
         </a>
       </div>
@@ -1413,9 +1413,25 @@
           '&prefill_scale=' + encodeURIComponent(b.shruti || '') +
           '&prefill_speed=' + encodeURIComponent(b.tempo || '') +
           '&master_id=' + b.id;
+        if (!scheduleBtn.dataset.boundLyricsClose) {
+          scheduleBtn.dataset.boundLyricsClose = '1';
+          scheduleBtn.addEventListener('click', function() {
+            if (typeof window.closeQuickLyrics === 'function') {
+              window.closeQuickLyrics();
+            }
+          });
+        }
       }
       if (fullPageBtn) {
         fullPageBtn.href = '/bhajan/' + b.id;
+        if (!fullPageBtn.dataset.boundLyricsClose) {
+          fullPageBtn.dataset.boundLyricsClose = '1';
+          fullPageBtn.addEventListener('click', function() {
+            if (typeof window.closeQuickLyrics === 'function') {
+              window.closeQuickLyrics();
+            }
+          });
+        }
       }
 
       var isBookmarked = window.BOOKMARKED_BHAJAN_IDS && window.BOOKMARKED_BHAJAN_IDS.has(Number(b.id));
