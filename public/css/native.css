@@ -46,6 +46,9 @@
   --bp-z-sheet: 9990;
   --bp-z-nav: 9000;
   --bp-z-sticky: 100;
+
+  /* Transform offset for sheet dragging */
+  --bp-y: 0px;
 }
 
 [data-theme="dark"] {
@@ -165,14 +168,18 @@ p, .description, .card-desc {
   .nav-tab:active,
   .glass-bhajan-card:active,
   .card-action-btn-primary:active,
-  .admin-action-btn:active {
+  .admin-action-btn:active,
+  .card-action-btn:active,
+  .card-title-link:active,
+  .capsule-nav-item:active,
+  .tab-btn:active {
     transform: scale(0.965) !important;
     opacity: 0.82 !important;
-    transition: transform var(--bp-dur-fast) ease, opacity var(--bp-dur-fast) ease !important;
+    transition: transform 120ms ease, opacity 120ms ease !important;
   }
 }
 
-/* ── 5. Safe Area Insets ──────────────────────────────────────────────────── */
+/* ── 5. Safe Area Insets & Layout ─────────────────────────────────────────── */
 .header,
 .top-nav,
 .shell-header {
@@ -187,7 +194,344 @@ p, .description, .card-desc {
   margin-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)) !important;
 }
 
-/* ── 6. Accessibility & Motion Preferences ────────────────────────────────── */
+/* Ensure bottom nav does not cover scrollable content */
+.shell-pane,
+.shell-scroll-container,
+.main-content,
+body:not(.admin-body) .container {
+  padding-bottom: calc(var(--bp-nav-h, 62px) + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+/* Keyboard open: hide bottom nav instantly */
+html.bp-kb-open .native-bottom-nav,
+html.bp-kb-open .mobile-bottom-capsule,
+html.bp-kb-open .app-bottom-nav {
+  display: none !important;
+}
+
+/* Floating audio edge tab repositioning clear of nav and reset button */
+#sessionAudioTab,
+.session-audio-edge-tab {
+  bottom: calc(var(--bp-nav-h, 62px) + env(safe-area-inset-bottom, 0px) + 20px) !important;
+  z-index: 8900 !important;
+}
+
+/* Safe-area aware sticky action rows */
+.bp-sticky-actions {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 10;
+}
+
+/* Smooth pane transitions */
+@keyframes bpPaneIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html.bp-ready .shell-pane.active-pane {
+  animation: bpPaneIn 200ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* ── 6. Bottom Sheets & Gestures ──────────────────────────────────────────── */
+html.bp-sheet-lock {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
+.bp-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  z-index: var(--bp-z-sheet, 9990);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.bp-sheet-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bp-sheet-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 90vh;
+  max-height: 90dvh;
+  background: var(--surface, #ffffff);
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--bp-elevation-sheet);
+  z-index: calc(var(--bp-z-sheet, 9990) + 1);
+  transform: translateY(calc(100% + var(--bp-y, 0px)));
+  transition: transform var(--bp-dur-sheet, 320ms) var(--bp-ease-sheet);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: max(20px, calc(16px + env(safe-area-inset-bottom, 0px)));
+}
+
+[data-theme="dark"] .bp-sheet-container {
+  background: #1c1917;
+  border-top: 1px solid #332e29;
+}
+
+.bp-sheet-container.show {
+  transform: translateY(var(--bp-y, 0px));
+}
+
+.bp-sheet-handle {
+  width: 40px;
+  height: 5px;
+  background: var(--border, #cbd5e1);
+  border-radius: 999px;
+  margin: 10px auto 8px;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+/* Quick Lyrics snap sizes */
+.quick-lyrics-sheet {
+  max-height: 54vh;
+  max-height: 54dvh;
+  transition: max-height 0.3s var(--bp-ease-sheet), transform 0.3s var(--bp-ease-sheet);
+}
+
+.quick-lyrics-sheet.sheet-expanded {
+  max-height: 88vh !important;
+  max-height: 88dvh !important;
+}
+
+/* On mobile <= 640px, convert .modal.show to bottom sheets */
+@media (max-width: 640px) {
+  .modal.show {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal.show .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    transform: translateY(var(--bp-y, 0px)) !important;
+    transition: transform var(--bp-dur-sheet, 320ms) var(--bp-ease-sheet) !important;
+    padding-bottom: max(24px, calc(16px + env(safe-area-inset-bottom, 0px))) !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ── 7. Admin Tables to Mobile Record Cards (<= 768px) ────────────────────── */
+@media (max-width: 768px) {
+  table[data-mobile-cards] {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  table[data-mobile-cards] thead {
+    display: none !important;
+  }
+
+  table[data-mobile-cards] tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  table[data-mobile-cards] tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px 12px !important;
+    background: var(--surface, #ffffff) !important;
+    border: 1px solid var(--border, #e2e8f0) !important;
+    border-radius: var(--bp-radius-md, 12px) !important;
+    padding: 14px 16px !important;
+    box-shadow: var(--bp-elevation-1) !important;
+    box-sizing: border-box !important;
+  }
+
+  [data-theme="dark"] table[data-mobile-cards] tbody tr {
+    background: #1c1917 !important;
+    border-color: #332e29 !important;
+  }
+
+  table[data-mobile-cards] tbody tr:has(> td[colspan]) {
+    display: block !important;
+    text-align: center !important;
+  }
+
+  table[data-mobile-cards] td {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 4px 0 !important;
+    border: none !important;
+    font-size: 13.5px !important;
+    min-width: 0 !important;
+  }
+
+  table[data-mobile-cards] td::before {
+    content: attr(data-label) !important;
+    display: block !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: var(--muted, #64748b) !important;
+    margin-bottom: 3px !important;
+    position: static !important;
+  }
+
+  table[data-mobile-cards] td[data-bp="primary"],
+  table[data-mobile-cards] td[data-bp="wide"],
+  table[data-mobile-cards] td[data-bp="actions"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  table[data-mobile-cards] td[data-bp="actions"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-top: 8px !important;
+    margin-top: 6px !important;
+    border-top: 1px solid var(--border-soft, #f1f5f9) !important;
+  }
+
+  table[data-mobile-cards] td[data-bp="actions"]::before {
+    display: none !important;
+  }
+
+  table[data-mobile-cards] td[data-bp="actions"] button,
+  table[data-mobile-cards] td[data-bp="actions"] a,
+  table[data-mobile-cards] td[data-bp="actions"] .btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 14px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Fix near-invisible "Dashboard" outline button on admin-users hero */
+.admin-users-hero .btn-outline,
+.admin-users-header .btn-secondary,
+.admin-header-actions .btn-outline-white {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+}
+
+/* ── 8. Skeletons & Empty States (WP5) ────────────────────────────────────── */
+.bp-skeleton,
+.bp-skeleton-card,
+.bp-skeleton-line {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper, #f1f5f9);
+  border-radius: var(--bp-radius-sm, 8px);
+}
+
+[data-theme="dark"] .bp-skeleton,
+[data-theme="dark"] .bp-skeleton-card,
+[data-theme="dark"] .bp-skeleton-line {
+  background: #262320;
+}
+
+.bp-skeleton::after,
+.bp-skeleton-card::after,
+.bp-skeleton-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: bpShimmer 1.5s infinite;
+}
+
+[data-theme="dark"] .bp-skeleton::after,
+[data-theme="dark"] .bp-skeleton-card::after,
+[data-theme="dark"] .bp-skeleton-line::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+@keyframes bpShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.bp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--bp-space-xl) var(--bp-space-md);
+  gap: var(--bp-space-sm);
+}
+
+.bp-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--saffron-bg, rgba(217, 119, 6, 0.1));
+  color: var(--primary, #d97706);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-empty-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.bp-empty-desc {
+  font-size: 13.5px;
+  color: var(--muted);
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── 9. Print Styles ──────────────────────────────────────────────────────── */
+@media print {
+  .native-bottom-nav,
+  .mobile-bottom-capsule,
+  .shell-bottom-nav,
+  .modal,
+  .bp-sheet-container,
+  .bp-sheet-backdrop,
+  .sacred-orbs-canvas,
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ── 10. Accessibility & Motion Preferences ───────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
