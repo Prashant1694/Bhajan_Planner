@@ -924,10 +924,34 @@ a.nav-link {
   }
 }
 
-/* Keep ambient orb canvases scoped inside their scroll pane */
+/* Keep ambient orb canvases scoped inside their scroll pane & fix CLS */
 .shell-pane .sacred-orbs-canvas,
 .shell-detail-body .sacred-orbs-canvas {
   position: absolute !important;
+  bottom: auto !important;
+  height: 100dvh !important;
+  contain: layout paint !important;
+}
+
+/* ── WP1.4 Mobile Backdrop-Filter & Sacred Orbs Policy ── */
+@media (max-width: 1023px), (hover: none) {
+  *:not(.bp-blur) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .sacred-orb {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sacred-orb {
+    animation: none !important;
+  }
+}
+
+html.bp-tab-hidden .sacred-orb {
+  animation-play-state: paused !important;
 }
 
 /* Normalize legacy .container wrappers inside Single-DOM Panes & Detail Sheet */

@@ -4,6 +4,11 @@
 // Standalone / Admin Portal views.
 // ============================================================================
 
+// Track page visibility to pause GPU animations when hidden
+document.addEventListener("visibilitychange", function () {
+  document.documentElement.classList.toggle("bp-tab-hidden", document.hidden);
+});
+
 // Global Safe HTML Escaping Utility
 function escapeHTML(str) {
   if (str === null || str === undefined) return "";
