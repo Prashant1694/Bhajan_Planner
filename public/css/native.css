@@ -209,11 +209,17 @@ html.bp-kb-open .app-bottom-nav {
   display: none !important;
 }
 
-/* Floating audio edge tab repositioning clear of nav and reset button */
+/* Floating audio edge tab & sticky audio bar clear of nav and reset button */
 #sessionAudioTab,
 .session-audio-edge-tab {
   bottom: calc(var(--bp-nav-h, 62px) + env(safe-area-inset-bottom, 0px) + 20px) !important;
   z-index: 8900 !important;
+}
+
+@media (max-width: 1023px) {
+  .sticky-audio-bar {
+    bottom: calc(var(--bp-nav-h, 62px) + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 /* Safe-area aware sticky action rows */
