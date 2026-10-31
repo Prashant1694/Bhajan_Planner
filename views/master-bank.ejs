@@ -241,15 +241,16 @@
           </div>
 
           <!-- Aligned Result Count Indicator -->
+          <% const INITIAL_RENDER = 24; %>
           <div class="bank-count-pill glass-pill" id="bankCountPill">
-            Showing <strong id="renderedCountDisplay"><%= Math.min(60, bhajans.length) %></strong> of <strong id="totalMatchingDisplay"><%= bhajans.length %></strong> bhajans
+            Showing <strong id="renderedCountDisplay"><%= Math.min(INITIAL_RENDER, bhajans.length) %></strong> of <strong id="totalMatchingDisplay"><%= bhajans.length %></strong> bhajans
           </div>
         </div>
       </section>
 
       <!-- Master Bhajan Glassmorphic Songbook Catalog (Replaces Generic Table) -->
       <div id="masterBankCatalog" class="master-catalog-view mode-grid" aria-label="Master Bhajan Catalog">
-        <% const initialBhajans = bhajans.slice(0, 60); %>
+        <% const initialBhajans = bhajans.slice(0, INITIAL_RENDER); %>
         <% if (initialBhajans.length > 0) { %>
           <% initialBhajans.forEach(b => { %>
             <%
@@ -502,6 +503,7 @@
   </div>
 
   <!-- Admin Edit Master Bhajan Modal -->
+  <% if (isAdmin) { %>
   <div id="adminEditBhajanModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="adminEditBhajanTitle" style="display:none;">
     <div class="modal-content admin-edit-bhajan-sheet">
       <div class="sheet-drag-handle" onclick="closeAdminEditBhajanModal()" title="Close editor"></div>
@@ -627,6 +629,7 @@
       </form>
     </div>
   </div>
+  <% } %>
 
   <!-- Toast Notification -->
   <div id="bankToast" class="bank-toast" style="display:none;" role="status" aria-live="polite"></div>
@@ -668,8 +671,9 @@
     var clearSearchBtn = document.getElementById('clearBankSearchBtn');
 
     var currentMatches = allData;
-    var renderedCount = Math.min(60, allData.length);
-    var BATCH_SIZE = 60;
+    var INITIAL_RENDER = 24;
+    var renderedCount = Math.min(INITIAL_RENDER, allData.length);
+    var BATCH_SIZE = 24;
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -975,15 +979,48 @@
       }
     }
 
+    var bankObserver = null;
+    function observeBankInfiniteScroll() {
+      if (!('IntersectionObserver' in window) || !loadMoreDiv) return;
+      if (bankObserver) {
+        bankObserver.disconnect();
+      }
+      var scrollRoot = getBankScrollEl();
+      bankObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting && renderedCount < currentMatches.length) {
+            if (bankObserver && loadMoreDiv) bankObserver.unobserve(loadMoreDiv);
+            window.renderMoreMasterBank();
+          }
+        });
+      }, {
+        root: scrollRoot,
+        rootMargin: '700px 0px'
+      });
+
+      if (renderedCount < currentMatches.length) {
+        bankObserver.observe(loadMoreDiv);
+      }
+    }
+
     window.renderMoreMasterBank = function() {
       var nextBatch = currentMatches.slice(renderedCount, renderedCount + BATCH_SIZE);
-      if (nextBatch.length === 0) return;
+      if (nextBatch.length === 0) {
+        updateLoadMoreUI();
+        return;
+      }
       if (catalogContainer) {
         var cardsHtml = nextBatch.map(createGlassBhajanCardHtml).join('');
         catalogContainer.insertAdjacentHTML('beforeend', cardsHtml);
       }
       renderedCount += nextBatch.length;
       updateLoadMoreUI();
+      if (bankObserver && loadMoreDiv) {
+        bankObserver.unobserve(loadMoreDiv);
+        if (renderedCount < currentMatches.length) {
+          bankObserver.observe(loadMoreDiv);
+        }
+      }
     };
 
     if (loadMoreBtn) {
@@ -1235,7 +1272,7 @@
       }
 
       currentMatches = scoredMatches.map(function(s) { return s.item; });
-      renderedCount = Math.min(BATCH_SIZE, currentMatches.length);
+      renderedCount = Math.min(INITIAL_RENDER, currentMatches.length);
 
       if (catalogContainer) {
         if (currentMatches.length === 0) {
@@ -1252,6 +1289,7 @@
       }
 
       updateLoadMoreUI();
+      observeBankInfiniteScroll();
     };
 
     // Quick lyrics bottom sheet & Songbook bookmarks
@@ -1445,6 +1483,7 @@
 
     // Admin Master Bhajan Edit Modal Logic
     window.openAdminEditBhajanModal = function(id) {
+      if (!window.IS_ADMIN_MASTER_BANK || !document.getElementById('adminEditBhajanModal')) return;
       var b = allData.find(function(x) { return x.id === id || String(x.id) === String(id); });
       if (!b) return;
 
@@ -1845,6 +1884,8 @@
       var savedView = localStorage.getItem('bp_catalog_view') || 'grid';
       window.setCatalogViewMode(savedView);
     } catch (_) {}
+
+    observeBankInfiniteScroll();
   })();
   </script>
 
