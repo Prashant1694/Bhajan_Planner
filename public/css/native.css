@@ -247,9 +247,83 @@ html.bp-ready .shell-pane.active-pane {
 }
 
 /* ── 6. Bottom Sheets & Gestures ──────────────────────────────────────────── */
-html.bp-sheet-lock {
+html.bp-sheet-lock,
+body.modal-open,
+html:has(.modal.show),
+body:has(.modal.show) {
   overflow: hidden !important;
   touch-action: none !important;
+  height: 100% !important;
+}
+
+html.bp-sheet-lock body,
+body.modal-open,
+html:has(.modal.show) body,
+body:has(.modal.show) {
+  overflow: hidden !important;
+  touch-action: none !important;
+  height: 100% !important;
+}
+
+/* Freeze all underlying panes, containers and scrolling areas */
+html.bp-sheet-lock .shell-pane,
+body.modal-open .shell-pane,
+html:has(.modal.show) .shell-pane,
+body:has(.modal.show) .shell-pane,
+html.bp-sheet-lock .shell-scroll-container,
+body.modal-open .shell-scroll-container,
+html:has(.modal.show) .shell-scroll-container,
+body:has(.modal.show) .shell-scroll-container,
+html.bp-sheet-lock .main-content,
+body.modal-open .main-content,
+html:has(.modal.show) .main-content,
+body:has(.modal.show) .main-content,
+html.bp-sheet-lock body:not(.admin-body) .container,
+body.modal-open body:not(.admin-body) .container,
+html:has(.modal.show) body:not(.admin-body) .container,
+body:has(.modal.show) body:not(.admin-body) .container {
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: none !important;
+  pointer-events: none !important;
+}
+
+/* Hide capsule bottom nav when modal or sheet is open */
+html.bp-sheet-lock .native-bottom-nav,
+html.bp-sheet-lock .mobile-bottom-capsule,
+html.bp-sheet-lock .app-bottom-nav,
+body.modal-open .native-bottom-nav,
+body.modal-open .mobile-bottom-capsule,
+body.modal-open .app-bottom-nav,
+html:has(.modal.show) .native-bottom-nav,
+html:has(.modal.show) .mobile-bottom-capsule,
+body:has(.modal.show) .native-bottom-nav,
+body:has(.modal.show) .mobile-bottom-capsule {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* Modal and sheet elements retain pointer interaction */
+.modal,
+.modal.show,
+.bp-sheet-container,
+.bp-sheet-backdrop {
+  pointer-events: auto !important;
+}
+
+.modal.show {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100000 !important;
+  touch-action: none !important;
+  overflow: hidden !important;
+}
+
+.modal.show .modal-content {
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .bp-sheet-backdrop {

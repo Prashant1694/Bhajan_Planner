@@ -226,16 +226,40 @@
 
   // Keyboard trap & Escape to close
   document.addEventListener("keydown", function (e) {
-    if (activeSheets.length === 0) return;
-    var topSheet = activeSheets[activeSheets.length - 1];
-
     if (e.key === "Escape" || e.keyCode === 27) {
-      e.preventDefault();
-      BPSheet.close(topSheet);
-      return;
+      if (typeof window.closeQuickLyrics === "function") {
+        var qm = document.getElementById("quickLyricsModal");
+        if (qm && qm.classList.contains("show")) {
+          e.preventDefault();
+          window.closeQuickLyrics();
+          return;
+        }
+      }
+      var openModals = document.querySelectorAll(".modal.show");
+      if (openModals.length > 0) {
+        e.preventDefault();
+        var lastModal = openModals[openModals.length - 1];
+        var closeBtn = lastModal.querySelector(".close-btn, .close, [aria-label='Close']");
+        if (closeBtn && typeof closeBtn.click === "function") {
+          closeBtn.click();
+        } else {
+          lastModal.classList.remove("show");
+        }
+        var hasAny = document.querySelectorAll(".modal.show, .bp-sheet-container.show").length > 0;
+        document.documentElement.classList.toggle("bp-sheet-lock", hasAny);
+        document.body.classList.toggle("modal-open", hasAny);
+        return;
+      }
+      if (activeSheets.length > 0) {
+        e.preventDefault();
+        BPSheet.close(activeSheets[activeSheets.length - 1]);
+        return;
+      }
     }
 
     if (e.key === "Tab" || e.keyCode === 9) {
+      if (activeSheets.length === 0) return;
+      var topSheet = activeSheets[activeSheets.length - 1];
       var focusable = topSheet.querySelectorAll(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
@@ -259,6 +283,68 @@
       }
     }
   });
+
+  // Backdrop click dismissal & touch scroll freeze
+  document.addEventListener("click", function (e) {
+    var target = e.target;
+    if (target && target.classList && target.classList.contains("modal") && target.classList.contains("show")) {
+      e.preventDefault();
+      if (target.id === "quickLyricsModal" && typeof window.closeQuickLyrics === "function") {
+        window.closeQuickLyrics();
+      } else {
+        var closeBtn = target.querySelector(".close-btn, .close, [aria-label='Close']");
+        if (closeBtn && typeof closeBtn.click === "function") {
+          closeBtn.click();
+        } else {
+          target.classList.remove("show");
+        }
+        var hasAny = document.querySelectorAll(".modal.show, .bp-sheet-container.show").length > 0;
+        document.documentElement.classList.toggle("bp-sheet-lock", hasAny);
+        document.body.classList.toggle("modal-open", hasAny);
+      }
+    }
+  }, false);
+
+  // Prevent background touch scrolling through modal backdrop
+  document.addEventListener("touchmove", function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains("modal")) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener("wheel", function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains("modal")) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // Observer that teleports modals to body, enforces scroll-lock & attaches drag gesture
+  var modalLockObserver = typeof MutationObserver !== "undefined"
+    ? new MutationObserver(function () {
+        var openModals = document.querySelectorAll(".modal.show");
+        openModals.forEach(function (m) {
+          if (m.parentElement !== document.body) {
+            document.body.appendChild(m);
+          }
+          var content = m.querySelector(".modal-content");
+          if (content && !content._bpDragAttached) {
+            attachDragGesture(content);
+          }
+        });
+        var hasAny = openModals.length > 0 || document.querySelectorAll(".bp-sheet-container.show").length > 0;
+        document.documentElement.classList.toggle("bp-sheet-lock", hasAny);
+        document.body.classList.toggle("modal-open", hasAny);
+      })
+    : null;
+
+  if (modalLockObserver) {
+    modalLockObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
 
 
   // ── 3. Drag-to-Dismiss Gesture with Pointer Events ──────────────────────────
@@ -332,7 +418,24 @@
           sheet.style.transition = "transform 220ms cubic-bezier(0.32, 0.72, 0, 1)";
           sheet.style.setProperty("--bp-y", "100%");
           setTimeout(function () {
-            BPSheet.close(sheet);
+            if (sheet.classList.contains("quick-lyrics-sheet") || sheet.id === "quickLyricsModal") {
+              if (typeof window.closeQuickLyrics === "function") {
+                window.closeQuickLyrics();
+              } else {
+                var qm = document.getElementById("quickLyricsModal");
+                if (qm) qm.classList.remove("show");
+              }
+            } else if (sheet.closest && sheet.closest(".modal")) {
+              var parentModal = sheet.closest(".modal");
+              var closeBtn = parentModal.querySelector(".close-btn, .close, [aria-label='Close']");
+              if (closeBtn && typeof closeBtn.click === "function") {
+                closeBtn.click();
+              } else {
+                parentModal.classList.remove("show");
+              }
+            } else {
+              BPSheet.close(sheet);
+            }
             sheet.style.removeProperty("--bp-y");
             sheet.style.transition = "";
           }, 220);
@@ -482,3 +585,4 @@
   }
 
 })(typeof window !== "undefined" ? window : this, typeof document !== "undefined" ? document : {});
+

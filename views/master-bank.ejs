@@ -440,7 +440,7 @@
   </div>
 
   <!-- App-First Quick Lyrics Bottom Sheet Modal (Zero Emoji) -->
-  <div id="quickLyricsModal" class="modal bp-blur" role="dialog" aria-modal="true" aria-labelledby="quickLyricsTitle">
+  <div id="quickLyricsModal" class="modal bp-blur" role="dialog" aria-modal="true" aria-labelledby="quickLyricsTitle" onclick="if(event.target === this) closeQuickLyrics();">
     <div class="modal-content quick-lyrics-sheet bp-blur">
       <div class="sheet-drag-handle" id="quickLyricsDragHandle" onclick="toggleQuickLyricsExpand()" role="button" tabindex="0" title="Tap to expand or collapse" aria-label="Toggle expand lyrics sheet"></div>
       
@@ -1424,7 +1424,14 @@
         bookmarkBtn.classList.toggle('bookmarked', isBookmarked);
       }
 
-      if (modal) modal.classList.add('show');
+      if (modal) {
+        if (modal.parentElement !== document.body) {
+          document.body.appendChild(modal);
+        }
+        modal.classList.add('show');
+        document.documentElement.classList.add('bp-sheet-lock');
+        document.body.classList.add('modal-open');
+      }
     };
 
     window.toggleQuickLyricsExpand = function() {
@@ -1438,7 +1445,15 @@
       if (modal) {
         modal.classList.remove('show');
         var sheet = modal.querySelector('.quick-lyrics-sheet');
-        if (sheet) sheet.classList.remove('sheet-expanded');
+        if (sheet) {
+          sheet.classList.remove('sheet-expanded');
+          sheet.style.removeProperty('--bp-y');
+        }
+      }
+      var remainingModals = document.querySelectorAll('.modal.show, .bp-sheet-container.show');
+      if (remainingModals.length === 0) {
+        document.documentElement.classList.remove('bp-sheet-lock');
+        document.body.classList.remove('modal-open');
       }
     };
 

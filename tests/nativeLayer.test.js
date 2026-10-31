@@ -232,3 +232,35 @@ test("Native Layer: App-shell router idle pre-warm does not mount inactive panes
     "Idle prewarm should check navigator.connection and saveData"
   );
 });
+
+test("Native Layer: Quick lyrics modal locks background scroll and dismisses on backdrop click", () => {
+  const masterBankEjs = fs.readFileSync(path.join(__dirname, "../views/master-bank.ejs"), "utf8");
+  const nativeCss = fs.readFileSync(path.join(__dirname, "../public/css/native.css"), "utf8");
+  const nativeJs = fs.readFileSync(path.join(__dirname, "../public/js/native-ui.js"), "utf8");
+
+  // Backdrop dismiss
+  assert.ok(
+    masterBankEjs.includes('id="quickLyricsModal"') && masterBankEjs.includes("closeQuickLyrics"),
+    "quickLyricsModal must support backdrop close"
+  );
+  assert.ok(
+    masterBankEjs.includes("bp-sheet-lock") && masterBankEjs.includes("modal-open"),
+    "openQuickLyrics and closeQuickLyrics must toggle bp-sheet-lock and modal-open"
+  );
+
+  // CSS rules freeze underlying scroll containers
+  assert.ok(
+    nativeCss.includes("html.bp-sheet-lock .shell-pane") || nativeCss.includes("body.modal-open .shell-pane"),
+    "native.css must freeze .shell-pane under modal-open / bp-sheet-lock"
+  );
+  assert.ok(
+    nativeCss.includes("touch-action: none !important"),
+    "native.css must disable touch-action on frozen containers"
+  );
+
+  // native-ui handles modal scroll lock and backdrop touch prevention
+  assert.ok(
+    nativeJs.includes("modalLockObserver") || nativeJs.includes("openModals"),
+    "native-ui.js must observe and sync scroll locks for open modals"
+  );
+});
