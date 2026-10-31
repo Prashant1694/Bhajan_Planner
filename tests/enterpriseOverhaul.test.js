@@ -102,7 +102,8 @@ test("Route Audit: /singers and /singer-dictionary safely redirect without 404/5
     const fs = require("fs");
     const path = require("path");
     const swCode = fs.readFileSync(path.join(__dirname, "../public/sw.js"), "utf8");
-    assert.ok(swCode.includes('CACHE_VERSION = "v6.2"'));
+    const match = swCode.match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/);
+    assert.ok(match && /^v\d+(\.\d+)*$/.test(match[1]), "CACHE_VERSION should match ^v\\d+(\\.\\d+)*$");
     assert.ok(swCode.includes("request.destination === \"style\""));
     assert.ok(swCode.includes("request.destination === \"script\""));
   });

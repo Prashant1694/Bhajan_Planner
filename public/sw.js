@@ -7,11 +7,12 @@
 // - Network-first for HTML & App Shell fragments (never injects HTML offline page into fragment JSON/pane fetches)
 // ============================================================
 
-const CACHE_VERSION = "v6.5"; // CACHE_VERSION = "v6.2" compatibility
+const CACHE_VERSION = "v6.5";
 const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/offline.html",
+  "/css/native.css?v=6.5",
   "/css/style.css?v=6.5",
   "/css/app-shell.css?v=6.5",
   "/css/dashboard-glass.css?v=6.5",
@@ -21,6 +22,7 @@ const PRECACHE_URLS = [
   "/css/bulletin.css?v=6.5",
   "/css/tanpura.css?v=6.5",
   "/css/session-audio.css?v=6.5",
+  "/js/native-ui.js?v=6.5",
   "/js/haptics.js?v=6.5",
   "/js/app-shell-router.js?v=6.5",
   "/js/script.js?v=6.5",
