@@ -620,71 +620,107 @@
       );
     }
 
-    const res = await fetch(reqUrl, opts);
+    const reqKey = stripHash(reqUrl);
+    const cached = (!fetchOptions && opts.method === "GET") ? fragmentCache.get(reqKey) : null;
+    let html;
+    let resolvedUrl = url;
+    let fragmentRoot;
+    let pageTitle = "Bhajan Planner";
+    let pageCss = "";
+    let pageJs = "";
+    let csrfToken = "";
 
-    if (res.status === 503) {
-      let offlineMsg = "You appear to be offline. Please check your connection and try again.";
-      try {
-        const data = await res.json();
-        if (data && data.message) offlineMsg = data.message;
-      } catch (_) {}
-      container.innerHTML = `
-        <div class="shell-offline-state">
-          <div class="shell-offline-card">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-              <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-              <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-              <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-              <line x1="12" y1="20" x2="12.01" y2="20"></line>
-            </svg>
-            <h3>Offline</h3>
-            <p>${offlineMsg}</p>
-            <button type="button" class="btn btn-primary" onclick="window.AppShell.refreshCurrent()">Retry</button>
+    if (cached && (Date.now() - (cached.timestamp || 0) < 300000)) {
+      html = cached.html;
+      resolvedUrl = cached.resolvedUrl || url;
+      pageTitle = cached.pageTitle || "Bhajan Planner";
+      pageCss = cached.pageCss || "";
+      pageJs = cached.pageJs || "";
+      csrfToken = cached.csrfToken || "";
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
+    } else {
+      const res = await fetch(reqUrl, opts);
+
+      if (res.status === 503) {
+        let offlineMsg = "You appear to be offline. Please check your connection and try again.";
+        try {
+          const data = await res.json();
+          if (data && data.message) offlineMsg = data.message;
+        } catch (_) {}
+        container.innerHTML = `
+          <div class="shell-offline-state">
+            <div class="shell-offline-card">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+              </svg>
+              <h3>Offline</h3>
+              <p>${offlineMsg}</p>
+              <button type="button" class="btn btn-primary" onclick="window.AppShell.refreshCurrent()">Retry</button>
+            </div>
           </div>
-        </div>
-      `;
-      return {
-        resolvedUrl: url,
-        pageTitle: "Offline | Bhajan Planner"
-      };
+        `;
+        return {
+          resolvedUrl: url,
+          pageTitle: "Offline | Bhajan Planner"
+        };
+      }
+
+      const headerResolvedUrl = res.headers.get("X-Shell-Url");
+      resolvedUrl = headerResolvedUrl || url;
+      if (!headerResolvedUrl && res.url) {
+        try {
+          const parsedRes = new URL(res.url);
+          if (parsedRes.origin === window.location.origin) {
+            resolvedUrl = parsedRes.pathname + parsedRes.search;
+          }
+        } catch (_) {}
+      }
+
+      // Preserve client hash if route didn't redirect elsewhere
+      const hashIdx = url.indexOf("#");
+      if (hashIdx >= 0 && extractPathname(resolvedUrl) === extractPathname(url) && !resolvedUrl.includes("#")) {
+        resolvedUrl += url.slice(hashIdx);
+      }
+
+      html = await res.text();
+
+      // If redirected to an Admin or standalone full-document route, navigate top-level cleanly
+      if (isBypassPath(extractPathname(resolvedUrl))) {
+        window.location.href = resolvedUrl;
+        return null;
+      }
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
+
+      pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
+      pageCss = fragmentRoot.getAttribute("data-page-css") || "";
+      pageJs = fragmentRoot.getAttribute("data-page-js") || "";
+      csrfToken = fragmentRoot.getAttribute("data-csrf-token") || "";
+
+      fragmentCache.set(reqKey, {
+        html: fragmentRoot.innerHTML,
+        pageTitle,
+        pageCss,
+        pageJs,
+        csrfToken,
+        resolvedUrl,
+        timestamp: Date.now()
+      });
+      if (fragmentCache.size > MAX_CACHE_SIZE) {
+        const oldest = fragmentCache.keys().next().value;
+        fragmentCache.delete(oldest);
+      }
     }
-
-    const headerResolvedUrl = res.headers.get("X-Shell-Url");
-    let resolvedUrl = headerResolvedUrl || url;
-    if (!headerResolvedUrl && res.url) {
-      try {
-        const parsedRes = new URL(res.url);
-        if (parsedRes.origin === window.location.origin) {
-          resolvedUrl = parsedRes.pathname + parsedRes.search;
-        }
-      } catch (_) {}
-    }
-
-    // Preserve client hash if route didn't redirect elsewhere
-    const hashIdx = url.indexOf("#");
-    if (hashIdx >= 0 && extractPathname(resolvedUrl) === extractPathname(url) && !resolvedUrl.includes("#")) {
-      resolvedUrl += url.slice(hashIdx);
-    }
-
-    const html = await res.text();
-
-    // If redirected to an Admin or standalone full-document route, navigate top-level cleanly
-    if (isBypassPath(extractPathname(resolvedUrl))) {
-      window.location.href = resolvedUrl;
-      return null;
-    }
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
-
-    const pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
-    const pageCss = fragmentRoot.getAttribute("data-page-css") || "";
-    const pageJs = fragmentRoot.getAttribute("data-page-js") || "";
-    const csrfToken = fragmentRoot.getAttribute("data-csrf-token") || "";
 
     if (csrfToken) setCsrfToken(csrfToken);
 
@@ -1238,60 +1274,38 @@
 
   function prefetchTab(tabKey) {
     if (!TAB_KEYS.includes(tabKey) || paneState[tabKey].loaded) return;
-    const pane = getPaneEl(tabKey);
-    if (!pane) return;
-
-    fetchAndMountFragment(TAB_DEFAULTS[tabKey], pane, null)
-      .then((res) => {
-        if (res) {
-          paneState[tabKey].loaded = true;
-          paneState[tabKey].stale = false;
-          paneState[tabKey].url = res.resolvedUrl;
-          paneState[tabKey].title = res.pageTitle;
-          paneState[tabKey].scrollTop = 0;
-        }
-      })
-      .catch(() => {});
+    const defaultUrl = TAB_DEFAULTS[tabKey];
+    if (defaultUrl) {
+      prefetchRoute(defaultUrl);
+    }
   }
 
   function scheduleIdlePrewarm() {
-    const remainingTabs = TAB_KEYS.filter((k) => !paneState[k].loaded);
-    if (remainingTabs.length === 0) return;
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn && (conn.saveData || conn.effectiveType === "2g" || conn.effectiveType === "3g" || conn.effectiveType === "slow-2g")) {
+      return;
+    }
 
-    let idx = 0;
+    const PREWARM_NEXT_MAP = {
+      home: "plan",
+      bank: "plan",
+      singer: "plan",
+      plan: "home",
+      hub: "singer"
+    };
+
+    const nextTab = PREWARM_NEXT_MAP[activeTab] || TAB_KEYS.find((k) => k !== activeTab && !paneState[k].loaded);
+    if (!nextTab || paneState[nextTab].loaded) return;
+
     function warmNext() {
-      if (idx >= remainingTabs.length) return;
-      const k = remainingTabs[idx++];
-      const pane = getPaneEl(k);
-      if (!pane || paneState[k].loaded) {
-        warmNext();
-        return;
-      }
-
-      fetchAndMountFragment(TAB_DEFAULTS[k], pane, null)
-        .then((res) => {
-          if (res) {
-            paneState[k].loaded = true;
-            paneState[k].stale = false;
-            paneState[k].url = res.resolvedUrl;
-            paneState[k].title = res.pageTitle;
-            paneState[k].scrollTop = 0;
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          if ("requestIdleCallback" in window) {
-            window.requestIdleCallback(warmNext, { timeout: 2000 });
-          } else {
-            setTimeout(warmNext, 300);
-          }
-        });
+      if (paneState[nextTab].loaded) return;
+      prefetchTab(nextTab);
     }
 
     if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(warmNext, { timeout: 1500 });
+      window.requestIdleCallback(warmNext, { timeout: 4000 });
     } else {
-      setTimeout(warmNext, 400);
+      setTimeout(warmNext, 4000);
     }
   }
 
@@ -1312,8 +1326,9 @@
       }
     };
 
-    document.addEventListener("pointerenter", onIntent, { passive: true, capture: true });
+    document.addEventListener("pointerdown", onIntent, { passive: true, capture: true });
     document.addEventListener("touchstart", onIntent, { passive: true });
+    document.addEventListener("pointerenter", onIntent, { passive: true, capture: true });
   }
 
   async function navigate(rawUrl, options) {
