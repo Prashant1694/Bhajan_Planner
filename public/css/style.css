@@ -364,7 +364,7 @@ img, svg, video, canvas {
   padding: 8px 14px 8px 36px !important;
   background-color: var(--surface) !important;
   color: var(--text-primary) !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
   box-sizing: border-box !important;
 }
 
@@ -400,7 +400,7 @@ img, svg, video, canvas {
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .segmented-pill.active {
@@ -427,7 +427,7 @@ img, svg, video, canvas {
   font-size: 13.5px !important;
   box-shadow: 0 2px 4px var(--primary-glow) !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -452,7 +452,7 @@ img, svg, video, canvas {
   font-weight: 600 !important;
   font-size: 13.5px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -483,7 +483,7 @@ img, svg, video, canvas {
   font-weight: 600 !important;
   font-size: 13.5px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -1484,7 +1484,7 @@ h4 {
   white-space: nowrap;
   max-width: 100%;
   box-sizing: border-box;
-  transition: all 0.2s var(--ease);
+  transition: transform 0.2s var(--ease), opacity 0.2s var(--ease), background-color 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 
 .rule-warning .req-star {
@@ -2455,7 +2455,7 @@ tr[data-deity="hanuman"] .deity-pill {
   border: 1px solid var(--border, #e2e8f0);
   color: var(--ink, #1e293b);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   user-select: none;
   cursor: pointer;
@@ -4278,7 +4278,7 @@ input.search-box {
   padding: 11px 14px !important;
   font-size: 14px !important;
   font-weight: 500 !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 [data-theme="dark"] .bhajan-suggestion:last-child {
@@ -4319,7 +4319,7 @@ input.search-box {
   border: 1px solid rgba(139, 92, 246, 0.35) !important;
   border-radius: 8px !important;
   box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15) !important;
-  transition: all 0.2s ease !important;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 [data-theme="dark"] #openSongbookPickerBtn:hover {
@@ -4484,7 +4484,7 @@ input.search-box {
   color: #f1f5f9;
   border-radius: 14px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1);
 }
 
 [data-theme="dark"] .deity-card:hover {
@@ -4914,7 +4914,7 @@ input.search-box {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #94a3b8 !important;
   border-radius: 10px !important;
-  transition: all 0.2s ease !important;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 [data-theme="dark"] .close-btn:hover {
@@ -5283,7 +5283,7 @@ input.search-box {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -5354,7 +5354,7 @@ input.search-box {
   cursor: pointer !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
   white-space: nowrap !important;
   vertical-align: middle !important;
   border: 1px solid transparent !important;
@@ -5383,7 +5383,7 @@ input.search-box {
   border: 1px solid rgba(180, 83, 9, 0.25);
   text-decoration: none;
   box-sizing: border-box;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   line-height: 1;
 }
 
@@ -5425,7 +5425,7 @@ input.search-box {
   border: 1px solid rgba(15, 118, 110, 0.24);
   cursor: pointer;
   box-sizing: border-box;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   line-height: 1;
   font-family: inherit;
   outline: none;
@@ -5527,7 +5527,7 @@ input.search-box {
   background: rgba(245, 158, 11, 0.12);
   color: #d97706;
   border: 1px solid rgba(245, 158, 11, 0.35);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn-pin-reset:hover {
@@ -5613,7 +5613,7 @@ input.search-box {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .filter-chip.dd-toggle:hover {
@@ -6147,7 +6147,7 @@ input.search-box {
   font-size: 13.5px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .bank-nav-back:hover {
@@ -6172,7 +6172,7 @@ input.search-box {
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .primary-cta {
@@ -6322,7 +6322,7 @@ input.search-box {
   font-weight: 600;
   color: var(--ink-soft);
   text-decoration: none;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .bank-nav-back:hover {
@@ -6360,7 +6360,7 @@ input.search-box {
   text-decoration: none;
   white-space: nowrap;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bank-btn-action span {
@@ -6538,7 +6538,7 @@ input.search-box {
   color: var(--ink);
   font-size: 15px;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
@@ -6646,7 +6646,7 @@ input.search-box {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.16s ease;
+  transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -6823,7 +6823,7 @@ input.search-box {
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .glass-btn-sm:hover {
@@ -6851,7 +6851,7 @@ input.search-box {
   border: 1.5px solid rgba(217, 138, 43, 0.22);
   border-radius: 12px;
   box-shadow: 0 2px 10px rgba(217, 138, 43, 0.04);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
@@ -6907,7 +6907,7 @@ input.search-box {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.16s ease;
+  transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 [data-theme="dark"] .deity-chip {
@@ -6972,7 +6972,7 @@ input.search-box {
   font-size: 12px;
   font-weight: 500;
   color: var(--ink);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   font-family: inherit;
 }
 
@@ -6996,7 +6996,7 @@ input.search-box {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   font-family: inherit;
 }
 
@@ -7055,7 +7055,7 @@ input.search-box {
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   line-height: 1;
 }
 
@@ -7325,7 +7325,7 @@ input.search-box {
   background: #f1f5f9;
   color: #475569;
   border: 1px solid #e2e8f0;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 [data-theme="dark"] .meta-tag {
@@ -7425,7 +7425,7 @@ input.search-box {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   text-decoration: none;
   line-height: 1;
 }
@@ -7461,7 +7461,7 @@ input.search-box {
   font-size: 11.5px;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   line-height: 1;
 }
 
@@ -7497,7 +7497,7 @@ input.search-box {
   text-decoration: none;
   font-size: 13px;
   font-weight: 700;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card-details-arrow-btn:hover {
@@ -7691,7 +7691,7 @@ input.search-box {
   border-radius: 12px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .bank-load-more-btn:hover {
@@ -7919,7 +7919,7 @@ body.modal-open #appBottomNav {
   text-decoration: none;
   padding: 3px 2px 2px 2px;
   border-radius: 12px;
-  transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
+  transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), opacity 0.18s cubic-bezier(0.2, 0, 0, 1), background-color 0.18s cubic-bezier(0.2, 0, 0, 1), border-color 0.18s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.18s cubic-bezier(0.2, 0, 0, 1);
   color: #64748b;
   position: relative;
   user-select: none;
@@ -8226,7 +8226,7 @@ body.modal-open #appBottomNav {
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -8394,7 +8394,7 @@ body.modal-open #appBottomNav {
   text-align: center;
   justify-content: center;
   gap: 10px;
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.03);
   overflow: hidden;
   user-select: none;
@@ -8568,7 +8568,7 @@ body.modal-open #appBottomNav {
   border: 1px solid rgba(217, 138, 43, 0.22);
   padding: 4px 12px;
   border-radius: 999px;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .bulletin-view-all-pill:hover {
@@ -8601,7 +8601,7 @@ body.modal-open #appBottomNav {
   box-shadow:
     0 4px 16px rgba(125, 47, 69, 0.04),
     0 1px 3px rgba(0, 0, 0, 0.03);
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   position: relative;
   overflow: hidden;
 }
@@ -8898,7 +8898,7 @@ body.modal-open #appBottomNav {
   padding: 3px 10px;
   border-radius: 999px;
   font-weight: 700;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .singer-hub-scale-btn:hover {
@@ -8917,7 +8917,7 @@ body.modal-open #appBottomNav {
   font-size: 14px;
   font-weight: 700;
   box-shadow: 0 4px 16px rgba(234, 88, 12, 0.45);
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   white-space: nowrap;
 }
 
@@ -8940,7 +8940,7 @@ body.modal-open #appBottomNav {
   border-radius: 18px;
   padding: 18px 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
 }
 
@@ -9049,7 +9049,7 @@ body.modal-open #appBottomNav {
   color: var(--ink-soft);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -9393,7 +9393,7 @@ body.modal-open #appBottomNav {
   padding: 16px !important;
   box-shadow: 0 4px 16px rgba(125, 47, 69, 0.04) !important;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
   position: relative;
 }
 
@@ -9425,7 +9425,7 @@ body.modal-open #appBottomNav {
   font-size: 16px;
   cursor: pointer;
   color: var(--ink-soft);
-  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   padding: 0;
   line-height: 1;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
@@ -9460,7 +9460,7 @@ body.modal-open #appBottomNav {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -9607,7 +9607,7 @@ body.modal-open #appBottomNav {
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
-  transition: all 0.16s ease !important;
+  transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease !important;
   user-select: none !important;
   -webkit-user-select: none !important;
 }
@@ -9721,7 +9721,7 @@ body.modal-open #appBottomNav {
   z-index: 100050;
   pointer-events: none;
   opacity: 0;
-  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
@@ -9861,7 +9861,7 @@ body.modal-open #appBottomNav {
   font-family: inherit;
   outline: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
@@ -9919,7 +9919,7 @@ body.modal-open #appBottomNav {
   border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
 }
 
@@ -9976,7 +9976,7 @@ body.modal-open #appBottomNav {
   background: transparent;
   color: var(--ink-soft, #64748b);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -10060,7 +10060,7 @@ body.modal-open #appBottomNav {
   border-radius: 16px;
   padding: 14px 16px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -10536,7 +10536,7 @@ body.modal-open #appBottomNav {
   font-family: inherit;
   background: var(--paper);
   color: var(--ink);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .archive-search-input:focus {
@@ -10642,7 +10642,7 @@ body.modal-open #appBottomNav {
   border-radius: 999px;
   border: 1px solid rgba(217, 138, 43, 0.25);
   background: rgba(217, 138, 43, 0.06);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .archive-session-link:hover {
@@ -10679,7 +10679,7 @@ body.modal-open #appBottomNav {
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
@@ -11420,7 +11420,7 @@ body.modal-open #appBottomNav {
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
-  transition: all 0.15s ease !important;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
   vertical-align: middle !important;
 }
 
@@ -11636,7 +11636,7 @@ select.admin-input-control option {
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   line-height: 1;
   text-decoration: none;
 }
@@ -11782,7 +11782,7 @@ select.admin-input-control option {
   border-radius: 9999px !important;
   border: 1px solid rgba(255, 255, 255, 0.28) !important;
   cursor: pointer !important;
-  transition: all 0.18s ease !important;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
   outline: none !important;
   font-family: inherit !important;
   vertical-align: middle !important;
@@ -11840,7 +11840,7 @@ select.admin-input-control option {
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
   border: none;
 }
@@ -11951,7 +11951,7 @@ select.admin-input-control option {
   font-weight: 600;
   color: var(--ink-soft, #475569);
   background: transparent;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -12518,7 +12518,7 @@ select.admin-input-control option {
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .zen-btn-primary:hover {
@@ -12539,7 +12539,7 @@ select.admin-input-control option {
   align-items: center;
   gap: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .zen-btn-secondary:hover {
@@ -12634,7 +12634,7 @@ select.admin-input-control option {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .zen-bulletin-item:hover {
@@ -12873,7 +12873,7 @@ select.admin-input-control option {
   justify-content: space-between;
   gap: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .zen-portal-card:hover {
@@ -12937,7 +12937,7 @@ select.admin-input-control option {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .zen-portal-card:hover .zen-portal-arrow {

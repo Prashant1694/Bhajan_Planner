@@ -153,7 +153,7 @@
     0 2px 10px -2px rgba(125, 24, 48, 0.04),
     inset 0 1px 2px rgba(255, 255, 255, 0.95);
   border-radius: 1.5rem;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-sizing: border-box;
 }
 
@@ -526,7 +526,7 @@
   color: #c2410c;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hero-pill.sheet-pill:hover {
@@ -698,7 +698,7 @@
   padding: 0 8px !important;
   border-radius: 7px !important;
   cursor: pointer !important;
-  transition: all 0.16s ease !important;
+  transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -765,7 +765,7 @@
   font-weight: 700 !important;
   color: var(--ink-soft) !important;
   cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   box-sizing: border-box !important;
   line-height: 1 !important;
   user-select: none !important;
@@ -922,7 +922,7 @@
   position: relative;
   max-width: 820px;
   margin: 0 auto;
-  transition: all 0.25s ease-out;
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out, background-color 0.25s ease-out, border-color 0.25s ease-out, box-shadow 0.25s ease-out;
   border-radius: 18px;
   overflow: hidden;
   box-sizing: border-box;
@@ -1251,7 +1251,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1.5px 6px rgba(0, 0, 0, 0.02);
   box-sizing: border-box;
 }
@@ -1444,7 +1444,7 @@
   letter-spacing: 0.3px;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(217, 119, 6, 0.28);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   vertical-align: middle;
   line-height: 1;
   white-space: nowrap;
@@ -1540,7 +1540,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   word-break: break-all;
 }
 
@@ -1763,7 +1763,7 @@
   font-weight: 800;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .musical-swara-pill:hover {
@@ -1804,7 +1804,7 @@
   font-weight: 800;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .musical-western-pill:hover {
@@ -1872,7 +1872,7 @@
   text-decoration: none;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
@@ -2076,7 +2076,7 @@
   font-size: 14px;
   box-sizing: border-box;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 @media (max-width: 480px) {
@@ -2145,7 +2145,7 @@
   border-radius: 9px;
   cursor: pointer;
   color: var(--ink);
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 [data-theme="dark"] .category-check-card {
@@ -2196,7 +2196,7 @@
   border: none;
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .modal-primary-btn.songbook-save-btn {
@@ -2231,7 +2231,7 @@
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--ink-soft);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 [data-theme="dark"] .modal-secondary-btn {
@@ -2255,7 +2255,7 @@
   border: 1px solid rgba(239, 68, 68, 0.25);
   color: #dc2626;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .modal-danger-btn:hover {
