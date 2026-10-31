@@ -1,0 +1,219 @@
+/* ============================================================================
+   Native Polish & Premium Layer — Bhajan Planner (v6.5)
+   Loaded LAST to establish native mobile feel, unified tokens & touch interactions.
+   ============================================================================ */
+
+/* ── 1. Unified Design Tokens ─────────────────────────────────────────────── */
+:root {
+  /* Spacing Scale */
+  --bp-space-2xs: 4px;
+  --bp-space-xs: 8px;
+  --bp-space-sm: 12px;
+  --bp-space-md: 16px;
+  --bp-space-lg: 24px;
+  --bp-space-xl: 32px;
+  --bp-space-2xl: 48px;
+
+  /* Corner Radii */
+  --bp-radius-sm: 8px;
+  --bp-radius-md: 12px;
+  --bp-radius-lg: 18px;
+  --bp-radius-xl: 24px;
+  --bp-radius-full: 9999px;
+
+  /* Elevations */
+  --bp-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --bp-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --bp-elevation-3: 0 12px 32px -4px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --bp-elevation-sheet: 0 -8px 40px rgba(0, 0, 0, 0.22);
+
+  /* Motion & Easing */
+  --bp-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --bp-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --bp-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --bp-ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --bp-dur-fast: 120ms;
+  --bp-dur-normal: 200ms;
+  --bp-dur-sheet: 320ms;
+
+  /* Layout Constants */
+  --bp-nav-h: 62px;
+  --bp-header-h: 56px;
+
+  /* Z-Index Hierarchy */
+  --bp-z-toast: 10005;
+  --bp-z-modal: 10000;
+  --bp-z-sheet: 9990;
+  --bp-z-nav: 9000;
+  --bp-z-sticky: 100;
+}
+
+[data-theme="dark"] {
+  --bp-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bp-elevation-2: 0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --bp-elevation-3: 0 14px 36px -4px rgba(0, 0, 0, 0.65), 0 6px 14px rgba(0, 0, 0, 0.45);
+  --bp-elevation-sheet: 0 -8px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* ── 2. Native Touch & Tap Feedback Base Layer ────────────────────────────── */
+html {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Prevent accidental text selection on mobile chrome */
+button,
+a,
+nav,
+.nav-tab,
+.button,
+.btn,
+.glass-bhajan-card,
+.sheet-drag-handle,
+.admin-action-btn,
+.pill,
+.badge,
+.tab-btn {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* Opt reading surfaces, inputs and notes back into selectable text */
+.quick-lyrics-content,
+.quick-lyrics-stanza,
+.bhajan-lyrics-reader,
+.lyrics-box,
+.reading-surface,
+input,
+textarea,
+select,
+pre,
+code,
+[contenteditable="true"],
+.note-content,
+.allow-select {
+  -webkit-touch-callout: default !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Standalone PWA overscroll lock */
+@media (display-mode: standalone) {
+  html, body {
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+  }
+}
+
+/* iOS Safe Areas & dvh Support */
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Prevent iOS auto-zoom on input focus by guaranteeing 16px font-size */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Visible focus rings for keyboard navigation, clean for touch */
+:focus-visible {
+  outline: 2px solid var(--primary, #d97706);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── 3. Typography Scale & Polish ─────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+p, .description, .card-desc {
+  text-wrap: pretty;
+}
+
+.tabular-nums,
+[data-count],
+.count-badge,
+.timestamp,
+.date-badge,
+.stat-value,
+.timer-display,
+.pin-input {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. Press Feedback & Haptics ──────────────────────────────────────────── */
+@media (hover: none) {
+  button:not(:disabled):active,
+  .button:not(:disabled):active,
+  .btn:not(:disabled):active,
+  .nav-tab:active,
+  .glass-bhajan-card:active,
+  .card-action-btn-primary:active,
+  .admin-action-btn:active {
+    transform: scale(0.965) !important;
+    opacity: 0.82 !important;
+    transition: transform var(--bp-dur-fast) ease, opacity var(--bp-dur-fast) ease !important;
+  }
+}
+
+/* ── 5. Safe Area Insets ──────────────────────────────────────────────────── */
+.header,
+.top-nav,
+.shell-header {
+  padding-top: max(8px, env(safe-area-inset-top, 8px));
+  padding-left: max(16px, env(safe-area-inset-left, 16px));
+  padding-right: max(16px, env(safe-area-inset-right, 16px));
+}
+
+.mobile-bottom-capsule,
+.native-bottom-nav,
+.shell-bottom-nav {
+  margin-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)) !important;
+}
+
+/* ── 6. Accessibility & Motion Preferences ────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .bp-blur,
+  .glass-panel,
+  .modal-content,
+  .mobile-bottom-capsule,
+  .native-bottom-nav {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--surface, #ffffff) !important;
+  }
+  [data-theme="dark"] .bp-blur,
+  [data-theme="dark"] .glass-panel,
+  [data-theme="dark"] .modal-content,
+  [data-theme="dark"] .mobile-bottom-capsule,
+  [data-theme="dark"] .native-bottom-nav {
+    background: #181513 !important;
+  }
+}
