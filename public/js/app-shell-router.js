@@ -729,10 +729,15 @@
         continue;
       }
 
+      if (oldScript.getAttribute("data-mounted") === "true") {
+        continue;
+      }
+
       const executableScript = document.createElement("script");
       Array.from(oldScript.attributes).forEach((attr) => {
         executableScript.setAttribute(attr.name, attr.value);
       });
+      executableScript.setAttribute("data-mounted", "true");
       executableScript.textContent = oldScript.textContent;
       oldScript.parentNode.replaceChild(executableScript, oldScript);
     }

@@ -1,4 +1,5 @@
-<div class="container" style="max-width: 520px; margin: 40px auto; padding: 24px 20px 32px 20px;">
+<% const uid = 'sl_' + Math.random().toString(36).slice(2, 9); %>
+<div class="container" data-singer-login-root id="<%= uid %>_root" style="max-width: 520px; margin: 40px auto; padding: 24px 20px 32px 20px;">
 
   <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px 28px; box-shadow: var(--shadow); position: relative; overflow: hidden;">
     
@@ -23,20 +24,20 @@
       </div>
     <% } %>
 
-    <div id="loginAlertBox" style="display: none; padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 20px;"></div>
+    <div id="<%= uid %>_alertBox" data-role="login-alert-box" style="display: none; padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 20px;"></div>
 
-    <form id="singerLoginForm" onsubmit="handleSingerLogin(event)">
-      <input type="hidden" id="loginRedirect" value="<%= redirectUrl %>">
+    <form id="<%= uid %>_form" data-role="singer-login-form">
+      <input type="hidden" id="<%= uid %>_redirect" data-role="login-redirect" value="<%= redirectUrl %>">
 
       <!-- Singer Select -->
       <div class="form-group" style="margin-bottom: 20px;">
-        <label for="singerSelect" style="display: block; font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 8px;">
+        <label for="<%= uid %>_singerSelect" style="display: block; font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 8px;">
           Select Your Name <span style="color: #ef4444;">*</span>
         </label>
         <select
-          id="singerSelect"
+          id="<%= uid %>_singerSelect"
+          data-role="singer-select"
           required
-          onchange="onSingerSelected(this.value)"
           style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 14.5px; background: var(--surface); color: var(--ink);"
         >
           <option value="">— Search or Select Singer —</option>
@@ -52,24 +53,25 @@
       </div>
 
       <!-- PIN Input Section (Shown after singer selected) -->
-      <div id="pinSection" style="display: none; margin-bottom: 22px;">
+      <div id="<%= uid %>_pinSection" data-role="pin-section" style="display: none; margin-bottom: 22px;">
         <div style="background: var(--paper); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-          <div id="pinTitle" style="font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 4px;">
+          <div id="<%= uid %>_pinTitle" data-role="pin-title" style="font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 4px;">
             Enter Your 4-Digit PIN
           </div>
-          <div id="pinSubtitle" style="font-size: 12.5px; color: var(--muted); line-height: 1.4;">
+          <div id="<%= uid %>_pinSubtitle" data-role="pin-subtitle" style="font-size: 12.5px; color: var(--muted); line-height: 1.4;">
             Please enter your private 4-digit security PIN.
           </div>
         </div>
 
         <div class="form-group" style="margin-bottom: 14px;">
-          <label for="singerPin" style="display: block; font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 6px;">
+          <label for="<%= uid %>_singerPin" style="display: block; font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 6px;">
             4-Digit PIN <span style="color: #ef4444;">*</span>
           </label>
           <div style="position: relative;">
             <input
               type="password"
-              id="singerPin"
+              id="<%= uid %>_singerPin"
+              data-role="singer-pin"
               inputmode="numeric"
               pattern="[0-9]{4}"
               maxlength="4"
@@ -82,13 +84,14 @@
         </div>
 
         <!-- Confirm PIN (Only for first-time creation) -->
-        <div id="confirmPinGroup" style="display: none; margin-bottom: 14px;">
-          <label for="confirmPin" style="display: block; font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 6px;">
+        <div id="<%= uid %>_confirmGroup" data-role="confirm-pin-group" style="display: none; margin-bottom: 14px;">
+          <label for="<%= uid %>_confirmPin" style="display: block; font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 6px;">
             Confirm 4-Digit PIN <span style="color: #ef4444;">*</span>
           </label>
           <input
             type="password"
-            id="confirmPin"
+            id="<%= uid %>_confirmPin"
+            data-role="confirm-pin"
             inputmode="numeric"
             pattern="[0-9]{4}"
             maxlength="4"
@@ -110,8 +113,8 @@
       <!-- Action Button -->
       <button
         type="submit"
-        id="loginSubmitBtn"
-        class="button primary"
+        id="<%= uid %>_submitBtn"
+        data-role="login-submit-btn"
         disabled
         style="width: 100%; padding: 12px; font-size: 15px; font-weight: 700; border-radius: 10px; justify-content: center;"
       >
@@ -132,140 +135,165 @@
 </div>
 
 <script>
-let currentSingerHasPin = false;
+(function() {
+  const root = (document.currentScript && document.currentScript.closest('[data-singer-login-root]'))
+    || document.getElementById('<%= uid %>_root')
+    || document.querySelector('[data-singer-login-root]:not([data-initialized])');
 
-function onSingerSelected(singerId) {
-  const pinSection = document.getElementById('pinSection');
-  const btn = document.getElementById('loginSubmitBtn');
-  const alertBox = document.getElementById('loginAlertBox');
-  alertBox.style.display = 'none';
+  if (!root || root.hasAttribute('data-initialized')) return;
+  root.setAttribute('data-initialized', 'true');
 
-  if (!singerId) {
-    pinSection.style.display = 'none';
-    btn.disabled = true;
-    btn.textContent = 'Select your name to continue';
-    return;
-  }
+  let currentSingerHasPin = false;
 
-  const select = document.getElementById('singerSelect');
-  const selectedOption = select.options[select.selectedIndex];
-  currentSingerHasPin = selectedOption.getAttribute('data-has-pin') === '1';
+  const alertBox = root.querySelector('[data-role="login-alert-box"]');
+  const form = root.querySelector('[data-role="singer-login-form"]');
+  const redirectInput = root.querySelector('[data-role="login-redirect"]');
+  const singerSelect = root.querySelector('[data-role="singer-select"]');
+  const pinSection = root.querySelector('[data-role="pin-section"]');
+  const pinTitle = root.querySelector('[data-role="pin-title"]');
+  const pinSubtitle = root.querySelector('[data-role="pin-subtitle"]');
+  const pinInput = root.querySelector('[data-role="singer-pin"]');
+  const confirmGroup = root.querySelector('[data-role="confirm-pin-group"]');
+  const confirmInput = root.querySelector('[data-role="confirm-pin"]');
+  const btn = root.querySelector('[data-role="login-submit-btn"]');
 
-  const pinTitle = document.getElementById('pinTitle');
-  const pinSubtitle = document.getElementById('pinSubtitle');
-  const confirmGroup = document.getElementById('confirmPinGroup');
-  const confirmInput = document.getElementById('confirmPin');
-  const pinInput = document.getElementById('singerPin');
-
-  pinSection.style.display = 'block';
-  btn.disabled = false;
-  pinInput.value = '';
-  if (confirmInput) confirmInput.value = '';
-
-  if (currentSingerHasPin) {
-    pinTitle.textContent = 'Enter Your 4-Digit PIN';
-    pinSubtitle.textContent = 'Please enter your registered 4-digit PIN for ' + selectedOption.text.split('(')[0].trim() + '.';
-    confirmGroup.style.display = 'none';
-    confirmInput.removeAttribute('required');
-    btn.textContent = 'Verify PIN & Enter';
-  } else {
-    pinTitle.textContent = 'Create Your 4-Digit PIN';
-    pinSubtitle.textContent = 'Welcome! This name does not have a PIN yet. Choose any 4-digit PIN you can easily remember to secure your Singer Hub.';
-    confirmGroup.style.display = 'block';
-    confirmInput.setAttribute('required', 'required');
-    btn.textContent = 'Create PIN & Enter';
-  }
-
-  setTimeout(() => pinInput.focus(), 100);
-}
-
-async function handleSingerLogin(e) {
-  e.preventDefault();
-  const alertBox = document.getElementById('loginAlertBox');
-  const btn = document.getElementById('loginSubmitBtn');
-  const singerId = document.getElementById('singerSelect').value;
-  const pin = document.getElementById('singerPin').value.trim();
-  const confirmPin = document.getElementById('confirmPin')?.value.trim();
-  const redirect = document.getElementById('loginRedirect').value;
-
-  alertBox.style.display = 'none';
-
-  if (!singerId) {
-    showAlert('Please select your name.', 'error');
-    return;
-  }
-
-  if (!/^\d{4}$/.test(pin)) {
-    showAlert('PIN must be exactly 4 digits (e.g. 1234).', 'error');
-    return;
-  }
-
-  if (!currentSingerHasPin && pin !== confirmPin) {
-    showAlert('PINs do not match. Please verify both entries.', 'error');
-    return;
-  }
-
-  try {
-    btn.disabled = true;
-    btn.textContent = 'Verifying...';
-
-    const res = await fetch('/api/singer/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        singer_id: singerId,
-        pin: pin,
-        confirm_pin: confirmPin || pin,
-        redirect: redirect
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Verification failed');
+  function showAlert(msg, type) {
+    if (!alertBox) return;
+    alertBox.textContent = msg;
+    alertBox.style.display = 'block';
+    if (type === 'error') {
+      alertBox.style.background = 'var(--danger-light)';
+      alertBox.style.border = '1px solid var(--danger-border)';
+      alertBox.style.color = 'var(--danger-text)';
+    } else {
+      alertBox.style.background = 'var(--success-light)';
+      alertBox.style.border = '1px solid var(--success-border)';
+      alertBox.style.color = 'var(--success-text)';
     }
+  }
 
-    // Save singer name in localStorage & sync Single-DOM AppShell
-    try {
-      localStorage.setItem('bp_singer_id', data.singer.id);
-      localStorage.setItem('bp_singer_name', data.singer.name);
-      localStorage.setItem('bp_singer_gender', data.singer.gender || '');
-      localStorage.setItem('bp_singer_login_time', Date.now());
-    } catch (_) {}
+  function onSingerSelected(singerId) {
+    if (alertBox) alertBox.style.display = 'none';
 
-    let target = data.redirect || '/my-hub';
-    if (data.showIntro) {
-      target = '/my-hub?welcome=true&redirect=' + encodeURIComponent(data.redirect || '/submit-form');
-    }
-
-    if (window.AppShell && typeof window.AppShell.onAuthChange === 'function') {
-      window.AppShell.onAuthChange(data.singer);
-      window.AppShell.navigate(target, { replace: true, forceReload: true });
+    if (!singerId) {
+      if (pinSection) pinSection.style.display = 'none';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Select your name to continue';
+      }
       return;
     }
 
-    window.location.href = target;
+    const selectedOption = singerSelect ? singerSelect.options[singerSelect.selectedIndex] : null;
+    currentSingerHasPin = selectedOption ? selectedOption.getAttribute('data-has-pin') === '1' : false;
 
-  } catch (err) {
-    showAlert(err.message, 'error');
-    btn.disabled = false;
-    btn.textContent = currentSingerHasPin ? 'Verify PIN & Enter' : 'Create PIN & Enter';
-  }
-}
+    if (pinSection) pinSection.style.display = 'block';
+    if (btn) btn.disabled = false;
+    if (pinInput) pinInput.value = '';
+    if (confirmInput) confirmInput.value = '';
 
-function showAlert(msg, type) {
-  const box = document.getElementById('loginAlertBox');
-  box.textContent = msg;
-  box.style.display = 'block';
-  if (type === 'error') {
-    box.style.background = 'var(--danger-light)';
-    box.style.border = '1px solid var(--danger-border)';
-    box.style.color = 'var(--danger-text)';
-  } else {
-    box.style.background = 'var(--success-light)';
-    box.style.border = '1px solid var(--success-border)';
-    box.style.color = 'var(--success-text)';
+    if (currentSingerHasPin) {
+      if (pinTitle) pinTitle.textContent = 'Enter Your 4-Digit PIN';
+      if (pinSubtitle) pinSubtitle.textContent = 'Please enter your registered 4-digit PIN for ' + (selectedOption ? selectedOption.text.split('(')[0].trim() : '') + '.';
+      if (confirmGroup) confirmGroup.style.display = 'none';
+      if (confirmInput) confirmInput.removeAttribute('required');
+      if (btn) btn.textContent = 'Verify PIN & Enter';
+    } else {
+      if (pinTitle) pinTitle.textContent = 'Create Your 4-Digit PIN';
+      if (pinSubtitle) pinSubtitle.textContent = 'Welcome! This name does not have a PIN yet. Choose any 4-digit PIN you can easily remember to secure your Singer Hub.';
+      if (confirmGroup) confirmGroup.style.display = 'block';
+      if (confirmInput) confirmInput.setAttribute('required', 'required');
+      if (btn) btn.textContent = 'Create PIN & Enter';
+    }
+
+    if (pinInput) setTimeout(() => pinInput.focus(), 100);
   }
-}
+
+  async function handleSingerLogin(e) {
+    e.preventDefault();
+    if (alertBox) alertBox.style.display = 'none';
+
+    const singerId = singerSelect ? singerSelect.value : '';
+    const pin = pinInput ? pinInput.value.trim() : '';
+    const confirmPinVal = confirmInput ? confirmInput.value.trim() : '';
+    const redirect = redirectInput ? redirectInput.value : '';
+
+    if (!singerId) {
+      showAlert('Please select your name.', 'error');
+      return;
+    }
+
+    if (!/^\d{4}$/.test(pin)) {
+      showAlert('PIN must be exactly 4 digits (e.g. 1234).', 'error');
+      return;
+    }
+
+    if (!currentSingerHasPin && pin !== confirmPinVal) {
+      showAlert('PINs do not match. Please verify both entries.', 'error');
+      return;
+    }
+
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+      }
+
+      const res = await fetch('/api/singer/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          singer_id: singerId,
+          pin: pin,
+          confirm_pin: confirmPinVal || pin,
+          redirect: redirect
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Verification failed');
+      }
+
+      // Save singer name in localStorage & sync Single-DOM AppShell
+      try {
+        localStorage.setItem('bp_singer_id', data.singer.id);
+        localStorage.setItem('bp_singer_name', data.singer.name);
+        localStorage.setItem('bp_singer_gender', data.singer.gender || '');
+        localStorage.setItem('bp_singer_login_time', Date.now());
+      } catch (_) {}
+
+      let target = data.redirect || '/my-hub';
+      if (data.showIntro) {
+        target = '/my-hub?welcome=true&redirect=' + encodeURIComponent(data.redirect || '/submit-form');
+      }
+
+      if (window.AppShell && typeof window.AppShell.onAuthChange === 'function') {
+        window.AppShell.onAuthChange(data.singer);
+        window.AppShell.navigate(target, { replace: true, forceReload: true });
+        return;
+      }
+
+      window.location.href = target;
+
+    } catch (err) {
+      showAlert(err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = currentSingerHasPin ? 'Verify PIN & Enter' : 'Create PIN & Enter';
+      }
+    }
+  }
+
+  if (singerSelect) {
+    singerSelect.addEventListener('change', function() {
+      onSingerSelected(this.value);
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', handleSingerLogin);
+  }
+})();
 </script>
