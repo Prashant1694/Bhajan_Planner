@@ -827,7 +827,10 @@ async function handleSongbookUpdateSubmit(e) {
 }
 
 async function removeSongbookEntry(masterId, title) {
-  if (!confirm('Remove "' + title + '" from your Songbook?')) return;
+  const ok = window.BPSheet
+    ? await window.BPSheet.confirm('Remove "' + title + '" from your Songbook?', { isDestructive: true })
+    : confirm('Remove "' + title + '" from your Songbook?');
+  if (!ok) return;
 
   try {
     const res = await fetch('/api/singer/songbook/toggle', {

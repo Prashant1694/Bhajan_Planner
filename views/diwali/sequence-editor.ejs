@@ -257,7 +257,10 @@ async function onDateChanged(sequenceId, dateVal) {
 }
 
 async function finalizeSeq(sequenceId) {
-  if (!confirm("Finalize this sequence?")) return;
+  const ok = window.BPSheet
+    ? await window.BPSheet.confirm("Finalize this sequence?")
+    : confirm("Finalize this sequence?");
+  if (!ok) return;
   try {
     const res = await fetch(`/admin/diwali/sequence/finalize/${sequenceId}`, {
       method: "POST"

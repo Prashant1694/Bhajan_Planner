@@ -75,8 +75,11 @@ function togglePublish(id) {
     .then(() => location.reload())
     .catch(err => alert('Error: ' + err.message));
 }
-function archiveBulletin(id) {
-  if (!confirm('Archive this bulletin?')) return;
+async function archiveBulletin(id) {
+  const ok = window.BPSheet
+    ? await window.BPSheet.confirm('Archive this bulletin?', { isDestructive: true })
+    : confirm('Archive this bulletin?');
+  if (!ok) return;
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = `/admin/bulletins/${id}/delete`;

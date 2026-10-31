@@ -190,7 +190,7 @@
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
                         Edit
                       </button>
-                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Delete participant pair <%= b.participant.lead_name %> & <%= b.participant.partner_name %> and all their bhajans?');">
+                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -254,7 +254,7 @@
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
                         Edit
                       </button>
-                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" onsubmit="return confirm('Delete participant pair <%= b.participant.lead_name %> & <%= b.participant.partner_name %> and all their bhajans?');">
+                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>

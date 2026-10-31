@@ -41,7 +41,7 @@
                 <td>
                   <% if (s.pin) { %>
                     <span class="badge-pin badge-pin-protected">Protected</span>
-                    <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="margin:0; display:inline; margin-left:6px;" onsubmit="return confirm('Reset the 4-digit PIN for <%= s.name.replace(/'/g, "\\'") %>? The singer will be able to set a new PIN on their next visit.');">
+                    <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="margin:0; display:inline; margin-left:6px;" data-confirm="Reset the 4-digit PIN for <%= s.name.replace(/"/g, '&quot;') %>? The singer will be able to set a new PIN on their next visit.">
                       <button type="submit" class="btn-pin-reset" title="Reset PIN">Reset</button>
                     </form>
                   <% } else { %>
@@ -54,7 +54,7 @@
                     <input type="hidden" name="gender" id="edit-gender-<%= s.id %>" value="<%= s.gender || '' %>">
                     <button type="button" class="btn-table-action btn-table-edit" onclick="editSinger(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>')">Edit</button>
                   </form>
-                  <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" onsubmit="return confirm('Delete this singer from the dictionary?');">
+                  <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" data-confirm="Delete this singer from the dictionary?">
                     <button type="submit" class="btn-table-action btn-table-delete">Delete</button>
                   </form>
                 </td>

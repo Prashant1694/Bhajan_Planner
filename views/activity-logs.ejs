@@ -332,7 +332,10 @@ function filterActivityRows() {
 }
 
 async function purgeOldActivityLogs() {
-  if (!confirm("Are you sure you want to purge activity logs older than 30 days?")) return;
+  const ok = window.BPSheet
+    ? await window.BPSheet.confirm("Are you sure you want to purge activity logs older than 30 days?", { isDestructive: true })
+    : confirm("Are you sure you want to purge activity logs older than 30 days?");
+  if (!ok) return;
   try {
     const res = await fetch("/admin/activity-logs/purge", { method: "POST" });
     const data = await res.json();

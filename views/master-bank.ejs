@@ -1668,7 +1668,10 @@
     };
 
     window.deleteMasterRow = async function(id) {
-      if (!confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?")) return;
+      const ok = window.BPSheet
+        ? await window.BPSheet.confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?", { isDestructive: true })
+        : confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?");
+      if (!ok) return;
       var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
 
       try {

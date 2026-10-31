@@ -446,7 +446,10 @@
 
   // Disable
   disableBtn.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to disable notifications on this device?')) return;
+    const ok = window.BPSheet
+      ? await window.BPSheet.confirm('Are you sure you want to disable notifications on this device?', { isDestructive: true })
+      : confirm('Are you sure you want to disable notifications on this device?');
+    if (!ok) return;
     try {
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready;

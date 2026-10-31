@@ -1472,14 +1472,14 @@ function closeMissingBhajanModal() {
 }
 window.closeMissingBhajanModal = closeMissingBhajanModal;
 
-function reconcileBhajan(submittedTitle, action, masterBhajanId) {
-  if (
-    action === "link" &&
-    !confirm(
-      `Link all historical submissions of:\n\n"${submittedTitle}"\n\n...to the master bhajan? This will update all matching session records.`
-    )
-  ) {
-    return;
+async function reconcileBhajan(submittedTitle, action, masterBhajanId) {
+  if (action === "link") {
+    const ok = window.BPSheet
+      ? await window.BPSheet.confirm(`Link all historical submissions of "${submittedTitle}" to the master bhajan? This will update all matching session records.`)
+      : confirm(
+          `Link all historical submissions of:\n\n"${submittedTitle}"\n\n...to the master bhajan? This will update all matching session records.`
+        );
+    if (!ok) return;
   }
 
   fetch("/api/admin/reconcile-bhajan", {
@@ -1667,10 +1667,11 @@ function saveMasterRow(id) {
 }
 window.saveMasterRow = saveMasterRow;
 
-function deleteMasterRow(id) {
-  if (
-    !confirm("Are you sure you want to permanently delete this bhajan from the Master Database?")
-  ) {
+async function deleteMasterRow(id) {
+  const ok = window.BPSheet
+    ? await window.BPSheet.confirm("Are you sure you want to permanently delete this bhajan from the Master Database?", { isDestructive: true })
+    : confirm("Are you sure you want to permanently delete this bhajan from the Master Database?");
+  if (!ok) {
     return;
   }
   fetch(`/api/admin/delete-master-bhajan/${id}`, {

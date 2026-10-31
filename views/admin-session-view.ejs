@@ -552,7 +552,7 @@
                     <a href="/admin/edit/<%= s.id %>" class="action-tool-btn" style="padding:4px 9px; font-size:12px;" title="Edit entry">
                       Edit
                     </a>
-                    <form action="/admin/delete/<%= s.id %>" method="POST" onsubmit="return confirm('Delete this bhajan from session?');" style="margin:0; display:inline;">
+                    <form action="/admin/delete/<%= s.id %>" method="POST" data-confirm="Delete this bhajan from session?" style="margin:0; display:inline;">
                       <button type="submit" class="action-tool-btn" style="padding:4px 9px; font-size:12px; color:var(--danger); border-color:rgba(178,59,50,0.3);" title="Delete entry">
                         Delete
                       </button>
@@ -674,7 +674,7 @@
                 <a href="/admin/edit/<%= s.id %>" class="card-touch-btn btn-edit" title="Edit entry">
                   <span>Edit</span>
                 </a>
-                <form action="/admin/delete/<%= s.id %>" method="POST" onsubmit="return confirm('Delete this bhajan from session?');" style="margin:0;">
+                <form action="/admin/delete/<%= s.id %>" method="POST" data-confirm="Delete this bhajan from session?" style="margin:0;">
                   <button type="submit" class="card-touch-btn btn-delete" title="Delete entry">
                     <span>Delete</span>
                   </button>
@@ -769,7 +769,7 @@
         </div>
         <div class="session-modal-footer">
           <button type="button" class="action-tool-btn" onclick="closeCopyModal()">Cancel</button>
-          <button type="submit" class="action-tool-btn action-tool-btn-primary" onclick="return confirm('Copy all submissions from selected date into this session?');">
+          <button type="submit" class="action-tool-btn action-tool-btn-primary" data-confirm="Copy all submissions from selected date into this session?">
             Copy Lineup
           </button>
         </div>
@@ -1168,8 +1168,11 @@
   };
 
   // Discard Sequence Changes
-  window.discardSequenceChanges = function() {
-    if (!confirm('Discard all sequence changes and reload original lineup?')) return;
+  window.discardSequenceChanges = async function() {
+    const ok = window.BPSheet
+      ? await window.BPSheet.confirm('Discard all sequence changes and reload original lineup?', { isDestructive: true })
+      : confirm('Discard all sequence changes and reload original lineup?');
+    if (!ok) return;
     location.reload();
   };
 
@@ -1589,8 +1592,11 @@
     });
   };
 
-  window.unlinkSessionAudio = function() {
-    if (!confirm('Are you sure you want to remove the audio file and all timestamps for this session? Devotees will no longer be able to listen to this session.')) {
+  window.unlinkSessionAudio = async function() {
+    const ok = window.BPSheet
+      ? await window.BPSheet.confirm('Are you sure you want to remove the audio file and all timestamps for this session? Devotees will no longer be able to listen to this session.', { isDestructive: true })
+      : confirm('Are you sure you want to remove the audio file and all timestamps for this session? Devotees will no longer be able to listen to this session.');
+    if (!ok) {
       return;
     }
     const btn = document.getElementById('btnUnlinkAudio');
@@ -1831,7 +1837,10 @@
 
     const tbody = document.getElementById('timestampsTableBody');
     if (tbody.children.length > 0) {
-      if (!confirm('Replace current rows with the session lineup?')) {
+      const ok = window.BPSheet
+        ? await window.BPSheet.confirm('Replace current rows with the session lineup?')
+        : confirm('Replace current rows with the session lineup?');
+      if (!ok) {
         return;
       }
     }

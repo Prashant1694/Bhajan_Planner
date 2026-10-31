@@ -274,8 +274,11 @@
       .catch(err => alert('Error: ' + err.message));
   }
 
-  function deleteNotification(id) {
-    if (!confirm('Delete this notification?')) return;
+  async function deleteNotification(id) {
+    const ok = window.BPSheet
+      ? await window.BPSheet.confirm('Delete this notification?', { isDestructive: true })
+      : confirm('Delete this notification?');
+    if (!ok) return;
     fetch(`/admin/notifications/${id}/delete`, { method: 'POST' })
       .then(r => r.json())
       .then(() => location.reload())
