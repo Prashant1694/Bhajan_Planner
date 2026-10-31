@@ -646,7 +646,7 @@
       level: b.level || '',
       language: b.language || '',
       sheet_filename: b.sheet_filename || '',
-      lyrics: b.lyrics || ''
+      has_lyrics: !!b.has_lyrics
     }))) %>
   </script>
 
@@ -1326,13 +1326,35 @@
         }
       }
 
+      function renderLyricsSkeleton() {
+        if (!textElem) return;
+        textElem.innerHTML = '<div class="bp-skeleton-lyrics" aria-busy="true" aria-label="Loading lyrics">' +
+          '<div class="bp-skeleton-line" style="width:75%;height:16px;margin:8px 0;background:var(--border,#e2e8f0);border-radius:4px;opacity:0.6;"></div>' +
+          '<div class="bp-skeleton-line" style="width:90%;height:16px;margin:8px 0;background:var(--border,#e2e8f0);border-radius:4px;opacity:0.6;"></div>' +
+          '<div class="bp-skeleton-line" style="width:65%;height:16px;margin:8px 0 20px;background:var(--border,#e2e8f0);border-radius:4px;opacity:0.6;"></div>' +
+          '<div class="bp-skeleton-line" style="width:80%;height:16px;margin:8px 0;background:var(--border,#e2e8f0);border-radius:4px;opacity:0.6;"></div>' +
+          '<div class="bp-skeleton-line" style="width:70%;height:16px;margin:8px 0;background:var(--border,#e2e8f0);border-radius:4px;opacity:0.6;"></div>' +
+          '</div>';
+      }
+
+      function renderLyricsError() {
+        if (!textElem) return;
+        textElem.innerHTML = '<div class="empty-lyrics-prompt bp-lyrics-error">' +
+          '<p>Unable to load lyrics at this time.</p>' +
+          '<button type="button" class="button secondary" style="display:inline-block; font-size:12px; margin-top:8px;" onclick="window.retryQuickLyrics(' + b.id + ')">Retry</button>' +
+          '</div>';
+      }
+
       if (textElem) {
         if (typeof b.lyrics === 'string') {
           renderQuickLyricsText(b.lyrics);
         } else {
-          textElem.innerHTML = '<div class="empty-lyrics-prompt"><p>Loading lyrics...</p></div>';
+          renderLyricsSkeleton();
           fetch('/api/bhajan/' + encodeURIComponent(b.id) + '/lyrics')
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              return r.json();
+            })
             .then(function(data) {
               b.lyrics = (data && typeof data.lyrics === 'string') ? data.lyrics : '';
               if (activeQuickBhajan && String(activeQuickBhajan.id) === String(b.id)) {
@@ -1340,7 +1362,9 @@
               }
             })
             .catch(function() {
-              renderQuickLyricsText('');
+              if (activeQuickBhajan && String(activeQuickBhajan.id) === String(b.id)) {
+                renderLyricsError();
+              }
             });
         }
       }
@@ -1377,6 +1401,22 @@
         modal.classList.remove('show');
         var sheet = modal.querySelector('.quick-lyrics-sheet');
         if (sheet) sheet.classList.remove('sheet-expanded');
+      }
+    };
+
+    window.retryQuickLyrics = function(id) {
+      var b = allData.find(function(x) { return x.id === id || String(x.id) === String(id); });
+      if (b) {
+        delete b.lyrics;
+        window.openQuickLyrics(id);
+      }
+    };
+
+    window.retryQuickLyrics = function(id) {
+      var b = allData.find(function(x) { return x.id === id || String(x.id) === String(id); });
+      if (b) {
+        delete b.lyrics;
+        window.openQuickLyrics(id);
       }
     };
 

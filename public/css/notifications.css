@@ -436,14 +436,14 @@ body {
 .notif-prompt-modal {
   width: 100%;
   max-width: 450px;
-  max-height: 88vh;
-  max-height: 88dvh;
+  max-height: 90vh;
+  max-height: calc(100dvh - 24px);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   background: #fff;
   border-radius: 20px 20px 0 0;
-  padding: 20px 16px 24px;
+  padding: 20px 16px max(24px, calc(16px + env(safe-area-inset-bottom, 0px)));
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
