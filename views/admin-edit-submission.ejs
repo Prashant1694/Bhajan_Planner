@@ -1,30 +1,84 @@
-<div class="container">
-  <div style="margin-bottom:20px; display:flex; gap:10px; align-items:center;">
-    <a href="/admin/date/<%= s.session_date %>" class="button secondary">⬅️ Back to Session</a>
-    <a href="/admin" class="button secondary">🏠 Dashboard</a>
+<div class="container" style="max-width: 760px; margin: 30px auto; padding: 0 16px;">
+  <!-- Breadcrumb Navigation Bar -->
+  <div class="edit-nav-bar" style="margin-bottom: 24px; display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <a href="/admin/date/<%= s.session_date %>" class="btn-table-action" style="padding: 8px 14px; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+        &larr; Back to Session
+      </a>
+      <a href="/admin" class="btn-table-action" style="padding: 8px 14px; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 600;">
+        Admin Dashboard
+      </a>
+    </div>
+    <span class="deity-pill" style="font-size: 12px;"><%= s.deity %></span>
   </div>
-  <h2>✏️ Edit Bhajan Entry</h2>
-  <form method="post" action="/admin/edit/<%= s.id %>">
-    <div class="form-row">
-      <div class="form-group"><label>Session Date</label><input type="date" name="session_date" value="<%= s.session_date %>" required /></div>
-      <div class="form-group"><label>Deity</label><input type="text" name="deity" value="<%= s.deity %>" required /></div>
+
+  <div class="card" style="padding: 28px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-soft); box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+    <div style="margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border-soft);">
+      <h2 style="margin: 0 0 6px 0; font-family: var(--font-display, Georgia, serif); font-size: 22px; color: var(--ink);">
+        Edit Bhajan Submission
+      </h2>
+      <p style="margin: 0; font-size: 13px; color: var(--ink-soft);">
+        Modify singer assignment, deity, musical pitch, speed, or bhajan details for session <%= s.session_date %>.
+      </p>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Singer Name</label><input type="text" name="singer_name" value="<%= s.singer_name %>" required /></div>
-      <div class="form-group"><label>Partner</label><input type="text" name="partner_name" value="<%= s.partner_name || '' %>" /></div>
-    </div>
-    <div class="form-group"><label>Title</label><input type="text" name="title" value="<%= s.title %>" required /></div>
-    <div class="form-row">
-      <div class="form-group"><label>Scale</label><input type="text" name="scale" value="<%= s.scale || '' %>" /></div>
-      <div class="form-group"><label>Speed</label>
-        <select name="speed" required>
-          <option value="slow" <%= s.speed === 'slow' ? 'selected' : '' %>>Slow</option>
-          <option value="medium" <%= s.speed === 'medium' ? 'selected' : '' %>>Medium</option>
-          <option value="fast" <%= s.speed === 'fast' ? 'selected' : '' %>>Fast</option>
-        </select>
+
+    <form method="post" action="/admin/edit/<%= s.id %>" class="admin-edit-form">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 18px;">
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Session Date <span style="color:var(--crimson,#e11d48);">*</span></label>
+          <input type="date" name="session_date" value="<%= s.session_date %>" required class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Deity <span style="color:var(--crimson,#e11d48);">*</span></label>
+          <input type="text" name="deity" value="<%= s.deity %>" required class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" placeholder="e.g. Ganesha, Krishna" />
+        </div>
       </div>
-      <div class="form-group"><label>🎼 Raag</label><input type="text" name="raga" value="<%= s.raga || '' %>" placeholder="e.g. Yaman Kalyani" /></div>
-    </div>
-    <div style="margin-top:20px; display:flex; gap:10px;"><button type="submit" class="button">Save Changes</button><a href="/admin/date/<%= s.session_date %>" class="button secondary">Cancel</a></div>
-  </form>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 18px;">
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Lead Singer Name <span style="color:var(--crimson,#e11d48);">*</span></label>
+          <input type="text" name="singer_name" value="<%= s.singer_name %>" required class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Accompanying Partner</label>
+          <input type="text" name="partner_name" value="<%= s.partner_name || '' %>" class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" placeholder="Optional partner" />
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Bhajan Title <span style="color:var(--crimson,#e11d48);">*</span></label>
+        <input type="text" name="title" value="<%= s.title %>" required class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" />
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-bottom: 24px;">
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Singing Pitch / Scale</label>
+          <input type="text" name="scale" value="<%= s.scale || '' %>" class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" placeholder="e.g. 2, 5, 1.5" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Speed / Tempo <span style="color:var(--crimson,#e11d48);">*</span></label>
+          <select name="speed" required class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box; background: var(--surface);">
+            <option value="slow" <%= s.speed === 'slow' ? 'selected' : '' %>>Slow</option>
+            <option value="medium" <%= s.speed === 'medium' ? 'selected' : '' %>>Medium</option>
+            <option value="fast" <%= s.speed === 'fast' ? 'selected' : '' %>>Fast</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--ink);">Raag</label>
+          <input type="text" name="raga" value="<%= s.raga || '' %>" placeholder="e.g. Yaman Kalyani" class="filter-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; box-sizing: border-box;" />
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; align-items: center; justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--border-soft);">
+        <a href="/admin/date/<%= s.session_date %>" class="button secondary" style="padding: 10px 20px; font-size: 13px; text-decoration: none; border-radius: 8px;">Cancel</a>
+        <button type="submit" class="button button-confirm" style="padding: 10px 24px; font-size: 13px; border-radius: 8px; cursor: pointer;">Save Changes</button>
+      </div>
+    </form>
+  </div>
 </div>

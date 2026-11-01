@@ -1,0 +1,281 @@
+<%
+  const isFragment = Boolean(locals.isShellFragment);
+%>
+<% if (!isFragment) { %>
+  <link rel="stylesheet" href="/css/session-audio.css?v=6.0">
+<% } %>
+
+<div class="plan-page-shell">
+  <!-- Print Session Banner -->
+  <div class="print-session-banner">
+    <div class="print-banner-title">BHAJAN SCHEDULE &bull; <%= sessionDateHuman %></div>
+    <div class="print-banner-meta">Official Order of Offerings &bull; Total Scheduled Bhajans: <%= submissionsCount %></div>
+  </div>
+
+  <!-- App-First Plan Header -->
+  <div class="plan-header-card no-print">
+    <div class="plan-header-top">
+      <div class="plan-title-group">
+        <div class="plan-icon-bubble" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div class="plan-header-titles">
+          <h1>Live Bhajan Plan</h1>
+          <p>
+            <span><%= sessionDateHuman %></span>
+            &nbsp;&middot;&nbsp;
+            <strong><%= submissionsCount %></strong> bhajan<%= submissionsCount !== 1 ? "s" : "" %>
+          </p>
+        </div>
+      </div>
+      <% if (isUpcoming) { %>
+        <span class="plan-status-badge plan-status-upcoming">Upcoming</span>
+      <% } else { %>
+        <span class="plan-status-badge plan-status-past">Past Session</span>
+      <% } %>
+    </div>
+
+    <div class="plan-switcher-row">
+      <form method="get" action="/plan-view" class="plan-date-select-wrap" id="planDateForm">
+        <label for="planDateSelect" class="plan-date-label">Session:</label>
+        <select id="planDateSelect" name="session_date" class="plan-date-select" aria-label="Select bhajan session date">
+          <% dateOptionsList.forEach((opt) => { %>
+            <option value="<%= opt.date %>" <%= opt.isCurrent ? "selected" : "" %>><%= opt.label %></option>
+          <% }); %>
+        </select>
+      </form>
+
+      <div class="plan-actions-bar">
+        <% if (isAdmin) { %>
+          <button id="planShareBtn" type="button" class="plan-btn plan-btn-whatsapp" onclick="window.sharePlan && window.sharePlan()" title="Share schedule via WhatsApp or native share">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>Share</span>
+          </button>
+        <% } %>
+        <button type="button" class="plan-btn plan-btn-secondary" onclick="window.printPlanSchedule && window.printPlanSchedule()" title="Print as PDF or paper">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span>Print</span>
+        </button>
+        <div class="plan-view-tabs" id="planViewTabs">
+          <button type="button" class="plan-view-tab active" id="tabTimeline" onclick="window.switchPlanView && window.switchPlanView('timeline')">
+            Timeline
+          </button>
+          <button type="button" class="plan-view-tab" id="tabTable" onclick="window.switchPlanView && window.switchPlanView('table')">
+            Table
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <% if (sessionAudio && sessionAudio.audio_url) { %>
+    <!-- Session Audio Banner -->
+    <div class="session-audio-banner no-print">
+      <div class="audio-banner-left">
+        <div class="audio-banner-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="audio-banner-info">
+          <h3 class="audio-banner-title"><%= sessionAudio.title || 'Session Recording' %></h3>
+          <p class="audio-banner-sub">Session audio recording is ready. Play the full session or tap timestamps next to individual bhajans below.</p>
+        </div>
+      </div>
+      <button type="button" class="audio-banner-play-btn" data-start="0" data-title="<%= sessionAudio.title || 'Session Recording' %>" data-singer="<%= sessionDateHuman %>" data-url="<%= sessionAudio.audio_url %>" onclick="window.playSessionAudioBtn && window.playSessionAudioBtn(this)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span>Play Full Recording</span>
+      </button>
+    </div>
+  <% } %>
+
+  <!-- Mobile / Card Timeline View -->
+  <div class="plan-timeline active-view" id="planTimeline">
+    <%- timelineCardsHtml %>
+  </div>
+
+  <!-- Desktop / Print Table View -->
+  <div class="plan-table-container" id="planTable">
+    <table>
+      <thead>
+        <tr>
+          <th width="4%">#</th>
+          <th width="20%">Singer</th>
+          <th width="28%">Bhajan</th>
+          <th width="24%">Deity</th>
+          <th width="13%">Pitch / Scale</th>
+          <th width="11%">Tempo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <%- rowsHtml %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (isAdmin) { %>
+    <!-- WhatsApp Share Card (Admin Only) -->
+    <div class="plan-share-card no-print" id="planShareCard">
+      <div class="plan-share-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="plan-share-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </span>
+          <div>
+            <div style="font-size:15px; font-weight:700; margin-bottom:2px;">Share to Samiti Group</div>
+            <div style="font-size:12.5px; color:var(--ink-soft);">One-tap WhatsApp share or copy formatted schedule</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="plan-btn plan-btn-whatsapp" onclick="window.sharePlan && window.sharePlan()" id="planShareBtnBottom">
+            <span>Share</span>
+          </button>
+          <button type="button" class="plan-btn plan-btn-secondary" onclick="window.copyPlanText && window.copyPlanText()" id="planCopyBtn">
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+      <textarea id="planShareText" readonly class="plan-share-textarea" aria-label="Schedule text for WhatsApp"><%= whatsappText %></textarea>
+    </div>
+  <% } %>
+</div>
+
+<% if (!isFragment) { %>
+  <script src="/js/session-audio-player.js?v=6.0"></script>
+<% } %>
+
+<script>
+  (function () {
+    const _WHATSAPP_ENCODED = <%- JSON.stringify(whatsappEncoded) %>;
+    const _PLAN_DATE = <%- JSON.stringify(sessionDate) %>;
+
+    const dateSelect = document.getElementById("planDateSelect");
+    if (dateSelect && !dateSelect.dataset.bound) {
+      dateSelect.dataset.bound = "1";
+      dateSelect.addEventListener("change", function () {
+        const dest = "/plan-view?session_date=" + encodeURIComponent(dateSelect.value);
+        if (window.AppShell && typeof window.AppShell.navigate === "function") {
+          window.AppShell.navigate(dest);
+        } else {
+          window.location.href = dest;
+        }
+      });
+    }
+
+    window.switchPlanView = function (mode) {
+      const timeline = document.getElementById("planTimeline");
+      const table = document.getElementById("planTable");
+      const tabTl = document.getElementById("tabTimeline");
+      const tabTb = document.getElementById("tabTable");
+      if (mode === "timeline") {
+        if (timeline) {
+          timeline.classList.add("active-view");
+          timeline.style.setProperty("display", "flex", "important");
+        }
+        if (table) {
+          table.classList.remove("active-view");
+          table.style.setProperty("display", "none", "important");
+        }
+        if (tabTl) tabTl.classList.add("active");
+        if (tabTb) tabTb.classList.remove("active");
+      } else {
+        if (table) {
+          table.classList.add("active-view");
+          table.style.setProperty("display", "block", "important");
+        }
+        if (timeline) {
+          timeline.classList.remove("active-view");
+          timeline.style.setProperty("display", "none", "important");
+        }
+        if (tabTb) tabTb.classList.add("active");
+        if (tabTl) tabTl.classList.remove("active");
+      }
+      try { localStorage.setItem("plan_view_mode", mode); } catch (_) {}
+    };
+
+    window.printPlanSchedule = function () {
+      window.switchPlanView("table");
+      setTimeout(function () { window.print(); }, 50);
+    };
+
+    if (!window.__planBeforePrintBound) {
+      window.__planBeforePrintBound = true;
+      window.addEventListener("beforeprint", function () {
+        if (typeof window.switchPlanView === "function") window.switchPlanView("table");
+      });
+    }
+
+    if (window.innerWidth > 768) {
+      let saved = null;
+      try { saved = localStorage.getItem("plan_view_mode"); } catch (_) {}
+      if (saved === "table") window.switchPlanView("table");
+      else window.switchPlanView("timeline");
+    }
+
+    window.sharePlan = async function () {
+      const ta = document.getElementById("planShareText");
+      const text = ta ? ta.value : "";
+      const url = window.location.origin + "/plan-view?session_date=" + encodeURIComponent(_PLAN_DATE);
+      const title = "Live Bhajan Plan – " + _PLAN_DATE;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ title, text, url });
+          return;
+        } catch (e) {
+          if (e && e.name === "AbortError") return;
+        }
+      }
+      window.open("https://wa.me/?text=" + _WHATSAPP_ENCODED, "_blank", "noopener");
+    };
+
+    window.copyPlanText = async function () {
+      const ta = document.getElementById("planShareText");
+      const text = ta ? ta.value : "";
+      const btn = document.getElementById("planCopyBtn");
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else if (ta) {
+          ta.select();
+          document.execCommand("copy");
+        }
+        if (btn) {
+          const orig = btn.innerHTML;
+          btn.innerHTML = "<span>Copied!</span>";
+          setTimeout(function () { btn.innerHTML = orig; }, 2000);
+        }
+      } catch (_) {}
+    };
+
+    window.openPlanLyrics = function (bhajanId) {
+      const dest = "/bhajan/" + bhajanId;
+      if (window.AppShell && typeof window.AppShell.navigate === "function") {
+        window.AppShell.navigate(dest);
+      } else {
+        window.location.href = dest;
+      }
+    };
+
+    <% if (sessionAudio && sessionAudio.audio_url) { %>
+      const audioConfig = <%- JSON.stringify({
+        id: sessionAudio.id,
+        title: sessionAudio.title,
+        audio_url: sessionAudio.audio_url,
+        session_date: sessionAudio.session_date,
+        timestamps: (sessionAudio.timestamps || []).map((t) => ({
+          id: t.id,
+          submission_id: t.submission_id,
+          bhajan_title: t.bhajan_title,
+          singer_name: t.singer_name,
+          deity: t.deity,
+          start_seconds: t.start_seconds
+        }))
+      }) %>;
+      if (window.SessionAudioPlayer && typeof window.SessionAudioPlayer.registerSession === "function") {
+        window.SessionAudioPlayer.registerSession(audioConfig);
+      } else if (window.SessionAudioPlayer && typeof window.SessionAudioPlayer.init === "function") {
+        window.SessionAudioPlayer.init(audioConfig);
+      }
+    <% } %>
+  })();
+</script>
+

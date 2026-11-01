@@ -8,6 +8,12 @@ const storagePath =
     ? path.join(os.tmpdir(), `bhajan-test-${process.pid}.db`)
     : path.join(__dirname, "..", "bhajans.db"));
 
+if (process.env.NODE_ENV === "production" && !process.env.DB_PATH) {
+  console.warn(
+    "⚠️  [Database] WARNING: DB_PATH is not set in production. Mount a persistent volume (e.g. DB_PATH=/data/bhajans.db) so 90-day sessions, PINs, and submissions survive container restarts."
+  );
+}
+
 const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: storagePath,
@@ -24,7 +30,13 @@ const sequelize = new Sequelize({
           if (err2) return done(err2);
           conn.run("PRAGMA foreign_keys = ON;", (err3) => {
             if (err3) return done(err3);
-            conn.run("PRAGMA synchronous = NORMAL;", done);
+            conn.run("PRAGMA synchronous = NORMAL;", (err4) => {
+              if (err4) return done(err4);
+              conn.run("PRAGMA cache_size = -20000;", (err5) => {
+                if (err5) return done(err5);
+                conn.run("PRAGMA temp_store = MEMORY;", done);
+              });
+            });
           });
         });
       });

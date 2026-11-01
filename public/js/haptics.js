@@ -1,30 +1,24 @@
 /**
  * Premium Haptic Feedback Engine — Bhajan Planner Native App Experience
- * Dual-layer tactile feedback combining precision linear motor micro-pulses
- * and sub-bass acoustic transients (Web Audio API) for genuine native Apple Taptic
- * & Android Linear Actuator sensation across iOS Safari, Chrome, and PWAs.
+ * Single top-window AudioContext with zero scroll-gesture overhead.
  */
 (function (window) {
   "use strict";
 
-  // Precision-calibrated linear motor timings (milliseconds)
-  // Replaces crude long buzzes with ultra-crisp micro-ticks and shaped harmonic pulses
   var VIBE_PROFILES = {
-    selection: [3], // Ultra-light 3ms tick for tabs, pickers, radio chips
-    tick: [3], // Alias for selection
-    light: [5], // Crisp 5ms mechanical click for standard buttons
-    medium: [8], // Solid 8ms snap for primary CTAs and slot actions
-    heavy: [14], // Firm 14ms impact for destructive / admin actions
-    rigid: [10], // Stiff mechanical stop
-    toggle: [4, 16, 6], // Dual-phase switch snap
-    success: [4, 30, 8], // Affirmative crescendo double-tap
-    warning: [7, 35, 7], // Dual cautionary notch pulses
-    error: [8, 25, 8, 25, 12], // Triple crisp reject knock
-    pop: [3, 16, 6] // Springy micro-pop
+    selection: [3],
+    tick: [3],
+    light: [5],
+    medium: [8],
+    heavy: [14],
+    rigid: [10],
+    toggle: [4, 16, 6],
+    success: [4, 30, 8],
+    warning: [7, 35, 7],
+    error: [8, 25, 8, 25, 12],
+    pop: [3, 16, 6]
   };
 
-  // Acoustic transient synthesizer parameters (Web Audio API)
-  // Delivers physical speaker cone micro-impulses felt in hand (crucial for iOS Safari)
   var AUDIO_PROFILES = {
     selection: { freq: 140, endFreq: 45, duration: 0.007, gain: 0.12, type: "sine" },
     tick: { freq: 140, endFreq: 45, duration: 0.007, gain: 0.12, type: "sine" },
@@ -44,8 +38,14 @@
   var isSoundEnabled = true;
   var lastHapticTime = 0;
   var audioCtx = null;
+  var isChildFrame = false;
 
-  // Retrieve user preferences from localStorage
+  try {
+    isChildFrame = !!(window.parent && window.parent !== window);
+  } catch (_) {
+    isChildFrame = false;
+  }
+
   try {
     var storedVibe = localStorage.getItem("bp_haptics_enabled");
     if (storedVibe !== null) isEnabled = storedVibe === "true";
@@ -53,8 +53,8 @@
     if (storedSound !== null) isSoundEnabled = storedSound === "true";
   } catch (_) {}
 
-  // Lazy-initialize Web Audio Context on first user touch/click
   function getAudioContext() {
+    if (isChildFrame) return null;
     if (!audioCtx && typeof window !== "undefined") {
       try {
         var AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -69,9 +69,8 @@
     return audioCtx;
   }
 
-  // Synthesize sub-bass micro-transient impulse
   function playTactileTransient(profileName) {
-    if (!isSoundEnabled) return;
+    if (!isSoundEnabled || isChildFrame) return;
     var ctx = getAudioContext();
     if (!ctx) return;
 
@@ -98,7 +97,6 @@
       osc.start(now);
       osc.stop(now + profile.duration);
 
-      // Play complementary second harmonic for success/pop profiles
       if (profile.double) {
         setTimeout(function () {
           if (!audioCtx) return;
@@ -119,54 +117,43 @@
     } catch (_) {}
   }
 
-  /**
-   * Main Haptic Trigger Function
-   * Orchestrates both linear hardware motor pulses and acoustic transients
-   * with debounce throttling to prevent muddy motor saturation.
-   */
   function triggerHaptic(type) {
     if (!isEnabled) return;
 
-    // Minimum 24ms throttle prevents queueing lag during rapid taps
     var now = Date.now();
     if (now - lastHapticTime < 24) return;
     lastHapticTime = now;
 
     var profileKey = type || "light";
-    var pattern = VIBE_PROFILES[profileKey] || VIBE_PROFILES.light;
 
-    // 1. Hardware Motor Vibration (Android, Chrome, supported browsers)
+    if (isChildFrame) {
+      try {
+        window.parent.postMessage(
+          { type: "BP_HAPTIC", profile: profileKey },
+          window.location.origin
+        );
+      } catch (_) {}
+      return;
+    }
+
+    var pattern = VIBE_PROFILES[profileKey] || VIBE_PROFILES.light;
     if (hasVibration) {
       try {
         navigator.vibrate(pattern);
       } catch (_) {}
     }
 
-    // 2. Tactile Audio Transient (iOS Safari physical feel + enhanced Android snap)
     playTactileTransient(profileKey);
-
-    // 3. Propagate to parent window if running inside an embed iframe
-    try {
-      if (window.parent && window.parent !== window && window.parent.postMessage) {
-        window.parent.postMessage({ type: "BP_HAPTIC", profile: profileKey }, "*");
-      }
-    } catch (_) {}
   }
 
-  // Cross-frame listener (parent App Shell listens for iframe haptic events)
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && !isChildFrame && !window.__bpHapticMsgBound) {
+    window.__bpHapticMsgBound = true;
     window.addEventListener(
       "message",
       function (e) {
+        if (e.origin && e.origin !== window.location.origin) return;
         if (e.data && e.data.type === "BP_HAPTIC" && typeof e.data.profile === "string") {
-          // Run locally without re-propagating
-          var profileKey = e.data.profile;
-          if (hasVibration && isEnabled) {
-            try {
-              navigator.vibrate(VIBE_PROFILES[profileKey] || VIBE_PROFILES.light);
-            } catch (_) {}
-          }
-          playTactileTransient(profileKey);
+          triggerHaptic(e.data.profile);
         }
       },
       { passive: true }
@@ -195,31 +182,33 @@
     return isSoundEnabled;
   }
 
-  // Gesture-aware auto-binding: avoids triggering during scroll gestures
   function initAutoHaptics() {
+    if (window.__bpAutoHapticsBound) return;
+    window.__bpAutoHapticsBound = true;
+
     var touchStartX = 0;
     var touchStartY = 0;
     var activeTarget = null;
     var pointerId = null;
 
-    // Wake audio context on first user touch
     document.addEventListener(
       "pointerdown",
       function (e) {
-        getAudioContext();
-
-        // Find closest interactive element
+        if (!e.target || typeof e.target.closest !== "function") return;
         var target = e.target.closest(
           '[data-haptic], .nav-tab, .native-action-btn, .button, .btn, .btn-live, .deity-card, .filter-chip, .tab-btn, .hub-tab-btn, .sheet-link-pill, .bulletin-view-all-pill, .app-bulletin-card, button, input[type="submit"]'
         );
         if (!target) return;
+
+        if (isSoundEnabled && !isChildFrame) {
+          getAudioContext();
+        }
 
         activeTarget = target;
         pointerId = e.pointerId;
         touchStartX = e.clientX || 0;
         touchStartY = e.clientY || 0;
 
-        // Direct instant-feedback elements (tabs, toggles, chips) fire immediately
         var isDirectTabOrChip =
           target.classList.contains("nav-tab") ||
           target.classList.contains("hub-tab-btn") ||
@@ -230,7 +219,7 @@
 
         if (isDirectTabOrChip) {
           dispatchTargetHaptic(target);
-          activeTarget = null; // Do not re-fire on release
+          activeTarget = null;
         }
       },
       { passive: true }
@@ -242,8 +231,6 @@
         if (!activeTarget || e.pointerId !== pointerId) return;
         var dx = Math.abs((e.clientX || 0) - touchStartX);
         var dy = Math.abs((e.clientY || 0) - touchStartY);
-
-        // If user drags more than 8 pixels, recognize as a scroll gesture and cancel
         if (dx > 8 || dy > 8) {
           activeTarget = null;
         }
@@ -317,9 +304,11 @@
     }
   }
 
-  // Expose comprehensive global API
-  window.BPHaptics = {
+  var api = {
     trigger: triggerHaptic,
+    selection: function () {
+      triggerHaptic("selection");
+    },
     tick: function () {
       triggerHaptic("selection");
     },
@@ -357,6 +346,7 @@
     PROFILES: VIBE_PROFILES
   };
 
-  // Shortcut convenience
+  window.BPHaptics = api;
+  window.haptics = api;
   window.triggerHaptic = triggerHaptic;
 })(typeof window !== "undefined" ? window : this);

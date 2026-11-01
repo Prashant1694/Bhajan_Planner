@@ -1,969 +1,1088 @@
+<%
+  const activeTabKey = (typeof initialTab !== 'undefined' && initialTab) ? initialTab : 'home';
+  const initRoute = (typeof initialRoute !== 'undefined' && initialRoute) ? initialRoute : '/';
+  const singerObj = (typeof currentSinger !== 'undefined' && currentSinger) ? currentSinger : null;
+  const adminObj = (typeof currentAdmin !== 'undefined' && currentAdmin) ? currentAdmin : null;
+%>
 <!DOCTYPE html>
 <html lang="en" class="shell-root">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>
-    <%= typeof pageTitle !=='undefined' ? pageTitle : 'Bhajan Planner' %>
-  </title>
-  <meta name="description"
-    content="Sri Sathya Sai Seva Organisations, Gandhinagar - Devotional Bhajan Management System">
-  <meta name="theme-color" content="#d98a2b">
-  <link rel="icon" type="image/png" href="/images/icons/icon-192x192.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Bhajan Planner | Sri Sathya Sai Seva Organisation' %></title>
+  <meta name="description" content="Sri Sathya Sai Seva Organisations, Gandhinagar — Devotional Bhajan Management & Satsang Scheduling System">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F2">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100E">
+  <meta name="theme-color" content="#FAF7F2">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bhajan Planner">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="color-scheme" content="light dark">
+
+  <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
 
-  <!-- Frame Guard: Prevent app-shell from ever nesting inside an iframe -->
-  <script>
-    if (window.self !== window.top) {
-      window.location.replace('/?_embed=1');
-    }
-  </script>
-
-  <!-- Typography -->
+  <!-- Clean Native Typography (Non-blocking Preload) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+  </noscript>
 
-  <!-- Core CSS -->
-  <link rel="stylesheet" href="/css/style.css?v=4.6">
-  <link rel="stylesheet" href="/css/notifications.css?v=4.4">
-  <link rel="stylesheet" href="/css/app-shell.css?v=4.6">
+  <!-- Core Shell & Component Stylesheets (v6.5) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <link rel="stylesheet" href="/css/pwa.css?v=6.5">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.5">
+  <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
+  <link rel="stylesheet" href="/css/tanpura.css?v=6.5">
+  <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.5">
+  <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
+    <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.5">
+  <% } else if (activeTabKey === 'home') { %>
+    <link rel="stylesheet" href="/css/dashboard-glass.css?v=6.5">
+  <% } %>
 
-  <!-- Native Micro-Haptics Engine -->
-  <script src="/js/haptics.js"></script>
+  <!-- Native Polish Layer (Loaded Last) -->
+  <link rel="stylesheet" href="/css/native.css?v=6.5">
 
-  <!-- Dark mode preference BEFORE render to prevent flash -->
+  <style id="nav-core-critical">
+    /* Universal Mobile Bottom Capsule Default: Completely hidden on desktop */
+    .mobile-bottom-capsule,
+    .native-bottom-nav,
+    #mobileBottomCapsule,
+    #nativeBottomNav,
+    .app-bottom-nav {
+      display: none !important;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Desktop Navigation (> 1024px) */
+    @media (min-width: 1025px) {
+      .mobile-bottom-capsule,
+      .native-bottom-nav,
+      #mobileBottomCapsule,
+      #nativeBottomNav,
+      .app-bottom-nav,
+      .shell-sidebar,
+      .shell-sidebar-overlay,
+      .shell-menu-btn {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      body, body.shell-body {
+        padding-bottom: 0 !important;
+      }
+      .shell-top-header {
+        height: 70px !important;
+        min-height: 70px !important;
+        padding: 0 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      .header-left {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+      }
+      .header-brand-wrap {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        text-decoration: none !important;
+        color: inherit !important;
+      }
+      .header-brand-wrap * {
+        text-decoration: none !important;
+      }
+      .brand-symbol-square,
+      .header-logo-box {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .desktop-nav {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        margin: 0 16px !important;
+        gap: 4px !important;
+      }
+      .desktop-nav .nav-link,
+      .desktop-nav a.nav-link,
+      a.nav-link {
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 8px 14px !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        font-size: 13.5px !important;
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+        color: var(--shell-ink-soft, #57534e) !important;
+        text-decoration: none !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        transition: color 0.2s ease, background-color 0.2s ease !important;
+      }
+      .desktop-nav .nav-link:hover,
+      .desktop-nav a.nav-link:hover {
+        color: var(--shell-ink, #1c1917) !important;
+        background-color: rgba(0, 0, 0, 0.04) !important;
+        text-decoration: none !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link,
+      .dark .desktop-nav .nav-link {
+        color: #d6d0c9 !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link:hover,
+      .dark .desktop-nav .nav-link:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.06) !important;
+      }
+      .desktop-nav .nav-link.active {
+        color: #c85a17 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link.active,
+      .dark .desktop-nav .nav-link.active {
+        color: #fbbf24 !important;
+      }
+      .desktop-nav .nav-link::after {
+        content: "" !important;
+        position: absolute !important;
+        bottom: 0px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: 0 !important;
+        height: 2.5px !important;
+        background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+        border-radius: 9999px !important;
+        transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+        opacity: 0 !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link::after,
+      .dark .desktop-nav .nav-link::after {
+        background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+      }
+      .desktop-nav .nav-link:hover::after {
+        width: 36% !important;
+        opacity: 0.5 !important;
+      }
+      .desktop-nav .nav-link.active::after {
+        width: 75% !important;
+        opacity: 1 !important;
+        background: linear-gradient(90deg, #c85a17 0%, #d97706 100%) !important;
+        box-shadow: 0 0 8px rgba(200, 90, 23, 0.45) !important;
+      }
+      [data-theme="dark"] .desktop-nav .nav-link.active::after,
+      .dark .desktop-nav .nav-link.active::after {
+        background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.55), 0 0 2px #fbbf24 !important;
+      }
+      .header-right {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+      }
+      .circular-theme-toggle,
+      .header-icon-btn.circular-theme-toggle,
+      #shellThemeToggle {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        background: rgba(0, 0, 0, 0.03) !important;
+        color: var(--shell-ink, #1c1917) !important;
+        transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #fbbf24 !important;
+      }
+      .circular-theme-toggle:hover,
+      #shellThemeToggle:hover {
+        transform: rotate(15deg) scale(1.05);
+        background-color: rgba(200, 90, 23, 0.08) !important;
+        border-color: rgba(200, 90, 23, 0.3) !important;
+        color: #c85a17 !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle:hover,
+      [data-theme="dark"] #shellThemeToggle:hover,
+      .dark .circular-theme-toggle:hover,
+      .dark #shellThemeToggle:hover {
+        background-color: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(251, 191, 36, 0.4) !important;
+        color: #fbbf24 !important;
+      }
+    }
+
+    /* Mobile Floating Capsule Navbar (<= 1024px) */
+    @media (max-width: 1024px) {
+      body, body.shell-body {
+        padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+      }
+      .shell-pane, .shell-detail-body {
+        padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important;
+      }
+      .shell-top-header {
+        height: 58px !important;
+        min-height: 58px !important;
+        padding: 0 16px !important;
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      .desktop-nav, #desktopNav, .pill-cta-btn, #headerCtaBtn, .desktop-only-btn,
+      .shell-menu-btn, #shellMenuBtn, .shell-sidebar, .shell-sidebar-overlay {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      .header-right {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex: 0 0 auto !important;
+        flex-shrink: 0 !important;
+      }
+      .header-icon-btn,
+      #shellNotifBtn,
+      .circular-theme-toggle,
+      #shellThemeToggle {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        background: rgba(0, 0, 0, 0.03) !important;
+        color: var(--shell-ink, #1c1917) !important;
+        position: relative !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease !important;
+      }
+      .header-icon-btn:active,
+      #shellNotifBtn:active,
+      .circular-theme-toggle:active,
+      #shellThemeToggle:active {
+        transform: scale(0.92) !important;
+      }
+      [data-theme="dark"] .header-icon-btn,
+      [data-theme="dark"] #shellNotifBtn,
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .header-icon-btn,
+      .dark #shellNotifBtn,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        border-color: rgba(255, 255, 255, 0.14) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #d6d0c9 !important;
+      }
+      [data-theme="dark"] .circular-theme-toggle,
+      [data-theme="dark"] #shellThemeToggle,
+      .dark .circular-theme-toggle,
+      .dark #shellThemeToggle {
+        color: #fbbf24 !important;
+      }
+
+      /* Critical Theme Toggle Icon Visibility */
+      #shellThemeToggle .icon-moon,
+      #shellThemeToggle .icon-sun {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        line-height: 1 !important;
+      }
+      #shellThemeToggle .icon-sun {
+        display: none !important;
+      }
+      [data-theme="dark"] #shellThemeToggle .icon-moon,
+      .dark #shellThemeToggle .icon-moon,
+      #shellThemeToggle[aria-pressed="true"] .icon-moon {
+        display: none !important;
+      }
+      [data-theme="dark"] #shellThemeToggle .icon-sun,
+      .dark #shellThemeToggle .icon-sun,
+      #shellThemeToggle[aria-pressed="true"] .icon-sun {
+        display: inline-flex !important;
+        color: #fbbf24 !important;
+      }
+
+      /* Universal Floating Bottom Capsule (<= 1024px) */
+      .mobile-bottom-capsule,
+      .native-bottom-nav,
+      #mobileBottomCapsule,
+      #nativeBottomNav {
+        display: block !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        position: fixed !important;
+        bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) translateZ(0) !important;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        contain: layout style;
+        width: calc(100% - 24px) !important;
+        max-width: 520px !important;
+        height: 52px !important;
+        border-radius: 9999px !important;
+        z-index: 1000 !important;
+        box-sizing: border-box !important;
+        background: rgba(255, 255, 255, 0.92) !important;
+        backdrop-filter: blur(24px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+
+      /* Dark Mode Capsule (High specificity matching IDs so it NEVER falls back to white) */
+      [data-theme="dark"] .mobile-bottom-capsule,
+      [data-theme="dark"] #mobileBottomCapsule,
+      [data-theme="dark"] .native-bottom-nav,
+      [data-theme="dark"] #nativeBottomNav,
+      .dark .mobile-bottom-capsule,
+      .dark #mobileBottomCapsule,
+      .dark .native-bottom-nav,
+      .dark #nativeBottomNav {
+        background: rgba(24, 22, 20, 0.94) !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.12) !important;
+      }
+
+      .capsule-track,
+      .native-nav-inner {
+        display: flex !important;
+        align-items: center !important;
+        height: 100% !important;
+        width: 100% !important;
+        gap: 4px !important;
+        padding: 0 8px !important;
+        box-sizing: border-box !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      .capsule-track::-webkit-scrollbar,
+      .native-nav-inner::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+
+      /* Inactive Pills in Light Mode */
+      .capsule-pill,
+      .native-bottom-nav .nav-tab,
+      #capsuleTrack .capsule-pill,
+      #capsuleTrack .nav-tab {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        padding: 0 14px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        text-decoration: none !important;
+        border-radius: 9999px !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #57534e !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        cursor: pointer !important;
+        transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+      }
+      .capsule-pill svg,
+      .native-bottom-nav .nav-tab svg,
+      #capsuleTrack .capsule-pill svg,
+      #capsuleTrack .nav-tab svg {
+        width: 15px !important;
+        height: 15px !important;
+        stroke: #57534e !important;
+        stroke-width: 2 !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Inactive Pills in Dark Mode (High Specificity matching capsule track) */
+      [data-theme="dark"] .capsule-pill,
+      [data-theme="dark"] #capsuleTrack .capsule-pill,
+      [data-theme="dark"] .native-bottom-nav .nav-tab,
+      [data-theme="dark"] #capsuleTrack .nav-tab,
+      .dark .capsule-pill,
+      .dark #capsuleTrack .capsule-pill,
+      .dark .native-bottom-nav .nav-tab,
+      .dark #capsuleTrack .nav-tab {
+        color: #d6d0c9 !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+      }
+      [data-theme="dark"] .capsule-pill svg,
+      [data-theme="dark"] #capsuleTrack .capsule-pill svg,
+      [data-theme="dark"] .native-bottom-nav .nav-tab svg,
+      [data-theme="dark"] #capsuleTrack .nav-tab svg,
+      .dark .capsule-pill svg,
+      .dark #capsuleTrack .capsule-pill svg,
+      .dark .native-bottom-nav .nav-tab svg,
+      .dark #capsuleTrack .nav-tab svg {
+        stroke: #d6d0c9 !important;
+      }
+
+      /* Active Highlight in Light Mode: Warm Mandir Saffron */
+      .capsule-pill.active,
+      .native-bottom-nav .nav-tab.active,
+      #capsuleTrack .capsule-pill.active,
+      #capsuleTrack .nav-tab.active {
+        background: rgba(200, 90, 23, 0.12) !important;
+        border: 1px solid rgba(200, 90, 23, 0.4) !important;
+        color: #c85a17 !important;
+        border-radius: 9999px !important;
+        font-weight: 600 !important;
+      }
+      .capsule-pill.active .capsule-icon,
+      .capsule-pill.active svg,
+      .native-bottom-nav .nav-tab.active svg,
+      #capsuleTrack .capsule-pill.active svg {
+        stroke: #c85a17 !important;
+      }
+
+      /* Active Highlight in Dark Mode: Prasanthi Gold */
+      [data-theme="dark"] .capsule-pill.active,
+      [data-theme="dark"] #capsuleTrack .capsule-pill.active,
+      [data-theme="dark"] .native-bottom-nav .nav-tab.active,
+      [data-theme="dark"] #capsuleTrack .nav-tab.active,
+      .dark .capsule-pill.active,
+      .dark #capsuleTrack .capsule-pill.active,
+      .dark .native-bottom-nav .nav-tab.active,
+      .dark #capsuleTrack .nav-tab.active {
+        background: rgba(245, 158, 11, 0.18) !important;
+        border: 1px solid rgba(245, 158, 11, 0.5) !important;
+        color: #fbbf24 !important;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
+      }
+      [data-theme="dark"] .capsule-pill.active .capsule-icon,
+      [data-theme="dark"] .capsule-pill.active svg,
+      .dark .capsule-pill.active .capsule-icon,
+      .dark .capsule-pill.active svg,
+      [data-theme="dark"] .native-bottom-nav .nav-tab.active svg,
+      .dark .native-bottom-nav .nav-tab.active svg,
+      [data-theme="dark"] #capsuleTrack .capsule-pill.active svg,
+      .dark #capsuleTrack .capsule-pill.active svg {
+        stroke: #fbbf24 !important;
+      }
+      .capsule-icon,
+      .capsule-pill svg,
+      .native-bottom-nav .nav-tab svg {
+        width: 15px !important;
+        height: 15px !important;
+        stroke: currentColor !important;
+        stroke-width: 2 !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Critical Mobile Modal & Bottom Sheet Guard (Guarantees modals are pinned to bottom of viewport) */
+      .modal.show {
+        position: fixed !important;
+        inset: 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        background: rgba(18, 16, 14, 0.72) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        z-index: 100050 !important;
+      }
+      .modal.show .modal-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 28px 28px 0 0 !important;
+        max-height: 85vh !important;
+        max-height: 85dvh !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+        padding: 16px 20px max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px)) 20px !important;
+        animation: appBottomSheetSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+        box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.45) !important;
+        border-top: 1.5px solid rgba(217, 138, 43, 0.3) !important;
+        position: relative !important;
+        z-index: 100051 !important;
+        box-sizing: border-box !important;
+      }
+    }
+  </style>
+
+  <!-- Early Anti-FOUC Theme Initialization & Resilient Navigation Handlers -->
   <script>
     (function () {
       try {
         var t = localStorage.getItem('bp-theme');
-        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      } catch (e) { }
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var isDark = t === 'dark' || (t !== 'light' && prefersDark);
+        if (isDark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          if (document.body) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.body.classList.add('dark');
+          }
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#12100E'); });
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          if (document.body) {
+            document.body.removeAttribute('data-theme');
+            document.body.classList.remove('dark');
+          }
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#FAF7F2'); });
+        }
+      } catch (e) {}
     })();
+
+    window.applyTheme = function (isDark) {
+      try {
+        if (isDark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+          if (document.body) {
+            document.body.setAttribute('data-theme', 'dark');
+            document.body.classList.add('dark');
+          }
+          localStorage.setItem('bp-theme', 'dark');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#12100E'); });
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.documentElement.classList.remove('dark');
+          if (document.body) {
+            document.body.removeAttribute('data-theme');
+            document.body.classList.remove('dark');
+          }
+          localStorage.setItem('bp-theme', 'light');
+          var ms = document.querySelectorAll('meta[name="theme-color"]');
+          ms.forEach(function (m) { m.setAttribute('content', '#FAF7F2'); });
+        }
+        var btns = document.querySelectorAll('.theme-toggle, #themeToggle, #shellThemeToggle, #topbarThemeToggle, #themeToggleBtn, .admin-theme-toggle-btn');
+        btns.forEach(function (btn) {
+          btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          btn.setAttribute('data-tooltip', isDark ? 'Switch to Light' : 'Switch to Dark');
+          btn.setAttribute('title', isDark ? 'Switch to Light' : 'Switch to Dark');
+        });
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { isDark: isDark } }));
+      } catch (e) {}
+    };
+
+    window.toggleTheme = function (e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      var now = Date.now();
+      if (window._lastThemeToggle && (now - window._lastThemeToggle < 250)) return;
+      window._lastThemeToggle = now;
+      var stored = null;
+      try { stored = localStorage.getItem('bp-theme'); } catch (_) {}
+      var isDark = stored === 'dark' || (stored !== 'light' && (document.documentElement.getAttribute('data-theme') === 'dark' || document.documentElement.classList.contains('dark')));
+      window.applyTheme(!isDark);
+      if (window.haptics && typeof window.haptics.light === 'function') {
+        window.haptics.light();
+      }
+      if (typeof triggerToast === 'function') {
+        triggerToast(!isDark ? 'Switched to Dark Sanctum Theme' : 'Switched to Ivory Prasanthi Theme');
+      }
+    };
+
+    // Delegated click handler on document for resilient theme toggle clicks
+    document.addEventListener('click', function (e) {
+      var themeBtn = e.target && e.target.closest ? e.target.closest('#shellThemeToggle, #topbarThemeToggle, .theme-toggle, .admin-theme-toggle-btn') : null;
+      if (themeBtn) {
+        window.toggleTheme(e);
+      }
+    });
+
+    window.toggleShellSidebar = function () {
+      var s = document.getElementById('shellSidebar');
+      var o = document.getElementById('shellSidebarOverlay');
+      if (s) s.classList.toggle('open');
+      if (o) o.classList.toggle('open');
+    };
+    window.closeShellSidebar = function () {
+      var s = document.getElementById('shellSidebar');
+      var o = document.getElementById('shellSidebarOverlay');
+      if (s) s.classList.remove('open');
+      if (o) o.classList.remove('open');
+    };
+    window.handleNavClick = function (tab, url, evt) {
+      if (evt && evt.preventDefault) evt.preventDefault();
+      window.closeShellSidebar();
+      var links = document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link");
+      links.forEach(function (el) {
+        var isMatch = el.getAttribute("data-tab") === tab && !el.getAttribute("data-route");
+        el.classList.toggle("active", isMatch);
+        el.setAttribute("aria-current", isMatch ? "page" : "false");
+      });
+      if (window.AppShell && typeof window.AppShell.switchTab === "function") {
+        window.AppShell.switchTab(tab, url);
+        return false;
+      }
+      window.__pendingNavTab = tab;
+      setTimeout(function () {
+        if (!window.AppShell || typeof window.AppShell.switchTab !== "function") {
+          window.location.href = url || '/';
+        }
+      }, 250);
+      return false;
+    };
+    window.handleDeepLink = function (route, parentTab, evt) {
+      if (evt && evt.preventDefault) evt.preventDefault();
+      window.closeShellSidebar();
+      var links = document.querySelectorAll(".desktop-nav .nav-link, #desktopNav .nav-link");
+      links.forEach(function (el) {
+        var r = el.getAttribute("data-route");
+        var isMatch = Boolean(r && (route === r || route.startsWith(r + "/")));
+        el.classList.toggle("active", isMatch);
+        el.setAttribute("aria-current", isMatch ? "page" : "false");
+      });
+      if (window.AppShell && typeof window.AppShell.navigate === "function") {
+        window.AppShell.navigate(route);
+        return false;
+      }
+      window.__pendingNavRoute = { route: route, tab: parentTab };
+      setTimeout(function () {
+        if (!window.AppShell || typeof window.AppShell.navigate !== "function") {
+          window.location.href = route;
+        }
+      }, 250);
+      return false;
+    };
   </script>
 </head>
 
 <body class="shell-body">
 
-  <!-- Native App Header Bar -->
-  <header class="native-top-bar" id="nativeTopBar" role="banner">
-    <div class="native-top-left" onclick="if(document.body.classList.contains('in-admin-tab')){navigateAdminSection('/admin');}else{switchTab('home');}" style="cursor: pointer;">
-      <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-        <!-- Admin Sidebar Hamburger: Only visible on the Admin page -->
-        <button type="button" class="native-action-btn admin-sidebar-btn" id="adminSidebarToggleBtn" onclick="event.stopPropagation(); toggleAdminShellSidebar();" aria-label="Open Admin Menu" title="Admin Menu" data-haptic="light" style="margin-right:2px;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
+  <!-- Universal SSSO Print Letterhead -->
+  <%- include('partials/universal-print-header') %>
+
+  <div class="shell-app-layout" id="shellAppLayout">
+
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <!-- 1. DESKTOP PERSISTENT SIDEBAR & MOBILE NAVIGATION DRAWER      -->
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <aside class="shell-sidebar" id="shellSidebar" aria-label="Primary Navigation" style="display: none !important;">
+      <div class="shell-sidebar-brand">
+        <a href="/" class="shell-sidebar-logo-link">
+          <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="38" height="38" class="shell-sidebar-emblem">
+          <div class="shell-sidebar-brand-text">
+            <span class="shell-sidebar-title">Bhajan Planner</span>
+            <span class="shell-sidebar-sub">SSSO · GANDHINAGAR</span>
+          </div>
+        </a>
+        <button type="button" class="shell-sidebar-close" aria-label="Close navigation menu" onclick="closeShellSidebar()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-      <% } %>
-
-      <div class="native-top-logo-wrap">
-        <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" class="native-top-logo">
       </div>
-      <div class="native-top-brand">
-        <div class="native-top-title-row">
-          <span class="native-top-title">Bhajan Planner</span>
-        </div>
-        <span class="native-top-subtitle">SSSO - GANDHINAGAR</span>
+
+      <nav class="shell-sidebar-nav">
+        <div class="shell-nav-section-label">Primary Workspace</div>
+
+        <a href="/" class="sidebar-nav-item <%= activeTabKey === 'home' ? 'active' : '' %>" id="side-tab-home" data-tab="home" onclick="return handleNavClick('home', '/', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Home Dashboard</span>
+        </a>
+
+        <a href="/master-bank" class="sidebar-nav-item <%= activeTabKey === 'bank' ? 'active' : '' %>" id="side-tab-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span>Master Songbook</span>
+        </a>
+
+        <a href="/submit-form" class="sidebar-nav-item <%= activeTabKey === 'singer' ? 'active' : '' %>" id="side-tab-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          <span>Mark Bhajan</span>
+        </a>
+
+        <a href="/plan-view" class="sidebar-nav-item <%= activeTabKey === 'plan' ? 'active' : '' %>" id="side-tab-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Live Session Plan</span>
+        </a>
+
+        <a href="/singer/hub" class="sidebar-nav-item <%= activeTabKey === 'hub' ? 'active' : '' %>" id="side-tab-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Singer Hub</span>
+        </a>
+
+        <div class="shell-nav-section-label">Samiti Resources</div>
+
+        <a href="/database" class="sidebar-nav-item" data-route="/database" data-tab-parent="plan" onclick="return handleDeepLink('/database', 'plan', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Session Archives</span>
+        </a>
+
+        <a href="/bulletins" class="sidebar-nav-item" data-route="/bulletins" data-tab-parent="home" onclick="return handleDeepLink('/bulletins', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Samiti Bulletins</span>
+        </a>
+
+        <% if (adminObj) { %>
+          <a href="/admin/singers" class="sidebar-nav-item" data-no-shell="1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Singers Directory</span>
+          </a>
+        <% } else { %>
+          <a href="/singers" class="sidebar-nav-item" data-route="/singers" data-tab-parent="hub" onclick="return handleDeepLink('/singers', 'hub', event)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Singers Directory</span>
+          </a>
+        <% } %>
+
+        <a href="/my-reports" class="sidebar-nav-item" data-route="/my-reports" data-tab-parent="home" onclick="return handleDeepLink('/my-reports', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          <span>Reported Tickets</span>
+        </a>
+
+        <a href="/notification-settings" class="sidebar-nav-item" data-route="/notification-settings" data-tab-parent="home" onclick="return handleDeepLink('/notification-settings', 'home', event)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Notification Settings</span>
+        </a>
+      </nav>
+
+      <div class="shell-sidebar-footer">
+        <% if (adminObj) { %>
+          <a href="/admin" class="shell-sidebar-admin-link" data-no-shell="1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
+            <span>Open Admin Portal</span>
+          </a>
+        <% } else { %>
+          <a href="/admin-login" class="shell-sidebar-coord-link" data-no-shell="1">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Coordinator Login</span>
+          </a>
+        <% } %>
       </div>
-    </div>
+    </aside>
 
-    <!-- Header Actions firmly positioned on the right end -->
-    <div class="native-top-actions">
-      <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-        <!-- Admin Profile Badge: Merged into app header ONLY for Admin page -->
-        <div class="admin-header-profile" id="adminHeaderProfile" title="Logged in as <%= currentAdmin.displayName || currentAdmin.username %>">
-          <div class="admin-header-avatar">
-            <%= (currentAdmin.displayName || currentAdmin.username || "A").charAt(0).toUpperCase() %>
-          </div>
-          <div class="admin-header-meta">
-            <span class="admin-header-name"><%= currentAdmin.displayName || currentAdmin.username %></span>
-            <span class="admin-header-role <%= (currentAdmin.role === 'super_admin' || currentAdmin.role === 'SUPER_ADMIN') ? 'is-super' : '' %>">
-              <%= (currentAdmin.role === "super_admin" || currentAdmin.role === "SUPER_ADMIN") ? "Super Admin" : "Admin" %>
-            </span>
-          </div>
-        </div>
-      <% } %>
+    <div class="shell-sidebar-overlay" id="shellSidebarOverlay" onclick="closeShellSidebar()" style="display: none !important;"></div>
 
-      <!-- Dark / Light Theme Toggle -->
-      <button class="native-action-btn shell-theme-btn" id="shellThemeToggle" aria-label="Toggle dark mode"
-        title="Toggle theme" type="button" data-haptic="light">
-        <span class="icon-moon" aria-hidden="true">🌙</span>
-        <span class="icon-sun" aria-hidden="true">☀️</span>
-      </button>
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <!-- 2. MAIN COLUMN (HEADER + SINGLE-DOM VIEWPORT + BOTTOM NAV)    -->
+    <!-- ═════════════════════════════════════════════════════════════ -->
+    <div class="shell-main-column">
 
-      <!-- Native Notification Bell (devotee notifications on public tabs) -->
-      <button class="native-action-btn shell-notif-btn" id="shellNotifBtn" aria-label="Notifications"
-        title="Notifications" type="button" data-haptic="medium">
-        <svg class="native-bell-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
-        <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Native Top Loading Progress Bar (Hardware GPU-Accelerated) -->
-  <div class="shell-load-bar" id="shellLoadBar"></div>
-
-  <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-    <!-- Integrated Admin Sidebar Drawer (Off-Canvas) -->
-    <div class="admin-shell-sidebar-overlay" id="adminShellSidebarOverlay" onclick="closeAdminShellSidebar()"></div>
-    <aside class="sidebar admin-shell-sidebar" id="adminShellSidebar" aria-label="Admin Navigation">
-      <div class="sidebar-header">
-        <div class="sidebar-brand-link">
-          <div class="sidebar-logo-wrap">
-            <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" class="sidebar-logo-img">
-          </div>
-          <div class="sidebar-brand-text">
-            <h2>Bhajan Planner</h2>
-            <div class="sidebar-brand-sub">
-              <span class="sidebar-admin-pill">Admin Portal</span>
+      <!-- Top Header Bar -->
+      <header class="shell-top-header" id="shellTopHeader" role="banner">
+        <!-- Left: Brand symbol square + logo text -->
+        <div class="header-left">
+          <a href="/" class="header-brand-wrap" onclick="return handleNavClick('home', '/', event)" title="Bhajan Planner - SSSO Gandhinagar">
+            <div class="brand-symbol-square header-logo-box">
+              <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="34" height="34" class="brand-symbol-img">
             </div>
-          </div>
-        </div>
-        <button type="button" class="sidebar-close-btn" onclick="closeAdminShellSidebar()" aria-label="Close admin menu">✕</button>
-      </div>
-
-      <nav class="sidebar-nav" aria-label="Admin Navigation">
-        <!-- ═══ 1. SCHEDULE & SESSIONS ═══ -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Schedule &amp; Sessions</div>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin')">
-            <span>🏠</span> Dashboard
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/submit-form?admin=true')">
-            <span>📅</span> New Entry
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/plan-view')">
-            <span>📤</span> Plan &amp; Share
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin?copy=true')">
-            <span>📋</span> Copy Session
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/import-sessions')">
-            <span>📥</span> Import Sessions
+            <div class="header-titles-box">
+              <span class="header-page-title" id="headerPageTitle">Bhajan Planner</span>
+              <span class="header-breadcrumb" id="headerBreadcrumb">SSSO · GANDHINAGAR</span>
+            </div>
           </a>
         </div>
 
-        <!-- ═══ 2. DATABASE & CONTENT ═══ -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Database &amp; Content</div>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/master-bank')">
-            <span>📚</span> Master Bank
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/archived-master-bhajans')">
-            <span>📦</span> Archived Masters
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/rules')">
-            <span>🎼</span> Deity Rules
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/missing-bhajans')">
-            <span>🚨</span> Missing Catcher
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/reports')">
-            <span>🚩</span> Bhajan Reports
-          </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/bulletins')">
-            <span>📢</span> Bulletins
-          </a>
-        </div>
+        <!-- Center: Horizontal navigation links with hover states and animated Mandir Saffron underline -->
+        <%
+          const initPathClean = (typeof initRoute !== 'undefined' && initRoute) ? initRoute.split('?')[0].split('#')[0].toLowerCase() : '/';
+          const isArchivesSsr = (initPathClean === '/database' || initPathClean.startsWith('/database/'));
+          const isBulletinsSsr = (initPathClean === '/bulletins' || initPathClean.startsWith('/bulletins/'));
+          const isAdminSsr = (initPathClean === '/admin' || initPathClean.startsWith('/admin/'));
+          const isDeepRouteSsr = isArchivesSsr || isBulletinsSsr || isAdminSsr;
+        %>
+        <nav class="desktop-nav" id="desktopNav" aria-label="Desktop Primary Navigation">
+          <a href="/" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'home') ? 'active' : '' %>" id="desktop-tab-home" data-tab="home" onclick="return handleNavClick('home', '/', event)">Home</a>
+          <a href="/master-bank" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'bank') ? 'active' : '' %>" id="desktop-tab-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)">Songbook</a>
+          <a href="/submit-form" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'singer') ? 'active' : '' %>" id="desktop-tab-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)">Mark Bhajan</a>
+          <a href="/plan-view" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'plan') ? 'active' : '' %>" id="desktop-tab-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)">Live Plan</a>
+          <a href="/singer/hub" class="nav-link <%= (!isDeepRouteSsr && activeTabKey === 'hub') ? 'active' : '' %>" id="desktop-tab-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)">Singer Hub</a>
+          <a href="/database" class="nav-link <%= isArchivesSsr ? 'active' : '' %>" id="desktop-tab-database" data-route="/database" data-tab-parent="plan" onclick="return handleDeepLink('/database', 'plan', event)">Archives</a>
+          <a href="/bulletins" class="nav-link <%= isBulletinsSsr ? 'active' : '' %>" id="desktop-tab-bulletins" data-route="/bulletins" data-tab-parent="home" onclick="return handleDeepLink('/bulletins', 'home', event)">Bulletins</a>
+          <% if (adminObj) { %>
+            <a href="/admin" class="nav-link <%= isAdminSsr ? 'active' : '' %>" id="desktop-tab-admin" data-route="/admin" data-no-shell="1">Admin</a>
+          <% } %>
+        </nav>
 
-        <!-- ═══ 3. SINGERS & COMMUNITY ═══ -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Singers &amp; Community</div>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/singers')">
-            <span>👥</span> Singers Directory
-          </a>
-          <% if (currentAdmin.role === "super_admin" || currentAdmin.role === "SUPER_ADMIN") { %>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/diwali')">
-            <span>🪔</span> Diwali Bhajans
-          </a>
+        <!-- Right: Circular theme toggle button and identity pills -->
+        <div class="header-right">
+          <!-- Circular Dark / Light Theme Toggle -->
+          <button type="button" class="header-icon-btn circular-theme-toggle" id="shellThemeToggle" aria-label="Toggle dark mode" title="Toggle theme" onclick="if(typeof window.toggleTheme==='function'){window.toggleTheme(event);}">
+            <span class="icon-moon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </span>
+            <span class="icon-sun" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+            </span>
+          </button>
+
+          <!-- Notification Bell -->
+          <button type="button" class="header-icon-btn" id="shellNotifBtn" aria-label="Notifications" title="Notifications">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="notif-badge" id="shellNotifBadge" style="display:none"></span>
+          </button>
+
+          <!-- Singer Identity Pill (Desktop) -->
+          <button type="button"
+            class="singer-profile-pill desktop-only-btn"
+            id="shellSingerPill"
+            title="Open My Singer Hub"
+            style="<%= singerObj ? 'display:inline-flex;' : 'display:none;' %>"
+            onclick="return handleNavClick('hub', '/singer/hub', event)">
+            <span class="singer-avatar-dot" id="shellSingerPillInitial"><%= singerObj && singerObj.name ? singerObj.name.charAt(0).toUpperCase() : 'S' %></span>
+            <span class="singer-pill-name" id="shellSingerPillName"><%= singerObj && singerObj.name ? singerObj.name.split(' ')[0] : 'Singer' %></span>
+          </button>
+
+          <% if (adminObj) { %>
+            <a href="/admin" class="admin-profile-pill desktop-only-btn" data-no-shell="1" title="Logged in as <%= adminObj.displayName || adminObj.username %> — Open Admin Portal">
+              <span class="admin-avatar-dot"><%= (adminObj.displayName || adminObj.username || "A").charAt(0).toUpperCase() %></span>
+              <span class="admin-pill-name"><%= adminObj.displayName || adminObj.username %></span>
+            </a>
           <% } %>
         </div>
+      </header>
 
-        <!-- ═══ 4. SYSTEM & AUDIT ═══ -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">System &amp; Audit</div>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/analytics')">
-            <span>📊</span> Analytics
+      <!-- GPU-Composited Top Loading Progress Bar -->
+      <div class="shell-load-bar" id="shellLoadBar" aria-hidden="true"></div>
+
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <!-- 3. SINGLE-DOM WORKSPACE (5 CACHED PANES + SLIDE-OVER SHEET)   -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <main class="shell-workspace-container" id="shellViewport">
+        <section id="pane-home" class="shell-pane <%= activeTabKey === 'home' ? 'active-pane' : '' %>" aria-label="Home Dashboard" aria-hidden="<%= activeTabKey === 'home' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'home' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-bank" class="shell-pane <%= activeTabKey === 'bank' ? 'active-pane' : '' %>" aria-label="Master Songbook" aria-hidden="<%= activeTabKey === 'bank' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'bank' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-singer" class="shell-pane <%= activeTabKey === 'singer' ? 'active-pane' : '' %>" aria-label="Mark Bhajan" aria-hidden="<%= activeTabKey === 'singer' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'singer' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-plan" class="shell-pane <%= activeTabKey === 'plan' ? 'active-pane' : '' %>" aria-label="Live Session Plan" aria-hidden="<%= activeTabKey === 'plan' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'plan' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+        <section id="pane-hub" class="shell-pane <%= activeTabKey === 'hub' ? 'active-pane' : '' %>" aria-label="Singer Hub" aria-hidden="<%= activeTabKey === 'hub' ? 'false' : 'true' %>">
+          <% if (activeTabKey === 'hub' && typeof initialFragmentHtml !== 'undefined' && initialFragmentHtml) { %>
+            <%- initialFragmentHtml %>
+          <% } %>
+        </section>
+
+        <!-- Native Slide-Over Detail Sheet (Preserves underlying tab DOM & exact scrollTop!) -->
+        <aside id="shellDetailSheet" class="shell-detail-sheet" aria-hidden="true" aria-label="Detail View">
+          <header class="shell-detail-header" id="shellDetailHeader">
+            <button type="button" class="shell-detail-back-btn" id="shellDetailBackBtn" aria-label="Go back">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <span>Back</span>
+            </button>
+            <h2 class="shell-detail-title" id="shellDetailTitle">Details</h2>
+            <div class="shell-detail-spacer"></div>
+          </header>
+          <div class="shell-detail-body" id="shellDetailBody"></div>
+        </aside>
+      </main>
+
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <!-- 4. TELEGRAM-STYLE MOBILE FLOATING CAPSULE NAVBAR (<= 1024px) -->
+      <!-- ═════════════════════════════════════════════════════════════ -->
+      <nav class="mobile-bottom-capsule native-bottom-nav bp-blur" id="mobileBottomCapsule" aria-label="Mobile Navigation Capsule">
+        <div class="capsule-track native-nav-inner" id="capsuleTrack">
+          <a href="/" class="capsule-pill nav-tab <%= activeTabKey === 'home' ? 'active' : '' %>" id="tab-btn-home" data-tab="home" onclick="return handleNavClick('home', '/', event)" aria-label="Home">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="capsule-label">Home</span>
           </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/notifications')">
-            <span>🔔</span> Notifications
+
+          <a href="/master-bank" class="capsule-pill nav-tab <%= activeTabKey === 'bank' ? 'active' : '' %>" id="tab-btn-bank" data-tab="bank" onclick="return handleNavClick('bank', '/master-bank', event)" aria-label="Songbook">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span class="capsule-label">Songbook</span>
           </a>
-          <% if (currentAdmin.role === "super_admin" || currentAdmin.role === "SUPER_ADMIN") { %>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/admin-users')">
-            <span>👨‍💼</span> Administrators
+
+          <a href="/submit-form" class="capsule-pill nav-tab <%= activeTabKey === 'singer' ? 'active' : '' %>" id="tab-btn-singer" data-tab="singer" onclick="return handleNavClick('singer', '/submit-form', event)" aria-label="Mark Bhajan">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <span class="capsule-label">Mark</span>
           </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/activity-logs')">
-            <span>🕵️</span> Activity Monitor
+
+          <a href="/plan-view" class="capsule-pill nav-tab <%= activeTabKey === 'plan' ? 'active' : '' %>" id="tab-btn-plan" data-tab="plan" onclick="return handleNavClick('plan', '/plan-view', event)" aria-label="Live Session Plan">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="capsule-label">Plan</span>
           </a>
-          <a href="/admin/download-backup" target="_blank" title="Download SQLite database backup">
-            <span>📦</span> Download Backup
+
+          <a href="/singer/hub" class="capsule-pill nav-tab <%= activeTabKey === 'hub' ? 'active' : '' %>" id="tab-btn-hub" data-tab="hub" onclick="return handleNavClick('hub', '/singer/hub', event)" aria-label="Singer Hub">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="capsule-label">Hub</span>
           </a>
-          <a href="javascript:void(0)" onclick="navigateAdminSection('/admin/danger-reset-history')">
-            <span>⚠️</span> Reset History
-          </a>
+
+
+          <% if (adminObj) { %>
+            <a href="/admin" class="capsule-pill nav-tab" id="tab-btn-admin" data-tab="admin" data-no-shell="1" aria-label="Admin Portal">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="capsule-icon"><rect width="7" height="7" x="3" y="3"/><rect width="7" height="7" x="14" y="3"/><rect width="7" height="7" x="14" y="14"/><rect width="7" height="7" x="3" y="14"/></svg>
+              <span class="capsule-label">Admin</span>
+            </a>
           <% } %>
         </div>
       </nav>
 
-      <div class="sidebar-footer">
-        <a href="javascript:void(0)" onclick="closeAdminShellSidebar(); switchTab('home');" title="Open Public Devotee View">
-          <span>🌐</span> Public Home
-        </a>
-        <form method="POST" action="/logout" target="_top" style="margin:0; width:100%;">
-          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-          <button type="submit" class="logout-link" title="Sign out of Admin Session" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;display:flex;align-items:center;gap:8px;padding:0;" onclick="try{localStorage.removeItem('bp_is_admin');localStorage.removeItem('bp_admin_name');localStorage.removeItem('bp_admin_role');}catch(_){}">
-            <span>🚪</span> Logout
-          </button>
-        </form>
-      </div>
-    </aside>
-  <% } %>
-
-  <!-- Notification Center Panel & Overlay -->
-  <div class="notif-panel" id="notifPanel">
-    <div class="notif-panel-header">
-      <h3>🔔 Notifications</h3>
-      <div class="notif-panel-actions">
-        <a href="/my-reports" class="notif-settings-link" title="My Reported Bhajan Tickets"
-          style="text-decoration: none; font-size: 13px;">🚩</a>
-        <button class="notif-mark-all" id="notifMarkAllRead" title="Mark all as read">✓ All</button>
-        <a href="/notification-settings" class="notif-settings-link" title="Notification Settings">⚙️</a>
-        <button class="notif-close-btn" id="notifCloseBtn" aria-label="Close">✕</button>
-      </div>
-    </div>
-    <div class="notif-panel-body" id="notifPanelBody">
-      <div class="notif-loading">Loading...</div>
     </div>
   </div>
-  <div class="notif-overlay" id="notifOverlay"></div>
 
-  <!-- Persistent 5-Tab Viewport Stack -->
-  <main class="shell-viewport" id="shellViewport">
-    <% 
-      const activeTabKey = typeof initialTab !== 'undefined' && initialTab ? initialTab : 'home'; 
-      const initRoute = (typeof initialRoute !== 'undefined' && initialRoute) ? initialRoute : '';
+  <!-- Universal SSSO Print Footer -->
+  <%- include('partials/universal-print-footer') %>
 
-      function getTabSrc(tabKey, defaultPath) {
-        if (activeTabKey === tabKey && initRoute) {
-          return initRoute.includes('?') ? (initRoute + '&_embed=1') : (initRoute + '?_embed=1');
-        }
-        return defaultPath + '?_embed=1';
-      }
-    %>
-    <!-- Tab 0: Home -->
-    <iframe id="frame-home"
-      class="shell-frame <%= activeTabKey === 'home' ? 'active-frame' : '' %>"
-      <% if (activeTabKey === 'home') { %>src="<%= getTabSrc('home', '/') %>"<% } else { %>data-src="/?_embed=1"<% } %>
-      title="Home Dashboard" scrolling="yes"></iframe>
-
-    <!-- Tab 1: Singer Zone (Mark Bhajan) -->
-    <iframe id="frame-singer"
-      class="shell-frame <%= activeTabKey === 'singer' ? 'active-frame' : '' %>"
-      <% if (activeTabKey === 'singer') { %>src="<%= getTabSrc('singer', '/submit-form') %>"<% } else { %>data-src="/submit-form?_embed=1"<% } %>
-      title="Singer Zone" scrolling="yes"></iframe>
-
-    <!-- Tab 2: Songbook (Master Bank) -->
-    <iframe id="frame-bank"
-      class="shell-frame <%= activeTabKey === 'bank' ? 'active-frame' : '' %>"
-      <% if (activeTabKey === 'bank') { %>src="<%= getTabSrc('bank', '/master-bank') %>"<% } else { %>data-src="/master-bank?_embed=1"<% } %>
-      title="Master Songbook" scrolling="yes"></iframe>
-
-    <!-- Tab 3: Live Plan -->
-    <iframe id="frame-plan"
-      class="shell-frame <%= activeTabKey === 'plan' ? 'active-frame' : '' %>"
-      <% if (activeTabKey === 'plan') { %>src="<%= getTabSrc('plan', '/plan-view') %>"<% } else { %>data-src="/plan-view?_embed=1"<% } %>
-      title="Live Session Plan" scrolling="yes"></iframe>
-
-    <!-- Tab 4: My Hub -->
-    <iframe id="frame-hub"
-      class="shell-frame <%= activeTabKey === 'hub' ? 'active-frame' : '' %>"
-      <% if (activeTabKey === 'hub') { %>src="<%= getTabSrc('hub', '/my-hub') %>"<% } else { %>data-src="/my-hub?_embed=1"<% } %>
-      title="Singer Hub" scrolling="yes"></iframe>
-
-    <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
-      <!-- Tab 5: Admin Portal (When in Admin Mode) -->
-      <iframe id="frame-admin"
-        class="shell-frame <%= activeTabKey === 'admin' ? 'active-frame' : '' %>"
-        <% if (activeTabKey === 'admin') { %>src="<%= getTabSrc('admin', '/admin') %>"<% } else { %>data-src="/admin?_embed=1"<% } %>
-        title="Admin Portal" scrolling="yes"></iframe>
-    <% } %>
-  </main>
-
-  <!-- Native App Bottom Navigation Bar -->
-  <nav class="native-bottom-nav" id="nativeBottomNav" aria-label="Bottom Navigation">
-    <div class="native-nav-inner">
-      <!-- 1. Home -->
-      <button type="button"
-        class="nav-tab <%= (typeof initialTab === 'undefined' || initialTab === 'home' || !initialTab) ? 'active' : '' %>"
-        id="tab-btn-home" data-tab="home" onclick="switchTab('home')">
-        <div class="tab-icon-box">
-          <span class="tab-icon">🏠</span>
+  <!-- PWA Install Banner -->
+  <div class="pwa-install-overlay" id="pwaInstallOverlay">
+    <div class="pwa-install-banner">
+      <div class="pwa-banner-header">
+        <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" width="48" height="48" class="pwa-banner-icon">
+        <div class="pwa-banner-info">
+          <h3>Install Bhajan Planner</h3>
+          <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>
         </div>
-        <span class="tab-label">Home</span>
-      </button>
-
-      <!-- 2. Singer Zone -->
-      <button type="button"
-        class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'singer') ? 'active' : '' %>"
-        id="tab-btn-singer" data-tab="singer" onclick="switchTab('singer')">
-        <div class="tab-icon-box">
-          <span class="tab-icon">🎤</span>
-        </div>
-        <span class="tab-label">Singer Zone</span>
-      </button>
-
-      <!-- 3. Songbook -->
-      <button type="button"
-        class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'bank') ? 'active' : '' %>"
-        id="tab-btn-bank" data-tab="bank" onclick="switchTab('bank')">
-        <div class="tab-icon-box">
-          <span class="tab-icon">📖</span>
-        </div>
-        <span class="tab-label">Songbook</span>
-      </button>
-
-      <!-- 4. Live Plan -->
-      <button type="button"
-        class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'plan') ? 'active' : '' %>"
-        id="tab-btn-plan" data-tab="plan" onclick="switchTab('plan')">
-        <div class="tab-icon-box">
-          <span class="tab-icon">📊</span>
-        </div>
-        <span class="tab-label">Live Plan</span>
-      </button>
-
-      <!-- 5. My Hub -->
-      <button type="button"
-        class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'hub') ? 'active' : '' %>"
-        id="tab-btn-hub" data-tab="hub" onclick="switchTab('hub')">
-        <div class="tab-icon-box">
-          <span class="tab-icon">👤</span>
-          <span class="tab-badge-dot" id="hubBadgeDot" style="display:none;"></span>
-        </div>
-        <span class="tab-label">My Hub</span>
-      </button>
-
-      <% if (typeof currentAdmin !=='undefined' && currentAdmin) { %>
-        <!-- 6. Admin Mode -->
-        <button type="button"
-          class="nav-tab <%= (typeof initialTab !== 'undefined' && initialTab === 'admin') ? 'active' : '' %>"
-          id="tab-btn-admin" data-tab="admin" onclick="switchTab('admin')">
-          <div class="tab-icon-box">
-            <span class="tab-icon">👑</span>
-          </div>
-          <span class="tab-label">Admin</span>
-        </button>
-        <% } %>
+        <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>
+      </div>
+      <div class="pwa-banner-divider"></div>
+      <div class="pwa-banner-benefits">
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Faster loading</div>
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span> Works like a native app</div>
+        <div class="pwa-benefit"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home screen access</div>
+      </div>
+      <div class="pwa-banner-actions">
+        <button class="pwa-btn-install" id="pwaBtnInstall">Install App</button>
+        <button class="pwa-btn-dismiss" id="pwaBtnDismiss">Not Now</button>
+      </div>
+      <div class="pwa-manual-instructions" id="pwaManualInstructions" style="display:none">
+        <p id="pwaManualInstructionsText">Tap your browser menu (<strong>&vellip;</strong>) and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+      </div>
+      <div class="pwa-ios-instructions" id="pwaIosInstructions" style="display:none">
+        <p>Tap <strong>Share</strong> <span class="pwa-ios-share-icon">&uarr;</span> then <strong>"Add to Home Screen"</strong></p>
+      </div>
     </div>
-  </nav>
+  </div>
 
-  <!-- Session to LocalStorage Auto-Sync -->
+  <!-- Global Persistent Tanpura Shruti Drone (Never interrupted across tab switches) -->
+  <%- include('partials/tanpura-widget') %>
+
+  <!-- Unified Notification Panel & One-Time First-Visit Prompt -->
+  <%- include('partials/notification-bell') %>
+
+  <!-- What's New Modal -->
+  <%- include('partials/whats-new-modal') %>
+
+  <!-- Initial Shell Boot Configuration & Session Sync -->
   <script>
+    window.__SHELL_BOOT__ = {
+      initialTab: <%- JSON.stringify(activeTabKey) %>,
+      initialRoute: <%- JSON.stringify(initRoute) %>,
+      hasSinger: <%- Boolean(singerObj) %>,
+      hasAdmin: <%- Boolean(adminObj) %>
+    };
     try {
-      <% if (typeof currentSinger !== 'undefined' && currentSinger) { %>
-        localStorage.setItem('bp_singer_id', <%= JSON.stringify(currentSinger.id) %>);
-        localStorage.setItem('bp_singer_name', <%= JSON.stringify(currentSinger.name) %>);
-        localStorage.setItem('bp_singer_gender', <%= JSON.stringify(currentSinger.gender || '') %>);
-        localStorage.setItem('bp_singer_login_time', Date.now());
+      <% if (singerObj) { %>
+        localStorage.setItem('bp_singer_id', <%- JSON.stringify(String(singerObj.id)) %>);
+        localStorage.setItem('bp_singer_name', <%- JSON.stringify(singerObj.name || '') %>);
+        localStorage.setItem('bp_singer_gender', <%- JSON.stringify(singerObj.gender || '') %>);
+        localStorage.setItem('bp_singer_login_time', String(Date.now()));
+      <% } else { %>
+        localStorage.removeItem('bp_singer_id');
+        localStorage.removeItem('bp_singer_name');
+        localStorage.removeItem('bp_singer_gender');
       <% } %>
-      <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>
+      <% if (adminObj) { %>
         localStorage.setItem('bp_is_admin', 'true');
-        localStorage.setItem('bp_admin_name', <%= JSON.stringify(currentAdmin.display_name || currentAdmin.displayName || currentAdmin.username) %>);
-        localStorage.setItem('bp_admin_role', <%= JSON.stringify(currentAdmin.role || 'admin') %>);
+        localStorage.setItem('bp_admin_name', <%- JSON.stringify(adminObj.display_name || adminObj.displayName || adminObj.username || 'Admin') %>);
+        localStorage.setItem('bp_admin_role', <%- JSON.stringify(adminObj.role || 'admin') %>);
       <% } else { %>
         localStorage.removeItem('bp_is_admin');
         localStorage.removeItem('bp_admin_name');
         localStorage.removeItem('bp_admin_role');
       <% } %>
-    } catch (_) { }
+    } catch (_) {}
   </script>
 
-  <!-- PWA Script -->
-  <script src="/js/pwa.js"></script>
-
-  <!-- Shell Controller Script -->
-  <script>
-    (function () {
-      const TAB_KEYS = ['home', 'singer', 'bank', 'plan', 'hub' <% if (typeof currentAdmin !== 'undefined' && currentAdmin) { %>, 'admin' <% } %>];
-      const TAB_ROUTES = {
-        home: '/',
-        singer: '/submit-form',
-        bank: '/master-bank',
-        plan: '/plan-view',
-        hub: '/my-hub' <% if(typeof currentAdmin !== 'undefined' && currentAdmin) { %>,
-          admin: '/admin' <% } %>
-      };
-
-    function mapPathToTab(p) {
-      if (!p) return 'home';
-      var lower = p.toLowerCase();
-      if (lower.startsWith('/submit-form')) return 'singer';
-      if (lower.startsWith('/master-bank') || lower.startsWith('/bhajan/')) return 'bank';
-      if (lower.startsWith('/plan-view')) return 'plan';
-      if (lower.startsWith('/my-hub') || lower.startsWith('/singer/')) return 'hub';
-      if (lower.startsWith('/admin')) return 'admin';
-      return 'home';
-    }
-
-    let currentTab = '<%= typeof initialTab !== "undefined" && initialTab ? initialTab : "home" %>';
-    if (!TAB_KEYS.includes(currentTab)) currentTab = 'home';
-
-    // Synchronize child iframe URL with top-level browser address bar in real time
-    window.onFrameNavigated = function (cleanUrl, pathname) {
-      if (!cleanUrl) return;
-      try {
-        sessionStorage.setItem('bp_current_path', cleanUrl);
-      } catch (_) {}
-
-      // Keep address bar in sync with child page URL without reloading
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({ path: cleanUrl, tab: currentTab }, '', cleanUrl);
-      }
-
-      // If active frame navigates to another major section, sync bottom nav tab highlight
-      var expectedTab = mapPathToTab(pathname || cleanUrl);
-      if (expectedTab && expectedTab !== currentTab && TAB_KEYS.includes(expectedTab)) {
-        currentTab = expectedTab;
-        try { sessionStorage.setItem('bp_active_tab', expectedTab); } catch (_) {}
-        document.querySelectorAll('.nav-tab').forEach(function (btn) {
-          btn.classList.toggle('active', btn.getAttribute('data-tab') === expectedTab);
-        });
-      }
-    };
-
-    function handleSingerLoggedIn(singer, target, redirect) {
-      if (!singer) return;
-      try {
-        localStorage.setItem('bp_singer_id', singer.id);
-        localStorage.setItem('bp_singer_name', singer.name);
-        localStorage.setItem('bp_singer_gender', singer.gender || '');
-        localStorage.setItem('bp_singer_login_time', Date.now());
-      } catch (_) { }
-
-      var isHubOrigin = redirect && redirect.includes('/my-hub');
-
-      // 1. Synchronize My Hub frame
-      var hubFrame = document.getElementById('frame-hub');
-      if (hubFrame) {
-        if (!isHubOrigin) {
-          // Logged in from Singer Zone or elsewhere: sync My Hub iframe so it loads the authenticated dashboard
-          if (hubFrame.getAttribute('src')) {
-            hubFrame.src = '/my-hub?_embed=1';
-          } else {
-            hubFrame.setAttribute('data-src', '/my-hub?_embed=1');
-          }
-        }
-      }
-
-      // 2. Synchronize Singer Zone frame
-      var singerFrame = document.getElementById('frame-singer');
-      if (singerFrame) {
-        if (isHubOrigin) {
-          // Logged in from My Hub: sync Singer Zone iframe so it loads the authenticated submission form
-          if (singerFrame.getAttribute('src')) {
-            singerFrame.src = '/submit-form?_embed=1';
-          } else {
-            singerFrame.setAttribute('data-src', '/submit-form?_embed=1');
-          }
-        }
-      }
-
-      // 3. Update Home frame if loaded to refresh personalized greeting bar
-      var homeFrame = document.getElementById('frame-home');
-      if (homeFrame && homeFrame.getAttribute('src')) {
-        try {
-          if (homeFrame.contentWindow && typeof homeFrame.contentWindow.location.reload === 'function') {
-            homeFrame.contentWindow.location.reload();
-          }
-        } catch (_) {
-          homeFrame.src = '/?_embed=1';
-        }
-      }
-    }
-
-    // Listen for postMessage navigation notifications from iframes
-    window.addEventListener('message', function (e) {
-      if (!e.data) return;
-      if (e.data.type === 'bp_navigated' && e.data.path) {
-        window.onFrameNavigated(e.data.path, e.data.path.split('?')[0]);
-      }
-      if (e.data.type === 'bp_singer_logged_in') {
-        handleSingerLoggedIn(e.data.singer, e.data.target, e.data.redirect);
-      }
-    });
-
-    // Native Top Loading Progress Bar Controller
-    function startLoadProgress() {
-      const bar = document.getElementById('shellLoadBar');
-      if (!bar) return;
-      bar.classList.remove('is-done');
-      bar.classList.add('is-loading');
-    }
-
-    function finishLoadProgress() {
-      const bar = document.getElementById('shellLoadBar');
-      if (!bar) return;
-      bar.classList.remove('is-loading');
-      bar.classList.add('is-done');
-      setTimeout(function () {
-        bar.classList.remove('is-done');
-      }, 400);
-    }
-
-    // Switch active tab without reloading iframe, preserving form state & scroll
-    function switchTab(tabKey, targetUrl, skipHistory) {
-      if (!TAB_KEYS.includes(tabKey)) return;
-      const previousTab = currentTab;
-      currentTab = tabKey;
-      try { sessionStorage.setItem('bp_active_tab', tabKey); } catch (_) {}
-
-      TAB_KEYS.forEach(function (k) {
-        const frame = document.getElementById('frame-' + k);
-        const btn = document.getElementById('tab-btn-' + k);
-
-        if (k === tabKey) {
-          // If already on this tab and tapped again, pop back to root if navigated deep
-          if (previousTab === tabKey && !targetUrl) {
-            try {
-              if (frame && frame.contentWindow && frame.contentWindow.location.pathname !== TAB_ROUTES[tabKey]) {
-                startLoadProgress();
-                frame.src = TAB_ROUTES[tabKey] + '?_embed=1';
-              }
-            } catch (_) { }
-          }
-
-          frame.classList.add('active-frame');
-          btn.classList.add('active');
-          btn.setAttribute('aria-selected', 'true');
-
-          // Lazy load iframe source on first activation
-          const pendingSrc = frame.getAttribute('data-src');
-          if (pendingSrc && !frame.getAttribute('src')) {
-            startLoadProgress();
-            frame.setAttribute('src', pendingSrc);
-            frame.removeAttribute('data-src');
-          }
-
-          // Devotee session auto-recovery: If user is authenticated as singer, ensure Singer Zone and My Hub frames
-          // are never stuck displaying a stale login verification screen
-          let loggedInSingerId = null;
-          try { loggedInSingerId = localStorage.getItem('bp_singer_id'); } catch (_) {}
-
-          if (loggedInSingerId && (tabKey === 'hub' || tabKey === 'singer')) {
-            let isStuckOnLogin = false;
-            try {
-              if (frame && frame.contentWindow && frame.contentWindow.location) {
-                const locPath = (frame.contentWindow.location.pathname || '') + (frame.contentWindow.location.search || '');
-                if (locPath.includes('/login') || locPath.includes('/singer/login')) {
-                  isStuckOnLogin = true;
-                }
-              }
-            } catch (_) {}
-
-            const currentSrc = frame.getAttribute('src') || '';
-            if (currentSrc.includes('/singer/login') || currentSrc.includes('/login')) {
-              isStuckOnLogin = true;
-            }
-
-            if (isStuckOnLogin) {
-              startLoadProgress();
-              frame.src = TAB_ROUTES[tabKey] + '?_embed=1';
-            }
-          }
-
-          // If a specific deep URL with query was requested (e.g. from session click)
-          if (targetUrl) {
-            const currentSrc = frame.getAttribute('src') || '';
-            const sep = targetUrl.includes('?') ? '&' : '?';
-            const fullEmbedUrl = targetUrl.includes('_embed') ? targetUrl : (targetUrl + sep + '_embed=1');
-            if (currentSrc !== fullEmbedUrl) {
-              startLoadProgress();
-              frame.src = fullEmbedUrl;
-            }
-          }
-
-          // Sync rights dynamically inside the frame if it exposes syncAdminRights
-          try {
-            if (frame && frame.contentWindow && typeof frame.contentWindow.syncAdminRights === 'function') {
-              frame.contentWindow.syncAdminRights();
-            }
-          } catch (_) { }
-        } else {
-          frame.classList.remove('active-frame');
-          btn.classList.remove('active');
-          btn.setAttribute('aria-selected', 'false');
-        }
-      });
-
-      if (tabKey === 'admin') {
-        document.body.classList.add('in-admin-tab');
-      } else {
-        document.body.classList.remove('in-admin-tab');
-        if (typeof window.closeAdminShellSidebar === 'function') window.closeAdminShellSidebar();
-      }
-
-      // Sync browser URL smoothly with back/forward history support
-      const browserPath = (targetUrl && !targetUrl.includes('_embed')) ? targetUrl : TAB_ROUTES[tabKey];
-      try { sessionStorage.setItem('bp_current_path', browserPath); } catch (_) {}
-
-      if (!skipHistory && window.history && window.history.pushState) {
-        if (window.location.pathname + window.location.search !== browserPath) {
-          window.history.pushState({ tab: tabKey, path: browserPath }, '', browserPath);
-        }
-      } else if (window.history && window.history.replaceState) {
-        window.history.replaceState({ tab: tabKey, path: browserPath }, '', browserPath);
-      }
-    }
-
-    window.switchTab = switchTab;
-
-    window.toggleAdminShellSidebar = function() {
-      const sidebar = document.getElementById('adminShellSidebar');
-      const overlay = document.getElementById('adminShellSidebarOverlay');
-      if (!sidebar || !overlay) return;
-      const isOpen = sidebar.classList.contains('open');
-      if (isOpen) {
-        window.closeAdminShellSidebar();
-      } else {
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-        if (window.haptics && typeof window.haptics.light === 'function') window.haptics.light();
-      }
-    };
-
-    window.closeAdminShellSidebar = function() {
-      const sidebar = document.getElementById('adminShellSidebar');
-      const overlay = document.getElementById('adminShellSidebarOverlay');
-      if (sidebar) sidebar.classList.remove('open');
-      if (overlay) overlay.classList.remove('open');
-    };
-
-    function syncAdminSidebarActive(path) {
-      if (!path) path = window.location.pathname;
-      var clean = path.split('?')[0].toLowerCase();
-      var sidebar = document.getElementById('adminShellSidebar');
-      if (!sidebar) return;
-      sidebar.querySelectorAll('.sidebar-nav a').forEach(function(a) {
-        var onclickAttr = a.getAttribute('onclick') || '';
-        if (onclickAttr.toLowerCase().includes("'" + clean + "'") || onclickAttr.toLowerCase().includes('"' + clean + '"')) {
-          a.classList.add('active');
-        } else {
-          a.classList.remove('active');
-        }
-      });
-    }
-
-    window.navigateAdminSection = function(urlPath) {
-      window.closeAdminShellSidebar();
-      switchTab('admin', urlPath);
-      syncAdminSidebarActive(urlPath);
-      if (window.haptics && typeof window.haptics.medium === 'function') window.haptics.medium();
-    };
-
-    // Initialize in-admin-tab class if starting on admin tab
-    if (currentTab === 'admin') {
-      document.body.classList.add('in-admin-tab');
-      syncAdminSidebarActive(window.location.pathname);
-    }
-
-    // Handle Browser & Phone Hardware Back / Forward Buttons
-    window.addEventListener('popstate', function (e) {
-      const path = window.location.pathname;
-      const routeToTab = {
-        '/': 'home',
-        '/submit-form': 'singer',
-        '/master-bank': 'bank',
-        '/plan-view': 'plan',
-        '/my-hub': 'hub',
-        '/admin': 'admin'
-      };
-      const targetTab = (e.state && e.state.tab) || routeToTab[path] || 'home';
-      switchTab(targetTab, null, true);
-    });
-
-    // Listen for admin login/logout across storage/tabs and reload shell
-    window.addEventListener('storage', function (e) {
-      if (e.key === 'bp_is_admin' || e.key === 'bp_singer_id') {
-        window.location.reload();
-      }
-    });
-
-    // Auto-detect logged_out parameter in URL to clean storage and reload clean
-    if (window.location.search.includes('logged_out')) {
-      try {
-        localStorage.removeItem('bp_is_admin');
-        localStorage.removeItem('bp_admin_name');
-        localStorage.removeItem('bp_admin_role');
-      } catch (_) { }
-    }
-
-    // Allow child iframes to trigger tab switches (e.g. clicking "Mark Your Bhajan" on dashboard)
-    window.switchTabFromChild = function (tabKey, targetUrl) {
-      switchTab(tabKey, targetUrl);
-    };
-
-    // Native Theme Toggle Controller
-    const themeBtn = document.getElementById('shellThemeToggle');
-    function syncThemeToFrames(theme) {
-      document.querySelectorAll('.shell-frame').forEach(function (f) {
-        try {
-          if (f.contentDocument && f.contentDocument.documentElement) {
-            if (theme === 'dark') {
-              f.contentDocument.documentElement.setAttribute('data-theme', 'dark');
-            } else {
-              f.contentDocument.documentElement.removeAttribute('data-theme');
-            }
-          }
-        } catch (e) { }
-      });
-    }
-
-    if (themeBtn) {
-      themeBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const next = isDark ? 'light' : 'dark';
-        if (next === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          try { localStorage.setItem('bp-theme', 'dark'); } catch (_) { }
-        } else {
-          document.documentElement.removeAttribute('data-theme');
-          try { localStorage.setItem('bp-theme', 'light'); } catch (_) { }
-        }
-        syncThemeToFrames(next);
-      });
-    }
-
-    // Propagate theme and complete progress bar when iframes finish loading
-    document.querySelectorAll('.shell-frame').forEach(function (f) {
-      f.addEventListener('load', function () {
-        finishLoadProgress();
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        syncThemeToFrames(isDark ? 'dark' : 'light');
-      });
-    });
-
-    // Browser back/forward navigation support
-    window.addEventListener('popstate', function (e) {
-      if (e.state && e.state.tab) {
-        switchTab(e.state.tab, null, true);
-      } else {
-        const p = window.location.pathname;
-        let matched = 'home';
-        Object.keys(TAB_ROUTES).forEach(function (k) {
-          if (p === TAB_ROUTES[k] || (TAB_ROUTES[k] !== '/' && p.startsWith(TAB_ROUTES[k]))) {
-            matched = k;
-          }
-        });
-        switchTab(matched, null, true);
-      }
-    });
-
-    // Immediate address bar restoration if initialRoute was provided by server
-    const serverInitRoute = '<%= typeof initialRoute !== "undefined" && initialRoute ? initialRoute : "" %>';
-    if (serverInitRoute && serverInitRoute !== '/') {
-      try {
-        sessionStorage.setItem('bp_current_path', serverInitRoute);
-        sessionStorage.setItem('bp_active_tab', currentTab);
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({ path: serverInitRoute, tab: currentTab }, '', serverInitRoute);
-        }
-      } catch (_) {}
-    }
-
-    // Check initial URL parameters for tab
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    if (tabParam && TAB_KEYS.includes(tabParam) && !serverInitRoute) {
-      switchTab(tabParam, null, true);
-    }
-
-    // ── Device ID Management ──
-    function getDeviceId() {
-      let id = localStorage.getItem('bp_device_id');
-      if (!id) {
-        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-          id = 'dev_' + crypto.randomUUID();
-        } else {
-          id = 'dev_' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = (Math.random() * 16) | 0;
-            const v = c === 'x' ? r : (r & 0x3) | 0x8;
-            return v.toString(16);
-          });
-        }
-        try { localStorage.setItem('bp_device_id', id); } catch (_) { }
-      }
-      return id;
-    }
-
-    // ── Notification Center Panel Handler ──
-    const notifBtn = document.getElementById('shellNotifBtn');
-    const notifPanel = document.getElementById('notifPanel');
-    const notifOverlay = document.getElementById('notifOverlay');
-    const notifCloseBtn = document.getElementById('notifCloseBtn');
-    const notifMarkAllReadBtn = document.getElementById('notifMarkAllRead');
-    const notifBadge = document.getElementById('shellNotifBadge');
-
-    function autoMarkAllRead() {
-      const devId = getDeviceId();
-      // Immediately clear visual unread state
-      if (notifBadge) {
-        notifBadge.textContent = '';
-        notifBadge.classList.remove('has-unread');
-        notifBadge.style.display = 'none';
-      }
-      document.querySelectorAll('#notifPanelBody .notif-item.unread').forEach(function (el) {
-        el.classList.remove('unread');
-      });
-
-      fetch('/api/notifications/mark-all-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: devId })
-      }).catch(function () { });
-    }
-
-    function openPanel() {
-      if (notifPanel) notifPanel.classList.add('open');
-      if (notifOverlay) notifOverlay.classList.add('show');
-      loadNotifs();
-      autoMarkAllRead();
-    }
-
-    function closePanel() {
-      if (notifPanel) notifPanel.classList.remove('open');
-      if (notifOverlay) notifOverlay.classList.remove('show');
-      autoMarkAllRead();
-    }
-
-    function timeAgo(dateStr) {
-      if (!dateStr) return '';
-      const now = new Date();
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
-      const diffMs = now - date;
-      const diffMin = Math.floor(diffMs / 60000);
-      const diffHr = Math.floor(diffMs / 3600000);
-      const diffDay = Math.floor(diffMs / 86400000);
-
-      if (diffMin < 1) return 'Just now';
-      if (diffMin < 60) return diffMin + 'm ago';
-      if (diffHr < 24) return diffHr + 'h ago';
-      if (diffDay < 7) return diffDay + 'd ago';
-      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    }
-
-    function getTypeIcon(type) {
-      switch (type) {
-        case 'deadline_reminder': return '⏰';
-        case 'schedule_published': return '📖';
-        case 'partner_bhajan': return '🤝';
-        case 'bulletin_published': return '📢';
-        case 'custom': return '📢';
-        case 'test': return '🔔';
-        default: return '🔔';
-      }
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    function loadNotifs() {
-      const body = document.getElementById('notifPanelBody');
-      if (!body) return;
-      body.innerHTML = '<div class="notif-loading">Loading...</div>';
-      const devId = getDeviceId();
-      fetch('/api/notifications?device_id=' + encodeURIComponent(devId))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          const items = data.notifications || [];
-          if (items.length === 0) {
-            body.innerHTML = '<div class="notif-empty"><div class="notif-empty-icon">🔔</div><div class="notif-empty-text">No notifications yet.<br>You are all caught up!</div></div>';
-            return;
-          }
-          body.innerHTML = items.map(function (n) {
-            const isRead = n.isRead || n.is_read;
-            const title = n.title || 'Notification';
-            const text = n.body || n.message || '';
-            const time = timeAgo(n.createdAt || n.created_at);
-            const icon = getTypeIcon(n.type);
-            const link = n.link || '#';
-            return (
-              '<a class="notif-item ' + (isRead ? '' : 'unread') + '" href="' + escapeHtml(link) + '" data-id="' + n.id + '">' +
-              '<div class="notif-item-icon">' + icon + '</div>' +
-              '<div class="notif-item-content">' +
-              '<div class="notif-item-title">' + escapeHtml(title) + '</div>' +
-              '<div class="notif-item-body">' + escapeHtml(text) + '</div>' +
-              '<div class="notif-item-time">' + escapeHtml(time) + '</div>' +
-              '</div>' +
-              '</a>'
-            );
-          }).join('');
-        })
-        .catch(function () {
-          body.innerHTML = '<div class="notif-loading">Failed to load notifications</div>';
-        });
-    }
-
-    if (notifBtn) {
-      notifBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (notifPanel && notifPanel.classList.contains('open')) {
-          closePanel();
-        } else {
-          openPanel();
-        }
-      });
-    }
-    if (notifCloseBtn) notifCloseBtn.addEventListener('click', closePanel);
-    if (notifOverlay) notifOverlay.addEventListener('click', closePanel);
-    if (notifMarkAllReadBtn) notifMarkAllReadBtn.addEventListener('click', autoMarkAllRead);
-
-    // Poll unread badge count
-    function checkBadge() {
-      const devId = getDeviceId();
-      fetch('/api/notifications/unread-count?device_id=' + encodeURIComponent(devId))
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          const count = d.count || 0;
-          if (notifBadge) {
-            if (count > 0) {
-              notifBadge.textContent = count > 99 ? '99+' : count;
-              notifBadge.classList.add('has-unread');
-              notifBadge.style.display = 'flex';
-            } else {
-              notifBadge.textContent = '';
-              notifBadge.classList.remove('has-unread');
-              notifBadge.style.display = 'none';
-            }
-          }
-        })
-        .catch(function () { });
-    }
-    checkBadge();
-    setInterval(checkBadge, 60000);
-    }) ();
-  </script>
-
+  <!-- Global Persistent Engines (v6.5) -->
+  <script src="/js/haptics.js?v=6.5"></script>
+  <script src="/js/tanpura.js?v=6.5"></script>
+  <script src="/js/session-audio-player.js?v=6.5"></script>
+  <script src="/js/script.js?v=6.5"></script>
+  <script src="/js/native-ui.js?v=6.5"></script>
+  <script src="/js/pwa.js?v=6.5"></script>
+  <script src="/js/notifications.js?v=6.5"></script>
+  <script src="/js/app-shell-router.js?v=6.5"></script>
 </body>
 
 </html>

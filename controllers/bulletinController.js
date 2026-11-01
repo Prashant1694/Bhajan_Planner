@@ -24,12 +24,12 @@ function formatContent(content) {
   return sanitizeHtml(content).replace(/\n/g, "<br>");
 }
 
-// ── Category labels and icons ────────────────────────────────
+// Category labels and styling
 const CATEGORY_INFO = {
-  update: { label: "Samiti Update", icon: "🔄", color: "#4dabf7" },
-  event: { label: "Event", icon: "🎉", color: "#ff922b" },
-  announcement: { label: "Announcement", icon: "📢", color: "#e03131" },
-  bhajan_info: { label: "Bhajan Info", icon: "🎵", color: "#51cf66" }
+  update: { label: "Samiti Update", icon: "", color: "#0284c7" },
+  event: { label: "Event", icon: "", color: "#ea580c" },
+  announcement: { label: "Announcement", icon: "", color: "#4f46e5" },
+  bhajan_info: { label: "Bhajan Info", icon: "", color: "#16a34a" }
 };
 
 // ── Public: List published bulletins ─────────────────────────

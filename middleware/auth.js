@@ -3,14 +3,8 @@ const AdminUser = require("../models/AdminUser");
 const adminCache = new Map(); // adminId -> { user, cachedAt }
 const ADMIN_CACHE_TTL_MS = 60 * 1000; // 60-second in-memory cache
 const ADMIN_IDLE_MAX_MS = 12 * 60 * 60 * 1000; // 12-hour rolling idle timeout
+const ADMIN_SESSION_WRITE_THROTTLE_MS = 5 * 60 * 1000; // Throttle DB session writes to once per 5 min
 
-/**
- * Validates the current admin session:
- * 1. Enforces 12-hour rolling idle timeout.
- * 2. Re-loads the AdminUser record from DB (with 60-second caching).
- * 3. Immediately rejects if the admin was deleted or deactivated.
- * 4. Refreshes current role and metadata into session.
- */
 async function getValidatedAdmin(req) {
   if (!req.session || !req.session.adminUserId) return null;
   const adminId = Number(req.session.adminUserId);
@@ -48,16 +42,29 @@ async function getValidatedAdmin(req) {
     return null;
   }
 
-  // 4. Update rolling activity timestamp and refresh session details with fresh DB role
-  req.session.adminLastActive = now;
-  req.session.admin = {
-    id: adminRecord.id,
-    username: adminRecord.username,
-    displayName: adminRecord.display_name,
-    title: adminRecord.title,
-    role: adminRecord.role,
-    singer_id: adminRecord.singer_id
-  };
+  // 4. Throttle session mutations to avoid concurrent SQLite session write contention
+  const prevAdmin = req.session.admin;
+  const profileChanged =
+    !prevAdmin ||
+    prevAdmin.role !== adminRecord.role ||
+    prevAdmin.displayName !== adminRecord.display_name ||
+    prevAdmin.singer_id !== adminRecord.singer_id;
+  const needsActivityTouch =
+    !req.session.adminLastActive ||
+    now - req.session.adminLastActive >= ADMIN_SESSION_WRITE_THROTTLE_MS;
+
+  if (profileChanged || needsActivityTouch) {
+    req.session.adminLastActive = now;
+    req.session.admin = {
+      id: adminRecord.id,
+      username: adminRecord.username,
+      display_name: adminRecord.display_name,
+      displayName: adminRecord.display_name,
+      title: adminRecord.title,
+      role: adminRecord.role,
+      singer_id: adminRecord.singer_id
+    };
+  }
 
   return adminRecord;
 }

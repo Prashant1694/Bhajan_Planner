@@ -4,7 +4,7 @@
 
   <div style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <a href="/admin/diwali?year=<%= selectedEvent.year %>" class="btn-diwali btn-diwali-secondary">
-      ⬅️ Back to Diwali Dashboard
+      Back to Diwali Dashboard
     </a>
     <span class="badge-pill" style="font-size:13.5px; background:var(--diwali-gold-light); color:var(--diwali-amber); padding:6px 12px;">
       Target Event: <strong><%= selectedEvent.name %></strong>
@@ -12,7 +12,7 @@
   </div>
 
   <div class="card" style="margin-bottom:24px; padding:28px;">
-    <h2 style="color:var(--diwali-maroon); margin:0 0 10px 0;">📥 Import Diwali Audition Excel</h2>
+    <h2 style="color:var(--diwali-maroon); margin:0 0 10px 0;">Import Diwali Audition Excel</h2>
     <p style="color:var(--text-light); font-size:14px; margin-bottom:20px; line-height:1.5;">
       Upload an Excel file (.xlsx or .xls) from previous years (such as 2025) or standard template.
       The importer supports legacy sheet formats (Gents &amp; Ladies) with repeated singers.
@@ -22,14 +22,16 @@
     <!-- File Upload Form -->
     <div style="background:var(--bg); border:2px dashed var(--diwali-gold); border-radius:12px; padding:32px; text-align:center;">
       <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="onFileSelected(this)">
-      <div style="font-size:42px; margin-bottom:12px;">📑</div>
+      <div style="width:48px; height:48px; margin:0 auto 12px; background:#e0e7ff; color:var(--primary); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
       <h3 style="margin:0 0 8px 0; color:var(--text);" id="uploadPrompt">Drag &amp; Drop Excel file here or click to browse</h3>
       <p style="margin:0 0 16px 0; color:var(--text-light); font-size:13px;" id="selectedFileName">Supports .xlsx and .xls workbooks</p>
       <button type="button" class="btn-diwali btn-diwali-primary" onclick="document.getElementById('excelFileInput').click()">
         Select File
       </button>
       <button type="button" id="btnAnalyze" class="btn-diwali btn-diwali-maroon" style="display:none; margin-left:10px;" onclick="uploadAndPreview()">
-        🔍 Analyze &amp; Preview
+        Analyze &amp; Preview
       </button>
     </div>
   </div>
@@ -43,7 +45,7 @@
 
     <!-- Warning / Alert if Missing Partners -->
     <div id="missingPartnersAlert" style="display:none; margin-bottom:20px; padding:16px 20px; border-radius:10px; background:#fff9db; border:1px solid #ffe066; color:#d9480f; font-size:14px;">
-      ⚠️ <strong>Missing Partner Names Detected:</strong> The uploaded file did not contain a Partner column for some or all rows. Because both Lead and Partner are mandatory in the new database, please fill in the Partner names in the table below before confirming the import.
+      <strong>Missing Partner Names Detected:</strong> The uploaded file did not contain a Partner column for some or all rows. Because both Lead and Partner are mandatory in the new database, please fill in the Partner names in the table below before confirming the import.
     </div>
 
     <!-- Review Table -->
@@ -80,7 +82,7 @@
         Cancel
       </button>
       <button type="button" id="btnConfirmImport" class="btn-diwali btn-diwali-primary" style="padding:12px 28px; font-size:16px;" onclick="commitConfirmedImport()">
-        ✅ Confirm Import
+        Confirm Import
       </button>
     </div>
   </div>
@@ -120,7 +122,7 @@ async function uploadAndPreview() {
     if (!data.success) {
       alert("Error: " + data.error);
       btn.disabled = false;
-      btn.textContent = "🔍 Analyze & Preview";
+      btn.textContent = "Analyze & Preview";
       return;
     }
 
@@ -129,7 +131,7 @@ async function uploadAndPreview() {
   } catch (err) {
     alert("Network or parse error: " + err.message);
     btn.disabled = false;
-    btn.textContent = "🔍 Analyze & Preview";
+    btn.textContent = "Analyze & Preview";
   }
 }
 
@@ -203,7 +205,7 @@ function renderPreview(data) {
       </td>
       <td>${bhajansHtml}</td>
       <td id="status-cell-${idx}">
-        ${isPartnerMissing ? '<span style="color:var(--danger); font-weight:700; font-size:12px;">⚠️ Missing</span>' : '<span style="color:var(--success); font-weight:700; font-size:12px;">✅ Ready</span>'}
+        ${isPartnerMissing ? '<span style="color:var(--danger); font-weight:700; font-size:12px;">Missing</span>' : '<span style="color:var(--success); font-weight:700; font-size:12px;">Ready</span>'}
       </td>
     `;
 
@@ -234,13 +236,13 @@ function checkRowStatus(idx) {
   const input = document.querySelector(`.preview-partner-input[data-idx="${idx}"]`);
 
   if (!p.lead_name || !p.partner_name) {
-    if (cell) cell.innerHTML = '<span style="color:var(--danger); font-weight:700; font-size:12px;">⚠️ Missing</span>';
+    if (cell) cell.innerHTML = '<span style="color:var(--danger); font-weight:700; font-size:12px;">Missing</span>';
     if (input) {
       input.style.borderColor = "var(--danger)";
       input.style.background = "#fff5f5";
     }
   } else {
-    if (cell) cell.innerHTML = '<span style="color:var(--success); font-weight:700; font-size:12px;">✅ Ready</span>';
+    if (cell) cell.innerHTML = '<span style="color:var(--success); font-weight:700; font-size:12px;">Ready</span>';
     if (input) {
       input.style.borderColor = "var(--diwali-border)";
       input.style.background = "var(--bg)";
@@ -276,7 +278,7 @@ async function commitConfirmedImport() {
     if (!data.success) {
       alert("Error committing import: " + data.error);
       btn.disabled = false;
-      btn.textContent = "✅ Confirm Import";
+      btn.textContent = "Confirm Import";
       return;
     }
 
@@ -285,7 +287,7 @@ async function commitConfirmedImport() {
   } catch (err) {
     alert("Network error: " + err.message);
     btn.disabled = false;
-    btn.textContent = "✅ Confirm Import";
+    btn.textContent = "Confirm Import";
   }
 }
 

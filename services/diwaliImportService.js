@@ -327,7 +327,19 @@ async function commitImport(eventId, confirmedParticipants) {
       let order = 1;
       for (const b of validBhajans) {
         const title = (b.bhajan_title || "").trim();
-        let masterId = b.master_bhajan_id ? parseInt(b.master_bhajan_id, 10) : null;
+        let masterId = null;
+        if (
+          b.master_bhajan_id &&
+          !isNaN(parseInt(b.master_bhajan_id, 10)) &&
+          parseInt(b.master_bhajan_id, 10) > 0
+        ) {
+          const parsed = parseInt(b.master_bhajan_id, 10);
+          const check = await MasterBhajan.findByPk(parsed, {
+            transaction: t,
+            attributes: ["id"]
+          });
+          if (check) masterId = check.id;
+        }
 
         if (!masterId && title) {
           const found = await MasterBhajan.findOne({
@@ -335,7 +347,8 @@ async function commitImport(eventId, confirmedParticipants) {
               sequelize.fn("LOWER", sequelize.col("title")),
               title.toLowerCase()
             ),
-            transaction: t
+            transaction: t,
+            attributes: ["id"]
           });
           if (found) masterId = found.id;
         }

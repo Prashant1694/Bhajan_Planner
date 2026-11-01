@@ -1,31 +1,31 @@
 <div class="container container-xl">
   <div class="header">
-    <h1>📥 Import Past Sessions</h1>
+    <h1>Import Past Sessions</h1>
     <p>Bulk add historical bhajan records into the database</p>
   </div>
   
   <div style="margin-bottom: 24px; display:flex; gap:10px; flex-wrap:wrap;">
-    <a href="/admin" class="button secondary">🏠 Dashboard</a>
-    <a href="/database" class="button secondary">🏛️ View Archives</a>
-    <a href="/plan-view" class="button secondary">📅 View Plans</a>
+    <a href="/admin" class="button secondary">Dashboard</a>
+    <a href="/database" class="button secondary">View Archives</a>
+    <a href="/plan-view" class="button secondary">View Plans</a>
   </div>
 
   <% if (resultInfo) { %>
     <% if (resultInfo.error) { %>
       <div style="background:#ffebee; border:1px solid #ffcdd2; color:#c62828; padding:16px; border-radius:12px; margin-bottom:24px;">
-        <strong>❌ Error importing sessions:</strong> <%= resultInfo.error %>
+        <strong>Error importing sessions:</strong> <%= resultInfo.error %>
       </div>
     <% } else { %>
       <div style="background:#e8f5e9; border:1px solid #c8e6c9; color:#2e7d32; padding:18px; border-radius:12px; margin-bottom:24px;">
-        <h3 style="margin:0 0 8px 0; color:#1b5e20;">🎉 Import Successful!</h3>
+        <h3 style="margin:0 0 8px 0; color:#1b5e20;">Import Successful</h3>
         <p style="margin:0 0 10px 0;">Successfully processed <strong><%= resultInfo.totalSessions %> session(s)</strong> and <strong><%= resultInfo.totalBhajans %> bhajan(s)</strong>.</p>
         <ul style="margin:0; padding-left:20px; font-size:14px;">
           <% (resultInfo.sessionSummary || []).forEach(s => { %>
-            <li>📅 <strong><%= s.date %></strong>: <%= s.count %> bhajans</li>
+            <li><strong><%= s.date %></strong>: <%= s.count %> bhajans</li>
           <% }) %>
         </ul>
         <div style="margin-top:14px;">
-          <a href="/database" class="button" style="padding:6px 16px; font-size:13px; text-decoration:none;">🏛️ View in Archives</a>
+          <a href="/database" class="button" style="padding:6px 16px; font-size:13px; text-decoration:none;">View in Archives</a>
         </div>
       </div>
     <% } %>
@@ -35,30 +35,32 @@
     <form action="/admin/import-sessions" method="POST">
       <div style="margin-bottom:16px;">
         <label style="display:block; font-weight:700; font-size:15px; margin-bottom:8px; color:var(--ink);">
-          📋 Paste Session Text / WhatsApp Plan Data below:
+          Paste Session Text / WhatsApp Plan Data below:
         </label>
-        <textarea name="raw_text" required rows="14" placeholder="Paste your past session text here...&#10;&#10;Example 1:&#10;23/07/2026&#10;1. Gajanana Gajanana, Prathama Poojana — A#&#10;2. Jaya Kailash Patey Shiva Shankara — C#&#10;&#10;Example 2:&#10;Bhajan Plan – 2026-07-30&#10;1) Nisarg Chaudhari – [Ganesha] Prathama Vandana Gowri Nandana – Scale: 2.5P, Speed: Slow" class="filter-input" style="width:100%; padding:14px; font-family:monospace; font-size:13.5px; line-height:1.5; resize:vertical; box-sizing:border-box;"></textarea>
+        <textarea name="raw_text" required rows="14" placeholder="Paste your session export or plan text here...&#10;&#10;Example (WhatsApp Session Export):&#10;*SRI SATHYA SAI SEVA ORGANISATION*&#10;*BHAJAN PROGRAM – Thursday, Oct 22, 2026*&#10;Total Bhajans: 2&#10;--------------------------------------------------&#10;&#10;1. [Ganesha] Tum Ho Vighna Vinasha Ganesha&#10;   Singer: Prashant Bhatt (with Nisarg Chaudhry)&#10;   Pitch: F# | Tempo: Medium&#10;&#10;2. [Mata] Omkara Roopini Janani Ma&#10;   Singer: Gopinadhan Kalon&#10;   Pitch: 1P | Tempo: Medium&#10;&#10;--------------------------------------------------&#10;Sai Ram to all Accompanists &amp; Devotees&#10;Live Plan: https://bhajanplanner.typhoone.xyz/plan-view?session_date=2026-10-22" class="filter-input" style="width:100%; padding:14px; font-family:monospace; font-size:13.5px; line-height:1.5; resize:vertical; box-sizing:border-box;"></textarea>
       </div>
 
       <button type="submit" class="button button-success" style="padding:12px 28px; font-weight:700; font-size:15px; cursor:pointer;">
-        🚀 Import Sessions to Database
+        Import Sessions to Database
       </button>
     </form>
   </div>
 
   <div class="card" style="padding:20px;">
-    <h3 style="margin-top:0; color:var(--ink); font-size:16px;">💡 Supported Format Examples</h3>
+    <h3 style="margin-top:0; color:var(--ink); font-size:16px;">Supported Format Examples</h3>
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:12px;">
       <div style="background:var(--surface-raised, var(--paper)); padding:14px; border-radius:8px; border:1px solid var(--border);">
-        <strong style="color:var(--saffron);">Format 1: Plain Text</strong>
-        <pre style="margin:8px 0 0 0; font-size:12px; color:var(--ink-soft); white-space:pre-wrap;">23/07/2026
-1. Bhajan Title — Scale
-2. Singer Name: Bhajan Title — Scale</pre>
+        <strong style="color:var(--saffron);">Format 1: WhatsApp Session Export (Clean or Emoji)</strong>
+        <pre style="margin:8px 0 0 0; font-size:12px; color:var(--ink-soft); white-space:pre-wrap;">*BHAJAN PROGRAM – Oct 22, 2026*
+1. [Ganesha] Tum Ho Vighna Vinasha Ganesha
+   Singer: Prashant Bhatt (with Nisarg)
+   Pitch: F# | Tempo: Medium</pre>
       </div>
       <div style="background:var(--surface-raised, var(--paper)); padding:14px; border-radius:8px; border:1px solid var(--border);">
-        <strong style="color:var(--saffron);">Format 2: WhatsApp Plan View</strong>
-        <pre style="margin:8px 0 0 0; font-size:12px; color:var(--ink-soft); white-space:pre-wrap;">Bhajan Plan – 2026-07-30
-1) Singer (Partner) – [Deity] Title – Scale: 2.5P, Speed: Slow</pre>
+        <strong style="color:var(--saffron);">Format 2: Single-Line &amp; Legacy Text</strong>
+        <pre style="margin:8px 0 0 0; font-size:12px; color:var(--ink-soft); white-space:pre-wrap;">2026-10-22
+1) Nisarg – [Ganesha] Title – Scale: 2P, Speed: Medium
+2. Singer Name: Bhajan Title — F#</pre>
       </div>
     </div>
   </div>

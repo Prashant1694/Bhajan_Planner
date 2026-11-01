@@ -2,7 +2,7 @@
   {
     "id": 37,
     "title": "(Namo) Devi Durga Janani Devi Amba Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -93,7 +93,7 @@
   {
     "id": 38,
     "title": "Abhaya Pradayini Ananda Roopini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -171,7 +171,7 @@
   {
     "id": 1905,
     "title": "Allah Allah Karo Pukar",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -184,7 +184,7 @@
   {
     "id": 1906,
     "title": "Allah Allah Sai Baba",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -197,7 +197,7 @@
   {
     "id": 1907,
     "title": "Allah Bhajo Maulah Bhajo Hey Allah Sai Bhagawan",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -210,7 +210,7 @@
   {
     "id": 486,
     "title": "Allah Eshwar Ek Hi Naam",
-    "deity": "Sarva Dharma, Guru",
+    "deity": "SarvaDharma, Guru",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -224,7 +224,7 @@
   {
     "id": 1910,
     "title": "Allah Ho Akbar, Allah Ho Akbar, Allah Ho Akbar",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -237,7 +237,7 @@
   {
     "id": 1913,
     "title": "Allah Ho Tum Eshwar Bhi Tum Mahavir Nanak Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -250,7 +250,7 @@
   {
     "id": 1915,
     "title": "Allah Naam Bhajo Bhajorey Bhajo Maulah Naam Bhajo Bhajorey Bhajo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -263,7 +263,7 @@
   {
     "id": 1918,
     "title": "Allah Sai Bolo Maulah Sai Bolo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -276,7 +276,7 @@
   {
     "id": 487,
     "title": "Allah Sai Maulah Sai",
-    "deity": "Sarva Dharma, Guru",
+    "deity": "SarvaDharma, Guru",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -289,7 +289,7 @@
   {
     "id": 1920,
     "title": "Allah Tum Ho Eshwar Tum Ho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -302,7 +302,7 @@
   {
     "id": 300,
     "title": "Amba Bhavani Shiva Shambhu Kumara",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata, Shiva",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -315,7 +315,7 @@
   {
     "id": 45,
     "title": "Amba Bhavani Tribhuvana Mohini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -328,7 +328,7 @@
   {
     "id": 46,
     "title": "Amba Manda Haasa Vadani Manohari Sai Jagat Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -341,7 +341,7 @@
   {
     "id": 47,
     "title": "Amba Parameshwari Akhilandeshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -354,7 +354,7 @@
   {
     "id": 48,
     "title": "Amba Shankari Parameshwari Shashi Shekari Amba",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -393,7 +393,7 @@
   {
     "id": 1217,
     "title": "Ananda Ram Ananda Shyam",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -744,7 +744,7 @@
   {
     "id": 1575,
     "title": "Bala Gopal Jai Jai Sai Shyam",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -783,7 +783,7 @@
   {
     "id": 1922,
     "title": "Beda Paar Karo Merey Sai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -796,7 +796,7 @@
   {
     "id": 1923,
     "title": "Bhagawan Bhagawan Darshan Do Bhagawan",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -822,7 +822,7 @@
   {
     "id": 62,
     "title": "Bhairavi Ambe Bhavani (Amba)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -952,7 +952,7 @@
   {
     "id": 2812,
     "title": "Bhaja Ranga Harey Vittala",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "Medium",
     "language": "Sanskrit / Hindi",
@@ -1084,7 +1084,7 @@
   {
     "id": 683,
     "title": "Bhajo Sita Ram Bhajo Radhey Shyam",
-    "deity": "Krishna",
+    "deity": "Krishna, Rama",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -1110,7 +1110,7 @@
   {
     "id": 63,
     "title": "Bhajorey Bhajo Sada Durga Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -1149,7 +1149,7 @@
   {
     "id": 1925,
     "title": "Bhajorey Manasa Sai Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1201,7 +1201,7 @@
   {
     "id": 1926,
     "title": "Bhakthon Ne Hai Aaj Pukara",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1227,7 +1227,7 @@
   {
     "id": 2007,
     "title": "Bhasma Vibhushitha Bhavani Shankara",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1253,7 +1253,7 @@
   {
     "id": 2010,
     "title": "Bhava Nasha Puttaparthi Pureesha",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -1266,7 +1266,7 @@
   {
     "id": 1927,
     "title": "Bhava Sagar Se Paar Utharo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -1279,7 +1279,7 @@
   {
     "id": 305,
     "title": "Bhavani Nandana Bala Gajanana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1292,7 +1292,7 @@
   {
     "id": 2011,
     "title": "Bhola Bhandari Baba Shiva Shiva Shiva Sai Baba",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1344,7 +1344,7 @@
   {
     "id": 1928,
     "title": "Bhuvana Bandhava Sai Bhagawan",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1383,7 +1383,7 @@
   {
     "id": 1929,
     "title": "Bolo Jai Sai Ram Bolo Jai Sai Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1423,7 +1423,7 @@
   {
     "id": 2020,
     "title": "Brahma Vishnu Maheshwara Sayeeshwara (Hey)",
-    "deity": "Shiva",
+    "deity": "Shiva, Narayana",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -1462,7 +1462,7 @@
   {
     "id": 499,
     "title": "Buddha Mahavir Yesu Sai",
-    "deity": "Sarva Dharma, Guru",
+    "deity": "SarvaDharma, Guru",
     "level": "intermediate",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -1748,7 +1748,7 @@
   {
     "id": 2345,
     "title": "Daya Karo Hari Narayana Kripa Karo Hey Jagavandana",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -1840,7 +1840,7 @@
   {
     "id": 74,
     "title": "Daya Sudha Barsao Mata Jaya Jaya Jaya Ambe",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -1866,7 +1866,7 @@
   {
     "id": 1626,
     "title": "Dayamaya Sri Rama Harey",
-    "deity": "Sai",
+    "deity": "Sai, Rama",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -1905,7 +1905,7 @@
   {
     "id": 2929,
     "title": "Deena Bandhu Vittala Jai Karuna Sindho Vittala Jai",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -1984,7 +1984,7 @@
   {
     "id": 75,
     "title": "Deena Janavani Vara Dayini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2023,7 +2023,7 @@
   {
     "id": 76,
     "title": "Dehi Sharanam Simha Vahini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -2075,7 +2075,7 @@
   {
     "id": 77,
     "title": "Devi Bhavani Jagat Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -2088,7 +2088,7 @@
   {
     "id": 78,
     "title": "Devi Bhavani Ma Jaya Sai Bhavani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2101,7 +2101,7 @@
   {
     "id": 81,
     "title": "Devi Jagat Janani Sai Mata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -2114,7 +2114,7 @@
   {
     "id": 85,
     "title": "Devi Sai Ma Devi Saraswathi Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -2166,7 +2166,7 @@
   {
     "id": 87,
     "title": "Durga Amba Bhavani Jai Jai Durga Amba Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -2179,7 +2179,7 @@
   {
     "id": 88,
     "title": "Durga Bhavani Ma Jaya Jaya Sai Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2192,7 +2192,7 @@
   {
     "id": 93,
     "title": "Durge Durge Durge Jai Jai Ma (2)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2218,7 +2218,7 @@
   {
     "id": 1930,
     "title": "Eshwar Allah Ek Tum Hi Ho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -2231,7 +2231,7 @@
   {
     "id": 1931,
     "title": "Eshwar Allah Terey Naam Sai Terey Naam",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2257,7 +2257,7 @@
   {
     "id": 1646,
     "title": "Eshwaramba Priya Nandana Hey Sai Rama",
-    "deity": "Sai",
+    "deity": "Sai, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2296,7 +2296,7 @@
   {
     "id": 1648,
     "title": "Eshwaramba Priya Tanaya Sai Narayana",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -2336,7 +2336,7 @@
   {
     "id": 1649,
     "title": "Eshwari Nandana Sai Gopala",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -2349,7 +2349,7 @@
   {
     "id": 94,
     "title": "Gaana Priyey Sai Karunamayi",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -2388,7 +2388,7 @@
   {
     "id": 2840,
     "title": "Gajanana Hey Gajanana Gowri Nandana Gajanana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -2441,7 +2441,7 @@
   {
     "id": 2766,
     "title": "Gajavadana Gajanana Gowri Tanaya Gajanana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -2585,7 +2585,7 @@
   {
     "id": 2045,
     "title": "Ganga Jatadhara Gowri Shankara Girija Mano Ramana",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -2598,7 +2598,7 @@
   {
     "id": 2047,
     "title": "Gangadhara Gowri Mahesha",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -2624,7 +2624,7 @@
   {
     "id": 2049,
     "title": "Gangadhara Hara Gowri Shiva",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -2715,7 +2715,7 @@
   {
     "id": 96,
     "title": "Giri Raja Tanaya Jaya Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3003,7 +3003,7 @@
   {
     "id": 1933,
     "title": "Govinda Bolo Gopala Bolo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Krishna",
     "level": "intermediate",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -3016,7 +3016,7 @@
   {
     "id": 766,
     "title": "Govinda Gopal Jaya Narayana Gopal",
-    "deity": "Krishna",
+    "deity": "Krishna, Narayana",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -3188,7 +3188,7 @@
   {
     "id": 2560,
     "title": "Govinda Krishna Vittala",
-    "deity": "Vitthala",
+    "deity": "Vitthala, Krishna",
     "level": "",
     "tempo": "",
     "language": "",
@@ -3307,7 +3307,7 @@
   {
     "id": 1383,
     "title": "Govinda Rama Jai Jai Gopala Rama",
-    "deity": "Rama",
+    "deity": "Rama, Krishna",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -3359,7 +3359,7 @@
   {
     "id": 347,
     "title": "Gowri Ganesh Uma Ganesh",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "simple",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -3372,7 +3372,7 @@
   {
     "id": 348,
     "title": "Gowri Ganesha Vinayaka (3)",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3385,7 +3385,7 @@
   {
     "id": 2055,
     "title": "Gowri Manohara Hey Nataraja",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -3398,7 +3398,7 @@
   {
     "id": 349,
     "title": "Gowri Nandana Bala Gajanana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3411,7 +3411,7 @@
   {
     "id": 350,
     "title": "Gowri Nandana Gajanana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -3424,7 +3424,7 @@
   {
     "id": 351,
     "title": "Gowri Nandana Gajanana (Hey)",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3437,7 +3437,7 @@
   {
     "id": 2056,
     "title": "Gowri Nathaya Vishwanathaya",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -3450,7 +3450,7 @@
   {
     "id": 354,
     "title": "Gowri Suthaya Om Namah Om",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3463,7 +3463,7 @@
   {
     "id": 2059,
     "title": "Gowri Vara Gangadhara",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3489,7 +3489,7 @@
   {
     "id": 516,
     "title": "Guru Brahma Guru Vishnu Guru Devo Maheshwara",
-    "deity": "Guru",
+    "deity": "Guru, Narayana",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -3502,7 +3502,7 @@
   {
     "id": 520,
     "title": "Guru Deva Guru Govinda",
-    "deity": "Guru",
+    "deity": "Guru, Krishna",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -3567,7 +3567,7 @@
   {
     "id": 1934,
     "title": "Guru Nanak Ji Ki Jai Jai Kaar",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -3593,7 +3593,7 @@
   {
     "id": 799,
     "title": "Guruvayurpura Sri Hari Krishna Narayana Gopal",
-    "deity": "Krishna",
+    "deity": "Krishna, Narayana",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3645,7 +3645,7 @@
   {
     "id": 2064,
     "title": "Hara Hara Hara Hara Namami Shankara Bhaja Mana Sai Ram",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -3697,7 +3697,7 @@
   {
     "id": 2071,
     "title": "Hara Shiva Shankara Bholey Nath Shirdi Pureeshwara Sai Nath",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -3736,7 +3736,7 @@
   {
     "id": 801,
     "title": "Harey Krishna Harey Ram Sai Ram Sai Ram",
-    "deity": "Krishna",
+    "deity": "Krishna, Sai",
     "level": "simple",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -3749,7 +3749,7 @@
   {
     "id": 1935,
     "title": "Harey Murarey Sai Ram Harey Murarey Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3827,7 +3827,7 @@
   {
     "id": 1236,
     "title": "Hari Bolo Harey Rama Naam",
-    "deity": "Narayana",
+    "deity": "Narayana, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -3853,7 +3853,7 @@
   {
     "id": 1239,
     "title": "Hari Hari Bhajo Mana Sai Ram Bhajorey",
-    "deity": "Narayana",
+    "deity": "Narayana, Sai",
     "level": "intermediate",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -3866,7 +3866,7 @@
   {
     "id": 1659,
     "title": "Hari Hari Govinda Narayana",
-    "deity": "Sai",
+    "deity": "Sai, Krishna, Narayana",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -3918,7 +3918,7 @@
   {
     "id": 2537,
     "title": "Hari Hari Narayana... Hari Govinda Narayana",
-    "deity": "Krishna",
+    "deity": "Krishna, Narayana",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -4089,7 +4089,7 @@
   {
     "id": 540,
     "title": "Hari Om Namo Shiva Shakthi Namo",
-    "deity": "Guru",
+    "deity": "Guru, Shiva",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4154,7 +4154,7 @@
   {
     "id": 1664,
     "title": "Hey Brahma Hey Vishnu",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -4181,7 +4181,7 @@
   {
     "id": 102,
     "title": "Hey Chinmayi Sai Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -4365,7 +4365,7 @@
   {
     "id": 1937,
     "title": "Hey Nirakari Allah Hey Avatari Prabhu Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4378,7 +4378,7 @@
   {
     "id": 542,
     "title": "Hey Parthi Pureesha Prashanthi Vasa Sadguru Sai Ram",
-    "deity": "Guru",
+    "deity": "Guru, Sai",
     "level": "simple",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -4444,7 +4444,7 @@
   {
     "id": 8,
     "title": "Hey Rama Dootha Hey Rama Bhaktha Hey Rama Daasa Namo Namo",
-    "deity": "Hanuman",
+    "deity": "Hanuman, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4457,7 +4457,7 @@
   {
     "id": 842,
     "title": "Hey Rama Narayana",
-    "deity": "Rama, Krishna",
+    "deity": "Rama, Krishna, Narayana",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4483,7 +4483,7 @@
   {
     "id": 1260,
     "title": "Hey Sai Ranga Hey Panduranga",
-    "deity": "Narayana",
+    "deity": "Narayana, Vitthala",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -4509,7 +4509,7 @@
   {
     "id": 359,
     "title": "Hey Shiva Nandana Jaya Jaga Vandana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Shiva",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -4548,7 +4548,7 @@
   {
     "id": 105,
     "title": "Hey Vishwa Janani Sri Sai Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -4574,7 +4574,7 @@
   {
     "id": 2089,
     "title": "Hey Vishwanath Hey Gowri Nath Hey Sai Nath Bhagawan",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata, Sai",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -4600,7 +4600,7 @@
   {
     "id": 111,
     "title": "Jagadambe Devi Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -4626,7 +4626,7 @@
   {
     "id": 1938,
     "title": "Jagadeesha Harey Jaya Ho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4652,7 +4652,7 @@
   {
     "id": 112,
     "title": "Jagadeeshwari Daya Karo Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4665,7 +4665,7 @@
   {
     "id": 113,
     "title": "Jagadeeshwari Jaya Mata Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -4678,7 +4678,7 @@
   {
     "id": 116,
     "title": "Jagadodharini Mata Durga Jagadodharini Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -4691,7 +4691,7 @@
   {
     "id": 543,
     "title": "Jagamey Sarvam Vishnu Mayam",
-    "deity": "Sai, Guru",
+    "deity": "Sai, Guru, Narayana",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -4704,7 +4704,7 @@
   {
     "id": 119,
     "title": "Jaganmatey Jagat Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -4717,7 +4717,7 @@
   {
     "id": 122,
     "title": "Jagat Janani Ma Ambe Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "",
     "tempo": "",
     "language": "sanskrit / hindi",
@@ -4730,7 +4730,7 @@
   {
     "id": 123,
     "title": "Jagat Janani Shiva Sai Shankari",
-    "deity": "Devi",
+    "deity": "Mata, Shiva",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -4795,7 +4795,7 @@
   {
     "id": 125,
     "title": "Jai Durga Lakshmi Saraswathi Sai Jaganmata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4873,7 +4873,7 @@
   {
     "id": 128,
     "title": "Jai Jai Bhavani Ma Ambe Bhavani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -4886,7 +4886,7 @@
   {
     "id": 129,
     "title": "Jai Jai Durge Jai Bhavani Sambhavi Shankari Jai Bhavani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -4912,7 +4912,7 @@
   {
     "id": 545,
     "title": "Jai Jai Guru Deva Sri Sai Mahadeva (3)",
-    "deity": "Guru",
+    "deity": "Guru, Shiva",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -4990,7 +4990,7 @@
   {
     "id": 132,
     "title": "Jai Jai Janani Sai Janani Ambe Bhavani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5016,7 +5016,7 @@
   {
     "id": 135,
     "title": "Jai Jai Sai Ma Hey Sai Saraswathi Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5029,7 +5029,7 @@
   {
     "id": 136,
     "title": "Jai Jai Vaishnavi Devi Ma Jai Jai Vaishnavi Devi Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "simple",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -5055,7 +5055,7 @@
   {
     "id": 138,
     "title": "Jai Santoshi Ma Jai Jai Sai Ma (3)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -5095,7 +5095,7 @@
   {
     "id": 141,
     "title": "Janani Janani Sathya Sai Shubha Janani",
-    "deity": "Devi",
+    "deity": "Mata, Sai",
     "level": "simple",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -5108,7 +5108,7 @@
   {
     "id": 142,
     "title": "Janani Kripa Karo Ambe",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -5121,7 +5121,7 @@
   {
     "id": 143,
     "title": "Janani Ma Sai Janani Ma (3)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5134,7 +5134,7 @@
   {
     "id": 144,
     "title": "Janani Sai Devi Dayamayi",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5173,7 +5173,7 @@
   {
     "id": 147,
     "title": "Jaya Devi Bhavani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5186,7 +5186,7 @@
   {
     "id": 149,
     "title": "Jaya Devi Durga Gowri Shankari Parvathi",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5225,7 +5225,7 @@
   {
     "id": 550,
     "title": "Jaya Guru Jaya Guru Sai Ram",
-    "deity": "Guru",
+    "deity": "Guru, Sai",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5238,7 +5238,7 @@
   {
     "id": 552,
     "title": "Jaya Guru Omkara",
-    "deity": "Guru, Sarva Dharma",
+    "deity": "Guru, SarvaDharma",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5316,7 +5316,7 @@
   {
     "id": 1939,
     "title": "Jaya Ho Sai Ram Jaya Ho Sai Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -5329,7 +5329,7 @@
   {
     "id": 2101,
     "title": "Jaya Jagadeesha Harey Jaya Govinda Harey",
-    "deity": "Shiva",
+    "deity": "Shiva, Krishna",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -5382,7 +5382,7 @@
   {
     "id": 157,
     "title": "Jaya Jagat Janani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -5408,7 +5408,7 @@
   {
     "id": 164,
     "title": "Jaya Jaya Devi Girija Mata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5525,7 +5525,7 @@
   {
     "id": 166,
     "title": "Jaya Jaya Jaya Jaga Vandini Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -5694,7 +5694,7 @@
   {
     "id": 169,
     "title": "Jaya Jaya Shankari Jaya Parameshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -5759,7 +5759,7 @@
   {
     "id": 171,
     "title": "Jaya Ma Anandamayi Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5772,7 +5772,7 @@
   {
     "id": 175,
     "title": "Jaya Ma Jaya Ma Daya Karo Sai Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5785,7 +5785,7 @@
   {
     "id": 176,
     "title": "Jaya Ma Jaya Ma Jagadeeshwari Sai Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -5798,7 +5798,7 @@
   {
     "id": 2583,
     "title": "Jaya Murali Madhava Shourie",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -5851,7 +5851,7 @@
   {
     "id": 2939,
     "title": "Jaya Narayana Jaya Hari Om... Brahma Shivaarchita",
-    "deity": "Shiva",
+    "deity": "Shiva, Narayana",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -5933,7 +5933,7 @@
   {
     "id": 2496,
     "title": "Jaya Parthisha Jaya Paramesha Jaya Gowrisha Jaya Gangadhara",
-    "deity": "Sai",
+    "deity": "Sai, Shiva",
     "level": "",
     "tempo": "",
     "language": "",
@@ -5985,7 +5985,7 @@
   {
     "id": 889,
     "title": "Jaya Rama Harey Jaya Krishna Harey Parthi Puri Sai Ram",
-    "deity": "Rama, Krishna",
+    "deity": "Rama, Krishna, Sai",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -5998,7 +5998,7 @@
   {
     "id": 1687,
     "title": "Jaya Rama Harey Jaya Rama Harey Jaya Sita Rama Harey",
-    "deity": "Sai",
+    "deity": "Sai, Rama",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -6180,7 +6180,7 @@
   {
     "id": 1691,
     "title": "Jeevan Jyothi Jalao Kanhaiya",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -6245,7 +6245,7 @@
   {
     "id": 181,
     "title": "Kaali Kaali Maha Kaali Kapalini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -6297,7 +6297,7 @@
   {
     "id": 185,
     "title": "Kalavathi Kali Kapalini",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -6479,7 +6479,7 @@
   {
     "id": 1941,
     "title": "Karuna Sagara Prema Swaroopa",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -6609,7 +6609,7 @@
   {
     "id": 1942,
     "title": "Koi Boley Hari Hari Koi Boley Ram Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -6622,7 +6622,7 @@
   {
     "id": 2845,
     "title": "Koi Boley Hari Hari Koi Boley Ram Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -6805,7 +6805,7 @@
   {
     "id": 940,
     "title": "Krishna Rama Govinda Gokula Nandana Gopala",
-    "deity": "Krishna",
+    "deity": "Krishna, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -6883,7 +6883,7 @@
   {
     "id": 387,
     "title": "Lambodhara Hey Gowri Nandana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -6922,7 +6922,7 @@
   {
     "id": 391,
     "title": "Lambodhara Jaya Gowri Sutha",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -6948,7 +6948,7 @@
   {
     "id": 192,
     "title": "Ma Hey Ma (2)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7221,7 +7221,7 @@
   {
     "id": 196,
     "title": "Madura Puri Nilayey Meenakshi",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -7247,7 +7247,7 @@
   {
     "id": 1944,
     "title": "Mahadeva Maheshwara Sai Narayana",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Shiva, Narayana",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -7299,7 +7299,7 @@
   {
     "id": 1728,
     "title": "Man Mandir Mey Aao Giridhari",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -7458,7 +7458,7 @@
   {
     "id": 2128,
     "title": "Mandara Mala Dhara Jaya Gowri Shankara",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7484,7 +7484,7 @@
   {
     "id": 1945,
     "title": "Mandir Mey Tum Ram Ho Sai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7523,7 +7523,7 @@
   {
     "id": 198,
     "title": "Mangala Kaarini Jai Sai Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7536,7 +7536,7 @@
   {
     "id": 203,
     "title": "Mangala Shubhakari Mata Maheshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7562,7 +7562,7 @@
   {
     "id": 2966,
     "title": "Manuva Bolo Radhey Radhey Radhey Radhey Shyam Naam",
-    "deity": "Vitthala",
+    "deity": "Vitthala, Krishna",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -7576,7 +7576,7 @@
   {
     "id": 207,
     "title": "Mata Bhavani Jagadambe Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -7589,7 +7589,7 @@
   {
     "id": 211,
     "title": "Mata Maheshwari Tribhuvana Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -7602,7 +7602,7 @@
   {
     "id": 212,
     "title": "Mata Mata Sai Mata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -7615,7 +7615,7 @@
   {
     "id": 567,
     "title": "Mata Pitha Guru Bandhu Sakha Hari",
-    "deity": "Narayana, Guru, Sarva Dharma",
+    "deity": "Narayana, Guru, SarvaDharma, Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -7992,7 +7992,7 @@
   {
     "id": 1744,
     "title": "Namami Brahma Namami Vishnu Namami Maheshwara",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "advanced",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -8031,7 +8031,7 @@
   {
     "id": 1948,
     "title": "Namo Bhagawathey Vasudevaya",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -8057,7 +8057,7 @@
   {
     "id": 219,
     "title": "Namo Namo Sri Devi Namo",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -8070,7 +8070,7 @@
   {
     "id": 220,
     "title": "Namo Sharada Namo Sharada Namo Sharada Mata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -8148,7 +8148,7 @@
   {
     "id": 1037,
     "title": "Nanda Kishora Narayana",
-    "deity": "Krishna",
+    "deity": "Krishna, Narayana",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -8161,7 +8161,7 @@
   {
     "id": 2409,
     "title": "Nanda Kishora Navaneeta Chora Brindavana Sanchara",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "",
     "tempo": "",
     "language": "",
@@ -8239,7 +8239,7 @@
   {
     "id": 2452,
     "title": "Nandalala  Nanda Mukunda Hari Nandalala",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "",
     "tempo": "",
     "language": "",
@@ -8265,7 +8265,7 @@
   {
     "id": 2993,
     "title": "Nandalala Nandalala Nacho  Nandalala",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -8357,7 +8357,7 @@
   {
     "id": 1282,
     "title": "Narayana Govinda Harey",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -8461,7 +8461,7 @@
   {
     "id": 1294,
     "title": "Narayana Narayana Jaya Govinda Harey",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -8604,7 +8604,7 @@
   {
     "id": 2158,
     "title": "Neelakanta Mahadeva Gowri Vandana",
-    "deity": "Shiva",
+    "deity": "Shiva, Mata",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -8683,7 +8683,7 @@
   {
     "id": 226,
     "title": "Om Jagat Janani Sai Mata",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -8709,7 +8709,7 @@
   {
     "id": 2973,
     "title": "Om Namah Shivaya Namo Narayana",
-    "deity": "Shiva",
+    "deity": "Shiva, Narayana",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -8815,7 +8815,7 @@
   {
     "id": 1761,
     "title": "Omkara Priya Sai Rama",
-    "deity": "Sai",
+    "deity": "Sai, Rama",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -8828,7 +8828,7 @@
   {
     "id": 229,
     "title": "Omkara Roopini Janani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -8867,7 +8867,7 @@
   {
     "id": 1951,
     "title": "Paar Karo Uddhar Karo Prabhu Parthi Puri Bhagawan",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -8893,7 +8893,7 @@
   {
     "id": 1762,
     "title": "Pandari Nivasa Hey Panduranga",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -8945,7 +8945,7 @@
   {
     "id": 2366,
     "title": "Panduranga Vittale Hari Narayana",
-    "deity": "Vitthala",
+    "deity": "Vitthala, Narayana",
     "level": "",
     "tempo": "",
     "language": "",
@@ -9023,7 +9023,7 @@
   {
     "id": 1952,
     "title": "Partheeshwara Sri Sai Prabho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -9036,7 +9036,7 @@
   {
     "id": 231,
     "title": "Partheeshwari Jagat Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9049,7 +9049,7 @@
   {
     "id": 2624,
     "title": "Parthi Pureeshwara Sai Allah Maulah Sai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "",
     "tempo": "6 Beat / Dadra",
     "language": "Sanskrit / Hindi",
@@ -9076,7 +9076,7 @@
   {
     "id": 1954,
     "title": "Parthi Vihara Paapa Vidhura",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -9167,7 +9167,7 @@
   {
     "id": 1955,
     "title": "Poorna Brahma Avatara Sai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9180,7 +9180,7 @@
   {
     "id": 22,
     "title": "Prabhu Ramachandra Ke Dootha Hanumantha Anjaneya",
-    "deity": "Hanuman",
+    "deity": "Hanuman, Rama",
     "level": "simple",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -9193,7 +9193,7 @@
   {
     "id": 1956,
     "title": "Pranam Sweekar Karo Sai Mahadeva",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Shiva",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -9206,7 +9206,7 @@
   {
     "id": 235,
     "title": "Pranamami Sri Durge Sai Narayani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9297,7 +9297,7 @@
   {
     "id": 436,
     "title": "Prathama Vandana Gowri Nandana",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9323,7 +9323,7 @@
   {
     "id": 1958,
     "title": "Prem Eshwar Hai Eshwar Prem Hai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9388,7 +9388,7 @@
   {
     "id": 236,
     "title": "Prema Swaroopini Janani Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -9401,7 +9401,7 @@
   {
     "id": 237,
     "title": "Premamayi Sai Ma Gnanamayi Sai Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -9427,7 +9427,7 @@
   {
     "id": 1790,
     "title": "Punya Naam Pavitra Naam Rama Naam Sai Ram",
-    "deity": "Sai",
+    "deity": "Sai, Rama",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -9440,7 +9440,7 @@
   {
     "id": 2892,
     "title": "Purandara Ranga Harey Vittala",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -9585,7 +9585,7 @@
   {
     "id": 2778,
     "title": "Radhe Shyam Panduranga Vittale Rakhumai",
-    "deity": "Vitthala",
+    "deity": "Vitthala, Krishna",
     "level": "",
     "tempo": "",
     "language": "",
@@ -9637,7 +9637,7 @@
   {
     "id": 1102,
     "title": "Radhey Govinda Radhey Gopala Sai Ram",
-    "deity": "Krishna",
+    "deity": "Krishna, Sai",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -9897,7 +9897,7 @@
   {
     "id": 1455,
     "title": "Raghupathi Raghava Raja Ram Patitha Pavana Sita Ram",
-    "deity": "Rama, Sarva Dharma",
+    "deity": "Rama, SarvaDharma",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -9923,7 +9923,7 @@
   {
     "id": 1959,
     "title": "Rahiman Rahiman Ram Rahim",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -9936,7 +9936,7 @@
   {
     "id": 239,
     "title": "Raja Rajeshwari Jaganmohini (Amba)",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10001,7 +10001,7 @@
   {
     "id": 1961,
     "title": "Ram Kaho Krishna Kaho Eshwara Allah Sai Kaho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10027,7 +10027,7 @@
   {
     "id": 1964,
     "title": "Ram Rahim Ko Bhajanewaale Terey Poojari Baba",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10079,7 +10079,7 @@
   {
     "id": 1967,
     "title": "Rama Harey Hari Naam Bolo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Rama",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10092,7 +10092,7 @@
   {
     "id": 1968,
     "title": "Rama Harey Sai Krishna Harey Sarva Dharma Priya Sai Harey",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Krishna, Rama",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10118,7 +10118,7 @@
   {
     "id": 1312,
     "title": "Rama Krishna Govinda Narayana",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna, Rama",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10131,7 +10131,7 @@
   {
     "id": 1137,
     "title": "Rama Krishna Govinda Narayana Keshava",
-    "deity": "Rama, Krishna",
+    "deity": "Rama, Krishna, Narayana",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10144,7 +10144,7 @@
   {
     "id": 1313,
     "title": "Rama Krishna Hari Mukunda Murari",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna, Rama",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -10157,7 +10157,7 @@
   {
     "id": 1314,
     "title": "Rama Krishna Hari Narayana",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna, Rama",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10170,7 +10170,7 @@
   {
     "id": 1970,
     "title": "Rama Krishna Tum Ho Jaya Ram Jaya Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Krishna, Rama",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10183,7 +10183,7 @@
   {
     "id": 1140,
     "title": "Rama Krishna Vasudeva Narayana Hari Hari",
-    "deity": "Krishna",
+    "deity": "Krishna, Rama, Narayana",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10196,7 +10196,7 @@
   {
     "id": 25,
     "title": "Rama Lakshmana Janaki Jai Bolo Hanuman Ki",
-    "deity": "Hanuman",
+    "deity": "Hanuman, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi, awadhi",
@@ -10209,7 +10209,7 @@
   {
     "id": 26,
     "title": "Rama Lakshmana Janaki Jai Bolo Hanuman Ki (4)",
-    "deity": "Hanuman",
+    "deity": "Hanuman, Rama",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -10274,7 +10274,7 @@
   {
     "id": 1972,
     "title": "Rama Rama Rama Sai Rama Namo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Rama",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10300,7 +10300,7 @@
   {
     "id": 1143,
     "title": "Rama Rama Sai Ram Sita Ram Radhey Shyam",
-    "deity": "Rama, Krishna",
+    "deity": "Rama, Krishna, Sai",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10431,7 +10431,7 @@
   {
     "id": 243,
     "title": "Sadashiva Ranjani Sai Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10470,7 +10470,7 @@
   {
     "id": 595,
     "title": "Sadguru Sai Ram Jai Bolo Sadguru Sai Ram",
-    "deity": "Guru, Sarva Dharma",
+    "deity": "Guru, SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10483,7 +10483,7 @@
   {
     "id": 244,
     "title": "Sadguru Sai Saraswathi",
-    "deity": "Devi, Guru",
+    "deity": "Mata, Guru",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10535,7 +10535,7 @@
   {
     "id": 2394,
     "title": "Sai Baba Geeta Sudha Madhuram  Anandam",
-    "deity": "Guru",
+    "deity": "Guru, Sai",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -10588,7 +10588,7 @@
   {
     "id": 1974,
     "title": "Sai Baba Tera Naam Sathya Sai Baba Tera Naam",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10653,7 +10653,7 @@
   {
     "id": 1976,
     "title": "Sai Hamara Hum Sai Ke Aisa Prem Hamara",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10692,7 +10692,7 @@
   {
     "id": 1821,
     "title": "Sai Mahadeva (Sathya)",
-    "deity": "Sai",
+    "deity": "Sai, Shiva",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10705,7 +10705,7 @@
   {
     "id": 250,
     "title": "Sai Mata Partheeshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10718,7 +10718,7 @@
   {
     "id": 1823,
     "title": "Sai Mata Pitha Deena Bandhu Sakha",
-    "deity": "Sai",
+    "deity": "Sai, Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10744,7 +10744,7 @@
   {
     "id": 1978,
     "title": "Sai Naam Bolo Govinda Naam Bolo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Krishna",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -10757,7 +10757,7 @@
   {
     "id": 1979,
     "title": "Sai Naam Bolo Sathya Sai Naam Bolo",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10796,7 +10796,7 @@
   {
     "id": 1827,
     "title": "Sai Narayana Narayana Mangala Naam",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -10809,7 +10809,7 @@
   {
     "id": 1828,
     "title": "Sai Narayana Sathya Narayana",
-    "deity": "Sai",
+    "deity": "Sai, Narayana",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10822,7 +10822,7 @@
   {
     "id": 1980,
     "title": "Sai Natha Bhagawan Sai Natha Bhagawan",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -10861,7 +10861,7 @@
   {
     "id": 601,
     "title": "Sai Pitha Aur Mata Sai",
-    "deity": "Sai, Guru",
+    "deity": "Sai, Guru, Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -10887,7 +10887,7 @@
   {
     "id": 1836,
     "title": "Sai Ram Ghana Shyam Bhagawan Tumhara Naam",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -10900,7 +10900,7 @@
   {
     "id": 1837,
     "title": "Sai Ram Sai Ram",
-    "deity": "Sai, Sarva Dharma",
+    "deity": "Sai, SarvaDharma",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -10913,7 +10913,7 @@
   {
     "id": 2421,
     "title": "Sai Ram Sai Ram Gaaye Geet Sada Subah Aur Shyam",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -10927,7 +10927,7 @@
   {
     "id": 602,
     "title": "Sai Ram Sai Ram Sai Ram Bhajo",
-    "deity": "Guru, Sarva Dharma",
+    "deity": "Guru, SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -10940,7 +10940,7 @@
   {
     "id": 1839,
     "title": "Sai Ram Sai Shyam Merey Sai Ram",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -10953,7 +10953,7 @@
   {
     "id": 1499,
     "title": "Sai Rama Harey Sai Krishna Harey (3)",
-    "deity": "Rama",
+    "deity": "Rama, Krishna",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -11031,7 +11031,7 @@
   {
     "id": 607,
     "title": "Sakshath Parabrahma Sai Guru Vandana Sathya Sai",
-    "deity": "Guru",
+    "deity": "Guru, Sai",
     "level": "advanced",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -11057,7 +11057,7 @@
   {
     "id": 253,
     "title": "Samba Vinodini Shiva Sai Shankari",
-    "deity": "Devi",
+    "deity": "Mata, Shiva",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11083,7 +11083,7 @@
   {
     "id": 1318,
     "title": "Sankata Harana Govinda",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "sanskrit / hindi",
@@ -11109,7 +11109,7 @@
   {
     "id": 1985,
     "title": "Sarva Dharma Priya Deva",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11122,7 +11122,7 @@
   {
     "id": 1986,
     "title": "Sarva Dharma Priya Sai Deva",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -11135,7 +11135,7 @@
   {
     "id": 1987,
     "title": "Sarva Dharma Swaroopa Sai",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11148,7 +11148,7 @@
   {
     "id": 258,
     "title": "Sarva Mangala Sai Janani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -11174,7 +11174,7 @@
   {
     "id": 1320,
     "title": "Sarvatra Govinda Naama Sankeertana Govinda Hari Govinda",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11200,7 +11200,7 @@
   {
     "id": 1988,
     "title": "Sathya Dharma Shanthi Prema Swaroopa Prashanthi Nilaya Deva",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11213,7 +11213,7 @@
   {
     "id": 1321,
     "title": "Sathya Narayana Govinda Madhava Sai Narayana Govinda Keshava (3)",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11226,7 +11226,7 @@
   {
     "id": 612,
     "title": "Sathya Sai Padambujam Bhajorey Manasa Nirantharam",
-    "deity": "Guru",
+    "deity": "Guru, Sai",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11265,7 +11265,7 @@
   {
     "id": 262,
     "title": "Sathya Swaroopini Ma Sai Prema Swaroopini Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -11291,7 +11291,7 @@
   {
     "id": 264,
     "title": "Sayeeshwari Amba Jagadeeshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -11317,7 +11317,7 @@
   {
     "id": 2459,
     "title": "Shambho Mahadeva",
-    "deity": "Sai",
+    "deity": "Sai, Shiva",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -11463,7 +11463,7 @@
   {
     "id": 441,
     "title": "Shambhu Kumara Gowri Tanaya",
-    "deity": "Ganesha",
+    "deity": "Ganesha, Mata, Shiva",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -11620,7 +11620,7 @@
   {
     "id": 268,
     "title": "Shankari Bhaktha Vashankari Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -11633,7 +11633,7 @@
   {
     "id": 1323,
     "title": "Shankha Chakra Peetambara Dhari Karuna Sagara Rama Murari",
-    "deity": "Narayana",
+    "deity": "Narayana, Rama",
     "level": "intermediate",
     "tempo": "fast",
     "language": "sanskrit / hindi",
@@ -11659,7 +11659,7 @@
   {
     "id": 272,
     "title": "Sharadey Jaya Sharadey Vaagvilasini Sharadey",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11737,7 +11737,7 @@
   {
     "id": 622,
     "title": "Shirdi Mahadeva Deva Shirdi Mahadeva",
-    "deity": "Guru",
+    "deity": "Guru, Shiva",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -11776,7 +11776,7 @@
   {
     "id": 1989,
     "title": "Shirdi Sai Dwarakamayi Prashanthi Vasi Sai Ram",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -11828,7 +11828,7 @@
   {
     "id": 2237,
     "title": "Shiva Maheshwara Shiva Maheshwara Shiva Maheshwara Sai Ram",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -11854,7 +11854,7 @@
   {
     "id": 1872,
     "title": "Shiva Shambho Narayana",
-    "deity": "Sai",
+    "deity": "Sai, Shiva, Narayana",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -12207,7 +12207,7 @@
   {
     "id": 273,
     "title": "Simha Vahini Sai Narayani",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -12311,7 +12311,7 @@
   {
     "id": 629,
     "title": "Sri Guru Parthi Vasa",
-    "deity": "Sarva Dharma, Guru",
+    "deity": "SarvaDharma, Guru",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -12324,7 +12324,7 @@
   {
     "id": 1327,
     "title": "Sri Lakshmi Ramana Narayana",
-    "deity": "Narayana",
+    "deity": "Narayana, Mata",
     "level": "intermediate",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -12444,7 +12444,7 @@
   {
     "id": 31,
     "title": "Sri Rama Dootha Jaya Hanuman",
-    "deity": "Hanuman",
+    "deity": "Hanuman, Rama",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -12498,7 +12498,7 @@
   {
     "id": 2582,
     "title": "Sri Rama Jaya Rama Jaya Jaya Ram Govinda Gopala Hey Ghanashyam",
-    "deity": "Krishna",
+    "deity": "Krishna, Rama",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -12525,7 +12525,7 @@
   {
     "id": 1522,
     "title": "Sri Rama Rama Ram Yadu Nandana Hey Ghana Shyam",
-    "deity": "Rama",
+    "deity": "Rama, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -12564,7 +12564,7 @@
   {
     "id": 2852,
     "title": "Sri Ranga Harey Vittala Sai Ranga Harey Vittala",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -12591,7 +12591,7 @@
   {
     "id": 633,
     "title": "Sri Sai Natha Guru Govinda",
-    "deity": "Guru",
+    "deity": "Guru, Krishna",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -12630,7 +12630,7 @@
   {
     "id": 278,
     "title": "Srikari Krupakari Kshemankari Sayeeshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -12643,7 +12643,7 @@
   {
     "id": 1332,
     "title": "Srinivasa Govinda Sri Venkatesha Govinda",
-    "deity": "Narayana",
+    "deity": "Narayana, Krishna",
     "level": "intermediate",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -12682,7 +12682,7 @@
   {
     "id": 1878,
     "title": "Subah Aur Shyam Bol Hari Naam",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -12786,7 +12786,7 @@
   {
     "id": 281,
     "title": "Sundara Vadani Suguna Manohari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -12812,7 +12812,7 @@
   {
     "id": 283,
     "title": "Triloka Palini Jagadeeshwari",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -12825,7 +12825,7 @@
   {
     "id": 284,
     "title": "Tripura Sundari Ma Amba Daya Sagari Ma",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "advanced",
     "tempo": "medium slow",
     "language": "sanskrit / hindi",
@@ -12851,7 +12851,7 @@
   {
     "id": 1991,
     "title": "Tum Bin Pran Nahin O Sai Merey",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "slow",
     "language": "sanskrit / hindi",
@@ -12877,7 +12877,7 @@
   {
     "id": 1889,
     "title": "Tum Ho Daata Sai Shankara",
-    "deity": "Sai",
+    "deity": "Sai, Shiva",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -12890,7 +12890,7 @@
   {
     "id": 1893,
     "title": "Tum Ho Ram Tum Ho Shyam",
-    "deity": "Sai",
+    "deity": "Sai, Krishna",
     "level": "simple",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -12916,7 +12916,7 @@
   {
     "id": 2540,
     "title": "Tuma Ho Shyam Ram Rahim",
-    "deity": "SarvaDharma",
+    "deity": "SarvaDharma, Krishna",
     "level": "",
     "tempo": "",
     "language": "",
@@ -13072,7 +13072,7 @@
   {
     "id": 2280,
     "title": "Vibhuti Sundara Sai Nath",
-    "deity": "Shiva",
+    "deity": "Shiva, Sai",
     "level": "simple",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -13085,7 +13085,7 @@
   {
     "id": 290,
     "title": "Vidya Dayini Bhagavathi",
-    "deity": "Devi",
+    "deity": "Mata",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",
@@ -13244,7 +13244,7 @@
   {
     "id": 1203,
     "title": "Vishnu Satchidananda Venu Gopala Bala",
-    "deity": "Krishna",
+    "deity": "Krishna, Narayana",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -13270,7 +13270,7 @@
   {
     "id": 2686,
     "title": "Vittala  Hari Vittala (3)",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -13284,7 +13284,7 @@
   {
     "id": 2679,
     "title": "Vittala Bhajo Sai Vittala Bhajo (2)",
-    "deity": "Sai",
+    "deity": "Sai, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -13298,7 +13298,7 @@
   {
     "id": 2868,
     "title": "Vittala Narayana",
-    "deity": "Sai",
+    "deity": "Sai, Narayana, Vitthala",
     "level": "",
     "tempo": "8 Beat / Keherwa / Adi",
     "language": "Sanskrit / Hindi",
@@ -13338,7 +13338,7 @@
   {
     "id": 1995,
     "title": "Yug Yug Ke Avatar Tum Hi Ho",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma",
     "level": "advanced",
     "tempo": "medium fast",
     "language": "sanskrit / hindi",
@@ -13364,7 +13364,7 @@
   {
     "id": 1996,
     "title": "Yuga Yuga Ke Avatara Sai Rama Sai Krishna Sai Baba",
-    "deity": "Sarva Dharma",
+    "deity": "SarvaDharma, Sai, Krishna, Rama",
     "level": "intermediate",
     "tempo": "medium",
     "language": "sanskrit / hindi",

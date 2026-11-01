@@ -24,7 +24,6 @@ function deityOrderKey(deity) {
 
 const TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
 
-// Cached singleton formatters to avoid CPU overhead of instantiating new Intl formatters per request
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIMEZONE,
   year: "numeric",
@@ -45,10 +44,6 @@ const HOUR_FORMATTER = new Intl.DateTimeFormat("en-US", {
 
 const DAY_MAP = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-/**
- * Returns "today" as YYYY-MM-DD in the target timezone (defaults to Asia/Kolkata / IST).
- * Uses cached DateTimeFormat instance for ultra-fast formatting (<0.01ms).
- */
 function getLocalDateStr(date = new Date(), timeZone = TIMEZONE) {
   if (timeZone === TIMEZONE) return DATE_FORMATTER.format(date);
   return new Intl.DateTimeFormat("en-CA", {
@@ -59,12 +54,6 @@ function getLocalDateStr(date = new Date(), timeZone = TIMEZONE) {
   }).format(date);
 }
 
-/**
- * Returns info about regular Thursday submission availability in target timezone (IST):
- *  - openThursday: YYYY-MM-DD string of the open Thursday session (or null if closed until 8 PM)
- *  - opensAt8pmToday: boolean (true if today is Thursday before 8 PM)
- *  - nextThursdayDate: YYYY-MM-DD string of next Thursday
- */
 function getThursdaySubmissionStatus(now = new Date(), timeZone = TIMEZONE) {
   const todayStr = getLocalDateStr(now, timeZone);
 
@@ -89,9 +78,6 @@ function getThursdaySubmissionStatus(now = new Date(), timeZone = TIMEZONE) {
   const nextThuObj = new Date(y, m - 1, d + daysUntilNextThu);
   const nextThuStr = getLocalDateStr(nextThuObj, timeZone);
 
-  // Mandir Bhajan on Thursday runs 7:30 PM - 8:30 PM (20:30 IST = 1230 mins).
-  // Submissions lock at 00:00 Thursday morning.
-  // The Live Plan view should show today's Thursday session until 8:30 PM (20:30).
   const isTodayThursday = day === 4;
   const isThursdayLiveActive = isTodayThursday && currentMinutes <= 20 * 60 + 30;
   const activeLiveThursday = isThursdayLiveActive ? todayStr : nextThuStr;
@@ -139,7 +125,6 @@ function isSessionActiveOrUpcoming(dateStr, desc = "", now = new Date(), timeZon
   const todayStr = getLocalDateStr(now, timeZone);
   if (dateStr > todayStr) return true;
   if (dateStr < todayStr) return false;
-  // If date is today, session is active until scheduled end time (default 8:30 PM / 20:30 IST)
   const hourStr =
     timeZone === TIMEZONE
       ? HOUR_FORMATTER.format(now)
@@ -155,13 +140,6 @@ function getNextThursday() {
   return getThursdaySubmissionStatus().nextThursdayDate;
 }
 
-/**
- * Normalise a name for duplicate-detection:
- *   - trim leading/trailing whitespace
- *   - collapse internal runs of whitespace to a single space
- *   - convert to lower-case
- * Use this before comparing names to find existing records.
- */
 function normalizeName(str) {
   return String(str || "")
     .trim()
@@ -202,31 +180,31 @@ function timeSince(dateStr) {
   return `${Math.floor(diffDays / 365)} year(s) ago`;
 }
 
-// In-memory cache for missing bhajan count so admin sidebar never lags
 let cachedMissingCount = null;
 let lastMissingCountTime = 0;
 
 async function getCachedMissingCount(forceRefresh = false) {
   const now = Date.now();
-  if (!forceRefresh && cachedMissingCount !== null && now - lastMissingCountTime < 45000) {
+  if (!forceRefresh && cachedMissingCount !== null && now - lastMissingCountTime < 60000) {
     return cachedMissingCount;
   }
   try {
-    const { BhajanSubmission, MasterBhajan } = require("../models");
+    const BhajanSubmission = require("../models/BhajanSubmission");
+    const { getMasterCatalog, normalizeTitleKey } = require("./catalogCache");
     const { Sequelize } = require("sequelize");
 
-    const submitted = await BhajanSubmission.findAll({
-      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-      raw: true
-    });
-    const master = await MasterBhajan.findAll({
-      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-      raw: true
-    });
-    const masterSet = new Set(master.map((m) => (m.title || "").trim().toLowerCase()));
-    const count = submitted.filter(
-      (s) => (s.title || "").trim() && !masterSet.has((s.title || "").trim().toLowerCase())
-    ).length;
+    const [submitted, catalog] = await Promise.all([
+      BhajanSubmission.findAll({
+        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
+        raw: true
+      }),
+      getMasterCatalog()
+    ]);
+
+    const count = submitted.filter((s) => {
+      const norm = normalizeTitleKey(s.title);
+      return norm && !catalog.byNormTitle.has(norm);
+    }).length;
 
     cachedMissingCount = count;
     lastMissingCountTime = now;

@@ -1,8 +1,19 @@
+const { getValidatedAdmin } = require("./auth");
+
 /**
- * Single source of truth for view authorization state
- * Exposes res.locals.auth = { isAdmin, isSuperAdmin, isSinger, user, admin, singer }
+ * Single source of truth for view authorization state.
+ * Validates admin idle expiry / active status so the App Shell never displays
+ * stale admin UI for an expired session.
  */
-function attachAuthLocals(req, res, next) {
+async function attachAuthLocals(req, res, next) {
+  try {
+    if (req.session && (req.session.adminUserId || req.session.admin)) {
+      await getValidatedAdmin(req);
+    }
+  } catch (_) {
+    // Non-fatal fallback
+  }
+
   const admin = req.session?.admin || null;
   const singer = req.session?.singer || null;
 

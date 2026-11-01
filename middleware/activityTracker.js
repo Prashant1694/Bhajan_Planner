@@ -3,8 +3,9 @@ const { Sequelize } = require("sequelize");
 const ActivityLog = require("../models/ActivityLog");
 const UserPresence = require("../models/UserPresence");
 
+const VISITOR_COOKIE_NAME = "bp_vid";
+
 // Automatic Log Retention Cleanup Routine (Runs every 12 hours)
-// Purges logs older than 30 days and presence records older than 7 days
 const cleanupTimer = setInterval(
   async () => {
     try {
@@ -21,9 +22,7 @@ const cleanupTimer = setInterval(
           last_seen_at: { [Sequelize.Op.lt]: sevenDaysAgo }
         }
       });
-    } catch (err) {
-      // Silent background cleanup error handling
-    }
+    } catch (_) {}
   },
   12 * 60 * 60 * 1000
 );
@@ -48,14 +47,14 @@ function getSectionName(urlPath) {
   return "General";
 }
 
-function getActionDetails(req, section, username, userType) {
+function getActionDetails(req, section, username) {
   const path = req.path;
   const method = req.method;
   const body = req.body || {};
 
   if (method === "POST") {
     if (path.includes("submit-form") || path.includes("submit")) {
-      const bhajan = body.bhajan_name || body.bhajanName || "Bhajan";
+      const bhajan = body.title || body.bhajan_name || body.bhajanName || "Bhajan";
       const deity = body.deity ? ` for ${body.deity}` : "";
       return {
         action: "SUBMIT_BHAJAN",
@@ -119,14 +118,12 @@ function getActionDetails(req, section, username, userType) {
     };
   }
 
-  // GET Requests
   return {
     action: `VIEW_${section.replace(/[^a-zA-Z0-9_]/g, "_").toUpperCase()}`,
     details: `${username} visited ${section}`
   };
 }
 
-// In-memory write buffers for batched activity logs & presence tracking
 let activityBuffer = [];
 const presenceMap = new Map();
 let isFlushing = false;
@@ -156,18 +153,37 @@ async function flushActivityBuffer() {
   }
 }
 
-// Periodic flush every 5 seconds
 const flushTimer = setInterval(flushActivityBuffer, 5000);
 if (flushTimer.unref) flushTimer.unref();
 
 const BOT_REGEX = /bot|googlebot|crawler|spider|robot|crawling|uptime|pingdom|healthcheck/i;
+
+function resolveVisitorId(req, res) {
+  if (req.session && req.session.visitorId) {
+    return req.session.visitorId;
+  }
+  const existingCookie = req.cookies && req.cookies[VISITOR_COOKIE_NAME];
+  if (existingCookie && /^sess_[a-f0-9]{16}$/.test(existingCookie)) {
+    return existingCookie;
+  }
+  const newVid = "sess_" + crypto.randomBytes(8).toString("hex");
+  req.cookies = req.cookies || {};
+  req.cookies[VISITOR_COOKIE_NAME] = newVid;
+  res.cookie(VISITOR_COOKIE_NAME, newVid, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  });
+  return newVid;
+}
 
 const trackActivity = async (req, res, next) => {
   try {
     const path = req.path || "";
     const userAgent = (req.headers["user-agent"] || "").slice(0, 250);
 
-    // Stop tracking static files, health checks, and crawlers/bots
     if (
       BOT_REGEX.test(userAgent) ||
       path === "/healthz" ||
@@ -176,7 +192,8 @@ const trackActivity = async (req, res, next) => {
       path.startsWith("/sheets/") ||
       path.startsWith("/images/") ||
       path.startsWith("/icons/") ||
-      path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|webmanifest)$/i) ||
+      path.startsWith("/audio/") ||
+      path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|webmanifest|wav|mp3|m4a|ogg)$/i) ||
       path.startsWith("/css/") ||
       path.startsWith("/js/") ||
       path.startsWith("/api/activity/") ||
@@ -187,32 +204,23 @@ const trackActivity = async (req, res, next) => {
       return next();
     }
 
-    if (!req.session) return next();
-    if (!req.session.visitorId) {
-      req.session.visitorId = "sess_" + crypto.randomBytes(8).toString("hex");
-    }
-
-    const sessionId = req.session.visitorId;
+    // Use a lightweight cookie for anonymous visitors instead of mutating req.session
+    const sessionId = resolveVisitorId(req, res);
     let userType = "guest";
     let adminId = null;
     let username = "Guest Devotee";
 
-    // 1. Check Admin Session
-    if (req.session.admin) {
+    if (req.session && req.session.admin) {
       const admin = req.session.admin;
       userType =
         admin.role === "super_admin" || admin.role === "SUPER_ADMIN" ? "super_admin" : "admin";
       adminId = admin.id;
       const titleStr = admin.title ? ` (${admin.title})` : "";
       username = (admin.display_name || admin.username || "Admin") + titleStr;
-    }
-    // 2. Check Singer Session
-    else if (req.session.singer && req.session.singer.name) {
+    } else if (req.session && req.session.singer && req.session.singer.name) {
       userType = "singer";
       username = req.session.singer.name;
-    }
-    // 3. Check Form submission body if anonymous but submitted by named singer
-    else if (
+    } else if (
       req.body &&
       req.body.singer_name &&
       typeof req.body.singer_name === "string" &&
@@ -223,16 +231,13 @@ const trackActivity = async (req, res, next) => {
     }
 
     const section = getSectionName(path);
-    const { action, details } = getActionDetails(req, section, username, userType);
-
-    // Capture real client IP behind reverse proxy via req.ip
+    const { action, details } = getActionDetails(req, section, username);
     const ip = req.ip || req.socket?.remoteAddress || "127.0.0.1";
 
-    // Update Live Presence buffer
     presenceMap.set(sessionId, {
       session_id: sessionId,
       admin_id: adminId,
-      username: username,
+      username,
       user_type: userType,
       current_page: req.originalUrl || path,
       last_section: section,
@@ -240,30 +245,26 @@ const trackActivity = async (req, res, next) => {
       last_seen_at: new Date()
     });
 
-    // Append to in-memory activity log buffer
     activityBuffer.push({
       session_id: sessionId,
       user_type: userType,
       admin_id: adminId,
-      username: username,
-      action: action,
-      section: section,
+      username,
+      action,
+      section,
       page_url: req.originalUrl || path,
       method: req.method,
       ip_address: ip,
       user_agent: userAgent,
       duration_seconds: 0,
-      details: details,
+      details,
       created_at: new Date()
     });
 
-    // Flush immediately if buffer reaches 50 items
     if (activityBuffer.length >= 50) {
       flushActivityBuffer().catch(() => {});
     }
-  } catch (err) {
-    // Non-blocking logging
-  }
+  } catch (_) {}
 
   next();
 };
@@ -271,5 +272,6 @@ const trackActivity = async (req, res, next) => {
 module.exports = {
   trackActivity,
   getSectionName,
-  flushActivityBuffer
+  flushActivityBuffer,
+  resolveVisitorId
 };

@@ -1,9 +1,9 @@
 <div style="margin-bottom: 24px;">
-  <a href="/admin/bulletins" style="color:#e65100; text-decoration:none; font-size:14px;">← Back to Bulletins</a>
+  <a href="/admin/bulletins" style="color:#4f46e5; text-decoration:none; font-size:14px;">&larr; Back to Bulletins</a>
 </div>
 
 <h2 style="margin:0 0 20px;">
-  <%= bulletin ? '✏️ Edit Bulletin' : '📝 New Bulletin' %>
+  <%= bulletin ? 'Edit Bulletin' : 'New Bulletin' %>
 </h2>
 
 <form class="admin-bulletin-form" method="POST"
@@ -27,7 +27,7 @@
         <% cats.forEach(function(c) { %>
           <% const info=CATEGORY_INFO[c]; %>
             <option value="<%= c %>" <%=(bulletin && bulletin.category===c) ? 'selected' : (!bulletin &&
-              c==='announcement' ? 'selected' : '' ) %>><%= info.icon %>
+              c==='announcement' ? 'selected' : '' ) %>>
                 <%= info.label %>
             </option>
             <% }); %>
@@ -37,10 +37,8 @@
   <div class="form-group">
     <label for="bulletinStatus">Status</label>
     <select id="bulletinStatus" name="status">
-      <option value="draft" <%=(bulletin && bulletin.status==='draft' ) ? 'selected' : (!bulletin ? 'selected' : '' ) %>
-        >📝 Draft</option>
-      <option value="published" <%=(bulletin && bulletin.status==='published' ) ? 'selected' : '' %>>✅ Published
-      </option>
+      <option value="draft" <%=(bulletin && bulletin.status==='draft' ) ? 'selected' : (!bulletin ? 'selected' : '' ) %>>Draft</option>
+      <option value="published" <%=(bulletin && bulletin.status==='published' ) ? 'selected' : '' %>>Published</option>
     </select>
   </div>
 
@@ -54,7 +52,7 @@
     <div class="checkbox-group">
       <input type="checkbox" id="bulletinPinned" name="is_pinned" <%=(bulletin && bulletin.is_pinned) ? 'checked' : ''
         %>>
-      <label for="bulletinPinned" style="margin-bottom:0;">📌 Pin this bulletin</label>
+      <label for="bulletinPinned" style="margin-bottom:0;">Pin this bulletin</label>
     </div>
   </div>
 
@@ -62,7 +60,7 @@
     <div class="form-group">
       <div class="checkbox-group">
         <input type="checkbox" id="bulletinNotify" name="send_notification">
-        <label for="bulletinNotify" style="margin-bottom:0;">🔔 Also send push notification when publishing</label>
+        <label for="bulletinNotify" style="margin-bottom:0;">Also send push notification when publishing</label>
       </div>
     </div>
     <% } %>

@@ -163,3 +163,23 @@ test("POST /submit-form succeeds with _csrf in body (standard browser form submi
   assert.strictEqual(res.status, 302, "Should redirect upon successful submission");
   assert.ok(res.headers.location.includes("success=true"));
 });
+
+test("GET /submit-form?_embed=1 renders Tanpura widget, stylesheet, script and sound button", async () => {
+  const agent = request.agent(app);
+  const loginPage = await agent.get("/singer/login");
+  const loginCsrf = (loginPage.text.match(/name="csrf-token" content="([^"]+)"/) || [])[1];
+
+  await agent.post("/api/singer/login").set("X-CSRF-Token", loginCsrf).send({
+    singer_id: 1,
+    pin: "1234",
+    redirect: "/submit-form"
+  });
+
+  const formPage = await agent.get("/submit-form?_embed=1");
+  assert.strictEqual(formPage.status, 200);
+  assert.ok(formPage.text.includes("/css/tanpura.css"), "Should include tanpura.css");
+  assert.ok(formPage.text.includes("/js/tanpura.js"), "Should include tanpura.js");
+  assert.ok(formPage.text.includes("tanpuraFloatingWidget"), "Should include Tanpura floating widget");
+  assert.ok(formPage.text.includes("btnAuditionScale"), "Should include Sound Tanpura audition button");
+});
+

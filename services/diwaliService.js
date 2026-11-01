@@ -101,11 +101,24 @@ async function createParticipantWithBhajans({
     throw new Error("Please enter at least one valid bhajan title.");
   }
 
+  // Ensure event_id is valid
+  let resolvedEventId = event_id ? parseInt(event_id, 10) : null;
+  if (!resolvedEventId || isNaN(resolvedEventId)) {
+    const defaultEvent = await getOrCreateDefaultEvent();
+    resolvedEventId = defaultEvent.id;
+  } else {
+    const ev = await DiwaliEvent.findByPk(resolvedEventId);
+    if (!ev) {
+      const defaultEvent = await getOrCreateDefaultEvent();
+      resolvedEventId = defaultEvent.id;
+    }
+  }
+
   const t = await sequelize.transaction();
   try {
     const participant = await DiwaliParticipant.create(
       {
-        event_id,
+        event_id: resolvedEventId,
         lead_name: cleanLead,
         partner_name: cleanPartner,
         gender: cleanGender,
@@ -116,17 +129,31 @@ async function createParticipantWithBhajans({
 
     let order = 1;
     for (const b of validBhajans) {
-      let masterId = b.master_bhajan_id ? parseInt(b.master_bhajan_id, 10) : null;
       const title = (b.bhajan_title || "").trim();
 
-      // If masterId not provided, attempt exact or normalized match
+      // Safely validate master_bhajan_id against MasterBhajan table
+      let masterId = null;
+      if (
+        b.master_bhajan_id &&
+        !isNaN(parseInt(b.master_bhajan_id, 10)) &&
+        parseInt(b.master_bhajan_id, 10) > 0
+      ) {
+        const parsed = parseInt(b.master_bhajan_id, 10);
+        const check = await MasterBhajan.findByPk(parsed, {
+          transaction: t,
+          attributes: ["id"]
+        });
+        if (check) masterId = check.id;
+      }
+
       if (!masterId && title) {
         const found = await MasterBhajan.findOne({
           where: sequelize.where(
             sequelize.fn("LOWER", sequelize.col("title")),
             title.toLowerCase()
           ),
-          transaction: t
+          transaction: t,
+          attributes: ["id"]
         });
         if (found) masterId = found.id;
       }
@@ -134,7 +161,7 @@ async function createParticipantWithBhajans({
       await DiwaliParticipantBhajan.create(
         {
           participant_id: participant.id,
-          event_id,
+          event_id: resolvedEventId,
           master_bhajan_id: masterId,
           bhajan_title: title,
           scale: (b.scale || "").trim(),
@@ -186,6 +213,15 @@ async function updateParticipantWithBhajans(
   const participant = await DiwaliParticipant.findByPk(participantId);
   if (!participant) throw new Error("Participant not found.");
 
+  if (!bhajans || !Array.isArray(bhajans)) {
+    throw new Error("At least one valid bhajan is required.");
+  }
+
+  const validBhajans = bhajans.filter((b) => (b.bhajan_title || "").trim().length > 0);
+  if (validBhajans.length === 0) {
+    throw new Error("At least one valid bhajan is required.");
+  }
+
   const t = await sequelize.transaction();
   try {
     participant.lead_name = cleanLead;
@@ -194,34 +230,63 @@ async function updateParticipantWithBhajans(
     participant.remarks = (remarks || "").trim();
     await participant.save({ transaction: t });
 
-    if (bhajans && Array.isArray(bhajans)) {
-      const validBhajans = bhajans.filter((b) => (b.bhajan_title || "").trim().length > 0);
-      if (validBhajans.length === 0) {
-        throw new Error("At least one valid bhajan is required.");
+    // Fetch existing bhajans to update in-place (preserving IDs and sequence entries)
+    const existingBhajans = await DiwaliParticipantBhajan.findAll({
+      where: { participant_id: participant.id },
+      transaction: t
+    });
+    const existingMap = new Map();
+    for (const eb of existingBhajans) {
+      existingMap.set(eb.id, eb);
+    }
+
+    let order = 1;
+    for (const b of validBhajans) {
+      const title = (b.bhajan_title || "").trim();
+
+      // Safely validate master_bhajan_id against MasterBhajan table
+      let masterId = null;
+      if (
+        b.master_bhajan_id &&
+        !isNaN(parseInt(b.master_bhajan_id, 10)) &&
+        parseInt(b.master_bhajan_id, 10) > 0
+      ) {
+        const parsed = parseInt(b.master_bhajan_id, 10);
+        const check = await MasterBhajan.findByPk(parsed, {
+          transaction: t,
+          attributes: ["id"]
+        });
+        if (check) masterId = check.id;
       }
 
-      // Delete old bhajans for this participant and re-insert
-      await DiwaliParticipantBhajan.destroy({
-        where: { participant_id: participantId },
-        transaction: t
-      });
+      if (!masterId && title) {
+        const found = await MasterBhajan.findOne({
+          where: sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("title")),
+            title.toLowerCase()
+          ),
+          transaction: t,
+          attributes: ["id"]
+        });
+        if (found) masterId = found.id;
+      }
 
-      let order = 1;
-      for (const b of validBhajans) {
-        let masterId = b.master_bhajan_id ? parseInt(b.master_bhajan_id, 10) : null;
-        const title = (b.bhajan_title || "").trim();
-
-        if (!masterId && title) {
-          const found = await MasterBhajan.findOne({
-            where: sequelize.where(
-              sequelize.fn("LOWER", sequelize.col("title")),
-              title.toLowerCase()
-            ),
-            transaction: t
-          });
-          if (found) masterId = found.id;
-        }
-
+      const bhajanId = b.id ? parseInt(b.id, 10) : null;
+      if (bhajanId && existingMap.has(bhajanId)) {
+        // Update existing bhajan record in-place to preserve primary key & sequence linkage
+        const existingRecord = existingMap.get(bhajanId);
+        existingRecord.master_bhajan_id = masterId;
+        existingRecord.bhajan_title = title;
+        existingRecord.scale = (b.scale || "").trim();
+        existingRecord.tabla = (b.tabla || "").trim();
+        existingRecord.shruti = (b.shruti || "").trim();
+        existingRecord.deity = (b.deity || "").trim();
+        existingRecord.remarks = (b.remarks || "").trim();
+        existingRecord.original_order = order++;
+        await existingRecord.save({ transaction: t });
+        existingMap.delete(bhajanId);
+      } else {
+        // Insert new bhajan
         await DiwaliParticipantBhajan.create(
           {
             participant_id: participant.id,
@@ -240,6 +305,20 @@ async function updateParticipantWithBhajans(
       }
     }
 
+    // Remove any bhajans deleted by user in the edit modal
+    const removedIds = Array.from(existingMap.keys());
+    if (removedIds.length > 0) {
+      // Clean up sequence entries first to avoid SQLite foreign key constraints
+      await DiwaliSequenceEntry.destroy({
+        where: { participant_bhajan_id: removedIds },
+        transaction: t
+      });
+      await DiwaliParticipantBhajan.destroy({
+        where: { id: removedIds },
+        transaction: t
+      });
+    }
+
     await t.commit();
     return participant;
   } catch (error) {
@@ -251,7 +330,34 @@ async function updateParticipantWithBhajans(
 async function deleteParticipant(id) {
   const participant = await DiwaliParticipant.findByPk(id);
   if (!participant) throw new Error("Participant not found.");
-  return await participant.destroy();
+
+  const t = await sequelize.transaction();
+  try {
+    const bhajans = await DiwaliParticipantBhajan.findAll({
+      where: { participant_id: id },
+      attributes: ["id"],
+      transaction: t
+    });
+    const bhajanIds = bhajans.map((b) => b.id);
+
+    if (bhajanIds.length > 0) {
+      await DiwaliSequenceEntry.destroy({
+        where: { participant_bhajan_id: bhajanIds },
+        transaction: t
+      });
+      await DiwaliParticipantBhajan.destroy({
+        where: { id: bhajanIds },
+        transaction: t
+      });
+    }
+
+    await participant.destroy({ transaction: t });
+    await t.commit();
+    return true;
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 }
 
 async function deleteBhajan(bhajanId) {
@@ -266,7 +372,19 @@ async function deleteBhajan(bhajanId) {
     throw new Error("A participant must have at least one bhajan. Delete the participant instead.");
   }
 
-  return await bhajan.destroy();
+  const t = await sequelize.transaction();
+  try {
+    await DiwaliSequenceEntry.destroy({
+      where: { participant_bhajan_id: bhajanId },
+      transaction: t
+    });
+    await bhajan.destroy({ transaction: t });
+    await t.commit();
+    return true;
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
 }
 
 async function getParticipantsAndBhajans(eventId, filters = {}) {

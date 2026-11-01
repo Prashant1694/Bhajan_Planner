@@ -4,7 +4,7 @@
       <h1>Reset session history</h1>
       <p>This action is permanent and cannot be reversed without restoring from a backup.</p>
     </div>
-    <a class="back-btn" href="/admin">← Back to dashboard</a>
+    <a class="back-btn" href="/admin">Back to dashboard</a>
   </div>
 
   <% if (typeof error !== 'undefined' && error) { %>
@@ -14,7 +14,7 @@
   <% } %>
 
   <div class="admin-error" style="background: #fff5f5; border-left: 4px solid #e03131; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-    <strong>⚠️ Warning: Irreversible Deletion.</strong><br>
+    <strong>Warning: Irreversible Deletion.</strong><br>
     This permanently deletes all bhajan submissions and session locks across history.
     The Master Bhajan Bank, Singer Directory, and Administrator Accounts will remain intact.
     <p style="margin-top: 8px; font-size: 13px; color: #555;">An automated backup will be created in the <code>backups/</code> folder immediately before deletion.</p>
@@ -22,11 +22,11 @@
 
   <div style="margin-bottom: 24px; padding: 14px 18px; background: var(--bg-card, #f8f9fa); border-radius: 8px; border: 1px solid var(--border-color, #e9ecef); display: flex; justify-content: space-between; align-items: center;">
     <div>
-      <strong>📦 Database Backup</strong>
+      <strong>Database Backup</strong>
       <p style="margin: 0; font-size: 13px; color: #666;">Download a complete SQLite snapshot before proceeding.</p>
     </div>
     <a href="/admin/download-backup" class="secondary-btn" style="text-decoration: none; padding: 8px 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-      ⬇️ Download Backup (.sqlite)
+      Download Backup (.sqlite)
     </a>
   </div>
 

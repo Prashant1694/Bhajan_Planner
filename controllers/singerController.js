@@ -3,24 +3,25 @@ const bcrypt = require("bcrypt");
 const Singer = require("../models/Singer");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const { timeSince, formatDateHuman } = require("../services/helpers");
+const { invalidateSingerCache } = require("../services/catalogCache");
 
 exports.showSingers = async (req, res) => {
   try {
-    const singers = await Singer.scope("withSecrets").findAll({
-      order: [["name", "ASC"]],
-      raw: true
-    });
-
-    // Fetch submission stats grouped by singer_name
-    const stats = await BhajanSubmission.findAll({
-      attributes: [
-        "singer_name",
-        [Sequelize.fn("COUNT", Sequelize.col("id")), "total_sung"],
-        [Sequelize.fn("MAX", Sequelize.col("session_date")), "last_sung"]
-      ],
-      group: ["singer_name"],
-      raw: true
-    });
+    const [singers, stats] = await Promise.all([
+      Singer.scope("withSecrets").findAll({
+        order: [["name", "ASC"]],
+        raw: true
+      }),
+      BhajanSubmission.findAll({
+        attributes: [
+          "singer_name",
+          [Sequelize.fn("COUNT", Sequelize.col("id")), "total_sung"],
+          [Sequelize.fn("MAX", Sequelize.col("session_date")), "last_sung"]
+        ],
+        group: ["singer_name"],
+        raw: true
+      })
+    ]);
 
     const statsMap = new Map();
     stats.forEach((st) => {
@@ -32,7 +33,6 @@ exports.showSingers = async (req, res) => {
       }
     });
 
-    // Also include any singers from submissions that might not yet be in singer_dictionary
     const existingNames = new Set(singers.map((s) => s.name.trim().toLowerCase()));
     const unrecordedSingers = [];
 
@@ -58,7 +58,7 @@ exports.showSingers = async (req, res) => {
         return {
           ...s,
           has_pin: Boolean(s.pin),
-          pin: undefined, // Never expose raw or hashed PIN to view
+          pin: undefined,
           total_sung: st.total_sung,
           last_sung: st.last_sung,
           lastSungHuman: st.last_sung ? timeSince(st.last_sung) : "Never",
@@ -119,6 +119,7 @@ exports.addSinger = async (req, res) => {
         defaults: { gender: gender || null }
       });
       if (!singer.gender && gender) await singer.update({ gender });
+      invalidateSingerCache();
     }
     res.redirect("/admin/singers");
   } catch (error) {
@@ -139,6 +140,7 @@ exports.editSinger = async (req, res) => {
         { name: name.trim(), gender: gender || null },
         { where: { id: req.params.id } }
       );
+      invalidateSingerCache();
     }
     res.redirect("/admin/singers");
   } catch (error) {
@@ -154,6 +156,7 @@ exports.editSinger = async (req, res) => {
 exports.deleteSinger = async (req, res) => {
   try {
     await Singer.destroy({ where: { id: req.params.id } });
+    invalidateSingerCache();
     res.redirect("/admin/singers");
   } catch (error) {
     console.error(`[Req ${req.id || ""}] deleteSinger error:`, error);
@@ -181,6 +184,7 @@ exports.resetSingerPin = async (req, res) => {
       failed_attempts: 0,
       locked_until: null
     });
+    invalidateSingerCache();
     if (req.xhr || req.headers.accept?.includes("application/json")) {
       return res.json({ success: true, message: `PIN reset successfully for ${singer.name}` });
     }
@@ -219,6 +223,7 @@ exports.setSingerPin = async (req, res) => {
       failed_attempts: 0,
       locked_until: null
     });
+    invalidateSingerCache();
     if (req.xhr || req.headers.accept?.includes("application/json")) {
       return res.json({ success: true, message: `PIN saved successfully for ${singer.name}` });
     }

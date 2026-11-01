@@ -2,6 +2,7 @@ const { initializeDatabase } = require("../services/databaseInitializer");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const MasterBhajan = require("../models/MasterBhajan");
 const Singer = require("../models/Singer");
+const SessionPermission = require("../models/SessionPermission");
 const { normalizeName } = require("../services/helpers");
 const { Sequelize } = require("sequelize");
 
@@ -132,34 +133,52 @@ const DEITY_KEYWORDS = [
   }
 ];
 
+function cleanWhatsAppMarkdown(text) {
+  if (!text) return "";
+  return text
+    .replace(/^\*+|\*+$/g, "")
+    .replace(/^_+|_+$/g, "")
+    .replace(/^~+|~+$/g, "")
+    .trim();
+}
+
 function normalizeDeity(deity) {
   if (!deity) return "SarvaDharma";
-  const d = deity.trim();
-  if (["Devi", "Durga", "Mata"].includes(d)) return "Mata";
-  if (["Anjaneya", "Maruti", "Hanuman"].includes(d)) return "Hanuman";
-  if (["Vittala", "Vitthala", "Vithhala", "Vithala", "Panduranga"].includes(d)) return "Vitthala";
-  if (["Subrahmanya"].includes(d)) return "Guru";
-  if (
-    [
-      "Ganesha",
-      "Guru",
-      "Mata",
-      "SarvaDharma",
-      "Sai",
-      "Shiva",
-      "Krishna",
-      "Rama",
-      "Narayana",
-      "Vitthala",
-      "Hanuman"
-    ].includes(d)
-  ) {
-    return d;
+  const d = deity.replace(/[*_~\[\]]/g, "").trim();
+  const lower = d.toLowerCase();
+  if (["devi", "durga", "mata", "amba", "janani"].includes(lower)) return "Mata";
+  if (["anjaneya", "maruti", "hanuman"].includes(lower)) return "Hanuman";
+  if (["vittala", "vitthala", "vithhala", "vithala", "panduranga", "pandhari"].includes(lower)) return "Vitthala";
+  if (["subrahmanya", "guru"].includes(lower)) return "Guru";
+  if (["ganesha", "ganapathi", "vigneshwara"].includes(lower)) return "Ganesha";
+  if (["sai", "baba"].includes(lower)) return "Sai";
+  if (["shiva", "shankara", "mahadeva"].includes(lower)) return "Shiva";
+  if (["krishna", "govinda", "gopala"].includes(lower)) return "Krishna";
+  if (["rama", "ramachandra"].includes(lower)) return "Rama";
+  if (["narayana", "vishnu", "hari"].includes(lower)) return "Narayana";
+  if (["sarvadharma", "sarva dharma"].includes(lower)) return "SarvaDharma";
+
+  const std = [
+    "Ganesha",
+    "Guru",
+    "Mata",
+    "SarvaDharma",
+    "Sai",
+    "Shiva",
+    "Krishna",
+    "Rama",
+    "Narayana",
+    "Vitthala",
+    "Hanuman"
+  ];
+  for (const s of std) {
+    if (s.toLowerCase() === lower) return s;
   }
   return "SarvaDharma";
 }
 
 function inferDeity(title) {
+  if (!title) return "SarvaDharma";
   const lower = title.toLowerCase();
   for (const item of DEITY_KEYWORDS) {
     for (const kw of item.keywords) {
@@ -172,29 +191,101 @@ function inferDeity(title) {
 }
 
 function parseDateString(str) {
-  // Looks for YYYY-MM-DD or DD/MM/YYYY
-  const isoMatch = str.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (isoMatch) return isoMatch[1];
+  if (!str) return null;
 
-  const slashMatch = str.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
-  if (slashMatch) {
-    return `${slashMatch[3]}-${slashMatch[2]}-${slashMatch[1]}`;
+  // 1. Check for session_date=YYYY-MM-DD
+  const urlMatch = str.match(/session_date=(\d{4}-\d{2}-\d{2})/i);
+  if (urlMatch) return urlMatch[1];
+
+  // 2. Check for ISO YYYY-MM-DD
+  const isoMatch = str.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+
+  // 3. Check for DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = str.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+  if (dmyMatch) {
+    const day = String(dmyMatch[1]).padStart(2, "0");
+    const month = String(dmyMatch[2]).padStart(2, "0");
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
   }
+
+  // 4. Textual month formats
+  const months = {
+    jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+    jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12"
+  };
+
+  // e.g. "Oct 22, 2026" or "October 22, 2026"
+  const m1 = str.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i);
+  if (m1) {
+    const month = months[m1[1].slice(0, 3).toLowerCase()];
+    const day = String(m1[2]).padStart(2, "0");
+    const year = m1[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  // e.g. "22 Oct 2026" or "22nd October 2026"
+  const m2 = str.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?\s+(\d{4})\b/i);
+  if (m2) {
+    const day = String(m2[1]).padStart(2, "0");
+    const month = months[m2[2].slice(0, 3).toLowerCase()];
+    const year = m2[3];
+    return `${year}-${month}-${day}`;
+  }
+
   return null;
+}
+
+function isBhajanHeaderLine(line) {
+  const trimmed = line.trim();
+  if (/^\(?\d+\)?[\.\)\-–—\s]/.test(trimmed)) return true;
+  if (/^[0-9]\uFE0F?\u20E3/.test(trimmed) || /^\uD83D\uDD1F/.test(trimmed)) return true;
+  return false;
+}
+
+function splitIntoSessionSections(fullText) {
+  const lines = fullText.split(/\r?\n/);
+  const sections = [];
+  let currentLines = [];
+
+  function isNewSessionBoundary(line, currentLines) {
+    const t = line.trim();
+    if (!t) return false;
+    const isHeader =
+      /^(?:🕉️\s*)?\*?SRI SATHYA SAI SEVA ORGANISATION\*?/i.test(t) ||
+      /^(?:📅\s*)?\*?(?:BHAJAN PROGRAM|LIVE BHAJAN PLAN)\s*[-–—]/i.test(t) ||
+      /^Bhajan Plan\s*[-–—]/i.test(t) ||
+      /^(?:\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}|\d{4}-\d{2}-\d{2})$/.test(t);
+
+    if (!isHeader) return false;
+    // Only split if current session already parsed at least one bhajan
+    return currentLines.some((l) => isBhajanHeaderLine(l));
+  }
+
+  for (const line of lines) {
+    if (isNewSessionBoundary(line, currentLines)) {
+      const joined = currentLines.join("\n").trim();
+      if (joined.length > 0) {
+        sections.push(joined);
+        currentLines = [];
+      }
+    }
+    currentLines.push(line);
+  }
+  if (currentLines.length > 0) {
+    const joined = currentLines.join("\n").trim();
+    if (joined.length > 0) sections.push(joined);
+  }
+
+  return sections.length > 0 ? sections : [fullText];
 }
 
 async function parseBatchSessions(fullText) {
   await initializeDatabase();
 
-  // Pre-load all existing singers once so we can normalise-match without
-  // hammering the DB inside the per-bhajan loop.
   const existingSingers = await Singer.findAll({ attributes: ["id", "name", "gender"], raw: true });
 
-  /**
-   * Resolve a raw singer name string to an existing Singer record (or create
-   * a new one). Uses case-insensitive / whitespace-normalised comparison to
-   * avoid creating duplicates.
-   */
   async function resolveSinger(rawName) {
     if (!rawName || !rawName.trim()) return null;
     const norm = normalizeName(rawName);
@@ -202,121 +293,204 @@ async function parseBatchSessions(fullText) {
     if (!found) {
       const created = await Singer.create({ name: rawName.trim(), gender: null });
       found = { id: created.id, name: created.name, gender: created.gender };
-      existingSingers.push(found); // keep cache up to date
+      existingSingers.push(found);
     }
     return found;
   }
 
-  // Split text into sessions by lines starting with 'Bhajan Plan –' or dates
-  const rawSections = fullText.split(/(?=(?:Bhajan Plan\s*[-–—]\s*|\b\d{2}\/\d{2}\/\d{4}))/gi);
+  const rawSections = splitIntoSessionSections(fullText);
 
   let totalSessions = 0;
   let totalBhajans = 0;
-
   const sessionSummary = [];
+
   for (const section of rawSections) {
     const lines = section
-      .split("\n")
+      .split(/\r?\n/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
     if (lines.length === 0) continue;
 
-    const firstLine = lines[0];
-    const sessionDate = parseDateString(firstLine);
+    // Detect session date
+    let sessionDate = null;
+    for (const line of lines) {
+      sessionDate = parseDateString(line);
+      if (sessionDate) break;
+    }
     if (!sessionDate) continue;
 
     totalSessions++;
 
-    // Clear existing entries for this date to prevent duplicate rows
+    // Ensure session permission exists
+    try {
+      if (SessionPermission) {
+        await SessionPermission.findOrCreate({
+          where: { date: sessionDate },
+          defaults: { type: "regular", description: "Regular Session" }
+        });
+      }
+    } catch (_) {}
+
+    // Clear existing entries for this date to prevent duplicate records
     await BhajanSubmission.destroy({ where: { session_date: sessionDate } });
 
     console.log(`\n========================================`);
     console.log(`🗓️ Processing Session: ${sessionDate}`);
 
-    let listOrder = 0;
-    for (let i = 1; i < lines.length; i++) {
-      let line = lines[i];
-      if (!line || !/^\d+[\.\)]/.test(line)) continue;
+    // Group lines into individual bhajan blocks
+    const blocks = [];
+    let currentBlock = [];
 
+    for (const line of lines) {
+      if (/^[-–—─═]{3,}/.test(line)) {
+        if (currentBlock.length > 0) {
+          blocks.push(currentBlock);
+          currentBlock = [];
+        }
+        continue;
+      }
+      if (/Sai Ram to all Accompanists/i.test(line) || /Live Plan:\s*http/i.test(line)) {
+        if (currentBlock.length > 0) {
+          blocks.push(currentBlock);
+          currentBlock = [];
+        }
+        continue;
+      }
+
+      if (isBhajanHeaderLine(line)) {
+        if (currentBlock.length > 0) {
+          blocks.push(currentBlock);
+        }
+        currentBlock = [line];
+      } else if (currentBlock.length > 0) {
+        currentBlock.push(line);
+      }
+    }
+    if (currentBlock.length > 0) {
+      blocks.push(currentBlock);
+    }
+
+    let listOrder = 0;
+    for (const block of blocks) {
+      let title = "";
       let singerName = "Group / Devotee";
       let partnerName = null;
-      let title = "";
       let deity = "SarvaDharma";
       let scale = "Not specified";
       let speed = "medium";
 
-      // Check if line matches Plan View format:
-      // "1) Nisarg Chaudhari (Prashant Bhatt) – [Ganesha] Sharanam Sharanam Pahi Gajanana – Scale: 1.5P, Speed: Not specified"
-      if (line.includes("[") && line.includes("]")) {
-        // Match: 1) Singer (Partner) – [Deity] Title – Scale: X, Speed: Y
-        const planMatch = line.match(
-          /^\d+[\.\)]\s*(.*?)\s*[-–—]\s*\[(.*?)\]\s*(.*?)(?:\s*[-–—]\s*(.*))?$/
-        );
+      const blockText = block.join("\n");
+
+      // Extract Pitch & Tempo if present anywhere in the block
+      const pitchMatch = blockText.match(/(?:🎹\s*)?(?:Pitch|Scale)\s*:\s*([^|\n\r]+)/i);
+      if (pitchMatch) {
+        scale = pitchMatch[1].trim();
+      }
+      const tempoMatch = blockText.match(/(?:🥁\s*)?(?:Tempo|Speed)\s*:\s*([^|\n\r]+)/i);
+      if (tempoMatch) {
+        speed = tempoMatch[1].trim().toLowerCase();
+      }
+
+      // Extract Singer & Partner
+      // Look for lines like "👤 Prashant Bhatt (with Nisarg Chaudhry)" or "Singer: ..." or "Lead: ..."
+      let singerLine = block.find((l) => /^(?:👤\s*|(?:Singer|Lead)\s*:\s*)/i.test(l));
+      if (singerLine) {
+        let rawSinger = singerLine.replace(/^(?:👤\s*|(?:Singer|Lead)\s*:\s*)/i, "").trim();
+        const withMatch = rawSinger.match(/^(.*?)\s*\((?:with\s+)?(.*?)\)$/i);
+        if (withMatch) {
+          singerName = withMatch[1].trim();
+          partnerName = withMatch[2].trim();
+        } else {
+          singerName = rawSinger;
+        }
+      }
+
+      // Extract Deity
+      const bracketDeity = blockText.match(/\[([A-Za-z\s]+)\]/);
+      if (bracketDeity) {
+        deity = normalizeDeity(bracketDeity[1]);
+      } else {
+        const firstLineClean = block[0].replace(/^[0-9\uFE0F\u20E3\uD83D\uDD1F\(\)\.\s\-–—]+/, "").trim();
+        const deityTokenMatch = firstLineClean.match(/^\*?([A-Za-z]+)\*?/);
+        if (deityTokenMatch) {
+          const testD = normalizeDeity(deityTokenMatch[1]);
+          if (testD !== "SarvaDharma" || deityTokenMatch[1].toLowerCase() === "sarvadharma") {
+            deity = testD;
+          }
+        }
+      }
+
+      // Extract Title
+      const noteLine = block.find((l) => /^🎵/u.test(l));
+      if (noteLine) {
+        title = cleanWhatsAppMarkdown(noteLine.replace(/^🎵\s*/u, "").trim());
+      } else {
+        let firstLineContent = block[0].replace(/^[0-9\uFE0F\u20E3\uD83D\uDD1F\(\)\.\s\-–—]+/, "").trim();
+        firstLineContent = firstLineContent.replace(/^\[[A-Za-z\s]+\]\s*/, "").trim();
+
+        const checkD = normalizeDeity(firstLineContent);
+        if ((checkD !== "SarvaDharma" || firstLineContent.toLowerCase() === "sarvadharma") && block.length > 1 && !singerLine) {
+          deity = checkD;
+          title = cleanWhatsAppMarkdown(block[1]);
+        } else {
+          title = cleanWhatsAppMarkdown(firstLineContent);
+        }
+      }
+
+      // Single-line legacy format handling
+      if (block.length === 1 && block[0].includes("[") && block[0].includes("]")) {
+        const planMatch = block[0].match(/^\d+[\.\)]\s*(.*?)\s*[-–—]\s*\[(.*?)\]\s*(.*?)(?:\s*[-–—]\s*(.*))?$/);
         if (planMatch) {
           let rawSinger = planMatch[1].trim();
           deity = normalizeDeity(planMatch[2].trim());
           title = planMatch[3].trim();
-          let rawDetails = planMatch[4] ? planMatch[4].trim() : "";
-
-          // Extract partner from singer e.g. "Nisarg Chaudhari (Prashant Bhatt)"
-          const partnerMatch = rawSinger.match(/^(.*?)\s*\((.*?)\)$/);
-          if (partnerMatch) {
-            singerName = partnerMatch[1].trim();
-            partnerName = partnerMatch[2].trim();
+          const pMatch = rawSinger.match(/^(.*?)\s*\((.*?)\)$/);
+          if (pMatch) {
+            singerName = pMatch[1].trim();
+            partnerName = pMatch[2].trim();
           } else {
             singerName = rawSinger;
           }
-
-          // Extract scale & speed e.g. "Scale: 1.5P, Speed: Slow"
-          if (rawDetails) {
-            const scaleMatch = rawDetails.match(/Scale:\s*([^,]+)/i);
-            if (scaleMatch) scale = scaleMatch[1].trim();
-
-            const speedMatch = rawDetails.match(/Speed:\s*(.*)/i);
-            if (speedMatch) speed = speedMatch[1].trim().toLowerCase();
-          }
         }
-      } else {
-        // Standard text format
-        line = line.replace(/^\d+[\.\)]\s*/, "").trim();
-        line = line.replace(/^[GL]\s*[-–—]\s*/i, "").trim();
-
+      } else if (block.length === 1 && !title.includes("[") && block[0].includes("—")) {
+        // Plain text "1. Title — Scale"
+        let line = block[0].replace(/^\d+[\.\)]\s*/, "").trim();
         let parts = line.split(/\s*[-–—]\s*/);
         title = parts[0].trim();
-
         if (parts.length > 1) {
-          let extra = parts.slice(1).join(" - ").trim();
-          if (extra.includes(",")) {
-            singerName = extra.trim();
-          } else {
-            scale = extra;
-          }
+          scale = parts[1].trim();
         }
-
-        if (title.includes(":") && !title.toLowerCase().startsWith("http")) {
-          const colonParts = title.split(":");
-          if (colonParts[0].trim().length < 30) {
-            singerName = colonParts[0].trim();
-            title = colonParts.slice(1).join(":").trim();
-          }
-        }
-
-        const cleanTitle = title
-          .replace(/\s*\(\d+.*?\)/g, "")
-          .replace(/\(.*?\)/g, "")
-          .trim();
-        let masterMatch = await MasterBhajan.findOne({
-          where: {
-            is_active: true,
-            title: { [Sequelize.Op.like]: `%${cleanTitle}%` }
-          }
-        });
-
-        deity = normalizeDeity(masterMatch ? masterMatch.deity : inferDeity(cleanTitle));
-        speed = masterMatch && masterMatch.tempo ? masterMatch.tempo.toLowerCase() : "medium";
       }
 
-      // Resolve singer against existing dictionary (avoids duplicates)
+      // Link with Master Bhajan Bank for verification and auto-enrichment
+      const cleanTitle = (title || "")
+        .replace(/\s*\(\d+.*?\)/g, "")
+        .replace(/\(.*?\)/g, "")
+        .trim();
+
+      if (cleanTitle) {
+        try {
+          const masterMatch = await MasterBhajan.findOne({
+            where: {
+              is_active: true,
+              title: { [Sequelize.Op.like]: `%${cleanTitle}%` }
+            }
+          });
+
+          if (masterMatch) {
+            if (deity === "SarvaDharma" && masterMatch.deity) {
+              deity = normalizeDeity(masterMatch.deity);
+            }
+            if (speed === "medium" && masterMatch.tempo) {
+              speed = masterMatch.tempo.toLowerCase();
+            }
+          } else if (deity === "SarvaDharma") {
+            deity = normalizeDeity(inferDeity(cleanTitle));
+          }
+        } catch (_) {}
+      }
+
+      // Resolve singer & partner in Singer directory table
       await resolveSinger(singerName);
       if (partnerName) await resolveSinger(partnerName);
 
@@ -326,7 +500,7 @@ async function parseBatchSessions(fullText) {
         session_date: sessionDate,
         singer_name: singerName,
         partner_name: partnerName,
-        title: title,
+        title: title || "Untitled Bhajan",
         deity: deity,
         scale: scale,
         speed: speed,
@@ -334,7 +508,7 @@ async function parseBatchSessions(fullText) {
       });
 
       console.log(
-        `  [${listOrder}] ${singerName}${partnerName ? ` & ${partnerName}` : ""} | ${deity} | "${title}" | Scale: ${scale} | Speed: ${speed}`
+        `  [${listOrder}] ${singerName}${partnerName ? ` & ${partnerName}` : ""} | ${deity} | "${title}" | Pitch: ${scale} | Tempo: ${speed}`
       );
       totalBhajans++;
     }
@@ -348,4 +522,9 @@ async function parseBatchSessions(fullText) {
   return { totalSessions, totalBhajans, sessionSummary };
 }
 
-module.exports = { parseBatchSessions };
+module.exports = {
+  parseBatchSessions,
+  parseDateString,
+  normalizeDeity,
+  DEITY_KEYWORDS
+};

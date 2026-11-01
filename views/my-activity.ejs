@@ -1,101 +1,124 @@
-<div class="session-unified-page" style="padding:24px; max-width:1100px; margin:0 auto;">
-  <!-- Header -->
-  <header class="session-unified-header">
-    <div class="session-header-left">
-      <div class="session-title-wrap">
-        <span class="session-type-badge">📋 Personal Audit Trail</span>
-        <h1 class="session-title">My Activity History</h1>
-        <p class="session-subtitle">
-          Your personal timeline of bhajan submissions, repertoire updates, and satsang interactions.
-        </p>
+<div class="session-unified-page" style="padding: 24px 32px; background: var(--bg-app); min-height: 100vh;">
+
+  <!-- Featured Banner Header -->
+  <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); border-radius: 14px; padding: 24px 28px; color: white; box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.35); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+    <div>
+      <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; color: #a5b4fc; margin-bottom: 6px;">
+        Personal Audit Trail
       </div>
+      <h1 style="margin: 0 0 6px 0; font-size: 24px; font-weight: 800; color: #ffffff;">
+        My Activity History
+      </h1>
+      <p style="margin: 0; font-size: 13px; color: #c7d2fe;">
+        Your personal timeline of bhajan submissions, repertoire updates, and satsang interactions.
+      </p>
     </div>
-    <div class="session-header-actions">
-      <a href="/my-hub" class="session-btn session-btn-secondary">
-        <span>🎤</span> Back to My Hub
+
+    <!-- Quick Navigation -->
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <a href="/my-hub" class="button outline" style="border-color: rgba(255,255,255,0.25); color: #ffffff; background: rgba(255,255,255,0.08); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        Singer Hub
       </a>
-      <a href="/submit-form" class="session-btn session-btn-primary">
-        <span>➕</span> Submit Bhajan
+      <a href="/submit-form" class="button primary" style="background: #ffffff; color: var(--primary); font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Submit Bhajan
       </a>
     </div>
-  </header>
+  </div>
 
   <!-- User Card & Summary -->
-  <div style="background:var(--surface,#fff); border-radius:16px; border:1px solid var(--border,#e2e8f0); padding:20px 24px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-    <div style="display:flex; align-items:center; gap:14px;">
-      <div style="width:52px; height:52px; border-radius:14px; background:linear-gradient(135deg, #ec4899, #f43f5e); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; box-shadow:0 4px 12px rgba(236,72,153,0.3);">
+  <div style="background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: var(--shadow-sm);">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="width: 48px; height: 48px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);">
         <%= username ? username.charAt(0).toUpperCase() : 'U' %>
       </div>
       <div>
-        <div style="font-size:18px; font-weight:700; color:var(--ink,#1e293b); display:flex; align-items:center; gap:8px;">
+        <div style="font-size: 17px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
           <%= username %>
           <% if (singer) { %>
-            <span style="font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(236,72,153,0.1); color:#db2777; font-weight:700;">🎤 Singer Account</span>
+            <span style="font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #fdf2f8; color: #be185d; font-weight: 700; text-transform: uppercase;">Singer Account</span>
           <% } else if (admin) { %>
-            <span style="font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(99,102,241,0.1); color:#4f46e5; font-weight:700;">🛡️ Administrator</span>
+            <span style="font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #eef2ff; color: #4338ca; font-weight: 700; text-transform: uppercase;">Administrator</span>
           <% } %>
         </div>
-        <div style="font-size:13px; color:var(--muted,#64748b); margin-top:2px;">
+        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
           Showing your recent actions on Bhajan Scheduler
         </div>
       </div>
     </div>
 
-    <div style="display:flex; gap:16px;">
-      <div style="text-align:right;">
-        <div style="font-size:20px; font-weight:800; color:var(--ink,#1e293b);"><%= logs.length %></div>
-        <div style="font-size:11.5px; color:var(--muted,#64748b); text-transform:uppercase; font-weight:600;">Recorded Steps</div>
+    <div>
+      <div style="text-align: right;">
+        <div style="font-size: 24px; font-weight: 800; color: var(--text-primary);"><%= logs.length %></div>
+        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Recorded Steps</div>
       </div>
     </div>
   </div>
 
   <!-- Timeline -->
-  <div style="background:var(--surface,#fff); border-radius:16px; border:1px solid var(--border,#e2e8f0); padding:24px;">
-    <h3 style="margin:0 0 18px 0; font-size:16px; font-weight:700; color:var(--ink,#1e293b);">Timeline of Actions</h3>
+  <div style="background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 24px; box-shadow: var(--shadow-sm);">
+    <h3 style="margin: 0 0 18px 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">Timeline of Actions</h3>
 
     <% if (logs && logs.length > 0) { %>
-      <div class="user-timeline" style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
         <% logs.forEach(log => { 
           const dateStr = new Date(log.created_at).toLocaleString('en-US', {
             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
           });
-          let icon = '⚡';
-          let iconBg = 'rgba(99,102,241,0.1)';
-          let iconColor = '#6366f1';
+          let iconBg = '#eef2ff';
+          let iconColor = '#4f46e5';
+          let isSubmit = log.action.includes('SUBMIT');
+          let isSongbook = log.action.includes('SONGBOOK');
+          let isScale = log.action.includes('SCALE');
+          let isPin = log.action.includes('PIN');
+          let isLogin = log.action.includes('LOGIN');
 
-          if (log.action.includes('SUBMIT')) {
-            icon = '🎵'; iconBg = 'rgba(16,185,129,0.1)'; iconColor = '#10b981';
-          } else if (log.action.includes('SONGBOOK')) {
-            icon = '📖'; iconBg = 'rgba(236,72,153,0.1)'; iconColor = '#ec4899';
-          } else if (log.action.includes('SCALE')) {
-            icon = '🎹'; iconBg = 'rgba(139,92,246,0.1)'; iconColor = '#8b5cf6';
-          } else if (log.action.includes('PIN')) {
-            icon = '🔑'; iconBg = 'rgba(245,158,11,0.1)'; iconColor = '#f59e0b';
-          } else if (log.action.includes('LOGIN')) {
-            icon = '🔓'; iconBg = 'rgba(59,130,246,0.1)'; iconColor = '#3b82f6';
+          if (isSubmit) {
+            iconBg = '#ecfdf5'; iconColor = '#059669';
+          } else if (isSongbook) {
+            iconBg = '#fdf2f8'; iconColor = '#db2777';
+          } else if (isScale) {
+            iconBg = '#f5f3ff'; iconColor = '#7c3aed';
+          } else if (isPin) {
+            iconBg = '#fffbeb'; iconColor = '#d97706';
+          } else if (isLogin) {
+            iconBg = '#f0f9ff'; iconColor = '#0284c7';
           }
         %>
-          <div style="display:flex; align-items:flex-start; gap:14px; padding:12px 16px; border-radius:12px; background:var(--background,#f8fafc); border:1px solid var(--border,#f1f5f9);">
-            <div style="width:36px; height:36px; border-radius:10px; background:<%= iconBg %>; color:<%= iconColor %>; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;">
-              <%= icon %>
+          <div style="display: flex; align-items: flex-start; gap: 14px; padding: 12px 16px; border-radius: 8px; background: #f8fafc; border: 1px solid var(--border);">
+            <div style="width: 34px; height: 34px; border-radius: 8px; background: <%= iconBg %>; color: <%= iconColor %>; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <% if (isSubmit) { %>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <% } else if (isSongbook) { %>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <% } else if (isScale) { %>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="4" x2="6" y2="12"/><line x1="10" y1="4" x2="10" y2="12"/><line x1="14" y1="4" x2="14" y2="12"/><line x1="18" y1="4" x2="18" y2="12"/></svg>
+              <% } else if (isPin) { %>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <% } else { %>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              <% } %>
             </div>
-            <div style="flex:1;">
-              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                <span style="font-weight:700; font-size:14px; color:var(--ink,#1e293b);"><%= log.details || log.action %></span>
-                <span style="font-size:12px; color:var(--muted,#64748b); font-weight:500;"><%= dateStr %></span>
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <span style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);"><%= log.details || log.action %></span>
+                <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 500;"><%= dateStr %></span>
               </div>
-              <div style="font-size:12px; color:var(--muted,#64748b); margin-top:3px; display:flex; gap:10px;">
-                <span>Section: <strong><%= log.section %></strong></span>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Section: <strong><%= log.section %></strong>
               </div>
             </div>
           </div>
         <% }) %>
       </div>
     <% } else { %>
-      <div style="text-align:center; padding:40px 20px; color:var(--muted,#64748b);">
-        <div style="font-size:32px; margin-bottom:8px;">📝</div>
-        <div style="font-weight:700; font-size:15px; color:var(--ink,#1e293b);">No activity recorded yet</div>
-        <p style="margin:4px 0 0 0; font-size:13px;">Actions like submitting songs, changing pitch, and saving to your songbook will appear here.</p>
+      <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+        <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: #f1f5f9; color: var(--text-muted); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">No activity recorded yet</div>
+        <p style="margin: 4px 0 0 0; font-size: 12.5px;">Actions like submitting songs, changing pitch, and saving to your songbook will appear here.</p>
       </div>
     <% } %>
   </div>

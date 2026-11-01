@@ -3,6 +3,7 @@ const router = express.Router();
 const singerHubController = require("../controllers/singerHubController");
 const activityController = require("../controllers/activityController");
 const { requireSingerAuth } = require("../middleware/singerAuth");
+const { requireApiLogin } = require("../middleware/auth");
 const { singerLoginLimit, singerPinChangeLimit } = require("../middleware/security");
 
 // Public Singer Auth
@@ -26,7 +27,7 @@ router.post(
   singerHubController.updatePreferredScale
 );
 
-// Songbook & Repertoire (Phase 2)
+// Songbook & Repertoire
 router.get("/api/singer/songbook", requireSingerAuth, singerHubController.getSongbookList);
 router.post("/api/singer/songbook/toggle", requireSingerAuth, singerHubController.toggleSongbook);
 router.post(
@@ -40,7 +41,7 @@ router.get("/api/singer/songbook/check/:masterId", singerHubController.checkSong
 router.get("/singer/logout", singerHubController.logout);
 router.post("/singer/logout", singerHubController.logout);
 
-// Admin Quick Switch / Link Singer
-router.post("/api/admin/switch-singer", singerHubController.adminSwitchSinger);
+// Admin Quick Switch / Link Singer (validated via requireApiLogin)
+router.post("/api/admin/switch-singer", requireApiLogin, singerHubController.adminSwitchSinger);
 
 module.exports = router;

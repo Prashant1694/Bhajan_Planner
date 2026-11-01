@@ -11,7 +11,7 @@
   <div class="container login-card">
 
     <h2 class="login-heading">
-      🔐 Admin Login
+      Admin Login
     </h2>
 
     <% if (error) { %>
@@ -101,9 +101,9 @@ async function handleGoogleCredential(response) {
       return;
     }
     if (window.top && window.top !== window) {
-      window.top.location.href = data.redirect || '/?tab=admin';
+      window.top.location.href = data.redirect || '/admin';
     } else {
-      window.location.href = data.redirect || '/?tab=admin';
+      window.location.href = data.redirect || '/admin';
     }
   } catch (err) {
     console.error(err);
