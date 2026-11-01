@@ -1830,7 +1830,7 @@
     });
   };
 
-  window.autoPopulateFromLineup = function() {
+  window.autoPopulateFromLineup = async function() {
     if (!cachedScheduledBhajans || cachedScheduledBhajans.length === 0) {
       alert('No scheduled bhajans found for this session date.');
       return;
