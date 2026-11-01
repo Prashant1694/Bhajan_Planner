@@ -271,14 +271,14 @@
             <span class="cmd-btn-text">Add Bhajan</span>
           </a>
 
-          <button type="button" class="cmd-btn cmd-btn-audio" onclick="openAudioModal()" title="Link audio recording & manage bhajan timestamps">
+          <button type="button" id="openSessionAudioBtn" class="cmd-btn cmd-btn-audio" title="Link audio recording & manage bhajan timestamps">
             <span class="cmd-btn-icon">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             </span>
             <span class="cmd-btn-text">Session Audio</span>
           </button>
 
-          <button type="button" class="cmd-btn cmd-btn-share" onclick="openShareModal()" title="Share program via WhatsApp">
+          <button type="button" id="openShareLineupBtn" class="cmd-btn cmd-btn-share" title="Share program via WhatsApp">
             <span class="cmd-btn-icon">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </span>
@@ -1563,7 +1563,7 @@
 
     fetch(`/admin/api/sessions/${sessionDateStr}/audio`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || '' },
       body: JSON.stringify({
         audio_url: url,
         storage_key: storageKey || null,
@@ -1603,7 +1603,8 @@
     btn.disabled = true;
 
     fetch(`/admin/api/sessions/${sessionDateStr}/audio`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': window.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || '' }
     })
     .then(res => res.json())
     .then(data => {
@@ -1912,7 +1913,7 @@
 
     fetch(`/admin/api/sessions/${sessionDateStr}/audio/timestamps`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.csrfToken || document.querySelector('meta[name="csrf-token"]')?.content || '' },
       body: JSON.stringify({ timestamps: timestampsPayload })
     })
     .then(res => res.json())
@@ -1959,3 +1960,5 @@
 
 })();
 </script>
+
+<script src="/js/admin-session-actions.js?v=1"></script>
