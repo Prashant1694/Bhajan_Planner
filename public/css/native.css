@@ -194,6 +194,152 @@ p, .description, .card-desc {
   margin-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)) !important;
 }
 
+/* Universal Floating Bottom Capsule (<= 1024px) */
+@media (min-width: 1025px) {
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mobile-bottom-capsule,
+  .native-bottom-nav,
+  #mobileBottomCapsule,
+  #nativeBottomNav {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style;
+    width: calc(100% - 24px) !important;
+    max-width: 520px !important;
+    height: 52px !important;
+    border-radius: 9999px !important;
+    z-index: 1000 !important;
+    box-sizing: border-box !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  [data-theme="dark"] .mobile-bottom-capsule,
+  [data-theme="dark"] #mobileBottomCapsule,
+  [data-theme="dark"] .native-bottom-nav,
+  [data-theme="dark"] #nativeBottomNav,
+  .dark .mobile-bottom-capsule,
+  .dark #mobileBottomCapsule,
+  .dark .native-bottom-nav,
+  .dark #nativeBottomNav {
+    background: rgba(24, 22, 20, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.12) !important;
+  }
+
+  /* Hide bottom nav when mobile sidebar is open */
+  body.mobile-sidebar-open .mobile-bottom-capsule,
+  body.mobile-sidebar-open .native-bottom-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Safe padding for admin layout content on mobile */
+  body.admin-page .admin-layout .main-content,
+  body.admin-page .admin-layout .page-body,
+  .admin-page .page-body {
+    padding-bottom: calc(var(--bp-nav-h, 62px) + env(safe-area-inset-bottom, 0px) + 24px) !important;
+  }
+}
+
+/* Desktop Admin Topbar Navigation Bar */
+.admin-desktop-nav {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  flex: 1 1 auto !important;
+  margin: 0 16px !important;
+}
+
+.admin-desktop-nav .nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink-soft, #57534e);
+  text-decoration: none;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.admin-desktop-nav .nav-link:hover {
+  color: var(--ink, #1c1917);
+  background-color: var(--surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+[data-theme="dark"] .admin-desktop-nav .nav-link:hover,
+.dark .admin-desktop-nav .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-desktop-nav .nav-link.active {
+  color: #c85a17 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .admin-desktop-nav .nav-link.active,
+.dark .admin-desktop-nav .nav-link.active {
+  color: #fbbf24 !important;
+}
+
+.admin-desktop-nav .nav-link.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 75%;
+  height: 2.5px;
+  background: linear-gradient(90deg, #c85a17 0%, #d97706 100%);
+  border-radius: 9999px;
+  box-shadow: 0 0 8px rgba(200, 90, 23, 0.45);
+}
+
+[data-theme="dark"] .admin-desktop-nav .nav-link.active::after,
+.dark .admin-desktop-nav .nav-link.active::after {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+}
+
+@media (max-width: 1024px) {
+  .admin-desktop-nav {
+    display: none !important;
+  }
+}
+
 /* Ensure bottom nav does not cover scrollable content */
 .shell-pane,
 .shell-scroll-container,

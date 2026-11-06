@@ -95,6 +95,7 @@ test-*.js
 # ============================================================
 sairhythms/Sai Rhythms/
 sairhythms/Sai Rhythms.zip
+tests/
 
 # ============================================================
 # ONE-TIME UTILITY SCRIPTS (not needed at runtime)

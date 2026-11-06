@@ -289,3 +289,38 @@ test("Native Layer: Quick lyrics modal collapses on navigation to full page or r
     "openDetailSheetDom must dismiss active modals"
   );
 });
+
+test("Native Layer: Admin panel maintains persistent mobile capsule navbar and desktop navigation", () => {
+  const mainLayout = fs.readFileSync(path.join(__dirname, "../views/layouts/main.ejs"), "utf8");
+  const topbarPartial = fs.readFileSync(path.join(__dirname, "../views/partials/topbar.ejs"), "utf8");
+  const capsulePartial = fs.readFileSync(path.join(__dirname, "../views/partials/mobile-capsule-nav.ejs"), "utf8");
+  const nativeCss = fs.readFileSync(path.join(__dirname, "../public/css/native.css"), "utf8");
+
+  // Admin layout in main.ejs must include mobile capsule navbar
+  assert.ok(
+    mainLayout.includes("mobile-capsule-nav"),
+    "main.ejs must include mobile-capsule-nav in admin layout"
+  );
+
+  // Desktop topbar in admin must include desktop navigation
+  assert.ok(
+    topbarPartial.includes("adminDesktopNav") || topbarPartial.includes("desktop-nav"),
+    "topbar.ejs must include desktop primary navigation"
+  );
+
+  // Capsule partial contains all 6 navigation tabs including admin
+  assert.ok(
+    capsulePartial.includes('id="tab-btn-home"') &&
+    capsulePartial.includes('id="tab-btn-bank"') &&
+    capsulePartial.includes('id="tab-btn-admin"'),
+    "mobile-capsule-nav must contain home, bank, and admin tabs"
+  );
+
+  // CSS ensures capsule nav is fixed, responsive, and has admin page padding
+  assert.ok(
+    nativeCss.includes(".mobile-bottom-capsule") &&
+    nativeCss.includes(".admin-desktop-nav") &&
+    nativeCss.includes("body.admin-page"),
+    "native.css must style mobile capsule nav, admin desktop nav, and admin page bottom padding"
+  );
+});
