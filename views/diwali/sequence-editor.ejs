@@ -367,12 +367,6 @@ function initDiwaliSequenceDragDrop() {
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
   }
 
-  function getDropPosition(list, card, y) {
-    if (!card || card.parentElement !== list) return null;
-    const rect = card.getBoundingClientRect();
-    return y > rect.top + rect.height / 2 ? card.nextSibling : card;
-  }
-
   function placeDraggedCard(list, targetCard, y) {
     if (!list || !drag?.card) return;
     if (targetCard && targetCard !== drag.card && targetCard.parentElement === list) {
