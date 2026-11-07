@@ -384,7 +384,6 @@ async function generateSequencePdf(event, options = {}) {
       doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", reject);
 
-      const PAGE_W = 595.28;
       const PAGE_H = 841.89;
       const LEFT = 25;
       const RIGHT = PAGE_W - 25;
@@ -433,8 +432,8 @@ async function generateSequencePdf(event, options = {}) {
 
       const drawSequencePage = (seq) => {
         const sequenceLabel = seq.sequence_type === "Manual"
-          ? \`Manual Sequence \${seq.sequence_number}\`
-          : \`Sequence \${seq.sequence_number}\`;
+          ? `Manual Sequence ${seq.sequence_number}`
+          : `Sequence ${seq.sequence_number}`;
         const entries = filteredEntries(seq);
         doc.addPage({ size: "A4", layout: "portrait", margins: 0 });
 
@@ -474,13 +473,13 @@ async function generateSequencePdf(event, options = {}) {
           .fillAndStroke(CREAM, "#e6dcd0");
         doc.rect(LEFT, bannerY, 4, bannerH).fill(MAROON);
         doc.fillColor(MAROON).font("Helvetica-Bold").fontSize(10.5)
-          .text(\`DIWALI BHAJANS  •  \${String(event.name || "").toUpperCase()}\`, LEFT + 11, bannerY + 7, {
+          .text(`DIWALI BHAJANS  •  ${String(event.name || "").toUpperCase()}`, LEFT + 11, bannerY + 7, {
             width: CONTENT_W - 22, lineBreak: false, ellipsis: true
           });
-        const dateText = seq.assigned_date ? \`  •  Date: \${seq.assigned_date}\` : "";
+        const dateText = seq.assigned_date ? `  •  Date: ${seq.assigned_date}` : "";
         const period = seq.session_period === "Evening" ? "EVENING" : "MORNING";
         doc.fillColor(GOLD).font("Helvetica-Bold").fontSize(9)
-          .text(\`\${sequenceLabel.toUpperCase()}  •  \${period}\${dateText}\`, LEFT + 11, bannerY + 26, {
+          .text(`${sequenceLabel.toUpperCase()}  •  ${period}${dateText}`, LEFT + 11, bannerY + 26, {
             width: CONTENT_W - 22, lineBreak: false, ellipsis: true
           });
 
@@ -586,7 +585,7 @@ async function generateSequencePdf(event, options = {}) {
         doc.fillColor(MAROON).font("Times-Bold").fontSize(12)
           .text("|| AUM SRI SAI RAM ||", LEFT, 35, { width: CONTENT_W, align: "center" });
         doc.fillColor(INK).font("Helvetica-Bold").fontSize(14)
-          .text(\`DIWALI BHAJANS — \${String(event.name || "").toUpperCase()}\`, LEFT, 60, {
+          .text(`DIWALI BHAJANS — ${String(event.name || "").toUpperCase()}`, LEFT, 60, {
             width: CONTENT_W, align: "center"
           });
         doc.fillColor(MUTED).font("Helvetica").fontSize(10)
