@@ -759,7 +759,7 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
 async function getFullSequences(eventId) {
   const sequences = await DiwaliSequence.findAll({
     where: { event_id: eventId },
-    order: [["sequence_number", "ASC"]],
+    order: [["sequence_type", "ASC"], ["sequence_number", "ASC"]],
     include: [
       {
         model: DiwaliSequenceEntry,
