@@ -433,7 +433,7 @@ async function generateSequencePdf(event, options = {}) {
         return entries;
       };
 
-      const drawSequencePage = (seq, sequenceIndex) => {
+      const drawSequencePage = (seq) => {
         const sequenceLabel = seq.sequence_type === "Manual"
           ? `Manual Sequence ${seq.sequence_number}`
           : `Sequence ${seq.sequence_number}`;
@@ -610,7 +610,7 @@ async function generateSequencePdf(event, options = {}) {
             width: CONTENT_W, align: "center"
           });
       } else {
-        sequences.forEach((seq, index) => drawSequencePage(seq, index));
+        sequences.forEach((seq) => drawSequencePage(seq));
       }
 
       doc.end();
