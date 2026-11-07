@@ -35,7 +35,7 @@ test("Sequence rows receive dynamic spacing and never trigger continuation pages
   assert.match(pdf, /Math\.min\(30, rowsAvailable \/ entries\.length\)/);
   assert.match(pdf, /index % 2 === 0 \? "#ffffff" : "#fdfbf7"/);
   const rowLoopStart = pdf.indexOf("entries.forEach((entry, index) =>");
-  const rowLoopEnd = pdf.indexOf("// Vertical separators", rowLoopStart);
+  const rowLoopEnd = pdf.indexOf("let separatorX = tableX", rowLoopStart);
   assert.ok(rowLoopStart >= 0 && rowLoopEnd > rowLoopStart);
   assert.doesNotMatch(pdf.slice(rowLoopStart, rowLoopEnd), /addPage/);
 });
