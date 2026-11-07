@@ -22,6 +22,11 @@ const DiwaliSequence = sequelize.define(
       allowNull: false,
       defaultValue: "Auto"
     },
+    session_period: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Morning"
+    },
     assigned_date: {
       type: DataTypes.STRING,
       allowNull: true
