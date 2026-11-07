@@ -447,7 +447,9 @@ async function moveItemOrder(sequenceId, entryId, delta) {
   const container = document.getElementById(`seq-list-${sequenceId}`);
   if (!container) return;
 
-  const cards = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  if (container.dataset.saving === "true") return;
+  const originalOrder = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  const cards = [...originalOrder];
   const idx = cards.findIndex(c => c.dataset.entryId === String(entryId));
   if (idx === -1) return;
 
@@ -472,11 +474,21 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 
   const orderedIds = newCards.map(c => c.dataset.entryId);
 
-  // Persist order to server
+  // Persist once; restore the original order if the server rejects the save.
+  container.dataset.saving = "true";
+  const buttons = container.closest(".sequence-column-card")?.querySelectorAll("button") || [];
+  buttons.forEach(button => { button.disabled = true; });
   try {
-    await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
+    const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order.");
   } catch (err) {
-    console.error("Error saving sequence order:", err);
+    originalOrder.forEach(card => container.appendChild(card));
+    alert("Sequence order was not saved: " + err.message);
+  } finally {
+    delete container.dataset.saving;
+    buttons.forEach(button => { button.disabled = false; });
+    Array.from(container.querySelectorAll(".order-badge")).forEach((badge, index) => { badge.textContent = `${index + 1}.`; });
   }
 }
 
@@ -584,7 +596,6 @@ function initDiwaliSequenceDragDrop() {
         });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
-        await saveListOrder(targetList);
       } else {
         await saveListOrder(targetList);
       }
