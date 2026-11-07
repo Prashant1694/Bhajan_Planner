@@ -77,7 +77,7 @@ test("Individual Diwali sequence deletion is event-scoped and preserves unrelate
   assert.match(deletion, /await t\\.commit\\(\\)/);
   assert.match(deletion, /await t\\.rollback\\(\\)/);
   assert.match(controller, /exports\\.deleteSequence/);
-  assert.match(routes, /sequence\\/delete\\/:id/);
+  assert.match(routes, /sequence\/delete\/:id/);
   assert.doesNotMatch(routes, /delete-generated/);
   assert.doesNotMatch(service, /async function deleteGeneratedSequences/);
   assert.match(editor, /deleteDiwaliSequence/);
