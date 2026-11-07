@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const editor = fs.readFileSync(path.join(__dirname, "../views/diwali/sequence-editor.ejs"), "utf8");
 const styles = fs.readFileSync(path.join(__dirname, "../public/css/diwali.css"), "utf8");
+const service = fs.readFileSync(path.join(__dirname, "../services/diwaliService.js"), "utf8");
 
 test("Diwali sequence editor exposes a touch-friendly drag handle for every bhajan", () => {
   assert.match(editor, /class="sequence-drag-handle"/);
@@ -26,4 +27,14 @@ test("Diwali sequence drag supports same-list reorder and cross-sequence moves",
 test("Diwali sequence drag has visible dragging and saved states", () => {
   assert.match(styles, /\.sequence-entry-card\.is-dragging/);
   assert.match(styles, /\.sequence-entry-card\.is-drop-saved/);
+});
+
+test("Diwali cross-sequence drops persist the requested insertion position", () => {
+  const moveFunction = service.slice(
+    service.indexOf("async function moveEntryToAnotherSequence("),
+    service.indexOf("async function assignSequenceDate")
+  );
+  assert.match(moveFunction, /targetEntries\.splice\(insertAt, 0, entry\)/);
+  assert.match(moveFunction, /sequence_order = i \+ 1/);
+  assert.match(moveFunction, /remainingInOld/);
 });
