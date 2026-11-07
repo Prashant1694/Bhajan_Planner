@@ -496,7 +496,7 @@ async function getStats(eventId) {
     order: [["sequence_number", "ASC"]]
   });
 
-  const generatedSequences = sequences.length;
+  const generatedSequences = sequences.filter((sequence) => sequence.sequence_type !== "Manual").length;
   let sequenceStatus = "Not Generated";
   if (generatedSequences > 0) {
     const isFinalized = sequences.every((s) => s.status === "Finalized");
