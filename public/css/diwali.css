@@ -1249,3 +1249,12 @@
     flex-direction: column;
   }
 }
+
+/* Destructive action remains visually distinct within Diwali controls. */
+.diwali-delete-generated-btn {
+  border-color: #b64b4b !important;
+  color: #a93636 !important;
+}
+.diwali-delete-generated-btn:hover {
+  background: rgba(169, 54, 54, 0.08);
+}
