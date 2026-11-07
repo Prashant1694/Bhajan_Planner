@@ -54,7 +54,7 @@ test("Native Layer: Google Fonts use non-blocking preload with noscript fallback
 test("Native Layer: Service Worker precache list includes native.css and native-ui.js", () => {
   const swCode = fs.readFileSync(path.join(__dirname, "../public/sw.js"), "utf8");
   assert.ok(
-    swCode.includes('"/css/native.css?v=6.5"'),
+    swCode.includes('"/css/native.css?v=6.6"'),
     "Service Worker should precache native.css"
   );
   assert.ok(
@@ -322,5 +322,12 @@ test("Native Layer: Admin panel maintains persistent mobile capsule navbar and d
     nativeCss.includes(".admin-desktop-nav") &&
     nativeCss.includes("body.admin-page"),
     "native.css must style mobile capsule nav, admin desktop nav, and admin page bottom padding"
+  );
+
+  assert.ok(
+    nativeCss.includes("body.admin-page #mobileBottomCapsule.native-bottom-nav") &&
+    nativeCss.includes("#capsuleTrack.native-nav-inner") &&
+    nativeCss.includes("flex-direction: row !important"),
+    "Admin mobile capsule must explicitly use a horizontal row layout"
   );
 });
