@@ -1031,3 +1031,66 @@
     font-size: 24px;
   }
 }
+
+
+/* Touch-friendly drag-and-drop in the Diwali sequence editor */
+.sequence-entry-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sequence-drag-handle {
+  display: inline-flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--diwali-border);
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--text-light, #8b8394);
+  font-size: 21px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sequence-drag-handle:active {
+  cursor: grabbing;
+  color: var(--diwali-maroon);
+  border-color: var(--diwali-gold);
+}
+
+.sequence-entry-card.is-dragging {
+  opacity: 0.45;
+  border: 2px dashed var(--diwali-gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: scale(0.99);
+}
+
+.sequence-entry-card.is-drop-saved {
+  border-color: #4f9b68;
+  box-shadow: 0 0 0 2px rgba(79, 155, 104, 0.16);
+}
+
+.sequence-entries-list:has(.sequence-entry-card.is-dragging) {
+  background: rgba(217, 138, 43, 0.06);
+}
+
+@media (max-width: 768px) {
+  .sequence-drag-handle {
+    width: 36px;
+    height: 40px;
+    flex-basis: 36px;
+    font-size: 23px;
+  }
+
+  .sequence-entry-card {
+    touch-action: pan-y;
+  }
+}
