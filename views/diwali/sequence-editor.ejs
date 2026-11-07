@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/diwali.css">
+<link rel="stylesheet" href="/css/diwali.css?v=6.8">
 
 <div class="container container-xl">
 
@@ -391,7 +391,7 @@ function initDiwaliSequenceDragDrop() {
     const card = handle.closest(".sequence-entry-card");
     const list = card?.closest(".sequence-entries-list");
     if (!card || !list) return;
-    drag = { card, sourceList: list, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    drag = { card, sourceList: list, originalNextSibling: card.nextSibling, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
     dragStarted = false;
   });
 
@@ -451,7 +451,19 @@ function initDiwaliSequenceDragDrop() {
   }
 
   document.addEventListener("pointerup", finishDrag);
-  document.addEventListener("pointercancel", finishDrag);
+  document.addEventListener("pointercancel", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const state = drag;
+    drag = null;
+    state.card.classList.remove("is-dragging");
+    state.sourceList.insertBefore(
+      state.card,
+      state.originalNextSibling && state.originalNextSibling.parentElement === state.sourceList
+        ? state.originalNextSibling
+        : null
+    );
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  });
 }
 
 if (document.readyState === "loading") {
