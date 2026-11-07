@@ -434,9 +434,7 @@ async function finalizeSeq(sequenceId) {
     : confirm("Finalize this sequence?");
   if (!ok) return;
   try {
-    const res = await window.diwaliPost(`/admin/diwali/sequence/finalize/${sequenceId}`)
-      method: "POST"
-    });
+    const res = await window.diwaliPost(`/admin/diwali/sequence/finalize/${sequenceId}`);
     const data = await res.json();
     if (data.success) window.location.reload();
     else alert("Error: " + data.error);
