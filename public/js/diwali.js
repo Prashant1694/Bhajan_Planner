@@ -88,13 +88,27 @@ async function diwaliPost(url, payload, options = {}) {
   return response;
 }
 
+// Expose the request helper before any optional module initialization runs.
+// A failure in a UI initializer must never leave save actions without this API.
+window.diwaliPost = diwaliPost;
+
 function initDiwaliModule() {
-  initTabs();
-  initTableFilters();
-  initAutocomplete();
-  initBhajanRepeater();
-  initModals();
-  initGenderChangeListeners();
+  const initializers = [
+    initTabs,
+    initTableFilters,
+    initAutocomplete,
+    initBhajanRepeater,
+    initModals,
+    initGenderChangeListeners
+  ];
+
+  for (const initialize of initializers) {
+    try {
+      initialize();
+    } catch (error) {
+      console.error(`[Diwali] ${initialize.name || "UI"} initialization failed:`, error);
+    }
+  }
 }
 
 if (document.readyState === "loading") {

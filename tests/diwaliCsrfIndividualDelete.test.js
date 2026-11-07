@@ -48,3 +48,20 @@ test("Diwali CSRF refresh endpoint is authenticated", () => {
   assert.match(routes, /admin\/diwali\/csrf-token/);
   assert.match(routes, /res\.locals\.csrfToken/);
 });
+
+
+test("Diwali request helper loads before inline editor actions and is cache-busted", () => {
+  const script = fs.readFileSync(path.join(root, "public/js/diwali.js"), "utf8");
+  const sequenceEditor = fs.readFileSync(path.join(root, "views/diwali/sequence-editor.ejs"), "utf8");
+  const dashboard = fs.readFileSync(path.join(root, "views/diwali/dashboard.ejs"), "utf8");
+  const entry = fs.readFileSync(path.join(root, "views/diwali/entry.ejs"), "utf8");
+  const importView = fs.readFileSync(path.join(root, "views/diwali/import.ejs"), "utf8");
+  const serviceWorker = fs.readFileSync(path.join(root, "public/sw.js"), "utf8");
+
+  assert.ok(script.indexOf("window.diwaliPost = diwaliPost;") < script.indexOf("function initDiwaliModule()"));
+  for (const view of [sequenceEditor, dashboard, entry, importView]) {
+    assert.match(view, /\/js\/diwali\.js\?v=7\.2\.1/);
+  }
+  assert.match(serviceWorker, /CACHE_VERSION = "v6\.12"/);
+  assert.match(serviceWorker, /\/js\/diwali\.js\?v=7\.2\.1/);
+});
