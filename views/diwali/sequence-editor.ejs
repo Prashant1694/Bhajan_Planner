@@ -106,6 +106,22 @@
               <small id="dateStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
             </div>
 
+            <!-- Morning / Evening assignment for this sequence -->
+            <div class="sequence-date-wrap" style="margin-top:8px;">
+              <label for="seqPeriod-<%= seq.id %>" style="font-size:12px; font-weight:600;">Session:</label>
+              <select
+                id="seqPeriod-<%= seq.id %>"
+                class="sequence-date-input"
+                data-saved-value="<%= seq.session_period || 'Morning' %>"
+                onchange="onSessionPeriodChanged(<%= seq.id %>, this.value)"
+                aria-label="Select morning or evening session"
+              >
+                <option value="Morning" <%= (seq.session_period || 'Morning') === 'Morning' ? 'selected' : '' %>>Morning</option>
+                <option value="Evening" <%= seq.session_period === 'Evening' ? 'selected' : '' %>>Evening</option>
+              </select>
+              <small id="periodStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
+            </div>
+
             <!-- Required musician assignments for this session/day -->
             <div class="diwali-musician-assignment">
               <div class="diwali-musician-assignment-heading">
