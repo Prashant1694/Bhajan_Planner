@@ -226,13 +226,14 @@ exports.updateParticipant = async (req, res) => {
       }
     }
 
+    const selectedEvent = await resolveSelectedEvent(req);
     const updated = await diwaliService.updateParticipantWithBhajans(req.params.id, {
       lead_name,
       partner_name,
       gender,
       remarks,
       bhajans
-    });
+    }, selectedEvent.id);
 
     await activityService.log(
       req.session.admin,
