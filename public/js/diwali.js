@@ -51,16 +51,21 @@ function getCurrentGender(scopeElement) {
 let diwaliCsrfToken = document.querySelector('meta[name="csrf-token"]')?.content || window.csrfToken || "";
 
 async function diwaliPost(url, payload, options = {}) {
-  const makeRequest = (token) => fetch(url, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { "X-CSRF-Token": token } : {}),
-      ...(options.headers || {})
-    },
-    ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
-  });
+  const makeRequest = (token) => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 45000);
+    return fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      signal: controller.signal,
+      headers: {
+        ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { "X-CSRF-Token": token } : {}),
+        ...(options.headers || {})
+      },
+      ...(payload !== undefined ? { body: JSON.stringify(payload) } : options.body !== undefined ? { body: options.body } : {})
+    }).finally(() => window.clearTimeout(timeout));
+  };
 
   let response = await makeRequest(diwaliCsrfToken);
   if (response.status === 403) {
@@ -744,18 +749,22 @@ async function saveParticipantEdits() {
     return;
   }
 
+  const saveButton = document.querySelector("#modalEditParticipant .diwali-modal-footer .btn-diwali-primary");
+  if (saveButton?.disabled) return;
+  if (saveButton) { saveButton.disabled = true; saveButton.textContent = "Saving..."; }
   try {
     const res = await diwaliPost(`/admin/diwali/participant/update/${id}`, {
       lead_name, partner_name, gender, remarks, bhajans
     });
     const data = await res.json();
-    if (!data.success) {
-      alert("Error updating participant: " + data.error);
-      return;
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Could not save participant changes.");
     }
     window.location.reload();
   } catch (err) {
     alert("Error: " + err.message);
+  } finally {
+    if (saveButton) { saveButton.disabled = false; saveButton.textContent = "Save Changes"; }
   }
 }
 

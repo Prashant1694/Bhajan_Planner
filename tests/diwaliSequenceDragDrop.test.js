@@ -34,7 +34,9 @@ test("Diwali cross-sequence drops persist the requested insertion position", () 
     service.indexOf("async function moveEntryToAnotherSequence("),
     service.indexOf("async function assignSequenceDate")
   );
-  assert.match(moveFunction, /targetEntries\.splice\(insertAt, 0, entry\)/);
-  assert.match(moveFunction, /sequence_order = i \+ 1/);
-  assert.match(moveFunction, /remainingInOld/);
+  assert.match(moveFunction, /targetIds\.splice\(insertAt, 0, sourceEntryId\)/);
+  assert.match(moveFunction, /persistSequenceOrder\(sourceSequence\.id, sourceNextIds, transaction\)/);
+  assert.match(moveFunction, /persistSequenceOrder\(targetSequence\.id, targetIds, transaction, \{ updateSequenceId: true \}\)/);
+  assert.match(moveFunction, /Number\(sourceSequence\.id\) === Number\(targetSequence\.id\)/);
+  assert.match(moveFunction, /Sequences can only be edited within the selected Diwali event/);
 });

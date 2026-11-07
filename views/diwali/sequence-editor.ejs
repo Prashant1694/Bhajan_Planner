@@ -93,10 +93,11 @@
                 type="date"
                 id="seqDate-<%= seq.id %>"
                 class="sequence-date-input"
+                data-saved-value="<%= seq.assigned_date || '' %>"
                 value="<%= seq.assigned_date || '' %>"
                 onchange="onDateChanged(<%= seq.id %>, this.value)"
               >
-              <small style="font-size:11px; color:var(--text-light);">(Saved auto)</small>
+              <small id="dateStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
             </div>
 
             <!-- Required musician assignments for this session/day -->
@@ -385,12 +386,24 @@ async function removeBhajanFromManualSequence(sequenceId, entryId) {
 }
 
 async function onDateChanged(sequenceId, dateVal) {
+  const input = document.getElementById(`seqDate-${sequenceId}`);
+  const status = document.getElementById(`dateStatus-${sequenceId}`);
+  const previousValue = input?.dataset.savedValue ?? "";
+  if (input?.dataset.saving === "true") return;
+  if (input) { input.dataset.saving = "true"; input.disabled = true; }
+  if (status) status.textContent = "Saving...";
   try {
-    const res = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
-    const data = await res.json();
-    if (!data.success) alert("Failed to save date: " + data.error);
-  } catch (err) {
-    alert("Network error: " + err.message);
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || "Could not save session date.");
+    if (input) input.dataset.savedValue = dateVal;
+    if (status) status.textContent = "Saved";
+  } catch (error) {
+    if (input) input.value = previousValue;
+    if (status) status.textContent = "Not saved";
+    alert("Failed to save date: " + error.message);
+  } finally {
+    if (input) { delete input.dataset.saving; input.disabled = false; }
   }
 }
 
@@ -447,7 +460,9 @@ async function moveItemOrder(sequenceId, entryId, delta) {
   const container = document.getElementById(`seq-list-${sequenceId}`);
   if (!container) return;
 
-  const cards = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  if (container.dataset.saving === "true") return;
+  const originalOrder = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  const cards = [...originalOrder];
   const idx = cards.findIndex(c => c.dataset.entryId === String(entryId));
   if (idx === -1) return;
 
@@ -472,11 +487,21 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 
   const orderedIds = newCards.map(c => c.dataset.entryId);
 
-  // Persist order to server
+  // Persist once; restore the original order if the server rejects the save.
+  container.dataset.saving = "true";
+  const buttons = container.closest(".sequence-column-card")?.querySelectorAll("button") || [];
+  buttons.forEach(button => { button.disabled = true; });
   try {
-    await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
+    const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order.");
   } catch (err) {
-    console.error("Error saving sequence order:", err);
+    originalOrder.forEach(card => container.appendChild(card));
+    alert("Sequence order was not saved: " + err.message);
+  } finally {
+    delete container.dataset.saving;
+    buttons.forEach(button => { button.disabled = false; });
+    Array.from(container.querySelectorAll(".order-badge")).forEach((badge, index) => { badge.textContent = `${index + 1}.`; });
   }
 }
 
@@ -584,7 +609,6 @@ function initDiwaliSequenceDragDrop() {
         });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
-        await saveListOrder(targetList);
       } else {
         await saveListOrder(targetList);
       }

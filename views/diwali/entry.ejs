@@ -19,6 +19,7 @@
 
   <div class="diwali-form-container">
     <form action="/admin/diwali/entry" method="POST" id="diwaliEntryForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="hidden" name="year" value="<%= selectedEvent.year %>">
 
       <!-- Participant Pair Section -->
