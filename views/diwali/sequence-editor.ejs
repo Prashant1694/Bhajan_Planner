@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="/css/diwali.css?v=7.1">
 
-<div class="container container-xl">
+<div class="container container-xl" id="diwaliSequenceEditor" data-sequence-view="cards">
 
 <datalist id="diwaliMusicianOptions">
   <% (musicians || []).forEach(musician => { %>
@@ -63,8 +63,14 @@
       <span class="badge-pill" style="font-weight:700;"><%= sequences.length %> Active Sequences</span>
     </div>
 
+    <div class="diwali-sequence-view-toolbar" role="group" aria-label="Sequence display mode">
+      <span>View:</span>
+      <button type="button" class="btn-diwali btn-diwali-secondary is-active" data-sequence-view-button="cards" aria-pressed="true" onclick="setDiwaliSequenceView('cards')">Card view</button>
+      <button type="button" class="btn-diwali btn-diwali-secondary" data-sequence-view-button="table" aria-pressed="false" onclick="setDiwaliSequenceView('table')">Table view</button>
+    </div>
+
     <!-- Sequence Columns Grid -->
-    <div class="sequences-board-grid">
+    <div class="sequences-board-grid" id="diwaliSequenceBoard">
       <% sequences.forEach(seq => { %>
         <div class="sequence-column-card" id="seq-col-<%= seq.id %>">
           <div class="sequence-col-header">
@@ -167,6 +173,8 @@
             </div>
           <% } %>
 
+          <!-- Card presentation (default on mobile and desktop) -->
+          <div class="sequence-view-cards">
           <!-- Entries Container -->
           <div class="sequence-entries-list" id="seq-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
             <% (seq.entries || []).forEach((e, eIdx) => { %>
@@ -221,6 +229,48 @@
                 </div>
               </div>
             <% }) %>
+          </div>
+          </div>
+
+          <!-- Table presentation; shares the same entry IDs and drag/drop API. -->
+          <div class="sequence-view-table">
+            <div class="sequence-table-wrap">
+              <table class="sequence-entry-table">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Bhajan</th>
+                    <th scope="col">Lead</th>
+                    <th scope="col">Partner</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">Scale</th>
+                    <th scope="col">Tabla</th>
+                    <th scope="col">Deity</th>
+                  </tr>
+                </thead>
+                <tbody class="sequence-entries-list sequence-table-body" id="seq-table-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
+                  <% (seq.entries || []).forEach((e) => { %>
+                    <% const pb = e.participantBhajan || {}; const p = pb.participant || {}; %>
+                    <tr class="sequence-entry-card sequence-table-row" id="table-entry-<%= e.id %>" data-entry-id="<%= e.id %>" data-seq-id="<%= seq.id %>">
+                      <td class="sequence-table-order">
+                        <button type="button" class="sequence-drag-handle" aria-label="Drag to reorder or move this bhajan" title="Drag to reorder or move" tabindex="0">⠿</button>
+                        <span class="order-badge"><%= e.sequence_order %>.</span>
+                      </td>
+                      <td class="sequence-table-bhajan"><strong><%= pb.bhajan_title || '-' %></strong></td>
+                      <td><%= p.lead_name || '-' %></td>
+                      <td><%= p.partner_name || '-' %></td>
+                      <td><span class="badge-gender <%= p.gender === 'Ladies' ? 'ladies' : 'gents' %>"><%= p.gender || '-' %></span></td>
+                      <td><%= pb.scale || '-' %></td>
+                      <td><%= pb.tabla || '-' %></td>
+                      <td><%= pb.deity || '-' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+              <% if (!(seq.entries || []).length) { %>
+                <p class="sequence-table-empty">No bhajans in this sequence yet.</p>
+              <% } %>
+            </div>
           </div>
         </div>
       <% }) %>
