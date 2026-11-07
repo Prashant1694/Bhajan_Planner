@@ -83,3 +83,25 @@ test("Individual Diwali sequence deletion is event-scoped and preserves unrelate
   assert.match(editor, /deleteDiwaliSequence/);
   assert.match(dashboard, /deleteDiwaliSequence/);
 });
+
+test("Diwali reorder persistence validates a complete unique list and uses batched updates", () => {
+  const persist = service.slice(
+    service.indexOf("async function persistSequenceOrder("),
+    service.indexOf("async function normalizeSequenceOrder(")
+  );
+  assert.match(persist, /new Set\(ids\)\.size !== ids\.length/);
+  assert.match(persist, /ids\.length !== existing\.length/);
+  assert.match(persist, /bulkCreate/);
+  assert.match(service, /normalizeSequencesAfterBhajanRemoval/);
+});
+
+test("Diwali participant, date, import, and sequence actions preserve CSRF and event boundaries", () => {
+  assert.match(dashboard, /name="_csrf" value="<%= csrfToken %>"/);
+  const entry = fs.readFileSync(path.join(root, "views/diwali/entry.ejs"), "utf8");
+  const importView = fs.readFileSync(path.join(root, "views/diwali/import.ejs"), "utf8");
+  assert.match(entry, /name="_csrf" value="<%= csrfToken %>"/);
+  assert.match(importView, /window\.diwaliPost\("\/admin\/diwali\/import\/preview"/);
+  assert.match(importView, /window\.diwaliPost\("\/admin\/diwali\/import\/confirm"/);
+  assert.match(service, /event_id: requirePositiveId\(eventId, "event"\)/);
+  assert.match(service, /Enter a real calendar date/);
+});
