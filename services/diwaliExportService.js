@@ -272,7 +272,7 @@ async function generateSequenceExcel(event, options = {}) {
 
   let sequences = [];
   if (sequenceId) {
-    const single = await getSingleSequence(sequenceId);
+    const single = await getSingleSequence(sequenceId, event.id);
     if (single) sequences.push(single);
   } else {
     sequences = await getFullSequences(event.id);
@@ -365,7 +365,7 @@ async function generateSequencePdf(event, options = {}) {
 
   let sequences = [];
   if (sequenceId) {
-    const single = await getSingleSequence(sequenceId);
+    const single = await getSingleSequence(sequenceId, event.id);
     if (single) sequences.push(single);
   } else {
     sequences = await getFullSequences(event.id);
