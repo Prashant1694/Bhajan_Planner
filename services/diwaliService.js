@@ -296,9 +296,6 @@ async function updateParticipantWithBhajans(
     throw new Error("Gender must be 'Gents' or 'Ladies'.");
   }
 
-  const participant = await DiwaliParticipant.findByPk(participantId);
-  if (!participant) throw new Error("Participant not found.");
-
   if (!bhajans || !Array.isArray(bhajans)) {
     throw new Error("At least one valid bhajan is required.");
   }
