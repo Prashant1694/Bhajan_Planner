@@ -570,7 +570,30 @@ async function moveEntryToSeq(entryId, targetSequenceId) {
   }
 }
 
-// Touch + mouse drag-and-drop for sequence cards.
+// Keep the selected desktop presentation while defaulting mobile to cards.
+function setDiwaliSequenceView(mode) {
+  const root = document.getElementById("diwaliSequenceEditor");
+  if (!root) return;
+  const nextMode = mode === "table" && window.matchMedia("(min-width: 769px)").matches ? "table" : "cards";
+  root.dataset.sequenceView = nextMode;
+  try { window.localStorage.setItem("diwali-sequence-view", nextMode); } catch (_) { /* storage may be disabled */ }
+  document.querySelectorAll("[data-sequence-view-button]").forEach(button => {
+    const active = button.dataset.sequenceViewButton === nextMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function initDiwaliSequenceView() {
+  let saved = "cards";
+  try { saved = window.localStorage.getItem("diwali-sequence-view") || "cards"; } catch (_) { /* storage may be disabled */ }
+  setDiwaliSequenceView(saved);
+  window.addEventListener("resize", () => {
+    if (!window.matchMedia("(min-width: 769px)").matches) setDiwaliSequenceView("cards");
+  }, { passive: true });
+}
+
+// Touch + mouse drag-and-drop for sequence cards and table rows.
 function initDiwaliSequenceDragDrop() {
   const board = document.querySelector(".sequences-board-grid");
   if (!board || board.dataset.dragReady === "true") return;
@@ -578,6 +601,7 @@ function initDiwaliSequenceDragDrop() {
 
   let drag = null;
   let dragStarted = false;
+  let autoScrollFrame = null;
 
   function refreshSequenceList(list) {
     if (!list) return;
@@ -597,6 +621,48 @@ function initDiwaliSequenceDragDrop() {
     const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
+  }
+
+  function updateDragTarget(clientX, clientY) {
+    const element = document.elementFromPoint(clientX, clientY);
+    const list = element?.closest(".sequence-entries-list");
+    if (!list || !board.contains(list)) return;
+    placeDraggedCard(list, element.closest(".sequence-entry-card"), clientY);
+  }
+
+  function autoScrollWhileDragging() {
+    if (!drag || !dragStarted) { autoScrollFrame = null; return; }
+    const edge = 92;
+    const y = drag.lastClientY;
+    const height = window.innerHeight;
+    let scrollDelta = 0;
+    if (y < edge) scrollDelta = -Math.max(2, Math.ceil((edge - y) / 5));
+    else if (y > height - edge) scrollDelta = Math.max(2, Math.ceil((y - (height - edge)) / 5));
+    if (scrollDelta) {
+      window.scrollBy({ top: scrollDelta, left: 0, behavior: "auto" });
+      updateDragTarget(drag.lastClientX, drag.lastClientY);
+    }
+    autoScrollFrame = window.requestAnimationFrame(autoScrollWhileDragging);
+  }
+
+  function syncCardAndTableLists() {
+    const root = document.getElementById("diwaliSequenceEditor");
+    const activeClass = root?.dataset.sequenceView === "table" ? ".sequence-view-table" : ".sequence-view-cards";
+    const inactiveClass = root?.dataset.sequenceView === "table" ? ".sequence-view-cards" : ".sequence-view-table";
+    const activeLists = Array.from(board.querySelectorAll(activeClass + " .sequence-entries-list"));
+    const inactiveLists = Array.from(board.querySelectorAll(inactiveClass + " .sequence-entries-list"));
+    const inactiveEntries = new Map();
+    inactiveLists.forEach(list => list.querySelectorAll(".sequence-entry-card").forEach(card => inactiveEntries.set(card.dataset.entryId, card)));
+
+    activeLists.forEach(activeList => {
+      const inactiveList = inactiveLists.find(list => list.dataset.seqId === activeList.dataset.seqId);
+      if (!inactiveList) return;
+      Array.from(activeList.querySelectorAll(".sequence-entry-card")).forEach(card => {
+        const twin = inactiveEntries.get(card.dataset.entryId);
+        if (twin) inactiveList.appendChild(twin);
+      });
+    });
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
   }
 
   function placeDraggedCard(list, targetCard, y) {
@@ -626,19 +692,20 @@ function initDiwaliSequenceDragDrop() {
     const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
     if (!dragStarted && distance < 6) return;
     dragStarted = true;
+    drag.lastClientX = event.clientX;
+    drag.lastClientY = event.clientY;
     event.preventDefault();
     drag.card.classList.add("is-dragging");
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    const list = element?.closest(".sequence-entries-list");
-    if (!list || !board.contains(list)) return;
-    const targetCard = element.closest(".sequence-entry-card");
-    placeDraggedCard(list, targetCard, event.clientY);
+    updateDragTarget(event.clientX, event.clientY);
+    if (autoScrollFrame === null) autoScrollFrame = window.requestAnimationFrame(autoScrollWhileDragging);
   }, { passive: false });
 
   async function finishDrag(event) {
     if (!drag || (event && event.pointerId !== drag.pointerId)) return;
     const state = drag;
     drag = null;
+    if (autoScrollFrame !== null) window.cancelAnimationFrame(autoScrollFrame);
+    autoScrollFrame = null;
     state.card.classList.remove("is-dragging");
     if (!dragStarted) return;
 
@@ -662,7 +729,7 @@ function initDiwaliSequenceDragDrop() {
       } else {
         await saveListOrder(targetList);
       }
-      board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+      syncCardAndTableLists();
       state.card.classList.add("is-drop-saved");
       window.setTimeout(() => state.card?.classList.remove("is-drop-saved"), 650);
     } catch (error) {
@@ -676,6 +743,8 @@ function initDiwaliSequenceDragDrop() {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const state = drag;
     drag = null;
+    if (autoScrollFrame !== null) window.cancelAnimationFrame(autoScrollFrame);
+    autoScrollFrame = null;
     state.card.classList.remove("is-dragging");
     state.sourceList.insertBefore(
       state.card,
@@ -688,8 +757,12 @@ function initDiwaliSequenceDragDrop() {
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initDiwaliSequenceDragDrop);
+  document.addEventListener("DOMContentLoaded", () => {
+    initDiwaliSequenceView();
+    initDiwaliSequenceDragDrop();
+  });
 } else {
+  initDiwaliSequenceView();
   initDiwaliSequenceDragDrop();
 }
 </script>
