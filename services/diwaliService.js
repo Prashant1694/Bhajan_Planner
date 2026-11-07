@@ -269,8 +269,9 @@ async function createParticipantWithBhajans({
   }
 }
 
-async function getParticipantById(id) {
-  return await DiwaliParticipant.findByPk(id, {
+async function getParticipantById(id, eventId) {
+  return await DiwaliParticipant.findOne({
+    where: { id: requirePositiveId(id, "participant"), ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
     include: [
       {
         model: DiwaliParticipantBhajan,
@@ -284,7 +285,8 @@ async function getParticipantById(id) {
 
 async function updateParticipantWithBhajans(
   participantId,
-  { lead_name, partner_name, gender, remarks, bhajans }
+  { lead_name, partner_name, gender, remarks, bhajans },
+  eventId
 ) {
   const cleanLead = (lead_name || "").trim();
   const cleanPartner = (partner_name || "").trim();
@@ -307,7 +309,10 @@ async function updateParticipantWithBhajans(
 
   const t = await sequelize.transaction();
   try {
-    const participant = await DiwaliParticipant.findByPk(participantId, { transaction: t });
+    const participant = await DiwaliParticipant.findOne({
+      where: { id: requirePositiveId(participantId, "participant"), ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
+      transaction: t
+    });
     if (!participant) throw new Error("Participant not found.");
 
     const submittedIds = validBhajans
@@ -420,57 +425,63 @@ async function updateParticipantWithBhajans(
   }
 }
 
-async function deleteParticipant(id) {
-  const participant = await DiwaliParticipant.findByPk(id);
-  if (!participant) throw new Error("Participant not found.");
-
-  const t = await sequelize.transaction();
+async function deleteParticipant(id, eventId) {
+  const participantId = requirePositiveId(id, "participant");
+  const transaction = await sequelize.transaction();
   try {
-    const bhajans = await DiwaliParticipantBhajan.findAll({
-      where: { participant_id: id },
-      attributes: ["id"],
-      transaction: t
+    const participant = await DiwaliParticipant.findOne({
+      where: { id: participantId, ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
+      transaction
     });
-    const bhajanIds = bhajans.map((b) => b.id);
+    if (!participant) throw new Error("Participant not found for the selected Diwali event.");
 
-    if (bhajanIds.length > 0) {
-      await normalizeSequencesAfterBhajanRemoval(bhajanIds, t);
+    const bhajans = await DiwaliParticipantBhajan.findAll({
+      where: { participant_id: participantId },
+      attributes: ["id"],
+      transaction
+    });
+    const bhajanIds = bhajans.map((bhajan) => bhajan.id);
+    await normalizeSequencesAfterBhajanRemoval(bhajanIds, transaction);
+    if (bhajanIds.length) {
       await DiwaliParticipantBhajan.destroy({
-        where: { id: bhajanIds },
-        transaction: t
+        where: { id: { [Op.in]: bhajanIds } },
+        transaction
       });
     }
-
-    await participant.destroy({ transaction: t });
-    await t.commit();
+    await participant.destroy({ transaction });
+    await transaction.commit();
     return true;
-  } catch (err) {
-    await t.rollback();
-    throw err;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
 }
 
-async function deleteBhajan(bhajanId) {
-  const bhajan = await DiwaliParticipantBhajan.findByPk(bhajanId);
-  if (!bhajan) throw new Error("Bhajan not found.");
-
-  // Check if participant has other bhajans
-  const count = await DiwaliParticipantBhajan.count({
-    where: { participant_id: bhajan.participant_id }
-  });
-  if (count <= 1) {
-    throw new Error("A participant must have at least one bhajan. Delete the participant instead.");
-  }
-
-  const t = await sequelize.transaction();
+async function deleteBhajan(bhajanId, eventId) {
+  const id = requirePositiveId(bhajanId, "bhajan");
+  const transaction = await sequelize.transaction();
   try {
-    await normalizeSequencesAfterBhajanRemoval([bhajanId], t);
-    await bhajan.destroy({ transaction: t });
-    await t.commit();
+    const bhajan = await DiwaliParticipantBhajan.findOne({
+      where: { id, ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
+      transaction
+    });
+    if (!bhajan) throw new Error("Bhajan not found for the selected Diwali event.");
+
+    const count = await DiwaliParticipantBhajan.count({
+      where: { participant_id: bhajan.participant_id },
+      transaction
+    });
+    if (count <= 1) {
+      throw new Error("A participant must have at least one bhajan. Delete the participant instead.");
+    }
+
+    await normalizeSequencesAfterBhajanRemoval([id], transaction);
+    await bhajan.destroy({ transaction });
+    await transaction.commit();
     return true;
-  } catch (err) {
-    await t.rollback();
-    throw err;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
 }
 
