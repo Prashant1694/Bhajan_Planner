@@ -430,6 +430,25 @@ exports.makeSequence = async (req, res) => {
   }
 };
 
+// Delete only automatically generated sequences for the selected Diwali event.
+exports.deleteGeneratedSequences = async (req, res) => {
+  try {
+    const selectedEvent = await resolveSelectedEvent(req);
+    const result = await diwaliService.deleteGeneratedSequences(selectedEvent.id);
+
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_AUTO_SEQUENCES_DELETED",
+      `Deleted ${result.deleted} automatically generated sequence(s) for ${selectedEvent.name}. Manual sequences were preserved.`
+    );
+
+    res.json({ success: true, deleted: result.deleted });
+  } catch (error) {
+    console.error("Error deleting generated Diwali sequences:", error);
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
 // 14. Sequence Editor View
 exports.showSequenceEditor = async (req, res) => {
   try {
