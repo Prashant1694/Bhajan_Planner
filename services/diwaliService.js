@@ -756,6 +756,38 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
 // 4. SEQUENCE EDITOR & MANAGEMENT
 // ============================================================
 
+async function deleteGeneratedSequences(eventId) {
+  const event = await DiwaliEvent.findByPk(eventId);
+  if (!event) throw new Error("Diwali event not found.");
+
+  const t = await sequelize.transaction();
+  try {
+    const generated = await DiwaliSequence.findAll({
+      where: { event_id: eventId, sequence_type: "Auto" },
+      attributes: ["id"],
+      transaction: t
+    });
+    const sequenceIds = generated.map((sequence) => sequence.id);
+
+    if (sequenceIds.length) {
+      await DiwaliSequenceEntry.destroy({
+        where: { sequence_id: { [Op.in]: sequenceIds } },
+        transaction: t
+      });
+      await DiwaliSequence.destroy({
+        where: { id: { [Op.in]: sequenceIds }, event_id: eventId, sequence_type: "Auto" },
+        transaction: t
+      });
+    }
+
+    await t.commit();
+    return { deleted: sequenceIds.length };
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+}
+
 async function getFullSequences(eventId) {
   const sequences = await DiwaliSequence.findAll({
     where: { event_id: eventId },
@@ -1091,6 +1123,7 @@ module.exports = {
   getFlatBhajanRows,
   getStats,
   generateFairSequences,
+  deleteGeneratedSequences,
   getFullSequences,
   getSingleSequence,
   updateSequenceEntriesOrder,

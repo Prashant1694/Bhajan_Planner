@@ -64,3 +64,24 @@ test("Automatic and manual Diwali exports have distinct labels", () => {
   assert.match(exportsService, /Manual Sequence/);
   assert.match(exportsService, /sequenceLabel\.toUpperCase\(\)/);
 });
+
+
+test("Deleting generated Diwali sequences removes Auto rows and entries only", () => {
+  assert.match(service, /async function deleteGeneratedSequences\(eventId\)/);
+  const deletion = service.slice(
+    service.indexOf("async function deleteGeneratedSequences("),
+    service.indexOf("async function getFullSequences(")
+  );
+  assert.match(deletion, /sequence_type:\s*"Auto"/);
+  assert.match(deletion, /DiwaliSequenceEntry\.destroy/);
+  assert.match(deletion, /DiwaliSequence\.destroy/);
+  assert.match(deletion, /await t\.commit\(\)/);
+  assert.match(deletion, /await t\.rollback\(\)/);
+  assert.doesNotMatch(deletion, /sequence_type:\s*"Manual"/);
+  assert.match(controller, /exports\.deleteGeneratedSequences/);
+  assert.match(routes, /sequence\/delete-generated/);
+  assert.match(dashboard, /deleteDiwaliGeneratedSequences/);
+  assert.match(editor, /deleteDiwaliGeneratedSequences/);
+  assert.match(dashboard, /Manually curated sequences will be preserved/);
+  assert.match(editor, /Manually curated sequences will be preserved/);
+});
