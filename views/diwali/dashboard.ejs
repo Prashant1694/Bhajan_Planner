@@ -190,8 +190,8 @@
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
                         Edit
                       </button>
-                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %>
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>"> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -585,6 +585,7 @@
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalAddYear')">&times;</button>
     </div>
     <form action="/admin/diwali/event/create" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="diwali-modal-body">
         <div class="diwali-field-group">
           <label class="diwali-field-label">Year (e.g. 2026, 2027) <span class="req-star">*</span></label>
