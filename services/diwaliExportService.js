@@ -435,8 +435,8 @@ async function generateSequencePdf(event, options = {}) {
 
       const drawSequencePage = (seq, sequenceIndex) => {
         const sequenceLabel = seq.sequence_type === "Manual"
-          ? \`Manual Sequence \${seq.sequence_number}\`
-          : \`Sequence \${seq.sequence_number}\`;
+          ? `Manual Sequence ${seq.sequence_number}`
+          : `Sequence ${seq.sequence_number}`;
         const entries = filteredEntries(seq);
         const pageTop = 18;
 
@@ -479,12 +479,12 @@ async function generateSequencePdf(event, options = {}) {
           .fillAndStroke(CREAM, "#e6dcd0");
         doc.rect(LEFT, bannerY, 4, bannerH).fill(MAROON);
         doc.fillColor(MAROON).font("Helvetica-Bold").fontSize(11)
-          .text(\`DIWALI BHAJANS  •  \${String(event.name || "").toUpperCase()}\`, LEFT + 12, bannerY + 7, {
+          .text(`DIWALI BHAJANS  •  ${String(event.name || "").toUpperCase()}`, LEFT + 12, bannerY + 7, {
             width: CONTENT_W - 24, lineBreak: false, ellipsis: true
           });
-        const dateText = seq.assigned_date ? \`  •  Date: \${seq.assigned_date}\` : "";
+        const dateText = seq.assigned_date ? `  •  Date: ${seq.assigned_date}` : "";
         doc.fillColor(GOLD).font("Helvetica-Bold").fontSize(9)
-          .text(\`\${sequenceLabel.toUpperCase()}\${dateText}\`, LEFT + 12, bannerY + 24, {
+          .text(`${sequenceLabel.toUpperCase()}${dateText}`, LEFT + 12, bannerY + 24, {
             width: CONTENT_W - 24, lineBreak: false, ellipsis: true
           });
 
@@ -602,7 +602,7 @@ async function generateSequencePdf(event, options = {}) {
         doc.fillColor(MAROON).font("Times-Bold").fontSize(12)
           .text("|| AUM SRI SAI RAM ||", LEFT, 35, { width: CONTENT_W, align: "center" });
         doc.fillColor(INK).font("Helvetica-Bold").fontSize(15)
-          .text(\`DIWALI BHAJANS — \${String(event.name || "").toUpperCase()}\`, LEFT, 60, {
+          .text(`DIWALI BHAJANS — ${String(event.name || "").toUpperCase()}`, LEFT, 60, {
             width: CONTENT_W, align: "center"
           });
         doc.fillColor(MUTED).font("Helvetica").fontSize(11)
