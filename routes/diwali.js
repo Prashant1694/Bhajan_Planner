@@ -65,7 +65,11 @@ router.get("/admin/diwali/export/yearly", requireLogin, diwaliController.exportY
 
 // Sequence Generation & Management
 router.post("/admin/diwali/sequence/generate", requireLogin, diwaliController.makeSequence);
-router.post("/admin/diwali/sequence/delete-generated", requireLogin, diwaliController.deleteGeneratedSequences);
+router.post("/admin/diwali/sequence/delete/:id", requireLogin, diwaliController.deleteSequence);
+router.get("/admin/diwali/csrf-token", requireLogin, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ csrfToken: res.locals.csrfToken || (typeof req.csrfToken === "function" ? req.csrfToken() : "") });
+});
 router.get("/admin/diwali/sequence/editor", requireLogin, diwaliController.showSequenceEditor);
 router.post("/admin/diwali/sequence/manual/create", requireLogin, diwaliController.createManualSequence);
 router.post("/admin/diwali/sequence/manual/add-bhajans", requireLogin, diwaliController.addManualBhajans);
