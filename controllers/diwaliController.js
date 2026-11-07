@@ -577,6 +577,21 @@ exports.assignDate = async (req, res) => {
   }
 };
 
+// Assign morning or evening period for one Diwali sequence.
+exports.assignSequencePeriod = async (req, res) => {
+  try {
+    const { sequenceId, sessionPeriod } = req.body;
+    const sequence = await diwaliService.assignSequencePeriod(
+      sequenceId,
+      sessionPeriod,
+      (await resolveSelectedEvent(req)).id
+    );
+    res.json({ success: true, sequence });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
 // Assign harmonium and tabla players for one Diwali session.
 exports.assignMusicians = async (req, res) => {
   try {
