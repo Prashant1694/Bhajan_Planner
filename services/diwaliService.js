@@ -437,10 +437,7 @@ async function deleteParticipant(id) {
     const bhajanIds = bhajans.map((b) => b.id);
 
     if (bhajanIds.length > 0) {
-      await DiwaliSequenceEntry.destroy({
-        where: { participant_bhajan_id: bhajanIds },
-        transaction: t
-      });
+      await normalizeSequencesAfterBhajanRemoval(bhajanIds, t);
       await DiwaliParticipantBhajan.destroy({
         where: { id: bhajanIds },
         transaction: t
@@ -470,10 +467,7 @@ async function deleteBhajan(bhajanId) {
 
   const t = await sequelize.transaction();
   try {
-    await DiwaliSequenceEntry.destroy({
-      where: { participant_bhajan_id: bhajanId },
-      transaction: t
-    });
+    await normalizeSequencesAfterBhajanRemoval([bhajanId], t);
     await bhajan.destroy({ transaction: t });
     await t.commit();
     return true;
@@ -896,8 +890,9 @@ async function getFullSequences(eventId) {
   return sequences;
 }
 
-async function getSingleSequence(sequenceId) {
-  const seq = await DiwaliSequence.findByPk(sequenceId, {
+async function getSingleSequence(sequenceId, eventId) {
+  const seq = await DiwaliSequence.findOne({
+    where: { id: requirePositiveId(sequenceId, "sequence"), ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
     include: [
       {
         model: DiwaliSequenceEntry,
@@ -1206,7 +1201,6 @@ module.exports = {
   moveEntryToAnotherSequence,
   getManualSequencePool,
   createManualSequence,
-  addBhajanToManualSequence,
   addBhajansToManualSequence,
   removeBhajanFromManualSequence,
   assignSequenceDate,
