@@ -362,6 +362,7 @@ async function generateSequenceExcel(event, options = {}) {
 async function generateSequencePdf(event, options = {}) {
   const sequenceId = options.sequenceId;
   const category = options.category || "Both";
+
   let sequences = [];
   if (sequenceId) {
     const single = await getSingleSequence(sequenceId, event.id);
@@ -372,10 +373,11 @@ async function generateSequencePdf(event, options = {}) {
 
   return new Promise((resolve, reject) => {
     try {
-      // Diwali-only portrait export. Thursday session print code is untouched.
+      // Use the same landscape, letterhead-led visual language as the
+      // Thursday Live Bhajan Plan print stylesheet.
       const doc = new PDFDocument({
         size: "A4",
-        layout: "portrait",
+        layout: "landscape",
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
         autoFirstPage: false
       });
@@ -384,10 +386,10 @@ async function generateSequencePdf(event, options = {}) {
       doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", reject);
 
-      const PAGE_W = 595.28;
-      const PAGE_H = 841.89;
-      const LEFT = 25;
-      const RIGHT = PAGE_W - 25;
+      const PAGE_W = 841.89;
+      const PAGE_H = 595.28;
+      const LEFT = 28;
+      const RIGHT = PAGE_W - 28;
       const CONTENT_W = RIGHT - LEFT;
       const MAROON = "#7d2f45";
       const GOLD = "#d98a2b";
@@ -396,17 +398,19 @@ async function generateSequencePdf(event, options = {}) {
       const BORDER = "#ebdccb";
       const CREAM = "#fcf8f2";
       const LOGO_PATH = require("path").join(__dirname, "../public/images/logo.png");
+      const BIRTHDAY_LOGO_PATH = require("path").join(__dirname, "../public/images/logo_birthday.png");
       const hasLogo = require("fs").existsSync(LOGO_PATH);
+      const hasBirthdayLogo = require("fs").existsSync(BIRTHDAY_LOGO_PATH);
 
       const columns = [
-        { label: "#", width: 22, align: "center" },
-        { label: "Lead Singer", width: 77 },
-        { label: "Partner", width: 77 },
-        { label: "Bhajan", width: 135, bold: true },
-        { label: "Scale", width: 42, align: "center" },
-        { label: "Tabla", width: 48, align: "center" },
-        { label: "Deity", width: 66 },
-        { label: "Remarks", width: 78 }
+        { label: "#", width: 34, align: "center" },
+        { label: "Lead Singer", width: 105 },
+        { label: "Partner", width: 105 },
+        { label: "Bhajan", width: 220, bold: true },
+        { label: "Pitch / Scale", width: 58, align: "center" },
+        { label: "Tabla Shruti", width: 75, align: "center" },
+        { label: "Deity", width: 85 },
+        { label: "Remarks", width: 103 }
       ];
       const tableX = LEFT;
       const tableW = columns.reduce((sum, column) => sum + column.width, 0);
@@ -436,94 +440,110 @@ async function generateSequencePdf(event, options = {}) {
           ? `Manual Sequence ${seq.sequence_number}`
           : `Sequence ${seq.sequence_number}`;
         const entries = filteredEntries(seq);
-        doc.addPage({ size: "A4", layout: "portrait", margins: 0 });
-
-        // Gujarat-level organisation identity: no Gandhinagar-specific details.
         const pageTop = 18;
+
+        doc.addPage({ size: "A4", layout: "landscape", margins: 0 });
+
+        // Diwali-only letterhead: organisation logo left, 100th birthday emblem right,
+        // with the Gujarat organisation identity centred between them.
         if (hasLogo) {
           try {
-            doc.image(LOGO_PATH, LEFT, pageTop, {
-              fit: [58, 58], align: "center", valign: "center"
-            });
+            doc.image(LOGO_PATH, LEFT, pageTop, { fit: [54, 54], align: "center", valign: "center" });
           } catch (logoError) {
             console.warn("Diwali PDF logo could not be embedded:", logoError.message);
           }
         }
-        const letterX = hasLogo ? LEFT + 64 : LEFT;
-        const letterW = RIGHT - letterX;
+        if (hasBirthdayLogo) {
+          try {
+            doc.image(BIRTHDAY_LOGO_PATH, RIGHT - 54, pageTop, {
+              fit: [54, 54], align: "center", valign: "center"
+            });
+          } catch (logoError) {
+            console.warn("Diwali 100th birthday emblem could not be embedded:", logoError.message);
+          }
+        }
+        const letterX = LEFT + (hasLogo ? 64 : 0);
+        const letterW = RIGHT - (hasBirthdayLogo ? 64 : 0) - letterX;
         doc.fillColor(MAROON).font("Times-Bold").fontSize(10)
-          .text("|| AUM SRI SAI RAM ||", letterX, pageTop + 3, {
+          .text("|| AUM SRI SAI RAM ||", letterX, pageTop + 1, {
             width: letterW, align: "center", lineBreak: false
           });
-        doc.fillColor(INK).font("Helvetica-Bold").fontSize(11)
-          .text("SRI SATHYA SAI SEVA ORGANISATION, GUJARAT", letterX, pageTop + 20, {
+        doc.fillColor(INK).font("Helvetica-Bold").fontSize(12)
+          .text("SRI SATHYA SAI SEVA ORGANISATION, GUJARAT", letterX, pageTop + 17, {
             width: letterW, align: "center", lineBreak: false, ellipsis: true
           });
-        doc.fillColor(MUTED).font("Helvetica").fontSize(8)
-          .text("Gujarat State", letterX, pageTop + 38, {
-            width: letterW, align: "center", lineBreak: false
+        doc.fillColor(MUTED).font("Helvetica").fontSize(7.2)
+          .text("Gujarat State", letterX, pageTop + 34, {
+            width: letterW, align: "center", lineBreak: false, ellipsis: true
           });
 
-        const dividerY = pageTop + 67;
+
+        const dividerY = pageTop + 65;
         doc.rect(LEFT, dividerY, CONTENT_W, 3).fill(MAROON);
         doc.rect(LEFT, dividerY + 4, CONTENT_W, 1.5).fill(GOLD);
 
-        const bannerY = dividerY + 14;
-        const bannerH = 47;
+        // Print-session banner: warm ivory background and maroon left rule.
+        const bannerY = dividerY + 13;
+        const bannerH = 42;
         doc.roundedRect(LEFT, bannerY, CONTENT_W, bannerH, 3)
           .fillAndStroke(CREAM, "#e6dcd0");
         doc.rect(LEFT, bannerY, 4, bannerH).fill(MAROON);
-        doc.fillColor(MAROON).font("Helvetica-Bold").fontSize(10.5)
-          .text(`DIWALI BHAJANS  •  ${String(event.name || "").toUpperCase()}`, LEFT + 11, bannerY + 7, {
-            width: CONTENT_W - 22, lineBreak: false, ellipsis: true
+        doc.fillColor(MAROON).font("Helvetica-Bold").fontSize(11)
+          .text(`DIWALI BHAJANS  •  ${String(event.name || "").toUpperCase()}`, LEFT + 12, bannerY + 7, {
+            width: CONTENT_W - 24, lineBreak: false, ellipsis: true
           });
         const dateText = seq.assigned_date ? `  •  Date: ${seq.assigned_date}` : "";
-        const period = seq.session_period === "Evening" ? "EVENING" : "MORNING";
         doc.fillColor(GOLD).font("Helvetica-Bold").fontSize(9)
-          .text(`${sequenceLabel.toUpperCase()}  •  ${period}${dateText}`, LEFT + 11, bannerY + 26, {
-            width: CONTENT_W - 22, lineBreak: false, ellipsis: true
+          .text(`${sequenceLabel.toUpperCase()}  •  ${seq.session_period === "Evening" ? "EVENING" : "MORNING"}${dateText}`, LEFT + 12, bannerY + 24, {
+            width: CONTENT_W - 24, lineBreak: false, ellipsis: true
           });
 
-        const musicianY = bannerY + bannerH + 9;
-        const musicianH = 34;
+        // Accompanist strip.
+        const musicianY = bannerY + bannerH + 8;
+        const musicianH = 26;
         doc.roundedRect(LEFT, musicianY, CONTENT_W, musicianH, 3)
           .fill("#f8fafc").stroke("#e2e8f0");
-        doc.fillColor(INK).font("Helvetica-Bold").fontSize(8)
-          .text("HARMONIUM", LEFT + 9, musicianY + 6, { lineBreak: false });
-        doc.font("Helvetica").fontSize(8)
-          .text(seq.harmonium_player || "Not assigned", LEFT + 78, musicianY + 6, {
-            width: CONTENT_W - 87, lineBreak: false, ellipsis: true
+        doc.fillColor(INK).font("Helvetica-Bold").fontSize(8.5)
+          .text("HARMONIUM", LEFT + 10, musicianY + 9, { lineBreak: false });
+        doc.font("Helvetica").fontSize(8.5)
+          .text(seq.harmonium_player || "Not assigned", LEFT + 78, musicianY + 9, {
+            width: 250, lineBreak: false, ellipsis: true
           });
-        doc.font("Helvetica-Bold").fontSize(8)
-          .text("TABLA", LEFT + 9, musicianY + 20, { lineBreak: false });
-        doc.font("Helvetica").fontSize(8)
-          .text(seq.tabla_player || "Not assigned", LEFT + 78, musicianY + 20, {
-            width: CONTENT_W - 87, lineBreak: false, ellipsis: true
+        doc.font("Helvetica-Bold")
+          .text("TABLA", LEFT + 400, musicianY + 9, { lineBreak: false });
+        doc.font("Helvetica")
+          .text(seq.tabla_player || "Not assigned", LEFT + 445, musicianY + 9, {
+            width: CONTENT_W - 455, lineBreak: false, ellipsis: true
           });
 
-        // One complete sequence per portrait page; row height adapts to count.
-        const tableHeaderY = musicianY + musicianH + 12;
+        // Reserve a footer and calculate row height from the actual entry
+        // count. Typical sequences get generous spacing; large sequences
+        // shrink proportionally so the complete sequence remains on one page.
+        const tableHeaderY = musicianY + musicianH + 10;
         const tableHeaderH = 25;
-        const footerY = PAGE_H - 26;
+        const footerY = PAGE_H - 23;
         const rowsTop = tableHeaderY + tableHeaderH;
         const rowsAvailable = Math.max(0, footerY - rowsTop - 8);
-        const rowH = entries.length ? Math.min(30, rowsAvailable / entries.length) : 30;
-        const fontSize = Math.max(4.5, Math.min(8.2, rowH * 0.52));
-        const verticalInset = Math.max(1, (rowH - fontSize) / 2 - 0.4);
+        const rowH = entries.length
+          ? Math.min(34, rowsAvailable / entries.length)
+          : 30;
+        const fontSize = Math.max(3.4, Math.min(8.8, rowH * 0.68));
+        const verticalInset = Math.max(0.4, (rowH - fontSize) / 2 - 0.3);
 
+        // Table heading uses the same maroon/gold treatment as Thursday export.
         doc.rect(tableX, tableHeaderY, tableW, tableHeaderH).fill(MAROON);
         doc.rect(tableX, tableHeaderY + tableHeaderH - 2, tableW, 2).fill(GOLD);
         columns.forEach((column) => {
-          doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(6.6)
-            .text(column.label.toUpperCase(), column.x + 2, tableHeaderY + 8, {
-              width: column.width - 4, align: column.align || "left",
+          doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(7.3)
+            .text(column.label.toUpperCase(), column.x + 3, tableHeaderY + 8, {
+              width: column.width - 6, align: column.align || "left",
               lineBreak: false, ellipsis: true
             });
         });
 
         if (!entries.length) {
           doc.rect(tableX, rowsTop, tableW, rowH).fill("#fdfbf7");
-          doc.fillColor(MUTED).font("Helvetica").fontSize(8)
+          doc.fillColor(MUTED).font("Helvetica").fontSize(9)
             .text("No bhajans are assigned to this sequence for the selected category.", tableX + 8, rowsTop + 10, {
               width: tableW - 16, align: "center", lineBreak: false
             });
@@ -533,10 +553,12 @@ async function generateSequencePdf(event, options = {}) {
             const participant = b.participant || {};
             const rowY = rowsTop + index * rowH;
             const rowBottom = rowY + rowH;
+
             doc.rect(tableX, rowY, tableW, rowH)
               .fill(index % 2 === 0 ? "#ffffff" : "#fdfbf7");
             doc.strokeColor(BORDER).lineWidth(0.45)
               .moveTo(tableX, rowBottom).lineTo(tableX + tableW, rowBottom).stroke();
+
             const values = [
               String(index + 1),
               participant.lead_name || "-",
@@ -547,13 +569,14 @@ async function generateSequencePdf(event, options = {}) {
               b.deity || "-",
               b.remarks || ""
             ];
+
             columns.forEach((column, colIndex) => {
               doc.fillColor(INK)
                 .font(colIndex === 3 ? "Helvetica-Bold" : "Helvetica")
                 .fontSize(fontSize)
-                .text(String(values[colIndex]), column.x + 3, rowY + verticalInset, {
-                  width: column.width - 6,
-                  height: Math.max(3, rowH - verticalInset),
+                .text(String(values[colIndex]), column.x + 4, rowY + verticalInset, {
+                  width: column.width - 8,
+                  height: Math.max(2.5, rowH - verticalInset),
                   align: column.align || "left",
                   lineBreak: false,
                   ellipsis: true
@@ -562,10 +585,11 @@ async function generateSequencePdf(event, options = {}) {
           });
         }
 
+        // Vertical separators and a restrained table outline.
         let separatorX = tableX;
         columns.slice(0, -1).forEach((column) => {
           separatorX += column.width;
-          doc.strokeColor("#eadfd3").lineWidth(0.35)
+          doc.strokeColor("#eadfD3").lineWidth(0.35)
             .moveTo(separatorX, tableHeaderY)
             .lineTo(separatorX, rowsTop + entries.length * rowH)
             .stroke();
@@ -573,8 +597,10 @@ async function generateSequencePdf(event, options = {}) {
         doc.strokeColor("#d8c7b7").lineWidth(0.8)
           .rect(tableX, tableHeaderY, tableW, tableHeaderH + entries.length * rowH)
           .stroke();
+
+        // Footer remains on this sequence's page; no continuation pages.
         doc.strokeColor(GOLD).lineWidth(1)
-          .moveTo(LEFT, footerY - 6).lineTo(RIGHT, footerY - 6).stroke();
+          .moveTo(LEFT, footerY - 5).lineTo(RIGHT, footerY - 5).stroke();
         doc.fillColor(MAROON).font("Times-Italic").fontSize(8)
           .text("Love All • Serve All", LEFT, footerY, {
             width: CONTENT_W, align: "center", lineBreak: false
@@ -582,20 +608,21 @@ async function generateSequencePdf(event, options = {}) {
       };
 
       if (!sequences.length) {
-        doc.addPage({ size: "A4", layout: "portrait", margins: 0 });
+        doc.addPage({ size: "A4", layout: "landscape", margins: 0 });
         doc.fillColor(MAROON).font("Times-Bold").fontSize(12)
           .text("|| AUM SRI SAI RAM ||", LEFT, 35, { width: CONTENT_W, align: "center" });
-        doc.fillColor(INK).font("Helvetica-Bold").fontSize(14)
+        doc.fillColor(INK).font("Helvetica-Bold").fontSize(15)
           .text(`DIWALI BHAJANS — ${String(event.name || "").toUpperCase()}`, LEFT, 60, {
             width: CONTENT_W, align: "center"
           });
-        doc.fillColor(MUTED).font("Helvetica").fontSize(10)
+        doc.fillColor(MUTED).font("Helvetica").fontSize(11)
           .text("No sequences have been generated yet for this Diwali event.", LEFT, 110, {
             width: CONTENT_W, align: "center"
           });
       } else {
         sequences.forEach((seq) => drawSequencePage(seq));
       }
+
       doc.end();
     } catch (error) {
       reject(error);
