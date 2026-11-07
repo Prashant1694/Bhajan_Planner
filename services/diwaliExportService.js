@@ -515,10 +515,10 @@ async function generateSequencePdf(event, options = {}) {
         const rowsTop = tableHeaderY + tableHeaderH;
         const rowsAvailable = Math.max(0, footerY - rowsTop - 8);
         const rowH = entries.length
-          ? Math.max(7.5, Math.min(34, rowsAvailable / entries.length))
+          ? Math.min(34, rowsAvailable / entries.length)
           : 30;
-        const fontSize = Math.max(5.2, Math.min(8.8, rowH * 0.29));
-        const verticalInset = Math.max(1.5, (rowH - fontSize) / 2 - 1);
+        const fontSize = Math.max(3.4, Math.min(8.8, rowH * 0.68));
+        const verticalInset = Math.max(0.4, (rowH - fontSize) / 2 - 0.3);
 
         // Table heading uses the same maroon/gold treatment as Thursday export.
         doc.rect(tableX, tableHeaderY, tableW, tableHeaderH).fill(MAROON);
@@ -566,7 +566,7 @@ async function generateSequencePdf(event, options = {}) {
                 .fontSize(fontSize)
                 .text(String(values[colIndex]), column.x + 4, rowY + verticalInset, {
                   width: column.width - 8,
-                  height: Math.max(6, rowH - verticalInset),
+                  height: Math.max(2.5, rowH - verticalInset),
                   align: column.align || "left",
                   lineBreak: false,
                   ellipsis: true
