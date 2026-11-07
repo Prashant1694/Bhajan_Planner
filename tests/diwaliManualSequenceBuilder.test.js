@@ -29,13 +29,45 @@ test("Regenerating automatic Diwali sequences preserves all manual sequences", (
   assert.match(generator, /sequence_type:\s*"Auto"/);
 });
 
-test("Manual Diwali sequence pool excludes only bhajans already used manually", () => {
+test("Manual Diwali sequence pool excludes bhajans assigned to any sequence type", () => {
   const pool = service.slice(
     service.indexOf("async function getManualSequencePool("),
     service.indexOf("async function createManualSequence(")
   );
-  assert.match(pool, /sequence_type = 'Manual'/);
+  assert.match(pool, /SELECT DISTINCT entry\.participant_bhajan_id/);
+  assert.match(pool, /WHERE sequence\.event_id = :eventId/);
+  assert.doesNotMatch(pool, /sequence_type = 'Manual'/);
   assert.match(pool, /DiwaliParticipantBhajan\.findAll/);
+});
+
+test("Automatic generation does not duplicate bhajans already curated manually", () => {
+  const generator = service.slice(
+    service.indexOf("async function generateFairSequences("),
+    service.indexOf("async function getFullSequences(")
+  );
+  assert.match(generator, /manuallyAssignedBhajanIds/);
+  assert.match(generator, /!manuallyAssignedBhajanIds\.has\(Number\(bhajan\.id\)\)/);
+});
+
+test("Manual add rejects bhajans assigned in either automatic or manual sequences", () => {
+  const add = service.slice(
+    service.indexOf("async function addBhajansToManualSequence("),
+    service.indexOf("async function removeBhajanFromManualSequence(")
+  );
+  assert.match(add, /where: \{ event_id: sequence\.event_id \}/);
+  assert.match(add, /already assigned to a sequence/);
+});
+
+test("Automatic and manual sequences can exchange entries without creating duplicates", () => {
+  const move = service.slice(
+    service.indexOf("async function moveEntryToAnotherSequence("),
+    service.indexOf("async function getManualSequencePool(")
+  );
+  assert.doesNotMatch(move, /sequence_type !== targetSequence\.sequence_type/);
+  assert.match(move, /duplicateAssignment/);
+  assert.match(move, /participant_bhajan_id: entry\.participant_bhajan_id/);
+  assert.match(move, /entry\.sequence_id = targetSequence\.id/);
+  assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique/);
 });
 
 test("Manual sequence builder supports creation, transactional multi-add, and removal", () => {
