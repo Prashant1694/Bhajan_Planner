@@ -471,6 +471,28 @@ async function onDateChanged(sequenceId, dateVal) {
   }
 }
 
+async function onSessionPeriodChanged(sequenceId, sessionPeriod) {
+  const input = document.getElementById(`seqPeriod-${sequenceId}`);
+  const status = document.getElementById(`periodStatus-${sequenceId}`);
+  const previousValue = input?.dataset.savedValue || "Morning";
+  if (input?.dataset.saving === "true") return;
+  if (input) { input.dataset.saving = "true"; input.disabled = true; }
+  if (status) status.textContent = "Saving...";
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-period", { sequenceId, sessionPeriod });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save session period.");
+    if (input) input.dataset.savedValue = sessionPeriod;
+    if (status) status.textContent = "Saved";
+  } catch (error) {
+    if (input) input.value = previousValue;
+    if (status) status.textContent = "Not saved";
+    alert("Failed to save session: " + error.message);
+  } finally {
+    if (input) { delete input.dataset.saving; input.disabled = false; }
+  }
+}
+
 async function saveSequenceMusicians(sequenceId) {
   const harmoniumInput = document.getElementById(`harmoniumPlayer-${sequenceId}`);
   const tablaInput = document.getElementById(`tablaPlayer-${sequenceId}`);
