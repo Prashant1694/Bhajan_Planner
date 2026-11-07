@@ -787,3 +787,109 @@ body:has(.modal.show) .mobile-bottom-capsule {
     background: #181513 !important;
   }
 }
+
+
+/* ── 11. Mobile bottom navigation layout hardening ─────────────────────────
+   Keep the app-shell navigation horizontal on phones. The older global
+   navigation rules could leave the wrapper visible while its inner track
+   inherited a column layout, expanding it into a tall vertical menu.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  #appBottomNav.app-bottom-nav,
+  nav.app-bottom-nav.mobile-bottom-capsule {
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    margin: 0 !important;
+    padding: 0 8px env(safe-area-inset-bottom, 0px) !important;
+    border: 0 !important;
+    border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08)) !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    background: var(--surface, rgba(255, 255, 255, 0.96)) !important;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.08) !important;
+    z-index: 1000 !important;
+    transform: none !important;
+    left: 0 !important;
+  }
+
+  #appBottomNav .app-bottom-nav-inner,
+  #appBottomNav .capsule-track {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 0 !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  #appBottomNav .nav-tab,
+  #appBottomNav .capsule-pill {
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 6px 2px !important;
+    border-radius: 10px !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+  }
+
+  #appBottomNav .nav-tab svg,
+  #appBottomNav .capsule-icon {
+    display: block !important;
+    flex: 0 0 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+  }
+
+  #appBottomNav .capsule-label,
+  #appBottomNav .tab-label {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: center !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  #appBottomNav.app-bottom-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
