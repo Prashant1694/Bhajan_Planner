@@ -18,15 +18,20 @@ const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: storagePath,
   logging: false,
+  // SQLite supports a single concurrent writer. A single pooled connection
+  // prevents this process from racing its own transactions; WAL + busy_timeout
+  // handle readers and other processes that briefly hold the database lock.
   pool: {
-    max: 5,
+    max: 1,
     min: 0,
-    acquire: 30000,
+    acquire: 60000,
     idle: 10000,
     afterCreate: (conn, done) => {
-      conn.run("PRAGMA journal_mode = WAL;", (err1) => {
+      // Set the per-connection wait policy before changing journal mode. This
+      // also avoids simultaneous new connections racing on PRAGMA journal_mode.
+      conn.run("PRAGMA busy_timeout = 30000;", (err1) => {
         if (err1) return done(err1);
-        conn.run("PRAGMA busy_timeout = 5000;", (err2) => {
+        conn.run("PRAGMA journal_mode = WAL;", (err2) => {
           if (err2) return done(err2);
           conn.run("PRAGMA foreign_keys = ON;", (err3) => {
             if (err3) return done(err3);
@@ -42,8 +47,13 @@ const sequelize = new Sequelize({
       });
     }
   },
+  // Busy/locked errors can still occur when another process (e.g. a one-off
+  // maintenance task) writes to the same SQLite file. Retry with backoff.
   retry: {
-    max: 3
+    max: 5,
+    match: [/SQLITE_BUSY/, /SQLITE_LOCKED/],
+    backoffBase: 250,
+    backoffExponent: 1.5
   }
 });
 
