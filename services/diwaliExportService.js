@@ -292,12 +292,13 @@ async function generateSequenceExcel(event, options = {}) {
   ];
 
   for (const seq of sequences) {
-    const sheetName = `Sequence ${seq.sequence_number}`.slice(0, 31);
+    const sequenceLabel = seq.sequence_type === "Manual" ? `Manual Sequence ${seq.sequence_number}` : `Sequence ${seq.sequence_number}`;
+    const sheetName = sequenceLabel.slice(0, 31);
     const sheet = workbook.addWorksheet(sheetName);
 
     const dateStr = seq.assigned_date ? ` (Date: ${seq.assigned_date})` : "";
     sheet.addRow([
-      `DIWALI BHAJANS — ${event.name.toUpperCase()} — SEQUENCE ${seq.sequence_number}${dateStr}`
+      `DIWALI BHAJANS — ${event.name.toUpperCase()} — ${sequenceLabel.toUpperCase()}${dateStr}`
     ]);
     sheet.addRow([
       "Harmonium Player",
@@ -447,7 +448,7 @@ async function generateSequencePdf(event, options = {}) {
           .fontSize(13)
           .fillColor("#d98a2b")
           .font("Helvetica-Bold")
-          .text(`SEQUENCE ${seq.sequence_number}${dateText}`, { align: "center" });
+          .text(`${sequenceLabel.toUpperCase()}${dateText}`, { align: "center" });
         doc.moveDown(0.25);
         doc
           .fontSize(9)
@@ -476,7 +477,7 @@ async function generateSequencePdf(event, options = {}) {
               .fontSize(12)
               .fillColor("#7d2f45")
               .font("Helvetica-Bold")
-              .text(`SEQUENCE ${seq.sequence_number} (Continued)`, { align: "center" });
+              .text(`${sequenceLabel.toUpperCase()} (Continued)`, { align: "center" });
             doc.moveDown(0.3);
             renderTableHeader();
           }
