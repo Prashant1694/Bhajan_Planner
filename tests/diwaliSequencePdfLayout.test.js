@@ -32,7 +32,7 @@ test("Each Diwali sequence gets its own portrait A4 page", () => {
 
 test("Sequence rows receive dynamic spacing and never trigger continuation pages", () => {
   assert.match(pdf, /rowsAvailable \/ entries\.length/);
-  assert.match(pdf, /Math\.min\(34, rowsAvailable \/ entries\.length\)/);
+  assert.match(pdf, /Math\.min\(30, rowsAvailable \/ entries\.length\)/);
   assert.match(pdf, /index % 2 === 0 \? "#ffffff" : "#fdfbf7"/);
   const rowLoopStart = pdf.indexOf("entries.forEach((entry, index) =>");
   const rowLoopEnd = pdf.indexOf("// Vertical separators", rowLoopStart);
