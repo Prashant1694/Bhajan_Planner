@@ -71,11 +71,11 @@ test("Individual Diwali sequence deletion is event-scoped and preserves unrelate
     service.indexOf("async function deleteSequence(eventId, sequenceId)"),
     service.indexOf("async function getFullSequences(")
   );
-  assert.match(deletion, /where:\\s*\\{\\s*id,\\s*event_id:\\s*eventId\\s*\\}/);
-  assert.match(deletion, /DiwaliSequenceEntry\\.destroy/);
-  assert.match(deletion, /sequence\\.destroy/);
-  assert.match(deletion, /await t\\.commit\\(\\)/);
-  assert.match(deletion, /await t\\.rollback\\(\\)/);
+  assert.match(deletion, /where:\s*\{\s*id,\s*event_id:\s*eventId\s*\}/);
+  assert.match(deletion, /DiwaliSequenceEntry\.destroy/);
+  assert.match(deletion, /sequence\.destroy/);
+  assert.match(deletion, /await t\.commit\(\)/);
+  assert.match(deletion, /await t\.rollback\(\)/);
   assert.match(controller, /exports\\.deleteSequence/);
   assert.match(routes, /sequence\/delete\/:id/);
   assert.doesNotMatch(routes, /delete-generated/);
