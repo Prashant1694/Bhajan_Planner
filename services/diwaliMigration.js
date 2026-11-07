@@ -106,6 +106,22 @@ async function runDiwaliMigration() {
       );
     `);
 
+    // Manual curation may reuse a bhajan already present in the automatic plan.
+    // Remove any legacy unique index on participant_bhajan_id without touching entries.
+    const [entryIndexes] = await sequelize.query("PRAGMA index_list('diwali_sequence_entries')");
+    for (const index of entryIndexes || []) {
+      if (!index.unique || index.origin === "pk") continue;
+      const safeName = String(index.name || "").replace(/"/g, '""');
+      const [indexColumns] = await sequelize.query(`PRAGMA index_info("${safeName}")`);
+      if (
+        indexColumns.length === 1 &&
+        indexColumns[0].name === "participant_bhajan_id" &&
+        index.origin !== "u"
+      ) {
+        await sequelize.query(`DROP INDEX IF EXISTS "${safeName}"`);
+      }
+    }
+
     // 6. Explicit Indexes
     await sequelize.query(
       `CREATE INDEX IF NOT EXISTS idx_diwali_participants_event_id ON diwali_participants(event_id);`
