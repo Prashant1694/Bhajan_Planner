@@ -384,6 +384,7 @@ async function generateSequencePdf(event, options = {}) {
       doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", reject);
 
+      const PAGE_W = 595.28;
       const PAGE_H = 841.89;
       const LEFT = 25;
       const RIGHT = PAGE_W - 25;
