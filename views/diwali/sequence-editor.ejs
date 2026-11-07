@@ -39,11 +39,6 @@
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalMakeSequence')">
         Regenerate Sequences
       </button>
-      <% if (sequences.some(seq => seq.sequence_type !== 'Manual')) { %>
-        <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" onclick="deleteDiwaliGeneratedSequences()">
-          Delete Generated Sequences
-        </button>
-      <% } %>
     </div>
   </div>
 
