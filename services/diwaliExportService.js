@@ -433,6 +433,9 @@ async function generateSequencePdf(event, options = {}) {
 
       for (let sIdx = 0; sIdx < sequences.length; sIdx++) {
         const seq = sequences[sIdx];
+        const sequenceLabel = seq.sequence_type === "Manual"
+          ? `Manual Sequence ${seq.sequence_number}`
+          : `Sequence ${seq.sequence_number}`;
         if (sIdx > 0) doc.addPage();
 
         // Sequence Header
