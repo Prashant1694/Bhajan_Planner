@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, Transaction } = require("sequelize");
 const sequelize = require("../config/database");
 const {
   DiwaliEvent,
@@ -978,7 +978,7 @@ async function getSingleSequence(sequenceId, eventId) {
 async function updateSequenceEntriesOrder(sequenceId, orderedEntryIds, eventId) {
   const id = requirePositiveId(sequenceId, "sequence");
   if (!Array.isArray(orderedEntryIds)) throw new Error("A valid sequence order is required.");
-  const transaction = await sequelize.transaction();
+  const transaction = await sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
   try {
     const sequence = await DiwaliSequence.findOne({
       where: { id, ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
@@ -997,7 +997,9 @@ async function updateSequenceEntriesOrder(sequenceId, orderedEntryIds, eventId) 
 async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder, eventId) {
   const sourceEntryId = requirePositiveId(entryId, "sequence entry");
   const destinationId = requirePositiveId(targetSequenceId, "target sequence");
-  const transaction = await sequelize.transaction();
+  // Acquire SQLite write intent before reading the sequence rows. This avoids
+  // deferred read-to-write lock upgrades racing with another editor request.
+  const transaction = await sequelize.transaction({ type: Transaction.TYPES.IMMEDIATE });
   try {
     const entry = await DiwaliSequenceEntry.findByPk(sourceEntryId, { transaction });
     if (!entry) throw new Error("Sequence entry not found.");
