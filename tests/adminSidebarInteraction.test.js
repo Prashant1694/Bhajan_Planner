@@ -26,7 +26,7 @@ test("Desktop sidebar click switches between hover mode and pinned mode", () => 
 
 test("Hover and keyboard focus expand the compact desktop rail without changing mobile drawer rules", () => {
   assert.match(styles, /@media \(min-width: 1025px\)[\s\S]*?sidebar-collapsed \.sidebar:hover/);
-  assert.match(styles, /sidebar-collapsed \.sidebar:focus-within/);
+  assert.match(styles, /sidebar-collapsed \.sidebar:has\(:focus-visible\)/);
   assert.match(styles, /sidebar-pinned-open \.sidebar/);
   assert.match(styles, /@media \(max-width: 1024px\)/);
   assert.match(script, /if \(!desktopQuery\.matches\) window\.closeMobileSidebar\(\)/);
