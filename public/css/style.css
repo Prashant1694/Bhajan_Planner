@@ -10767,7 +10767,7 @@ body.modal-open #appBottomNav {
 
 /* ==========================================================================
    Universal High-Fidelity Print Stylesheet
-   SSSO Gandhinagar Official Letterhead, Clean Tables & Zero Cards
+   SSSSO Gandhinagar Official Letterhead, Clean Tables & Zero Cards
    ========================================================================== */
 @media print {
   @page {
@@ -10877,7 +10877,7 @@ body.modal-open #appBottomNav {
     border: none !important;
   }
 
-  /* ── 3. Universal SSSO Gandhinagar Print Letterhead ── */
+  /* ── 3. Universal SSSSO Gandhinagar Print Letterhead ── */
   .universal-print-letterhead {
     display: block !important;
     visibility: visible !important;
@@ -11270,7 +11270,7 @@ body.modal-open #appBottomNav {
     text-decoration: none !important;
   }
 
-  /* ── 8. Universal SSSO Gandhinagar Print Footer ── */
+  /* ── 8. Universal SSSSO Gandhinagar Print Footer ── */
   .universal-print-footer {
     display: block !important;
     visibility: visible !important;
