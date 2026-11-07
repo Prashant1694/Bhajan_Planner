@@ -66,9 +66,11 @@ if (!DiwaliEvent.associations.participants) {
     foreignKey: "participant_bhajan_id",
     as: "participantBhajan"
   });
-  DiwaliParticipantBhajan.hasOne(DiwaliSequenceEntry, {
+  // A selected bhajan may appear once in the automatic plan and once in a
+  // separate manual curation. Keep this association one-to-many.
+  DiwaliParticipantBhajan.hasMany(DiwaliSequenceEntry, {
     foreignKey: "participant_bhajan_id",
-    as: "sequenceEntry",
+    as: "sequenceEntries",
     onDelete: "CASCADE"
   });
 }
