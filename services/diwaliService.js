@@ -753,10 +753,41 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
   try {
     const previousSequences = await DiwaliSequence.findAll({
       where: { event_id: eventId, sequence_type: "Auto" },
-      attributes: ["id"],
+      attributes: ["id", "sequence_number"],
       transaction
     });
     const previousIds = previousSequences.map((sequence) => sequence.id);
+
+    // Regenerating one category must not silently erase the other category.
+    const untouchedCategories = ["Gents", "Ladies"].filter((category) => !categories.includes(category));
+    if (previousIds.length && untouchedCategories.length) {
+      const previousEntries = await DiwaliSequenceEntry.findAll({
+        where: { sequence_id: { [Op.in]: previousIds } },
+        include: [{
+          model: DiwaliParticipantBhajan,
+          as: "participantBhajan",
+          include: [{ model: DiwaliParticipant, as: "participant" }]
+        }],
+        order: [["sequence_id", "ASC"], ["sequence_order", "ASC"]],
+        transaction
+      });
+      const sequenceNumberById = new Map(previousSequences.map((sequence) => [
+        Number(sequence.id), Number(sequence.sequence_number || 1)
+      ]));
+      for (const entry of previousEntries) {
+        const participant = entry.participantBhajan?.participant;
+        if (!participant || !untouchedCategories.includes(participant.gender)) continue;
+        const bucketIndex = (Math.max(1, sequenceNumberById.get(Number(entry.sequence_id)) || 1) - 1) % K;
+        const key = participant.gender === "Gents" ? "gentsBhajans" : "ladiesBhajans";
+        sequenceBuckets[bucketIndex][key].push(entry.participantBhajan);
+        totalBhajansAssigned++;
+      }
+      for (const bucket of sequenceBuckets) {
+        bucket.gentsBhajans = reorderAvoidingAdjacent(bucket.gentsBhajans);
+        bucket.ladiesBhajans = reorderAvoidingAdjacent(bucket.ladiesBhajans);
+        bucket.allEntries = [...bucket.gentsBhajans, ...bucket.ladiesBhajans];
+      }
+    }
     if (previousIds.length) {
       await DiwaliSequenceEntry.destroy({
         where: { sequence_id: { [Op.in]: previousIds } },
