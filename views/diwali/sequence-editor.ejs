@@ -368,9 +368,7 @@ async function addBhajansToManualSequence(sequenceId) {
     return;
   }
   try {
-    const response = await window.diwaliPost("/admin/diwali/sequence/manual/add-bhajans", {
-      { sequenceId, participantBhajanIds }
-    );
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/add-bhajans", { sequenceId, participantBhajanIds });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not add selected bhajans");
     window.location.reload();
@@ -382,9 +380,7 @@ async function addBhajansToManualSequence(sequenceId) {
 async function removeBhajanFromManualSequence(sequenceId, entryId) {
   if (!confirm("Remove this bhajan from the manual sequence? It will return to the available pool.")) return;
   try {
-    const response = await window.diwaliPost("/admin/diwali/sequence/manual/remove-bhajan", {
-      { sequenceId, entryId }
-    );
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/remove-bhajan", { sequenceId, entryId });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not remove bhajan");
     window.location.reload();
@@ -395,9 +391,7 @@ async function removeBhajanFromManualSequence(sequenceId, entryId) {
 
 async function onDateChanged(sequenceId, dateVal) {
   try {
-    const res = await window.diwaliPost("/admin/diwali/sequence/assign-date", {
-      { sequenceId, assignedDate: dateVal }
-    );
+    const res = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
     const data = await res.json();
     if (!data.success) alert("Failed to save date: " + data.error);
   } catch (err) {
@@ -425,9 +419,7 @@ async function saveSequenceMusicians(sequenceId) {
   }
 
   try {
-    const response = await window.diwaliPost("/admin/diwali/sequence/assign-musicians", {
-      { sequenceId, harmoniumPlayer, tablaPlayer }
-    );
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-musicians", { sequenceId, harmoniumPlayer, tablaPlayer });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save player assignments");
     if (status) status.textContent = "✓ Players saved";
@@ -489,11 +481,7 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 
   // Persist order to server
   try {
-    await window.diwaliPost("/admin/diwali/sequence/save-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, orderedEntryIds: orderedIds })
-    });
+    await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
   } catch (err) {
     console.error("Error saving sequence order:", err);
   }
@@ -502,9 +490,7 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 async function moveEntryToSeq(entryId, targetSequenceId) {
   if (!targetSequenceId) return;
   try {
-    const res = await window.diwaliPost("/admin/diwali/sequence/move-entry", {
-      { entryId, targetSequenceId }
-    );
+    const res = await window.diwaliPost("/admin/diwali/sequence/move-entry", { entryId, targetSequenceId });
     const data = await res.json();
     if (data.success) {
       window.location.reload();
