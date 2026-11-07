@@ -47,6 +47,6 @@ test("Musician assignments are validated and required before finalization", () =
 test("Diwali Excel and PDF sequence exports show the assigned instrumentalists", () => {
   assert.match(exportsService, /"Harmonium Player"/);
   assert.match(exportsService, /"Tabla Player"/);
-  assert.match(exportsService, /Harmonium:.*seq\.harmonium_player/);
-  assert.match(exportsService, /Tabla:.*seq\.tabla_player/);
+  assert.match(exportsService, /HARMONIUM[\s\S]*?seq\.harmonium_player/);
+  assert.match(exportsService, /TABLA[\s\S]*?seq\.tabla_player/);
 });
