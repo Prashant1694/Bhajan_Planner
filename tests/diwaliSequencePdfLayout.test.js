@@ -11,11 +11,15 @@ const start = source.indexOf("async function generateSequencePdf(");
 const end = source.indexOf("\nmodule.exports =", start);
 const pdf = source.slice(start, end);
 
-test("Diwali sequence PDF uses the Thursday print letterhead and branded table palette", () => {
+test("Diwali sequence PDF uses Gujarat branding, both emblems and the branded table palette", () => {
   assert.match(pdf, /AUM SRI SAI RAM/);
   assert.match(pdf, /SRI SATHYA SAI SEVA ORGANISATION, GUJARAT/);
   assert.doesNotMatch(pdf, /GANDHINAGAR|ssso\.gandhinagar\.com/);
   assert.match(pdf, /public\/images\/logo\.png/);
+  assert.match(pdf, /public\/images\/logo_birthday\.png/);
+  assert.match(pdf, /RIGHT - 54/);
+  assert.match(pdf, /align: "center"/);
+  assert.match(pdf, /SRI SATHYA SAI SEVA ORGANISATION, GUJARAT/);
   assert.match(pdf, /#7d2f45/);
   assert.match(pdf, /#d98a2b/);
   assert.match(pdf, /#fcf8f2/);
@@ -23,16 +27,16 @@ test("Diwali sequence PDF uses the Thursday print letterhead and branded table p
   assert.match(pdf, /TABLA/);
 });
 
-test("Each Diwali sequence gets its own portrait A4 page", () => {
-  assert.match(pdf, /layout: "portrait"/);
+test("Each Diwali sequence gets its own landscape A4 page", () => {
+  assert.match(pdf, /layout: "landscape"/);
   assert.match(pdf, /sequences\.forEach\(\(seq\) => drawSequencePage\(seq\)\)/);
-  assert.match(pdf, /doc\.addPage\(\{ size: "A4", layout: "portrait", margins: 0 \}\)/);
+  assert.match(pdf, /doc\.addPage\(\{ size: "A4", layout: "landscape", margins: 0 \}\)/);
   assert.doesNotMatch(pdf, /Continued/);
 });
 
 test("Sequence rows receive dynamic spacing and never trigger continuation pages", () => {
   assert.match(pdf, /rowsAvailable \/ entries\.length/);
-  assert.match(pdf, /Math\.min\(30, rowsAvailable \/ entries\.length\)/);
+  assert.match(pdf, /Math\.min\(34, rowsAvailable \/ entries\.length\)/);
   assert.match(pdf, /index % 2 === 0 \? "#ffffff" : "#fdfbf7"/);
   const rowLoopStart = pdf.indexOf("entries.forEach((entry, index) =>");
   const rowLoopEnd = pdf.indexOf("let separatorX = tableX", rowLoopStart);
