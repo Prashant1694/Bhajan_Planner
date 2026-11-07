@@ -959,6 +959,60 @@ async function addBhajanToManualSequence(sequenceId, participantBhajanId) {
   return entry;
 }
 
+async function addBhajansToManualSequence(sequenceId, participantBhajanIds) {
+  const ids = [...new Set((participantBhajanIds || []).map((id) => Number.parseInt(id, 10)))];
+  if (!ids.length || ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+    throw new Error("Select valid bhajans from the available pool.");
+  }
+
+  const t = await sequelize.transaction();
+  try {
+    const sequence = await DiwaliSequence.findByPk(sequenceId, { transaction: t });
+    if (!sequence || sequence.sequence_type !== "Manual") {
+      throw new Error("Bhajans can only be added to a manually curated sequence.");
+    }
+
+    const bhajans = await DiwaliParticipantBhajan.findAll({
+      where: { id: { [Op.in]: ids }, event_id: sequence.event_id },
+      transaction: t
+    });
+    if (bhajans.length !== ids.length) {
+      throw new Error("One or more selected bhajans do not belong to this Diwali event.");
+    }
+
+    const alreadyAssigned = await DiwaliSequenceEntry.findAll({
+      where: { participant_bhajan_id: { [Op.in]: ids } },
+      include: [{
+        model: DiwaliSequence,
+        as: "sequence",
+        where: { event_id: sequence.event_id, sequence_type: "Manual" }
+      }],
+      transaction: t
+    });
+    if (alreadyAssigned.length) {
+      throw new Error("One or more selected bhajans are already included in a manual sequence.");
+    }
+
+    const lastOrder = await DiwaliSequenceEntry.max("sequence_order", {
+      where: { sequence_id: sequence.id },
+      transaction: t
+    });
+    await DiwaliSequenceEntry.bulkCreate(
+      bhajans.map((bhajan, index) => ({
+        sequence_id: sequence.id,
+        participant_bhajan_id: bhajan.id,
+        sequence_order: Number(lastOrder || 0) + index + 1
+      })),
+      { transaction: t }
+    );
+    await t.commit();
+    return bhajans.length;
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+}
+
 async function removeBhajanFromManualSequence(sequenceId, entryId) {
   const sequence = await DiwaliSequence.findByPk(sequenceId);
   if (!sequence || sequence.sequence_type !== "Manual") {
@@ -1044,6 +1098,7 @@ module.exports = {
   getManualSequencePool,
   createManualSequence,
   addBhajanToManualSequence,
+  addBhajansToManualSequence,
   removeBhajanFromManualSequence,
   assignSequenceDate,
   assignSequenceMusicians,
