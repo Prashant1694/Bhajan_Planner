@@ -64,26 +64,21 @@ async function diwaliPost(url, payload, options = {}) {
 
   let response = await makeRequest(diwaliCsrfToken);
   if (response.status === 403) {
-    let failure = null;
-    try { failure = await response.clone().json(); } catch (_) {}
-    const csrfFailure = /csrf|security token|invalid token/i.test(
-      [failure?.error, failure?.message].filter(Boolean).join(" ")
-    );
-    if (csrfFailure) {
-      const tokenResponse = await fetch("/admin/diwali/csrf-token", {
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json" }
-      });
-      if (!tokenResponse.ok) throw new Error("Could not refresh the security token. Reload the page and try again.");
-      const tokenData = await tokenResponse.json();
-      if (!tokenData.csrfToken) throw new Error("The server did not provide a fresh security token. Reload the page and try again.");
-      diwaliCsrfToken = tokenData.csrfToken;
-      window.csrfToken = diwaliCsrfToken;
-      const meta = document.querySelector('meta[name="csrf-token"]');
-      if (meta) meta.content = diwaliCsrfToken;
-      response = await makeRequest(diwaliCsrfToken);
-    }
+    // A 403 can be returned as HTML by the global error handler, so do
+    // not depend on parsing its body to identify an expired CSRF token.
+    const tokenResponse = await fetch("/admin/diwali/csrf-token", {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    });
+    if (!tokenResponse.ok) throw new Error("Could not refresh the security token. Reload the page and try again.");
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.csrfToken) throw new Error("The server did not provide a fresh security token. Reload the page and try again.");
+    diwaliCsrfToken = tokenData.csrfToken;
+    window.csrfToken = diwaliCsrfToken;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) meta.content = diwaliCsrfToken;
+    response = await makeRequest(diwaliCsrfToken);
   }
   return response;
 }
