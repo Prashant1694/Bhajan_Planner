@@ -147,7 +147,7 @@ async function runDiwaliMigration() {
        WHERE id IN (SELECT id FROM ranked_entries)
     `);
 
-    // Recreate after any legacy table rebuild, which drops table indexes.
+    // Enforce one assignment per bhajan after any legacy table rebuild.
     await sequelize.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique
        ON diwali_sequence_entries(participant_bhajan_id)`
