@@ -24,7 +24,7 @@ test("Diwali sequence PDF uses the Thursday print letterhead and branded table p
 
 test("Each Diwali sequence gets its own landscape A4 page", () => {
   assert.match(pdf, /layout: "landscape"/);
-  assert.match(pdf, /sequences\.forEach\(\(seq, index\) => drawSequencePage\(seq, index\)\)/);
+  assert.match(pdf, /sequences\.forEach\(\(seq\) => drawSequencePage\(seq\)\)/);
   assert.match(pdf, /doc\.addPage\(\{ size: "A4", layout: "landscape", margins: 0 \}\)/);
   assert.doesNotMatch(pdf, /Continued/);
 });
