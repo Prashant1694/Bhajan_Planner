@@ -80,6 +80,7 @@
                 <span class="badge-pill" style="background:var(--surface); color:var(--diwali-amber); font-weight:700;">
                   <span id="seq-count-<%= seq.id %>"><%= seq.entries ? seq.entries.length : 0 %></span> songs
                 </span>
+                <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" style="padding:2px 7px; font-size:11px;" onclick="deleteDiwaliSequence(<%= seq.id %>, '<%= seq.sequence_type === 'Manual' ? 'Manual' : 'Auto' %>', <%= seq.sequence_number %>)" title="Delete only this sequence">Delete</button>
                 <% if (seq.status === 'Finalized') { %>
                   <span class="badge-pill" style="background:#e8f1e9; color:#4f7a5b;">✓ Finalized</span>
                 <% } else { %>
@@ -335,31 +336,22 @@
 
 <script src="/js/diwali.js"></script>
 <script>
-async function deleteDiwaliGeneratedSequences() {
-  const confirmed = window.confirm(
-    "Delete all automatically generated sequences for this Diwali event?\n\nManually curated sequences will be preserved. This action cannot be undone."
-  );
-  if (!confirmed) return;
-
+async function deleteDiwaliSequence(sequenceId, sequenceType, sequenceNumber) {
+  const label = sequenceType === "Manual" ? "manual" : "automatically generated";
+  if (!window.confirm(`Delete ${label} sequence ${sequenceNumber}? Its bhajan assignments and session musician/date settings will be removed. Original Diwali entries will remain.`)) return;
   try {
-    const response = await fetch("/admin/diwali/sequence/delete-generated", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" }
-    });
+    const response = await window.diwaliPost(`/admin/diwali/sequence/delete/${sequenceId}`);
     const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || "Could not delete generated sequences.");
-    }
-    alert(`Deleted ${result.deleted} generated sequence(s). Manual sequences were preserved.`);
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not delete sequence.");
     window.location.reload();
   } catch (error) {
-    alert("Deletion failed: " + error.message);
+    alert("Sequence deletion failed: " + error.message);
   }
 }
 
 async function createManualDiwaliSequence() {
   try {
-    const response = await fetch("/admin/diwali/sequence/manual/create", { method: "POST" });
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/create");
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not create manual sequence");
     window.location.reload();
@@ -376,11 +368,9 @@ async function addBhajansToManualSequence(sequenceId) {
     return;
   }
   try {
-    const response = await fetch("/admin/diwali/sequence/manual/add-bhajans", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, participantBhajanIds })
-    });
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/add-bhajans", {
+      { sequenceId, participantBhajanIds }
+    );
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not add selected bhajans");
     window.location.reload();
@@ -392,11 +382,9 @@ async function addBhajansToManualSequence(sequenceId) {
 async function removeBhajanFromManualSequence(sequenceId, entryId) {
   if (!confirm("Remove this bhajan from the manual sequence? It will return to the available pool.")) return;
   try {
-    const response = await fetch("/admin/diwali/sequence/manual/remove-bhajan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, entryId })
-    });
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/remove-bhajan", {
+      { sequenceId, entryId }
+    );
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not remove bhajan");
     window.location.reload();
@@ -407,11 +395,9 @@ async function removeBhajanFromManualSequence(sequenceId, entryId) {
 
 async function onDateChanged(sequenceId, dateVal) {
   try {
-    const res = await fetch("/admin/diwali/sequence/assign-date", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, assignedDate: dateVal })
-    });
+    const res = await window.diwaliPost("/admin/diwali/sequence/assign-date", {
+      { sequenceId, assignedDate: dateVal }
+    );
     const data = await res.json();
     if (!data.success) alert("Failed to save date: " + data.error);
   } catch (err) {
@@ -439,11 +425,9 @@ async function saveSequenceMusicians(sequenceId) {
   }
 
   try {
-    const response = await fetch("/admin/diwali/sequence/assign-musicians", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, harmoniumPlayer, tablaPlayer })
-    });
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-musicians", {
+      { sequenceId, harmoniumPlayer, tablaPlayer }
+    );
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save player assignments");
     if (status) status.textContent = "✓ Players saved";
@@ -463,7 +447,7 @@ async function finalizeSeq(sequenceId) {
     : confirm("Finalize this sequence?");
   if (!ok) return;
   try {
-    const res = await fetch(`/admin/diwali/sequence/finalize/${sequenceId}`, {
+    const res = await window.diwaliPost(`/admin/diwali/sequence/finalize/${sequenceId}`)
       method: "POST"
     });
     const data = await res.json();
@@ -505,7 +489,7 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 
   // Persist order to server
   try {
-    await fetch("/admin/diwali/sequence/save-order", {
+    await window.diwaliPost("/admin/diwali/sequence/save-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sequenceId, orderedEntryIds: orderedIds })
@@ -518,11 +502,9 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 async function moveEntryToSeq(entryId, targetSequenceId) {
   if (!targetSequenceId) return;
   try {
-    const res = await fetch("/admin/diwali/sequence/move-entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, targetSequenceId })
-    });
+    const res = await window.diwaliPost("/admin/diwali/sequence/move-entry", {
+      { entryId, targetSequenceId }
+    );
     const data = await res.json();
     if (data.success) {
       window.location.reload();
@@ -559,10 +541,8 @@ function initDiwaliSequenceDragDrop() {
     const orderedEntryIds = Array.from(list.querySelectorAll(".sequence-entry-card"))
       .map(card => card.dataset.entryId);
     const response = await fetch("/admin/diwali/sequence/save-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, orderedEntryIds })
-    });
+      { sequenceId, orderedEntryIds }
+    );
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
   }
@@ -621,14 +601,12 @@ function initDiwaliSequenceDragDrop() {
         const targetCards = Array.from(targetList.querySelectorAll(".sequence-entry-card"));
         const targetOrder = targetCards.indexOf(state.card) + 1;
         const response = await fetch("/admin/diwali/sequence/move-entry", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          {
             entryId: state.card.dataset.entryId,
             targetSequenceId: Number(targetList.dataset.seqId),
             targetOrder
-          })
-        });
+          }
+        );
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
         await saveListOrder(targetList);
