@@ -901,6 +901,9 @@ async function assignSequenceMusicians(sequenceId, harmoniumPlayer, tablaPlayer)
   if (!harmonium || !tabla) {
     throw new Error("Assign both a harmonium player and a tabla player for this session.");
   }
+  if (harmonium.length > 255 || tabla.length > 255) {
+    throw new Error("Player names must be 255 characters or fewer.");
+  }
 
   seq.harmonium_player = harmonium;
   seq.tabla_player = tabla;
