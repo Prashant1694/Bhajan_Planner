@@ -5416,3 +5416,95 @@ body.admin-page.dark {
 body.in-admin-tab .admin-sidebar-btn {
   display: inline-flex !important;
 }
+
+
+/* Admin desktop sidebar: compact rail, hover/focus expansion, click-to-pin.
+   The mobile drawer remains governed exclusively by the existing <=1024px rules. */
+@media (min-width: 1025px) {
+  body.admin-page .sidebar {
+    will-change: width;
+    transition:
+      width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      padding 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 0.22s ease;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within {
+    width: 270px;
+    box-shadow: 8px 0 28px rgba(15, 23, 42, 0.12);
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-header,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-header {
+    justify-content: space-between;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-brand-text,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-brand-text {
+    display: flex;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-toggle,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-toggle {
+    display: flex;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-section-title,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-section-title {
+    display: block;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-nav a,
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-footer a,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-nav a,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-footer a {
+    justify-content: flex-start;
+    font-size: 13.5px;
+    padding: 9px 12px;
+  }
+
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-nav a span,
+  body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-footer a span,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-nav a span,
+  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-footer a span {
+    width: 20px;
+    font-size: 15px;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar {
+    width: 270px;
+    box-shadow: none;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar-brand-text {
+    display: flex;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar-toggle {
+    display: flex;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar-section-title {
+    display: block;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar-nav a,
+  body.admin-page.sidebar-pinned-open .sidebar-footer a {
+    justify-content: flex-start;
+    font-size: 13.5px;
+    padding: 9px 12px;
+  }
+
+  body.admin-page.sidebar-pinned-open .sidebar-nav a span,
+  body.admin-page.sidebar-pinned-open .sidebar-footer a span {
+    width: 20px;
+    font-size: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.admin-page .sidebar {
+    transition: none !important;
+  }
+}
