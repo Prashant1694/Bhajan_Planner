@@ -63,7 +63,7 @@ async function diwaliPost(url, payload, options = {}) {
         ...(token ? { "X-CSRF-Token": token } : {}),
         ...(options.headers || {})
       },
-      ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
+      ...(payload !== undefined ? { body: JSON.stringify(payload) } : options.body !== undefined ? { body: options.body } : {})
     }).finally(() => window.clearTimeout(timeout));
   };
 
