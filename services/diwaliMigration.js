@@ -81,6 +81,12 @@ async function runDiwaliMigration() {
       await sequelize.query("ALTER TABLE diwali_sequences ADD COLUMN tabla_player VARCHAR(255)");
     }
 
+    // 4b. Persist the morning/evening session selection per sequence.
+    const sessionPeriodColumns = await sequelize.query("PRAGMA table_info(diwali_sequences)");
+    if (!sessionPeriodColumns[0].some((column) => column.name === "session_period")) {
+      await sequelize.query("ALTER TABLE diwali_sequences ADD COLUMN session_period VARCHAR(20) NOT NULL DEFAULT 'Morning'");
+    }
+
     // 4b. Distinguish automatic and manually curated Diwali sequences.
     const [sequenceTypeColumns] = await sequelize.query("PRAGMA table_info(diwali_sequences)");
     if (!sequenceTypeColumns.some((column) => column.name === "sequence_type")) {
