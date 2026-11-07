@@ -147,12 +147,6 @@ async function runDiwaliMigration() {
        WHERE id IN (SELECT id FROM ranked_entries)
     `);
 
-    // Enforce one assignment per bhajan after any legacy table rebuild.
-    await sequelize.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique
-       ON diwali_sequence_entries(participant_bhajan_id)`
-    );
-
     // 6. Explicit Indexes
     const [entryIndexes] = await sequelize.query("PRAGMA index_list('diwali_sequence_entries')");
     let hasLegacyUniqueConstraint = false;
@@ -200,6 +194,12 @@ async function runDiwaliMigration() {
     }
 
     // 6. Explicit Indexes
+    // Enforce one assignment per bhajan after any legacy table rebuild.
+    await sequelize.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique
+       ON diwali_sequence_entries(participant_bhajan_id)`
+    );
+
     await sequelize.query(
       `CREATE INDEX IF NOT EXISTS idx_diwali_participants_event_id ON diwali_participants(event_id);`
     );
