@@ -519,9 +519,7 @@ function initDiwaliSequenceDragDrop() {
     const sequenceId = Number(list.dataset.seqId);
     const orderedEntryIds = Array.from(list.querySelectorAll(".sequence-entry-card"))
       .map(card => card.dataset.entryId);
-    const response = await fetch("/admin/diwali/sequence/save-order", {
-      { sequenceId, orderedEntryIds }
-    );
+    const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds });
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
   }
@@ -579,13 +577,11 @@ function initDiwaliSequenceDragDrop() {
       if (targetList !== state.sourceList) {
         const targetCards = Array.from(targetList.querySelectorAll(".sequence-entry-card"));
         const targetOrder = targetCards.indexOf(state.card) + 1;
-        const response = await fetch("/admin/diwali/sequence/move-entry", {
-          {
-            entryId: state.card.dataset.entryId,
-            targetSequenceId: Number(targetList.dataset.seqId),
-            targetOrder
-          }
-        );
+        const response = await window.diwaliPost("/admin/diwali/sequence/move-entry", {
+          entryId: state.card.dataset.entryId,
+          targetSequenceId: Number(targetList.dataset.seqId),
+          targetOrder
+        });
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
         await saveListOrder(targetList);
