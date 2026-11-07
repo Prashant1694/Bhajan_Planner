@@ -921,78 +921,88 @@ async function getSingleSequence(sequenceId) {
   return seq;
 }
 
-async function updateSequenceEntriesOrder(sequenceId, orderedEntryIds) {
-  const t = await sequelize.transaction();
+async function updateSequenceEntriesOrder(sequenceId, orderedEntryIds, eventId) {
+  const id = requirePositiveId(sequenceId, "sequence");
+  if (!Array.isArray(orderedEntryIds)) throw new Error("A valid sequence order is required.");
+  const transaction = await sequelize.transaction();
   try {
-    for (let i = 0; i < orderedEntryIds.length; i++) {
-      const entryId = parseInt(orderedEntryIds[i], 10);
-      await DiwaliSequenceEntry.update(
-        { sequence_order: i + 1 },
-        { where: { id: entryId, sequence_id: sequenceId }, transaction: t }
-      );
-    }
-    await t.commit();
+    const sequence = await DiwaliSequence.findOne({
+      where: { id, ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
+      transaction
+    });
+    if (!sequence) throw new Error("Sequence not found for the selected Diwali event.");
+    await persistSequenceOrder(id, orderedEntryIds, transaction);
+    await transaction.commit();
     return true;
-  } catch (err) {
-    await t.rollback();
-    throw err;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
 }
 
-async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder) {
-  const t = await sequelize.transaction();
+async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder, eventId) {
+  const sourceEntryId = requirePositiveId(entryId, "sequence entry");
+  const destinationId = requirePositiveId(targetSequenceId, "target sequence");
+  const transaction = await sequelize.transaction();
   try {
-    const entry = await DiwaliSequenceEntry.findByPk(entryId, { transaction: t });
-    if (!entry) throw new Error("Sequence entry not found");
+    const entry = await DiwaliSequenceEntry.findByPk(sourceEntryId, { transaction });
+    if (!entry) throw new Error("Sequence entry not found.");
 
-    const targetSeq = await DiwaliSequence.findByPk(targetSequenceId, { transaction: t });
-    if (!targetSeq) throw new Error("Target sequence not found");
-
-    const sourceSeq = await DiwaliSequence.findByPk(entry.sequence_id, { transaction: t });
-    if (!sourceSeq || sourceSeq.sequence_type !== targetSeq.sequence_type) {
+    const sourceSequence = await DiwaliSequence.findByPk(entry.sequence_id, { transaction });
+    const targetSequence = await DiwaliSequence.findByPk(destinationId, { transaction });
+    if (!sourceSequence || !targetSequence) throw new Error("Source or target sequence no longer exists.");
+    if (eventId && (Number(sourceSequence.event_id) !== Number(eventId) ||
+      Number(targetSequence.event_id) !== Number(eventId))) {
+      throw new Error("Sequences can only be edited within the selected Diwali event.");
+    }
+    if (sourceSequence.sequence_type !== targetSequence.sequence_type) {
       throw new Error("Bhajans can only be moved between sequences of the same type.");
     }
 
-    const oldSequenceId = entry.sequence_id;
-    const targetEntries = await DiwaliSequenceEntry.findAll({
-      where: { sequence_id: targetSequenceId },
-      order: [["sequence_order", "ASC"]],
-      transaction: t
+    const sourceEntries = await DiwaliSequenceEntry.findAll({
+      where: { sequence_id: sourceSequence.id },
+      order: [["sequence_order", "ASC"], ["id", "ASC"]],
+      transaction
     });
+    const sourceIds = sourceEntries.map((item) => Number(item.id));
+    if (!sourceIds.includes(sourceEntryId)) throw new Error("The selected bhajan is no longer in its source sequence.");
 
-    const requestedOrder = Number.parseInt(targetOrder, 10);
-    const insertAt = Number.isInteger(requestedOrder) && requestedOrder > 0
-      ? Math.min(requestedOrder - 1, targetEntries.length)
-      : targetEntries.length;
-
-    // Insert the moved entry at the requested position and normalize every
-    // target order in one transaction so no duplicate sequence_order remains.
-    targetEntries.splice(insertAt, 0, entry);
-    entry.sequence_id = targetSequenceId;
-    for (let i = 0; i < targetEntries.length; i++) {
-      targetEntries[i].sequence_id = targetSequenceId;
-      targetEntries[i].sequence_order = i + 1;
-      await targetEntries[i].save({ transaction: t });
-    }
-
-    // Normalize the source sequence after removing the moved entry.
-    if (Number(oldSequenceId) !== Number(targetSequenceId)) {
-      const remainingInOld = await DiwaliSequenceEntry.findAll({
-        where: { sequence_id: oldSequenceId },
-        order: [["sequence_order", "ASC"]],
-        transaction: t
+    if (Number(sourceSequence.id) === Number(targetSequence.id)) {
+      const requested = Number(targetOrder);
+      const bounded = Number.isInteger(requested) && requested > 0
+        ? Math.min(requested, sourceIds.length)
+        : sourceIds.length;
+      const nextIds = sourceIds.filter((id) => id !== sourceEntryId);
+      nextIds.splice(Math.max(0, bounded - 1), 0, sourceEntryId);
+      await persistSequenceOrder(sourceSequence.id, nextIds, transaction);
+    } else {
+      const targetEntries = await DiwaliSequenceEntry.findAll({
+        where: { sequence_id: targetSequence.id },
+        order: [["sequence_order", "ASC"], ["id", "ASC"]],
+        transaction
       });
-      for (let i = 0; i < remainingInOld.length; i++) {
-        remainingInOld[i].sequence_order = i + 1;
-        await remainingInOld[i].save({ transaction: t });
-      }
+      const targetIds = targetEntries.map((item) => Number(item.id));
+      const requested = Number(targetOrder);
+      const insertAt = Number.isInteger(requested) && requested > 0
+        ? Math.min(requested - 1, targetIds.length)
+        : targetIds.length;
+      targetIds.splice(insertAt, 0, sourceEntryId);
+
+      // Move the entry and compact the source order in one transaction.
+      entry.sequence_id = targetSequence.id;
+      entry.sequence_order = insertAt + 1;
+      await entry.save({ transaction });
+
+      const sourceNextIds = sourceIds.filter((id) => id !== sourceEntryId);
+      await persistSequenceOrder(sourceSequence.id, sourceNextIds, transaction);
+      await persistSequenceOrder(targetSequence.id, targetIds, transaction, { updateSequenceId: true });
     }
 
-    await t.commit();
+    await transaction.commit();
     return true;
-  } catch (err) {
-    await t.rollback();
-    throw err;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
 }
 
