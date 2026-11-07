@@ -89,6 +89,7 @@
 
 </div>
 
+<script src="/js/diwali.js"></script>
 <script>
 let globalPreviewData = null;
 
@@ -113,8 +114,8 @@ async function uploadAndPreview() {
   formData.append("file", input.files[0]);
 
   try {
-    const res = await fetch("/admin/diwali/import/preview", {
-      method: "POST",
+    const res = await window.diwaliPost("/admin/diwali/import/preview", undefined, {
+      headers: { Accept: "application/json" },
       body: formData
     });
 
@@ -265,13 +266,9 @@ async function commitConfirmedImport() {
   btn.textContent = "Importing Records...";
 
   try {
-    const res = await fetch("/admin/diwali/import/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        year: "<%= selectedEvent.year %>",
-        participants: globalPreviewData.participants
-      })
+    const res = await window.diwaliPost("/admin/diwali/import/confirm", {
+      year: "<%= selectedEvent.year %>",
+      participants: globalPreviewData.participants
     });
 
     const data = await res.json();
