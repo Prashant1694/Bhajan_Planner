@@ -106,8 +106,48 @@ async function runDiwaliMigration() {
       );
     `);
 
-    // Manual curation may reuse a bhajan already present in the automatic plan.
-    // Remove any legacy unique index on participant_bhajan_id without touching entries.
+    // Each participant bhajan may belong to exactly one sequence across the event,
+    // regardless of whether that sequence is automatic or manually curated.
+    // Older releases allowed auto/manual duplicates; keep the manual assignment first
+    // because it represents an explicit curation, then keep the earliest remaining row.
+    await sequelize.query(`
+      DELETE FROM diwali_sequence_entries
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT entry.id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY entry.participant_bhajan_id
+                   ORDER BY CASE WHEN sequence.sequence_type = 'Manual' THEN 0 ELSE 1 END,
+                            sequence.id ASC,
+                            entry.sequence_order ASC,
+                            entry.id ASC
+                 ) AS assignment_rank
+          FROM diwali_sequence_entries AS entry
+          INNER JOIN diwali_sequences AS sequence ON sequence.id = entry.sequence_id
+        ) AS ranked_assignments
+        WHERE assignment_rank > 1
+      )
+    `);
+
+    // Compact sequence positions after removing legacy duplicate assignments.
+    await sequelize.query(`
+      WITH ranked_entries AS (
+        SELECT id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY sequence_id
+                 ORDER BY sequence_order ASC, id ASC
+               ) AS next_order
+        FROM diwali_sequence_entries
+      )
+      UPDATE diwali_sequence_entries
+         SET sequence_order = (
+           SELECT next_order FROM ranked_entries
+            WHERE ranked_entries.id = diwali_sequence_entries.id
+         )
+       WHERE id IN (SELECT id FROM ranked_entries)
+    `);
+
+    // 6. Explicit Indexes
     const [entryIndexes] = await sequelize.query("PRAGMA index_list('diwali_sequence_entries')");
     let hasLegacyUniqueConstraint = false;
     for (const index of entryIndexes || []) {
@@ -154,6 +194,12 @@ async function runDiwaliMigration() {
     }
 
     // 6. Explicit Indexes
+    // Enforce one assignment per bhajan after any legacy table rebuild.
+    await sequelize.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique
+       ON diwali_sequence_entries(participant_bhajan_id)`
+    );
+
     await sequelize.query(
       `CREATE INDEX IF NOT EXISTS idx_diwali_participants_event_id ON diwali_participants(event_id);`
     );

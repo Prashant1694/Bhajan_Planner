@@ -648,10 +648,30 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
   const event = await DiwaliEvent.findByPk(eventId);
   if (!event) throw new Error("Diwali event not found.");
 
+  // Bhajans already placed in a manual sequence must not be reintroduced
+  // when automatic sequences are generated or regenerated.
+  const manualAssignments = await DiwaliSequenceEntry.findAll({
+    attributes: ["participant_bhajan_id"],
+    include: [{
+      model: DiwaliSequence,
+      as: "sequence",
+      where: { event_id: eventId, sequence_type: "Manual" },
+      attributes: []
+    }]
+  });
+  const manuallyAssignedBhajanIds = new Set(
+    manualAssignments.map((entry) => Number(entry.participant_bhajan_id))
+  );
+
   const participants = await DiwaliParticipant.findAll({
     where: { event_id: eventId },
     include: [{ model: DiwaliParticipantBhajan, as: "bhajans" }],
     order: [["id", "ASC"]]
+  });
+  participants.forEach((participant) => {
+    participant.bhajans = (participant.bhajans || []).filter(
+      (bhajan) => !manuallyAssignedBhajanIds.has(Number(bhajan.id))
+    );
   });
 
   const gentsParticipants = participants.filter((p) => p.gender === "Gents");
@@ -989,8 +1009,23 @@ async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder
       Number(targetSequence.event_id) !== Number(eventId))) {
       throw new Error("Sequences can only be edited within the selected Diwali event.");
     }
-    if (sourceSequence.sequence_type !== targetSequence.sequence_type) {
-      throw new Error("Bhajans can only be moved between sequences of the same type.");
+    // Automatic and manual sequences share one event-wide bhajan assignment pool.
+    // Moving the existing entry changes its sequence; it never creates a duplicate.
+    const duplicateAssignment = await DiwaliSequenceEntry.findOne({
+      where: {
+        participant_bhajan_id: entry.participant_bhajan_id,
+        id: { [Op.ne]: sourceEntryId }
+      },
+      include: [{
+        model: DiwaliSequence,
+        as: "sequence",
+        where: { event_id: sourceSequence.event_id },
+        attributes: []
+      }],
+      transaction
+    });
+    if (duplicateAssignment) {
+      throw new Error("This bhajan is already assigned to another sequence. Remove the duplicate assignment before moving it.");
     }
 
     const sourceEntries = await DiwaliSequenceEntry.findAll({
@@ -1045,7 +1080,7 @@ async function getManualSequencePool(eventId) {
     `SELECT DISTINCT entry.participant_bhajan_id
        FROM diwali_sequence_entries AS entry
        INNER JOIN diwali_sequences AS sequence ON sequence.id = entry.sequence_id
-      WHERE sequence.event_id = :eventId AND sequence.sequence_type = 'Manual'`,
+      WHERE sequence.event_id = :eventId`,
     { replacements: { eventId } }
   );
   const usedIds = usedRows.map((row) => row.participant_bhajan_id);
@@ -1112,13 +1147,13 @@ async function addBhajansToManualSequence(sequenceId, participantBhajanIds, even
       include: [{
         model: DiwaliSequence,
         as: "sequence",
-        where: { event_id: sequence.event_id, sequence_type: "Manual" },
+        where: { event_id: sequence.event_id },
         attributes: []
       }],
       transaction
     });
     if (alreadyAssigned.length) {
-      throw new Error("One or more selected bhajans are already included in a manual sequence.");
+      throw new Error("One or more selected bhajans are already assigned to a sequence. Move the existing bhajan instead of adding a duplicate.");
     }
 
     const lastOrder = await DiwaliSequenceEntry.max("sequence_order", {
