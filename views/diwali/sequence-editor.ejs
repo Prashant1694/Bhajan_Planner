@@ -379,7 +379,7 @@ function initDiwaliSequenceDragDrop() {
       const rect = targetCard.getBoundingClientRect();
       const insertAfter = y > rect.top + rect.height / 2;
       list.insertBefore(drag.card, insertAfter ? targetCard.nextSibling : targetCard);
-    } else if (!targetCard && drag.card.parentElement !== list) {
+    } else if (!targetCard) {
       list.appendChild(drag.card);
     }
     board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
