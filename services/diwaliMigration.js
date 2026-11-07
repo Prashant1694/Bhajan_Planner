@@ -81,6 +81,17 @@ async function runDiwaliMigration() {
       await sequelize.query("ALTER TABLE diwali_sequences ADD COLUMN tabla_player VARCHAR(255)");
     }
 
+    // 4b. Distinguish automatic and manually curated Diwali sequences.
+    const [sequenceTypeColumns] = await sequelize.query("PRAGMA table_info(diwali_sequences)");
+    if (!sequenceTypeColumns.some((column) => column.name === "sequence_type")) {
+      await sequelize.query(
+        "ALTER TABLE diwali_sequences ADD COLUMN sequence_type VARCHAR(20) NOT NULL DEFAULT 'Auto'"
+      );
+    }
+    await sequelize.query(
+      "CREATE INDEX IF NOT EXISTS idx_diwali_sequences_event_type ON diwali_sequences(event_id, sequence_type)"
+    );
+
     // 5. diwali_sequence_entries
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS diwali_sequence_entries (
