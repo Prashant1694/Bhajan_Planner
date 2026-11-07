@@ -756,32 +756,30 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
 // 4. SEQUENCE EDITOR & MANAGEMENT
 // ============================================================
 
-async function deleteGeneratedSequences(eventId) {
-  const event = await DiwaliEvent.findByPk(eventId);
-  if (!event) throw new Error("Diwali event not found.");
+async function deleteSequence(eventId, sequenceId) {
+  const id = Number.parseInt(sequenceId, 10);
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Invalid sequence selected.");
 
   const t = await sequelize.transaction();
   try {
-    const generated = await DiwaliSequence.findAll({
-      where: { event_id: eventId, sequence_type: "Auto" },
-      attributes: ["id"],
+    const sequence = await DiwaliSequence.findOne({
+      where: { id, event_id: eventId },
       transaction: t
     });
-    const sequenceIds = generated.map((sequence) => sequence.id);
+    if (!sequence) throw new Error("Sequence not found for the selected Diwali event.");
 
-    if (sequenceIds.length) {
-      await DiwaliSequenceEntry.destroy({
-        where: { sequence_id: { [Op.in]: sequenceIds } },
-        transaction: t
-      });
-      await DiwaliSequence.destroy({
-        where: { id: { [Op.in]: sequenceIds }, event_id: eventId, sequence_type: "Auto" },
-        transaction: t
-      });
-    }
+    await DiwaliSequenceEntry.destroy({
+      where: { sequence_id: sequence.id },
+      transaction: t
+    });
+    await sequence.destroy({ transaction: t });
 
     await t.commit();
-    return { deleted: sequenceIds.length };
+    return {
+      deleted: true,
+      sequenceNumber: sequence.sequence_number,
+      sequenceType: sequence.sequence_type || "Auto"
+    };
   } catch (error) {
     await t.rollback();
     throw error;
@@ -1123,7 +1121,7 @@ module.exports = {
   getFlatBhajanRows,
   getStats,
   generateFairSequences,
-  deleteGeneratedSequences,
+  deleteSequence,
   getFullSequences,
   getSingleSequence,
   updateSequenceEntriesOrder,

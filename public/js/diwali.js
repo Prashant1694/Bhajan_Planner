@@ -47,6 +47,42 @@ function getCurrentGender(scopeElement) {
   return "Gents";
 }
 
+// Diwali-only POST helper: refresh an expired CSRF token and retry once.
+let diwaliCsrfToken = document.querySelector('meta[name="csrf-token"]')?.content || window.csrfToken || "";
+
+async function diwaliPost(url, payload, options = {}) {
+  const makeRequest = (token) => fetch(url, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      ...(payload === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { "X-CSRF-Token": token } : {}),
+      ...(options.headers || {})
+    },
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
+  });
+
+  let response = await makeRequest(diwaliCsrfToken);
+  if (response.status === 403) {
+    // A 403 can be returned as HTML by the global error handler, so do
+    // not depend on parsing its body to identify an expired CSRF token.
+    const tokenResponse = await fetch("/admin/diwali/csrf-token", {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    });
+    if (!tokenResponse.ok) throw new Error("Could not refresh the security token. Reload the page and try again.");
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.csrfToken) throw new Error("The server did not provide a fresh security token. Reload the page and try again.");
+    diwaliCsrfToken = tokenData.csrfToken;
+    window.csrfToken = diwaliCsrfToken;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) meta.content = diwaliCsrfToken;
+    response = await makeRequest(diwaliCsrfToken);
+  }
+  return response;
+}
+
 function initDiwaliModule() {
   initTabs();
   initTableFilters();
@@ -482,10 +518,8 @@ async function triggerGenerateSequences() {
   }
 
   try {
-    const res = await fetch("/admin/diwali/sequence/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ numSequences, categories })
+    const res = await diwaliPost("/admin/diwali/sequence/generate", {
+      numSequences, categories
     });
 
     const data = await res.json();
@@ -711,10 +745,8 @@ async function saveParticipantEdits() {
   }
 
   try {
-    const res = await fetch(`/admin/diwali/participant/update/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lead_name, partner_name, gender, remarks, bhajans })
+    const res = await diwaliPost(`/admin/diwali/participant/update/${id}`, {
+      lead_name, partner_name, gender, remarks, bhajans
     });
     const data = await res.json();
     if (!data.success) {
@@ -749,3 +781,4 @@ window.triggerSequenceExport = triggerSequenceExport;
 window.openEditParticipantModal = openEditParticipantModal;
 window.saveParticipantEdits = saveParticipantEdits;
 window.removeBhajanCard = removeBhajanCard;
+window.diwaliPost = diwaliPost;

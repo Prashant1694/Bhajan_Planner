@@ -103,9 +103,6 @@
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportSequence')">
         Export Sequences
       </button>
-      <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" onclick="deleteDiwaliGeneratedSequences()">
-        Delete Generated Sequences
-      </button>
     <% } %>
   </div>
 
@@ -193,7 +190,8 @@
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
                         Edit
                       </button>
-                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %>
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>"> &amp; <%= b.participant.partner_name %> and all their bhajans?">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -257,7 +255,8 @@
                       <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= b.participant.id %>)" title="Edit Pair & Bhajans">
                         Edit
                       </button>
-                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                      <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %>
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>"> &amp; <%= b.participant.partner_name %> and all their bhajans?">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -305,7 +304,8 @@
           <div class="sequence-column-card">
             <div class="sequence-col-header">
               <div class="sequence-title-row">
-                <h3>Sequence <%= seq.sequence_number %></h3>
+                <h3><%= seq.sequence_type === 'Manual' ? 'Manual Sequence' : 'Sequence' %> <%= seq.sequence_number %></h3>
+                <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" onclick="deleteDiwaliSequence(<%= seq.id %>, '<%= seq.sequence_type === 'Manual' ? 'Manual' : 'Auto' %>', <%= seq.sequence_number %>)">Delete Sequence</button>
                 <span class="badge-pill" style="background:var(--diwali-gold-light); color:var(--diwali-amber);">
                   <%= seq.entries ? seq.entries.length : 0 %> Bhajans
                 </span>
@@ -605,26 +605,19 @@
 
 <script src="/js/diwali.js"></script>
 <script>
-async function deleteDiwaliGeneratedSequences() {
-  const confirmed = window.confirm(
-    "Delete all automatically generated sequences for this Diwali event?\n\nManually curated sequences will be preserved. This action cannot be undone."
-  );
-  if (!confirmed) return;
-
+async function deleteDiwaliSequence(sequenceId, sequenceType, sequenceNumber) {
+  const label = sequenceType === "Manual" ? "manual" : "automatically generated";
+  if (!window.confirm(`Delete ${label} sequence ${sequenceNumber}? Its bhajan assignments and session musician/date settings will be removed. Original Diwali entries will remain.`)) return;
   try {
-    const response = await fetch("/admin/diwali/sequence/delete-generated", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" }
-    });
+    const response = await window.diwaliPost(`/admin/diwali/sequence/delete/${sequenceId}`);
     const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || "Could not delete generated sequences.");
-    }
-    alert(`Deleted ${result.deleted} generated sequence(s). Manual sequences were preserved.`);
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not delete sequence.");
     window.location.reload();
   } catch (error) {
-    alert("Deletion failed: " + error.message);
+    alert("Sequence deletion failed: " + error.message);
   }
 }
 </script>
+
+
 

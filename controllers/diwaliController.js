@@ -430,21 +430,21 @@ exports.makeSequence = async (req, res) => {
   }
 };
 
-// Delete only automatically generated sequences for the selected Diwali event.
-exports.deleteGeneratedSequences = async (req, res) => {
+// Delete one sequence belonging to the currently selected Diwali event.
+exports.deleteSequence = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const result = await diwaliService.deleteGeneratedSequences(selectedEvent.id);
+    const result = await diwaliService.deleteSequence(selectedEvent.id, req.params.id);
 
     await activityService.log(
       req.session.admin,
-      "DIWALI_AUTO_SEQUENCES_DELETED",
-      `Deleted ${result.deleted} automatically generated sequence(s) for ${selectedEvent.name}. Manual sequences were preserved.`
+      "DIWALI_SEQUENCE_DELETED",
+      `Deleted ${result.sequenceType === "Manual" ? "manual" : "automatically generated"} sequence ${result.sequenceNumber} for ${selectedEvent.name}.`
     );
 
-    res.json({ success: true, deleted: result.deleted });
+    res.json({ success: true, ...result });
   } catch (error) {
-    console.error("Error deleting generated Diwali sequences:", error);
+    console.error("Error deleting Diwali sequence:", error);
     res.status(400).json({ success: false, error: error.message });
   }
 };
