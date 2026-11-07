@@ -479,16 +479,13 @@ exports.addManualBhajans = async (req, res) => {
     const ids = Array.isArray(participantBhajanIds) ? participantBhajanIds : [];
     if (!ids.length) throw new Error("Select at least one bhajan from the pool.");
 
-    const added = [];
-    for (const id of ids) {
-      added.push(await diwaliService.addBhajanToManualSequence(sequenceId, id));
-    }
+    const added = await diwaliService.addBhajansToManualSequence(sequenceId, ids);
     await activityService.log(
       req.session.admin,
       "DIWALI_MANUAL_SEQUENCE_EDITED",
-      `Added ${added.length} bhajan(s) to manual sequence ${sequenceId}.`
+      `Added ${added} bhajan(s) to manual sequence ${sequenceId}.`
     );
-    res.json({ success: true, added: added.length });
+    res.json({ success: true, added });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
