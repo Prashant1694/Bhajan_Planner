@@ -1383,3 +1383,18 @@
   #diwaliSequenceEditor .sequence-view-table { display: none !important; }
   #diwaliSequenceEditor .sequence-view-cards { display: block !important; }
 }
+
+.sequence-table-drop-placeholder td {
+  height: 58px;
+  text-align: center;
+  color: var(--text-light, #8b8394);
+  font-style: italic;
+  border: 1px dashed var(--diwali-gold-border);
+  background: var(--diwali-gold-light);
+}
+.sequence-table-body:has(.sequence-table-row) .sequence-table-drop-placeholder {
+  display: none;
+}
+.sequence-table-wrap:has(.sequence-table-row) .sequence-table-empty {
+  display: none;
+}
