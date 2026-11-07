@@ -1258,3 +1258,128 @@
 .diwali-delete-generated-btn:hover {
   background: rgba(169, 54, 54, 0.08);
 }
+
+
+/* Diwali sequence editor: desktop card/table presentation switch. */
+.diwali-sequence-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: -8px 0 14px;
+  color: var(--text-light, #8b8394);
+  font-size: 13px;
+}
+.diwali-sequence-view-toolbar .btn-diwali {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.diwali-sequence-view-toolbar .is-active {
+  background: var(--diwali-maroon);
+  border-color: var(--diwali-maroon);
+  color: #fff;
+}
+.sequence-view-table { display: none; }
+#diwaliSequenceEditor[data-sequence-view="table"] .sequence-view-cards { display: none; }
+#diwaliSequenceEditor[data-sequence-view="table"] .sequence-view-table { display: block; }
+.sequence-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.sequence-entry-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text, #221e2a);
+  font-size: 12px;
+}
+.sequence-entry-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 9px;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--diwali-gold-light);
+  color: var(--diwali-maroon);
+  border-bottom: 1px solid var(--diwali-gold-border);
+}
+.sequence-entry-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--diwali-border);
+  background: var(--surface, #fff);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.sequence-entry-table .sequence-table-row {
+  cursor: grab;
+  transition: background-color .15s ease, opacity .15s ease;
+}
+.sequence-entry-table .sequence-table-row:hover td {
+  background: var(--diwali-gold-light);
+}
+.sequence-entry-table .sequence-table-row.is-dragging td {
+  opacity: .45;
+  background: var(--diwali-gold-light);
+}
+.sequence-entry-table .sequence-table-row.is-drop-saved td {
+  background: rgba(79, 155, 104, .12);
+}
+.sequence-entry-table .sequence-table-order {
+  display: table-cell;
+  min-width: 82px;
+}
+.sequence-table-order .sequence-drag-handle {
+  width: 27px;
+  height: 29px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.sequence-table-order .order-badge {
+  display: inline-block;
+  min-width: 18px;
+  font-weight: 800;
+  color: var(--diwali-maroon);
+}
+.sequence-table-bhajan {
+  min-width: 180px;
+  white-space: normal !important;
+}
+.sequence-table-empty {
+  padding: 14px;
+  margin: 0;
+  color: var(--text-light, #8b8394);
+  font-size: 12px;
+}
+.sequence-table-body.sequence-entries-list {
+  display: table-row-group;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+.sequence-table-body .sequence-table-row {
+  display: table-row;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  position: static;
+}
+.sequence-table-body .sequence-table-row:hover {
+  transform: none;
+  box-shadow: none;
+}
+.sequence-table-body .sequence-table-row .sequence-drag-handle {
+  touch-action: none;
+}
+.sequence-table-body:has(.sequence-table-row.is-dragging) {
+  background: rgba(217, 138, 43, .06);
+}
+
+@media (max-width: 768px) {
+  .diwali-sequence-view-toolbar { display: none; }
+  #diwaliSequenceEditor .sequence-view-table { display: none !important; }
+  #diwaliSequenceEditor .sequence-view-cards { display: block !important; }
+}
