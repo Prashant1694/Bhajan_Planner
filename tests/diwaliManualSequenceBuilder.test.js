@@ -68,6 +68,11 @@ test("Automatic and manual sequences can exchange entries without creating dupli
   assert.match(move, /participant_bhajan_id: entry\.participant_bhajan_id/);
   assert.match(move, /entry\.sequence_id = targetSequence\.id/);
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique/);
+  assert.ok(
+    migration.indexOf("ALTER TABLE diwali_sequence_entries_rebuild RENAME TO diwali_sequence_entries") <
+      migration.indexOf("CREATE UNIQUE INDEX IF NOT EXISTS idx_diwali_sequence_entries_bhajan_unique"),
+    "The unique index must be created after any legacy table rebuild."
+  );
 });
 
 test("Manual sequence builder supports creation, transactional multi-add, and removal", () => {
