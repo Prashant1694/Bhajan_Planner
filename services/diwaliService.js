@@ -1,4 +1,4 @@
-const { Sequelize, Op } = require("sequelize");
+const { Op } = require("sequelize");
 const sequelize = require("../config/database");
 const {
   DiwaliEvent,
@@ -8,6 +8,92 @@ const {
   DiwaliSequenceEntry,
   MasterBhajan
 } = require("../models/diwaliModels");
+
+
+// Parse public identifiers strictly; avoid silently accepting malformed IDs.
+function requirePositiveId(value, label) {
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error(`Invalid ${label || "identifier"}.`);
+  }
+  return id;
+}
+
+// Persist a complete sequence ordering in bounded bulk statements rather than
+// issuing one UPDATE per bhajan (which made large sequences appear to freeze).
+async function persistSequenceOrder(sequenceId, orderedEntryIds, transaction, options = {}) {
+  const existing = await DiwaliSequenceEntry.findAll({
+    where: { sequence_id: sequenceId },
+    attributes: ["id", "sequence_id", "participant_bhajan_id"],
+    order: [["sequence_order", "ASC"]],
+    transaction
+  });
+  const ids = orderedEntryIds.map((value) => requirePositiveId(value, "sequence entry"));
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("The sequence order contains duplicate bhajan entries.");
+  }
+  const existingById = new Map(existing.map((entry) => [Number(entry.id), entry]));
+  if (ids.length !== existing.length || ids.some((id) => !existingById.has(id))) {
+    throw new Error("The sequence changed while you were editing it. Reload and try again.");
+  }
+
+  const updates = ids.map((id, index) => {
+    const entry = existingById.get(id);
+    return {
+      id,
+      sequence_id: sequenceId,
+      participant_bhajan_id: entry.participant_bhajan_id,
+      sequence_order: index + 1
+    };
+  });
+
+  for (let offset = 0; offset < updates.length; offset += 150) {
+    await DiwaliSequenceEntry.bulkCreate(updates.slice(offset, offset + 150), {
+      updateOnDuplicate: options.updateSequenceId
+        ? ["sequence_id", "sequence_order", "updated_at"]
+        : ["sequence_order", "updated_at"],
+      transaction
+    });
+  }
+}
+
+async function normalizeSequenceOrder(sequenceId, transaction) {
+  const entries = await DiwaliSequenceEntry.findAll({
+    where: { sequence_id: sequenceId },
+    attributes: ["id", "participant_bhajan_id"],
+    order: [["sequence_order", "ASC"], ["id", "ASC"]],
+    transaction
+  });
+  const updates = entries.map((entry, index) => ({
+    id: entry.id,
+    sequence_id: sequenceId,
+    participant_bhajan_id: entry.participant_bhajan_id,
+    sequence_order: index + 1
+  }));
+  for (let offset = 0; offset < updates.length; offset += 150) {
+    await DiwaliSequenceEntry.bulkCreate(updates.slice(offset, offset + 150), {
+      updateOnDuplicate: ["sequence_order", "updated_at"],
+      transaction
+    });
+  }
+}
+
+async function normalizeSequencesAfterBhajanRemoval(bhajanIds, transaction) {
+  if (!bhajanIds.length) return;
+  const assignments = await DiwaliSequenceEntry.findAll({
+    where: { participant_bhajan_id: { [Op.in]: bhajanIds } },
+    attributes: ["sequence_id"],
+    transaction
+  });
+  const sequenceIds = [...new Set(assignments.map((row) => Number(row.sequence_id)))];
+  await DiwaliSequenceEntry.destroy({
+    where: { participant_bhajan_id: { [Op.in]: bhajanIds } },
+    transaction
+  });
+  for (const sequenceId of sequenceIds) {
+    await normalizeSequenceOrder(sequenceId, transaction);
+  }
+}
 
 // ============================================================
 // 1. EVENT MANAGEMENT
@@ -224,6 +310,16 @@ async function updateParticipantWithBhajans(
 
   const t = await sequelize.transaction();
   try {
+    const participant = await DiwaliParticipant.findByPk(participantId, { transaction: t });
+    if (!participant) throw new Error("Participant not found.");
+
+    const submittedIds = validBhajans
+      .filter((bhajan) => bhajan.id !== undefined && bhajan.id !== null && bhajan.id !== "")
+      .map((bhajan) => requirePositiveId(bhajan.id, "bhajan"));
+    if (new Set(submittedIds).size !== submittedIds.length) {
+      throw new Error("The same existing bhajan was submitted more than once.");
+    }
+
     participant.lead_name = cleanLead;
     participant.partner_name = cleanPartner;
     participant.gender = cleanGender;
@@ -238,6 +334,10 @@ async function updateParticipantWithBhajans(
     const existingMap = new Map();
     for (const eb of existingBhajans) {
       existingMap.set(eb.id, eb);
+    }
+
+    if (submittedIds.some((id) => !existingMap.has(id))) {
+      throw new Error("One or more selected bhajans no longer belong to this participant. Reload and try again.");
     }
 
     let order = 1;
@@ -308,11 +408,7 @@ async function updateParticipantWithBhajans(
     // Remove any bhajans deleted by user in the edit modal
     const removedIds = Array.from(existingMap.keys());
     if (removedIds.length > 0) {
-      // Clean up sequence entries first to avoid SQLite foreign key constraints
-      await DiwaliSequenceEntry.destroy({
-        where: { participant_bhajan_id: removedIds },
-        transaction: t
-      });
+      await normalizeSequencesAfterBhajanRemoval(removedIds, t);
       await DiwaliParticipantBhajan.destroy({
         where: { id: removedIds },
         transaction: t
@@ -528,152 +624,130 @@ async function getStats(eventId) {
  * - Gents and Ladies balanced independently.
  */
 async function generateFairSequences(eventId, numSequences, options = {}) {
-  const K = parseInt(numSequences, 10);
-  if (isNaN(K) || K < 2) {
-    throw new Error("Number of sequences must be at least 2.");
+  const K = requirePositiveId(numSequences, "number of sequences");
+  if (K < 2 || K > 50) {
+    throw new Error("Choose between 2 and 50 sequences.");
   }
 
-  const categories = options.categories || ["Gents", "Ladies"];
+  const requestedCategories = options.categories === undefined
+    ? ["Gents", "Ladies"]
+    : options.categories;
+  if (!Array.isArray(requestedCategories)) {
+    throw new Error("Select at least one valid category.");
+  }
+  const categories = [...new Set(requestedCategories)];
+  if (
+    categories.length === 0 ||
+    categories.some((category) => !["Gents", "Ladies"].includes(category))
+  ) {
+    throw new Error("Select at least one valid category (Gents or Ladies).");
+  }
 
-  // 1. Fetch all participants and bhajans for the event
+  const event = await DiwaliEvent.findByPk(eventId);
+  if (!event) throw new Error("Diwali event not found.");
+
   const participants = await DiwaliParticipant.findAll({
     where: { event_id: eventId },
-    include: [{ model: DiwaliParticipantBhajan, as: "bhajans" }]
+    include: [{ model: DiwaliParticipantBhajan, as: "bhajans" }],
+    order: [["id", "ASC"]]
   });
 
-  if (participants.length === 0) {
-    throw new Error("No Diwali participants found for this event.");
-  }
-
-  // Split into categories
   const gentsParticipants = participants.filter((p) => p.gender === "Gents");
   const ladiesParticipants = participants.filter((p) => p.gender === "Ladies");
-
-  // Buckets for each sequence: sequenceIndex (0..K-1)
-  const sequenceBuckets = Array.from({ length: K }, (_, idx) => ({
-    sequenceNumber: idx + 1,
+  const sequenceBuckets = Array.from({ length: K }, (_, index) => ({
+    sequenceNumber: index + 1,
     gentsBhajans: [],
     ladiesBhajans: [],
     allEntries: []
   }));
 
-  // Track fairness metrics
   let totalBhajansAssigned = 0;
   let multiBhajanPairsCount = 0;
   let successfullySpreadCount = 0;
   let unavoidableConcentrationCount = 0;
+  let tieCursor = 0;
 
   function distributeCategory(participantList, categoryKey) {
-    const activeParticipants = participantList.filter((p) => p.bhajans && p.bhajans.length > 0);
-    // Sort pairs by bhajan count descending (pairs with most bhajans placed first)
-    activeParticipants.sort((a, b) => b.bhajans.length - a.bhajans.length);
+    const activeParticipants = participantList
+      .filter((participant) => participant.bhajans?.length)
+      .sort((a, b) => b.bhajans.length - a.bhajans.length || Number(a.id) - Number(b.id));
 
-    // Track which sequences contain each participant
-    const pairSequenceUsage = new Map(); // participantId -> Map(seqIdx -> count)
+    const sequenceCounts = new Array(K).fill(0);
+    const sequenceDeityCounts = Array.from({ length: K }, () => new Map());
 
-    // Sequence load tracker for this category
-    const seqCounts = new Array(K).fill(0);
-    const seqDeityCounts = Array.from({ length: K }, () => new Map());
-
-    for (const p of activeParticipants) {
-      const bhajans = [...p.bhajans];
-      const m = bhajans.length;
-      if (m > 1) multiBhajanPairsCount++;
-
-      pairSequenceUsage.set(p.id, new Map());
-      const usage = pairSequenceUsage.get(p.id);
-
-      let distinctSeqsForPair = 0;
+    for (const participant of activeParticipants) {
+      const usage = new Map();
+      const bhajans = [...participant.bhajans].sort(
+        (a, b) => Number(a.original_order || 0) - Number(b.original_order || 0) || Number(a.id) - Number(b.id)
+      );
+      if (bhajans.length > 1) multiBhajanPairsCount++;
 
       for (const bhajan of bhajans) {
-        // Choose best sequence for this bhajan:
-        // 1. Minimum occurrences of this participant in sequence
-        // 2. Minimum total category load in sequence
-        // 3. Minimum occurrence of this bhajan's deity in sequence
-        let bestSeqIdx = -1;
-        let minPairOccurrences = Infinity;
-        let minSeqLoad = Infinity;
-        let minDeityOccurrences = Infinity;
+        const rotatedIndices = Array.from({ length: K }, (_, offset) => (tieCursor + offset) % K);
+        let bestSequenceIndex = rotatedIndices[0];
+        let bestPairUsage = Infinity;
+        let bestSequenceLoad = Infinity;
+        let bestDeityUsage = Infinity;
 
-        // Shuffle indices slightly for symmetry breaking when counts are tied
-        const candidateIndices = Array.from({ length: K }, (_, i) => i).sort(
-          () => Math.random() - 0.5
-        );
+        for (const index of rotatedIndices) {
+          const pairUsage = usage.get(index) || 0;
+          const deityKey = String(bhajan.deity || "").trim().toLowerCase();
+          const deityUsage = sequenceDeityCounts[index].get(deityKey) || 0;
+          const better =
+            pairUsage < bestPairUsage ||
+            (pairUsage === bestPairUsage && sequenceCounts[index] < bestSequenceLoad) ||
+            (pairUsage === bestPairUsage &&
+              sequenceCounts[index] === bestSequenceLoad &&
+              deityUsage < bestDeityUsage);
 
-        for (const idx of candidateIndices) {
-          const pairOccur = usage.get(idx) || 0;
-          const load = seqCounts[idx];
-          const deity = (bhajan.deity || "").toLowerCase();
-          const deityOccur = seqDeityCounts[idx].get(deity) || 0;
-
-          if (
-            pairOccur < minPairOccurrences ||
-            (pairOccur === minPairOccurrences && load < minSeqLoad) ||
-            (pairOccur === minPairOccurrences &&
-              load === minSeqLoad &&
-              deityOccur < minDeityOccurrences)
-          ) {
-            bestSeqIdx = idx;
-            minPairOccurrences = pairOccur;
-            minSeqLoad = load;
-            minDeityOccurrences = deityOccur;
+          if (better) {
+            bestSequenceIndex = index;
+            bestPairUsage = pairUsage;
+            bestSequenceLoad = sequenceCounts[index];
+            bestDeityUsage = deityUsage;
           }
         }
 
-        // Assign to bestSeqIdx
-        usage.set(bestSeqIdx, (usage.get(bestSeqIdx) || 0) + 1);
-        seqCounts[bestSeqIdx]++;
-        if (bhajan.deity) {
-          const dKey = bhajan.deity.toLowerCase();
-          seqDeityCounts[bestSeqIdx].set(dKey, (seqDeityCounts[bestSeqIdx].get(dKey) || 0) + 1);
+        usage.set(bestSequenceIndex, (usage.get(bestSequenceIndex) || 0) + 1);
+        sequenceCounts[bestSequenceIndex]++;
+        const deityKey = String(bhajan.deity || "").trim().toLowerCase();
+        if (deityKey) {
+          sequenceDeityCounts[bestSequenceIndex].set(
+            deityKey,
+            (sequenceDeityCounts[bestSequenceIndex].get(deityKey) || 0) + 1
+          );
         }
 
-        bhajan.participant = p;
-        if (categoryKey === "Gents") {
-          sequenceBuckets[bestSeqIdx].gentsBhajans.push(bhajan);
-        } else {
-          sequenceBuckets[bestSeqIdx].ladiesBhajans.push(bhajan);
-        }
+        sequenceBuckets[bestSequenceIndex][
+          categoryKey === "Gents" ? "gentsBhajans" : "ladiesBhajans"
+        ].push(bhajan);
         totalBhajansAssigned++;
+        tieCursor = (bestSequenceIndex + 1) % K;
       }
 
-      distinctSeqsForPair = usage.size;
-      if (m > 1) {
-        if (distinctSeqsForPair === Math.min(m, K)) {
-          successfullySpreadCount++;
-        } else {
-          unavoidableConcentrationCount++;
-        }
+      if (bhajans.length > 1) {
+        if (usage.size === Math.min(bhajans.length, K)) successfullySpreadCount++;
+        else unavoidableConcentrationCount++;
       }
     }
   }
 
-  if (categories.includes("Gents")) {
-    distributeCategory(gentsParticipants, "Gents");
-  }
-  if (categories.includes("Ladies")) {
-    distributeCategory(ladiesParticipants, "Ladies");
+  if (categories.includes("Gents")) distributeCategory(gentsParticipants, "Gents");
+  if (categories.includes("Ladies")) distributeCategory(ladiesParticipants, "Ladies");
+
+  if (totalBhajansAssigned === 0) {
+    throw new Error("No bhajans were found in the selected categories for this Diwali event.");
   }
 
-  // Intra-sequence anti-adjacency ordering:
-  // Prevent same pair from appearing consecutively in sequence
   function reorderAvoidingAdjacent(list) {
     if (list.length <= 2) return list;
-    const result = [];
-    const pool = [...list];
-
-    // Pick first item
-    result.push(pool.shift());
-
-    while (pool.length > 0) {
+    const remaining = [...list];
+    const result = [remaining.shift()];
+    while (remaining.length) {
       const lastParticipantId = result[result.length - 1].participant_id;
-      // Find candidate with different participant_id
-      let candidateIdx = pool.findIndex((b) => b.participant_id !== lastParticipantId);
-      if (candidateIdx === -1) {
-        // Unavoidable: all remaining items belong to same participant
-        candidateIdx = 0;
-      }
-      result.push(pool.splice(candidateIdx, 1)[0]);
+      let index = remaining.findIndex((bhajan) => bhajan.participant_id !== lastParticipantId);
+      if (index === -1) index = 0;
+      result.push(remaining.splice(index, 1)[0]);
     }
     return result;
   }
@@ -681,52 +755,61 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
   for (const bucket of sequenceBuckets) {
     bucket.gentsBhajans = reorderAvoidingAdjacent(bucket.gentsBhajans);
     bucket.ladiesBhajans = reorderAvoidingAdjacent(bucket.ladiesBhajans);
-    // Combine for overall sequence: Gents first, then Ladies (standard satsang sequence)
     bucket.allEntries = [...bucket.gentsBhajans, ...bucket.ladiesBhajans];
   }
 
-  // 4. Persist to Database Transactionally
-  const t = await sequelize.transaction();
+  const transaction = await sequelize.transaction();
   try {
-    // Delete existing sequences for this event
-    // Regenerating automatic sequences must never delete manually curated sessions.
-    await DiwaliSequence.destroy({
+    const previousSequences = await DiwaliSequence.findAll({
       where: { event_id: eventId, sequence_type: "Auto" },
-      transaction: t
+      attributes: ["id"],
+      transaction
     });
-
-    const createdSequences = [];
-    for (let i = 0; i < K; i++) {
-      const bucket = sequenceBuckets[i];
-      const seq = await DiwaliSequence.create(
-        {
-          event_id: eventId,
-          sequence_number: i + 1,
-          sequence_type: "Auto",
-          status: "Draft",
-          generated_at: new Date()
-        },
-        { transaction: t }
-      );
-
-      let order = 1;
-      for (const bhajan of bucket.allEntries) {
-        await DiwaliSequenceEntry.create(
-          {
-            sequence_id: seq.id,
-            participant_bhajan_id: bhajan.id,
-            sequence_order: order++
-          },
-          { transaction: t }
-        );
-      }
-
-      createdSequences.push(seq);
+    const previousIds = previousSequences.map((sequence) => sequence.id);
+    if (previousIds.length) {
+      await DiwaliSequenceEntry.destroy({
+        where: { sequence_id: { [Op.in]: previousIds } },
+        transaction
+      });
+      await DiwaliSequence.destroy({
+        where: { id: { [Op.in]: previousIds }, event_id: eventId, sequence_type: "Auto" },
+        transaction
+      });
     }
 
-    await t.commit();
+    const createdSequences = [];
+    for (const bucket of sequenceBuckets) {
+      const sequence = await DiwaliSequence.create({
+        event_id: eventId,
+        sequence_number: bucket.sequenceNumber,
+        sequence_type: "Auto",
+        status: "Draft",
+        generated_at: new Date()
+      }, { transaction });
+      createdSequences.push(sequence);
+    }
 
-    // Prepare fairness summary
+    const entriesToCreate = [];
+    for (let index = 0; index < sequenceBuckets.length; index++) {
+      let order = 1;
+      for (const bhajan of sequenceBuckets[index].allEntries) {
+        entriesToCreate.push({
+          sequence_id: createdSequences[index].id,
+          participant_bhajan_id: bhajan.id,
+          sequence_order: order++
+        });
+      }
+    }
+
+    for (let offset = 0; offset < entriesToCreate.length; offset += 200) {
+      await DiwaliSequenceEntry.bulkCreate(entriesToCreate.slice(offset, offset + 200), {
+        transaction,
+        validate: true
+      });
+    }
+
+    await transaction.commit();
+
     const fairnessSummary = {
       numSequences: K,
       totalBhajans: totalBhajansAssigned,
@@ -734,27 +817,20 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
       multiBhajanPairs: multiBhajanPairsCount,
       successfullySpread: successfullySpreadCount,
       unavoidableConcentration: unavoidableConcentrationCount,
-      sequences: sequenceBuckets.map((b) => ({
-        sequenceNumber: b.sequenceNumber,
-        gentsCount: b.gentsBhajans.length,
-        ladiesCount: b.ladiesBhajans.length,
-        totalCount: b.allEntries.length
+      sequences: sequenceBuckets.map((bucket) => ({
+        sequenceNumber: bucket.sequenceNumber,
+        gentsCount: bucket.gentsBhajans.length,
+        ladiesCount: bucket.ladiesBhajans.length,
+        totalCount: bucket.allEntries.length
       }))
     };
 
-    return {
-      sequences: createdSequences,
-      fairnessSummary
-    };
+    return { sequences: createdSequences, fairnessSummary };
   } catch (error) {
-    await t.rollback();
+    await transaction.rollback();
     throw error;
   }
 }
-
-// ============================================================
-// 4. SEQUENCE EDITOR & MANAGEMENT
-// ============================================================
 
 async function deleteSequence(eventId, sequenceId) {
   const id = Number.parseInt(sequenceId, 10);
