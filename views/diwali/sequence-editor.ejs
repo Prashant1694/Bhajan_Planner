@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/diwali.css?v=7.1">
+<link rel="stylesheet" href="/css/diwali.css?v=7.2">
 
 <div class="container container-xl" id="diwaliSequenceEditor" data-sequence-view="cards">
 
@@ -265,11 +265,9 @@
                       <td><%= pb.deity || '-' %></td>
                     </tr>
                   <% }) %>
+                  <tr class="sequence-table-drop-placeholder" aria-hidden="true"><td colspan="8">Drop a bhajan here to add it to this sequence</td></tr>
                 </tbody>
               </table>
-              <% if (!(seq.entries || []).length) { %>
-                <p class="sequence-table-empty">No bhajans in this sequence yet.</p>
-              <% } %>
             </div>
           </div>
         </div>
