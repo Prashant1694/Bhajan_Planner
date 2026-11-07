@@ -21,6 +21,14 @@ const DiwaliSequence = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true
     },
+    harmonium_player: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    tabla_player: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     status: {
       type: DataTypes.STRING,
       allowNull: false,

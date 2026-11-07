@@ -72,6 +72,15 @@ async function runDiwaliMigration() {
       );
     `);
 
+    // 4a. Add per-sequence instrumentalist assignments to existing databases.
+    const [sequenceColumns] = await sequelize.query("PRAGMA table_info(diwali_sequences)");
+    if (!sequenceColumns.some((column) => column.name === "harmonium_player")) {
+      await sequelize.query("ALTER TABLE diwali_sequences ADD COLUMN harmonium_player VARCHAR(255)");
+    }
+    if (!sequenceColumns.some((column) => column.name === "tabla_player")) {
+      await sequelize.query("ALTER TABLE diwali_sequences ADD COLUMN tabla_player VARCHAR(255)");
+    }
+
     // 5. diwali_sequence_entries
     await sequelize.query(`
       CREATE TABLE IF NOT EXISTS diwali_sequence_entries (

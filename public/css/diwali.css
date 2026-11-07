@@ -1094,3 +1094,79 @@
     touch-action: pan-y;
   }
 }
+
+
+/* Per-session Diwali instrumentalist assignments */
+.diwali-musician-assignment {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--diwali-gold-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.diwali-musician-assignment-heading,
+.diwali-musician-assignment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwali-musician-assignment-heading {
+  color: var(--diwali-maroon);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.diwali-musician-required {
+  color: #a65d12;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diwali-musician-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diwali-musician-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.diwali-musician-fields .diwali-input-text {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.diwali-musician-assignment-footer {
+  margin-top: 10px;
+}
+
+.diwali-musician-assignment-footer small {
+  color: var(--text-light);
+  font-size: 10.5px;
+}
+
+.diwali-musician-assignment-footer button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+@media (max-width: 480px) {
+  .diwali-musician-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,6 +9,7 @@ const {
 } = require("../models/diwaliModels");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const { getMasterCatalog } = require("../services/catalogCache");
+const Singer = require("../models/Singer");
 
 // Pitch-shift calculation matching Thursday Bhajan form
 function femaleFallbackShruti(maleShruti) {
@@ -433,9 +434,10 @@ exports.makeSequence = async (req, res) => {
 exports.showSequenceEditor = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, sequences] = await Promise.all([
+    const [allEvents, sequences, musicians] = await Promise.all([
       diwaliService.getAllEvents(),
-      diwaliService.getFullSequences(selectedEvent.id)
+      diwaliService.getFullSequences(selectedEvent.id),
+      Singer.findAll({ attributes: ["name"], order: [["name", "ASC"]], raw: true })
     ]);
 
     res.render("diwali/sequence-editor", {
@@ -443,7 +445,8 @@ exports.showSequenceEditor = async (req, res) => {
       page: "diwali",
       selectedEvent,
       allEvents,
-      sequences
+      sequences,
+      musicians
     });
   } catch (error) {
     console.error("Error loading sequence editor:", error);
@@ -494,6 +497,28 @@ exports.assignDate = async (req, res) => {
     const { sequenceId, assignedDate } = req.body;
     const seq = await diwaliService.assignSequenceDate(sequenceId, assignedDate);
     res.json({ success: true, sequence: seq });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Assign harmonium and tabla players for one Diwali session.
+exports.assignMusicians = async (req, res) => {
+  try {
+    const { sequenceId, harmoniumPlayer, tablaPlayer } = req.body;
+    const sequence = await diwaliService.assignSequenceMusicians(
+      sequenceId,
+      harmoniumPlayer,
+      tablaPlayer
+    );
+
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_SEQUENCE_MUSICIANS_ASSIGNED",
+      `Assigned harmonium: ${sequence.harmonium_player}; tabla: ${sequence.tabla_player} to sequence ${sequence.sequence_number}.`
+    );
+
+    res.json({ success: true, sequence });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }

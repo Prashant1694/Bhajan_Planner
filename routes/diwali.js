@@ -69,6 +69,7 @@ router.get("/admin/diwali/sequence/editor", requireLogin, diwaliController.showS
 router.post("/admin/diwali/sequence/save-order", requireLogin, diwaliController.saveSequenceOrder);
 router.post("/admin/diwali/sequence/move-entry", requireLogin, diwaliController.moveSequenceEntry);
 router.post("/admin/diwali/sequence/assign-date", requireLogin, diwaliController.assignDate);
+router.post("/admin/diwali/sequence/assign-musicians", requireLogin, diwaliController.assignMusicians);
 router.post("/admin/diwali/sequence/finalize/:id", requireLogin, diwaliController.finalizeSequence);
 
 // Sequence Export

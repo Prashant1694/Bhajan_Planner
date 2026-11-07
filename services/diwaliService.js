@@ -892,9 +892,31 @@ async function assignSequenceDate(sequenceId, assignedDate) {
   return seq;
 }
 
+async function assignSequenceMusicians(sequenceId, harmoniumPlayer, tablaPlayer) {
+  const seq = await DiwaliSequence.findByPk(sequenceId);
+  if (!seq) throw new Error("Sequence not found");
+
+  const harmonium = String(harmoniumPlayer || "").trim();
+  const tabla = String(tablaPlayer || "").trim();
+  if (!harmonium || !tabla) {
+    throw new Error("Assign both a harmonium player and a tabla player for this session.");
+  }
+  if (harmonium.length > 255 || tabla.length > 255) {
+    throw new Error("Player names must be 255 characters or fewer.");
+  }
+
+  seq.harmonium_player = harmonium;
+  seq.tabla_player = tabla;
+  await seq.save();
+  return seq;
+}
+
 async function finalizeSequence(sequenceId) {
   const seq = await DiwaliSequence.findByPk(sequenceId);
   if (!seq) throw new Error("Sequence not found");
+  if (!String(seq.harmonium_player || "").trim() || !String(seq.tabla_player || "").trim()) {
+    throw new Error("Assign both a harmonium player and a tabla player before finalizing this session.");
+  }
 
   seq.status = "Finalized";
   seq.finalized_at = new Date();
@@ -922,5 +944,6 @@ module.exports = {
   updateSequenceEntriesOrder,
   moveEntryToAnotherSequence,
   assignSequenceDate,
+  assignSequenceMusicians,
   finalizeSequence
 };

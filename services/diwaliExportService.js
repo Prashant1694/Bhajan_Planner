@@ -299,6 +299,12 @@ async function generateSequenceExcel(event, options = {}) {
     sheet.addRow([
       `DIWALI BHAJANS — ${event.name.toUpperCase()} — SEQUENCE ${seq.sequence_number}${dateStr}`
     ]);
+    sheet.addRow([
+      "Harmonium Player",
+      seq.harmonium_player || "Not assigned",
+      "Tabla Player",
+      seq.tabla_player || "Not assigned"
+    ]);
     sheet.addRow([]);
     sheet.addRow(headers);
 
@@ -442,6 +448,15 @@ async function generateSequencePdf(event, options = {}) {
           .fillColor("#d98a2b")
           .font("Helvetica-Bold")
           .text(`SEQUENCE ${seq.sequence_number}${dateText}`, { align: "center" });
+        doc.moveDown(0.25);
+        doc
+          .fontSize(9)
+          .fillColor("#444444")
+          .font("Helvetica")
+          .text(
+            `Harmonium: ${seq.harmonium_player || "Not assigned"}  |  Tabla: ${seq.tabla_player || "Not assigned"}`,
+            { align: "center" }
+          );
         doc.moveDown(0.5);
 
         let entries = seq.entries || [];
