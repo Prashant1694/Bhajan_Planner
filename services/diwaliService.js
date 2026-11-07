@@ -832,37 +832,47 @@ async function updateSequenceEntriesOrder(sequenceId, orderedEntryIds) {
 }
 
 async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder) {
-  const entry = await DiwaliSequenceEntry.findByPk(entryId);
-  if (!entry) throw new Error("Sequence entry not found");
-
-  const targetSeq = await DiwaliSequence.findByPk(targetSequenceId);
-  if (!targetSeq) throw new Error("Target sequence not found");
-
   const t = await sequelize.transaction();
   try {
+    const entry = await DiwaliSequenceEntry.findByPk(entryId, { transaction: t });
+    if (!entry) throw new Error("Sequence entry not found");
+
+    const targetSeq = await DiwaliSequence.findByPk(targetSequenceId, { transaction: t });
+    if (!targetSeq) throw new Error("Target sequence not found");
+
     const oldSequenceId = entry.sequence_id;
-
-    // Get max order in target sequence
-    const maxOrder = await DiwaliSequenceEntry.max("sequence_order", {
+    const targetEntries = await DiwaliSequenceEntry.findAll({
       where: { sequence_id: targetSequenceId },
-      transaction: t
-    });
-
-    const newOrder = targetOrder ? parseInt(targetOrder, 10) : (maxOrder || 0) + 1;
-
-    entry.sequence_id = targetSequenceId;
-    entry.sequence_order = newOrder;
-    await entry.save({ transaction: t });
-
-    // Normalize old sequence orders
-    const remainingInOld = await DiwaliSequenceEntry.findAll({
-      where: { sequence_id: oldSequenceId },
       order: [["sequence_order", "ASC"]],
       transaction: t
     });
-    for (let i = 0; i < remainingInOld.length; i++) {
-      remainingInOld[i].sequence_order = i + 1;
-      await remainingInOld[i].save({ transaction: t });
+
+    const requestedOrder = Number.parseInt(targetOrder, 10);
+    const insertAt = Number.isInteger(requestedOrder) && requestedOrder > 0
+      ? Math.min(requestedOrder - 1, targetEntries.length)
+      : targetEntries.length;
+
+    // Insert the moved entry at the requested position and normalize every
+    // target order in one transaction so no duplicate sequence_order remains.
+    targetEntries.splice(insertAt, 0, entry);
+    entry.sequence_id = targetSequenceId;
+    for (let i = 0; i < targetEntries.length; i++) {
+      targetEntries[i].sequence_id = targetSequenceId;
+      targetEntries[i].sequence_order = i + 1;
+      await targetEntries[i].save({ transaction: t });
+    }
+
+    // Normalize the source sequence after removing the moved entry.
+    if (Number(oldSequenceId) !== Number(targetSequenceId)) {
+      const remainingInOld = await DiwaliSequenceEntry.findAll({
+        where: { sequence_id: oldSequenceId },
+        order: [["sequence_order", "ASC"]],
+        transaction: t
+      });
+      for (let i = 0; i < remainingInOld.length; i++) {
+        remainingInOld[i].sequence_order = i + 1;
+        await remainingInOld[i].save({ transaction: t });
+      }
     }
 
     await t.commit();

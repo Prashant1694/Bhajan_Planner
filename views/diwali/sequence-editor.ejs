@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/diwali.css">
+<link rel="stylesheet" href="/css/diwali.css?v=6.8">
 
 <div class="container container-xl">
 
@@ -40,7 +40,7 @@
       <div>
         <strong style="color:var(--diwali-maroon); font-size:15px;">Manual Sequence Editor</strong>
         <p style="margin:2px 0 0 0; font-size:12.5px; color:var(--text-light);">
-          Reorder bhajans within sequences, move songs between sessions, and assign optional dates. All changes persist and reflect in final exports.
+          Drag the handle to reorder bhajans within a sequence or move them between sequences. You can also use the arrow and Move to controls. Changes save automatically and reflect in final exports.
         </p>
       </div>
       <span class="badge-pill" style="font-weight:700;"><%= sequences.length %> Active Sequences</span>
@@ -85,9 +85,10 @@
           <div class="sequence-entries-list" id="seq-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
             <% (seq.entries || []).forEach((e, eIdx) => { %>
               <% const pb = e.participantBhajan || {}; const p = pb.participant || {}; %>
-              <div class="sequence-entry-card" id="entry-card-<%= e.id %>" data-entry-id="<%= e.id %>">
+              <div class="sequence-entry-card" id="entry-card-<%= e.id %>" data-entry-id="<%= e.id %>" data-seq-id="<%= seq.id %>">
                 <div class="sequence-entry-top">
                   <span class="sequence-entry-title">
+                    <button type="button" class="sequence-drag-handle" aria-label="Drag to reorder or move this bhajan" title="Drag to reorder or move" tabindex="0">⠿</button>
                     <span class="order-badge" style="font-weight:800; color:var(--diwali-maroon);"><%= e.sequence_order %>.</span>
                     <%= pb.bhajan_title || '-' %>
                   </span>
@@ -331,5 +332,137 @@ async function moveEntryToSeq(entryId, targetSequenceId) {
   } catch (err) {
     alert("Error: " + err.message);
   }
+}
+
+// Touch + mouse drag-and-drop for sequence cards.
+function initDiwaliSequenceDragDrop() {
+  const board = document.querySelector(".sequences-board-grid");
+  if (!board || board.dataset.dragReady === "true") return;
+  board.dataset.dragReady = "true";
+
+  let drag = null;
+  let dragStarted = false;
+
+  function refreshSequenceList(list) {
+    if (!list) return;
+    Array.from(list.querySelectorAll(".sequence-entry-card")).forEach((card, index) => {
+      const badge = card.querySelector(".order-badge");
+      if (badge) badge.textContent = (index + 1) + ".";
+      card.dataset.seqId = list.dataset.seqId;
+    });
+    const count = document.getElementById("seq-count-" + list.dataset.seqId);
+    if (count) count.textContent = list.querySelectorAll(".sequence-entry-card").length;
+  }
+
+  async function saveListOrder(list) {
+    const sequenceId = Number(list.dataset.seqId);
+    const orderedEntryIds = Array.from(list.querySelectorAll(".sequence-entry-card"))
+      .map(card => card.dataset.entryId);
+    const response = await fetch("/admin/diwali/sequence/save-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequenceId, orderedEntryIds })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
+  }
+
+  function placeDraggedCard(list, targetCard, y) {
+    if (!list || !drag?.card) return;
+    if (targetCard && targetCard !== drag.card && targetCard.parentElement === list) {
+      const rect = targetCard.getBoundingClientRect();
+      const insertAfter = y > rect.top + rect.height / 2;
+      list.insertBefore(drag.card, insertAfter ? targetCard.nextSibling : targetCard);
+    } else if (!targetCard) {
+      list.appendChild(drag.card);
+    }
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  }
+
+  board.addEventListener("pointerdown", event => {
+    const handle = event.target.closest(".sequence-drag-handle");
+    if (!handle || event.button > 0) return;
+    const card = handle.closest(".sequence-entry-card");
+    const list = card?.closest(".sequence-entries-list");
+    if (!card || !list) return;
+    drag = { card, sourceList: list, originalNextSibling: card.nextSibling, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    dragStarted = false;
+  });
+
+  document.addEventListener("pointermove", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    if (!dragStarted && distance < 6) return;
+    dragStarted = true;
+    event.preventDefault();
+    drag.card.classList.add("is-dragging");
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const list = element?.closest(".sequence-entries-list");
+    if (!list || !board.contains(list)) return;
+    const targetCard = element.closest(".sequence-entry-card");
+    placeDraggedCard(list, targetCard, event.clientY);
+  }, { passive: false });
+
+  async function finishDrag(event) {
+    if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+    const state = drag;
+    drag = null;
+    state.card.classList.remove("is-dragging");
+    if (!dragStarted) return;
+
+    const targetList = state.card.closest(".sequence-entries-list");
+    if (!targetList) {
+      window.location.reload();
+      return;
+    }
+
+    try {
+      if (targetList !== state.sourceList) {
+        const targetCards = Array.from(targetList.querySelectorAll(".sequence-entry-card"));
+        const targetOrder = targetCards.indexOf(state.card) + 1;
+        const response = await fetch("/admin/diwali/sequence/move-entry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            entryId: state.card.dataset.entryId,
+            targetSequenceId: Number(targetList.dataset.seqId),
+            targetOrder
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
+        await saveListOrder(targetList);
+      } else {
+        await saveListOrder(targetList);
+      }
+      board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+      state.card.classList.add("is-drop-saved");
+      window.setTimeout(() => state.card?.classList.remove("is-drop-saved"), 650);
+    } catch (error) {
+      alert("Could not save the new bhajan order: " + error.message);
+      window.location.reload();
+    }
+  }
+
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const state = drag;
+    drag = null;
+    state.card.classList.remove("is-dragging");
+    state.sourceList.insertBefore(
+      state.card,
+      state.originalNextSibling && state.originalNextSibling.parentElement === state.sourceList
+        ? state.originalNextSibling
+        : null
+    );
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initDiwaliSequenceDragDrop);
+} else {
+  initDiwaliSequenceDragDrop();
 }
 </script>
