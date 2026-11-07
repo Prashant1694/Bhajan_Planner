@@ -2,6 +2,13 @@
 
 <div class="container container-xl">
 
+<datalist id="diwaliMusicianOptions">
+  <% (musicians || []).forEach(musician => { %>
+    <option value="<%= musician.name %>"></option>
+  <% }) %>
+</datalist>
+
+
   <div style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <a href="/admin/diwali?year=<%= selectedEvent.year %>" class="btn-diwali btn-diwali-secondary">
       Back to Diwali Dashboard
@@ -78,6 +85,52 @@
                 onchange="onDateChanged(<%= seq.id %>, this.value)"
               >
               <small style="font-size:11px; color:var(--text-light);">(Saved auto)</small>
+            </div>
+
+            <!-- Required musician assignments for this session/day -->
+            <div class="diwali-musician-assignment">
+              <div class="diwali-musician-assignment-heading">
+                <strong>Session Musicians</strong>
+                <span class="diwali-musician-required">Both required</span>
+              </div>
+              <div class="diwali-musician-fields">
+                <label>
+                  <span>Harmonium Player <span class="req-star">*</span></span>
+                  <input
+                    type="text"
+                    id="harmoniumPlayer-<%= seq.id %>"
+                    class="diwali-input-text"
+                    list="diwaliMusicianOptions"
+                    maxlength="255"
+                    autocomplete="off"
+                    placeholder="Select or enter harmonium player"
+                    value="<%= seq.harmonium_player || '' %>"
+                    required
+                  >
+                </label>
+                <label>
+                  <span>Tabla Player <span class="req-star">*</span></span>
+                  <input
+                    type="text"
+                    id="tablaPlayer-<%= seq.id %>"
+                    class="diwali-input-text"
+                    list="diwaliMusicianOptions"
+                    maxlength="255"
+                    autocomplete="off"
+                    placeholder="Select or enter tabla player"
+                    value="<%= seq.tabla_player || '' %>"
+                    required
+                  >
+                </label>
+              </div>
+              <div class="diwali-musician-assignment-footer">
+                <small id="musicianStatus-<%= seq.id %>" aria-live="polite">
+                  <%= seq.harmonium_player && seq.tabla_player ? 'Assignments saved' : 'Assign both players before finalizing this session' %>
+                </small>
+                <button type="button" class="btn-diwali btn-diwali-secondary" onclick="saveSequenceMusicians(<%= seq.id %>)">
+                  Save Players
+                </button>
+              </div>
             </div>
           </div>
 
@@ -254,6 +307,44 @@ async function onDateChanged(sequenceId, dateVal) {
     if (!data.success) alert("Failed to save date: " + data.error);
   } catch (err) {
     alert("Network error: " + err.message);
+  }
+}
+
+async function saveSequenceMusicians(sequenceId) {
+  const harmoniumInput = document.getElementById(`harmoniumPlayer-${sequenceId}`);
+  const tablaInput = document.getElementById(`tablaPlayer-${sequenceId}`);
+  const status = document.getElementById(`musicianStatus-${sequenceId}`);
+  const harmoniumPlayer = harmoniumInput?.value.trim() || "";
+  const tablaPlayer = tablaInput?.value.trim() || "";
+
+  if (!harmoniumPlayer || !tablaPlayer) {
+    if (status) status.textContent = "Both harmonium and tabla players are required.";
+    (!harmoniumPlayer ? harmoniumInput : tablaInput)?.focus();
+    return;
+  }
+
+  const button = status?.parentElement.querySelector("button");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving...";
+  }
+
+  try {
+    const response = await fetch("/admin/diwali/sequence/assign-musicians", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequenceId, harmoniumPlayer, tablaPlayer })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save player assignments");
+    if (status) status.textContent = "✓ Players saved";
+    if (button) button.textContent = "Saved";
+  } catch (error) {
+    if (status) status.textContent = error.message;
+    if (button) button.textContent = "Save Players";
+    alert(error.message);
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
