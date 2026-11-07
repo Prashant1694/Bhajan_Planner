@@ -109,17 +109,48 @@ async function runDiwaliMigration() {
     // Manual curation may reuse a bhajan already present in the automatic plan.
     // Remove any legacy unique index on participant_bhajan_id without touching entries.
     const [entryIndexes] = await sequelize.query("PRAGMA index_list('diwali_sequence_entries')");
+    let hasLegacyUniqueConstraint = false;
     for (const index of entryIndexes || []) {
       if (!index.unique || index.origin === "pk") continue;
       const safeName = String(index.name || "").replace(/"/g, '""');
       const [indexColumns] = await sequelize.query(`PRAGMA index_info("${safeName}")`);
-      if (
-        indexColumns.length === 1 &&
-        indexColumns[0].name === "participant_bhajan_id" &&
-        index.origin !== "u"
-      ) {
-        await sequelize.query(`DROP INDEX IF EXISTS "${safeName}"`);
+      if (indexColumns.length === 1 && indexColumns[0].name === "participant_bhajan_id") {
+        if (index.origin === "u") {
+          hasLegacyUniqueConstraint = true;
+        } else {
+          await sequelize.query(`DROP INDEX IF EXISTS "${safeName}"`);
+        }
       }
+    }
+
+    // SQLite cannot drop a table-level UNIQUE auto-index. Rebuild this
+    // Diwali-only join table when one exists, preserving every saved entry.
+    if (hasLegacyUniqueConstraint) {
+      await sequelize.transaction(async (transaction) => {
+        await sequelize.query(`
+          CREATE TABLE diwali_sequence_entries_rebuild (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sequence_id INTEGER NOT NULL,
+            participant_bhajan_id INTEGER NOT NULL,
+            sequence_order INTEGER NOT NULL,
+            created_at DATETIME,
+            updated_at DATETIME,
+            FOREIGN KEY (sequence_id) REFERENCES diwali_sequences(id) ON DELETE CASCADE,
+            FOREIGN KEY (participant_bhajan_id) REFERENCES diwali_participant_bhajans(id) ON DELETE CASCADE
+          )
+        `, { transaction });
+        await sequelize.query(`
+          INSERT INTO diwali_sequence_entries_rebuild
+            (id, sequence_id, participant_bhajan_id, sequence_order, created_at, updated_at)
+          SELECT id, sequence_id, participant_bhajan_id, sequence_order, created_at, updated_at
+          FROM diwali_sequence_entries
+        `, { transaction });
+        await sequelize.query("DROP TABLE diwali_sequence_entries", { transaction });
+        await sequelize.query(
+          "ALTER TABLE diwali_sequence_entries_rebuild RENAME TO diwali_sequence_entries",
+          { transaction }
+        );
+      });
     }
 
     // 6. Explicit Indexes
