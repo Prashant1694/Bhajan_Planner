@@ -163,7 +163,7 @@ exports.createParticipant = async (req, res) => {
       gender,
       remarks,
       bhajans
-    });
+    }, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -204,7 +204,7 @@ exports.createParticipant = async (req, res) => {
 // 4. Get Participant Details for Edit
 exports.getParticipantJson = async (req, res) => {
   try {
-    const participant = await diwaliService.getParticipantById(req.params.id);
+    const participant = await diwaliService.getParticipantById(req.params.id, (await resolveSelectedEvent(req)).id);
     if (!participant) {
       return res.status(404).json({ success: false, error: "Participant not found" });
     }
@@ -250,12 +250,12 @@ exports.updateParticipant = async (req, res) => {
 // 6. Delete Participant
 exports.deleteParticipant = async (req, res) => {
   try {
-    const participant = await diwaliService.getParticipantById(req.params.id);
+    const participant = await diwaliService.getParticipantById(req.params.id, (await resolveSelectedEvent(req)).id);
     const desc = participant
       ? `'${participant.lead_name}' & '${participant.partner_name}'`
       : `ID ${req.params.id}`;
 
-    await diwaliService.deleteParticipant(req.params.id);
+    await diwaliService.deleteParticipant(req.params.id, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -279,7 +279,7 @@ exports.deleteParticipant = async (req, res) => {
 // 7. Delete Bhajan
 exports.deleteBhajan = async (req, res) => {
   try {
-    await diwaliService.deleteBhajan(req.params.id);
+    await diwaliService.deleteBhajan(req.params.id, (await resolveSelectedEvent(req)).id);
     await activityService.log(
       req.session.admin,
       "DIWALI_BHAJAN_REMOVED",
