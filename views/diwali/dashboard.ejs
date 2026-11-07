@@ -103,6 +103,9 @@
       <button type="button" class="btn-diwali btn-diwali-secondary" onclick="diwaliOpenModal('modalExportSequence')">
         Export Sequences
       </button>
+      <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" onclick="deleteDiwaliGeneratedSequences()">
+        Delete Generated Sequences
+      </button>
     <% } %>
   </div>
 
@@ -601,3 +604,27 @@
 </div>
 
 <script src="/js/diwali.js"></script>
+<script>
+async function deleteDiwaliGeneratedSequences() {
+  const confirmed = window.confirm(
+    "Delete all automatically generated sequences for this Diwali event?\n\nManually curated sequences will be preserved. This action cannot be undone."
+  );
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch("/admin/diwali/sequence/delete-generated", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Could not delete generated sequences.");
+    }
+    alert(`Deleted ${result.deleted} generated sequence(s). Manual sequences were preserved.`);
+    window.location.reload();
+  } catch (error) {
+    alert("Deletion failed: " + error.message);
+  }
+}
+</script>
+
