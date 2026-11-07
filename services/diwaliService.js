@@ -1223,6 +1223,21 @@ async function assignSequenceDate(sequenceId, assignedDate, eventId) {
   return seq;
 }
 
+async function assignSequencePeriod(sequenceId, sessionPeriod, eventId) {
+  const id = requirePositiveId(sequenceId, "sequence");
+  const period = String(sessionPeriod || "").trim();
+  if (!["Morning", "Evening"].includes(period)) {
+    throw new Error("Choose either Morning or Evening for this sequence.");
+  }
+  const seq = await DiwaliSequence.findOne({
+    where: { id, ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) }
+  });
+  if (!seq) throw new Error("Sequence not found for the selected Diwali event.");
+  seq.session_period = period;
+  await seq.save();
+  return seq;
+}
+
 async function assignSequenceMusicians(sequenceId, harmoniumPlayer, tablaPlayer, eventId) {
   const id = requirePositiveId(sequenceId, "sequence");
   const seq = await DiwaliSequence.findOne({
@@ -1285,6 +1300,7 @@ module.exports = {
   addBhajansToManualSequence,
   removeBhajanFromManualSequence,
   assignSequenceDate,
+  assignSequencePeriod,
   assignSequenceMusicians,
   finalizeSequence
 };

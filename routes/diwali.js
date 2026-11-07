@@ -77,6 +77,7 @@ router.post("/admin/diwali/sequence/manual/remove-bhajan", requireLogin, diwaliC
 router.post("/admin/diwali/sequence/save-order", requireLogin, diwaliController.saveSequenceOrder);
 router.post("/admin/diwali/sequence/move-entry", requireLogin, diwaliController.moveSequenceEntry);
 router.post("/admin/diwali/sequence/assign-date", requireLogin, diwaliController.assignDate);
+router.post("/admin/diwali/sequence/assign-period", requireLogin, diwaliController.assignSequencePeriod);
 router.post("/admin/diwali/sequence/assign-musicians", requireLogin, diwaliController.assignMusicians);
 router.post("/admin/diwali/sequence/finalize/:id", requireLogin, diwaliController.finalizeSequence);
 
