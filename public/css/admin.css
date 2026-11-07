@@ -5430,35 +5430,35 @@ body.in-admin-tab .admin-sidebar-btn {
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) {
     width: 270px;
     box-shadow: 8px 0 28px rgba(15, 23, 42, 0.12);
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-header,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-header {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-header {
     justify-content: space-between;
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-brand-text,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-brand-text {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-brand-text {
     display: flex;
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-toggle,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-toggle {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-toggle {
     display: flex;
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-section-title,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-section-title {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-section-title {
     display: block;
   }
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-nav a,
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-footer a,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-nav a,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-footer a {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-nav a,
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-footer a {
     justify-content: flex-start;
     font-size: 13.5px;
     padding: 9px 12px;
@@ -5466,8 +5466,8 @@ body.in-admin-tab .admin-sidebar-btn {
 
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-nav a span,
   body.admin-page.sidebar-collapsed .sidebar:hover .sidebar-footer a span,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-nav a span,
-  body.admin-page.sidebar-collapsed .sidebar:focus-within .sidebar-footer a span {
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-nav a span,
+  body.admin-page.sidebar-collapsed .sidebar:has(:focus-visible) .sidebar-footer a span {
     width: 20px;
     font-size: 15px;
   }
