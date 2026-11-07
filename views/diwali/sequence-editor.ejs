@@ -93,10 +93,11 @@
                 type="date"
                 id="seqDate-<%= seq.id %>"
                 class="sequence-date-input"
+                data-saved-value="<%= seq.assigned_date || '' %>"
                 value="<%= seq.assigned_date || '' %>"
                 onchange="onDateChanged(<%= seq.id %>, this.value)"
               >
-              <small style="font-size:11px; color:var(--text-light);">(Saved auto)</small>
+              <small id="dateStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
             </div>
 
             <!-- Required musician assignments for this session/day -->
@@ -385,12 +386,24 @@ async function removeBhajanFromManualSequence(sequenceId, entryId) {
 }
 
 async function onDateChanged(sequenceId, dateVal) {
+  const input = document.getElementById(`seqDate-${sequenceId}`);
+  const status = document.getElementById(`dateStatus-${sequenceId}`);
+  const previousValue = input?.dataset.savedValue ?? "";
+  if (input?.dataset.saving === "true") return;
+  if (input) { input.dataset.saving = "true"; input.disabled = true; }
+  if (status) status.textContent = "Saving...";
   try {
-    const res = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
-    const data = await res.json();
-    if (!data.success) alert("Failed to save date: " + data.error);
-  } catch (err) {
-    alert("Network error: " + err.message);
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || "Could not save session date.");
+    if (input) input.dataset.savedValue = dateVal;
+    if (status) status.textContent = "Saved";
+  } catch (error) {
+    if (input) input.value = previousValue;
+    if (status) status.textContent = "Not saved";
+    alert("Failed to save date: " + error.message);
+  } finally {
+    if (input) { delete input.dataset.saving; input.disabled = false; }
   }
 }
 
