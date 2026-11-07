@@ -13,7 +13,7 @@ const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   "/offline.html",
   "/css/native.css?v=6.7",
-  "/css/diwali.css?v=6.9",
+  "/css/diwali.css?v=7.0",
   "/css/style.css?v=6.5",
   "/css/app-shell.css?v=6.5",
   "/css/dashboard-glass.css?v=6.5",
