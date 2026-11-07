@@ -496,7 +496,7 @@ async function getStats(eventId) {
     order: [["sequence_number", "ASC"]]
   });
 
-  const generatedSequences = sequences.length;
+  const generatedSequences = sequences.filter((sequence) => sequence.sequence_type !== "Manual").length;
   let sequenceStatus = "Not Generated";
   if (generatedSequences > 0) {
     const isFinalized = sequences.every((s) => s.status === "Finalized");
@@ -689,8 +689,9 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
   const t = await sequelize.transaction();
   try {
     // Delete existing sequences for this event
+    // Regenerating automatic sequences must never delete manually curated sessions.
     await DiwaliSequence.destroy({
-      where: { event_id: eventId },
+      where: { event_id: eventId, sequence_type: "Auto" },
       transaction: t
     });
 
@@ -701,6 +702,7 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
         {
           event_id: eventId,
           sequence_number: i + 1,
+          sequence_type: "Auto",
           status: "Draft",
           generated_at: new Date()
         },
@@ -757,7 +759,7 @@ async function generateFairSequences(eventId, numSequences, options = {}) {
 async function getFullSequences(eventId) {
   const sequences = await DiwaliSequence.findAll({
     where: { event_id: eventId },
-    order: [["sequence_number", "ASC"]],
+    order: [["sequence_type", "ASC"], ["sequence_number", "ASC"]],
     include: [
       {
         model: DiwaliSequenceEntry,
@@ -840,6 +842,11 @@ async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder
     const targetSeq = await DiwaliSequence.findByPk(targetSequenceId, { transaction: t });
     if (!targetSeq) throw new Error("Target sequence not found");
 
+    const sourceSeq = await DiwaliSequence.findByPk(entry.sequence_id, { transaction: t });
+    if (!sourceSeq || sourceSeq.sequence_type !== targetSeq.sequence_type) {
+      throw new Error("Bhajans can only be moved between sequences of the same type.");
+    }
+
     const oldSequenceId = entry.sequence_id;
     const targetEntries = await DiwaliSequenceEntry.findAll({
       where: { sequence_id: targetSequenceId },
@@ -881,6 +888,151 @@ async function moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder
     await t.rollback();
     throw err;
   }
+}
+
+async function getManualSequencePool(eventId) {
+  const [usedRows] = await sequelize.query(
+    `SELECT DISTINCT entry.participant_bhajan_id
+       FROM diwali_sequence_entries AS entry
+       INNER JOIN diwali_sequences AS sequence ON sequence.id = entry.sequence_id
+      WHERE sequence.event_id = :eventId AND sequence.sequence_type = 'Manual'`,
+    { replacements: { eventId } }
+  );
+  const usedIds = usedRows.map((row) => row.participant_bhajan_id);
+  return DiwaliParticipantBhajan.findAll({
+    where: {
+      event_id: eventId,
+      ...(usedIds.length ? { id: { [Op.notIn]: usedIds } } : {})
+    },
+    include: [{ model: DiwaliParticipant, as: "participant" }],
+    order: [["original_order", "ASC"], ["id", "ASC"]]
+  });
+}
+
+async function createManualSequence(eventId) {
+  const event = await DiwaliEvent.findByPk(eventId);
+  if (!event) throw new Error("Diwali event not found.");
+
+  const lastManual = await DiwaliSequence.max("sequence_number", {
+    where: { event_id: eventId, sequence_type: "Manual" }
+  });
+  return DiwaliSequence.create({
+    event_id: eventId,
+    sequence_number: Number(lastManual || 0) + 1,
+    sequence_type: "Manual",
+    status: "Draft",
+    generated_at: new Date()
+  });
+}
+
+async function addBhajanToManualSequence(sequenceId, participantBhajanId) {
+  const sequence = await DiwaliSequence.findByPk(sequenceId);
+  if (!sequence || sequence.sequence_type !== "Manual") {
+    throw new Error("Bhajans can only be added to a manually curated sequence.");
+  }
+
+  const bhajan = await DiwaliParticipantBhajan.findOne({
+    where: { id: participantBhajanId, event_id: sequence.event_id }
+  });
+  if (!bhajan) throw new Error("Selected bhajan does not belong to this Diwali event.");
+
+  const alreadyAssigned = await DiwaliSequenceEntry.findOne({
+    where: { participant_bhajan_id: bhajan.id },
+    include: [{
+      model: DiwaliSequence,
+      as: "sequence",
+      where: { event_id: sequence.event_id, sequence_type: "Manual" }
+    }]
+  });
+  if (alreadyAssigned) {
+    throw new Error("This bhajan is already included in a manual sequence.");
+  }
+
+  const lastOrder = await DiwaliSequenceEntry.max("sequence_order", {
+    where: { sequence_id: sequence.id }
+  });
+  const entry = await DiwaliSequenceEntry.create({
+    sequence_id: sequence.id,
+    participant_bhajan_id: bhajan.id,
+    sequence_order: Number(lastOrder || 0) + 1
+  });
+  return entry;
+}
+
+async function addBhajansToManualSequence(sequenceId, participantBhajanIds) {
+  const ids = [...new Set((participantBhajanIds || []).map((id) => Number.parseInt(id, 10)))];
+  if (!ids.length || ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+    throw new Error("Select valid bhajans from the available pool.");
+  }
+
+  const t = await sequelize.transaction();
+  try {
+    const sequence = await DiwaliSequence.findByPk(sequenceId, { transaction: t });
+    if (!sequence || sequence.sequence_type !== "Manual") {
+      throw new Error("Bhajans can only be added to a manually curated sequence.");
+    }
+
+    const bhajans = await DiwaliParticipantBhajan.findAll({
+      where: { id: { [Op.in]: ids }, event_id: sequence.event_id },
+      transaction: t
+    });
+    if (bhajans.length !== ids.length) {
+      throw new Error("One or more selected bhajans do not belong to this Diwali event.");
+    }
+
+    const alreadyAssigned = await DiwaliSequenceEntry.findAll({
+      where: { participant_bhajan_id: { [Op.in]: ids } },
+      include: [{
+        model: DiwaliSequence,
+        as: "sequence",
+        where: { event_id: sequence.event_id, sequence_type: "Manual" }
+      }],
+      transaction: t
+    });
+    if (alreadyAssigned.length) {
+      throw new Error("One or more selected bhajans are already included in a manual sequence.");
+    }
+
+    const lastOrder = await DiwaliSequenceEntry.max("sequence_order", {
+      where: { sequence_id: sequence.id },
+      transaction: t
+    });
+    await DiwaliSequenceEntry.bulkCreate(
+      bhajans.map((bhajan, index) => ({
+        sequence_id: sequence.id,
+        participant_bhajan_id: bhajan.id,
+        sequence_order: Number(lastOrder || 0) + index + 1
+      })),
+      { transaction: t }
+    );
+    await t.commit();
+    return bhajans.length;
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+}
+
+async function removeBhajanFromManualSequence(sequenceId, entryId) {
+  const sequence = await DiwaliSequence.findByPk(sequenceId);
+  if (!sequence || sequence.sequence_type !== "Manual") {
+    throw new Error("Only manually curated sequences can have bhajans removed from the pool.");
+  }
+  const entry = await DiwaliSequenceEntry.findOne({
+    where: { id: entryId, sequence_id: sequenceId }
+  });
+  if (!entry) throw new Error("Bhajan entry not found in this manual sequence.");
+
+  await entry.destroy();
+  const remaining = await DiwaliSequenceEntry.findAll({
+    where: { sequence_id: sequenceId },
+    order: [["sequence_order", "ASC"]]
+  });
+  for (let index = 0; index < remaining.length; index++) {
+    remaining[index].sequence_order = index + 1;
+    await remaining[index].save();
+  }
+  return true;
 }
 
 async function assignSequenceDate(sequenceId, assignedDate) {
@@ -943,6 +1095,11 @@ module.exports = {
   getSingleSequence,
   updateSequenceEntriesOrder,
   moveEntryToAnotherSequence,
+  getManualSequencePool,
+  createManualSequence,
+  addBhajanToManualSequence,
+  addBhajansToManualSequence,
+  removeBhajanFromManualSequence,
   assignSequenceDate,
   assignSequenceMusicians,
   finalizeSequence

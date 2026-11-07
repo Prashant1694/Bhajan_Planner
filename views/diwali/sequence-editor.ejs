@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/css/diwali.css?v=6.9">
+<link rel="stylesheet" href="/css/diwali.css?v=7.0">
 
 <div class="container container-xl">
 
@@ -8,6 +8,16 @@
   <% }) %>
 </datalist>
 
+
+  <div class="diwali-manual-builder-toolbar">
+    <div>
+      <strong>Manual sequence builder</strong>
+      <p>Create a separate sequence and add bhajans directly from the available pool. Automatic sequences are preserved.</p>
+    </div>
+    <button type="button" class="btn-diwali btn-diwali-maroon" onclick="createManualDiwaliSequence()">
+      + Create Manual Sequence
+    </button>
+  </div>
 
   <div style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <a href="/admin/diwali?year=<%= selectedEvent.year %>" class="btn-diwali btn-diwali-secondary">
@@ -59,7 +69,8 @@
         <div class="sequence-column-card" id="seq-col-<%= seq.id %>">
           <div class="sequence-col-header">
             <div class="sequence-title-row">
-              <h3>Sequence <%= seq.sequence_number %></h3>
+              <h3><%= seq.sequence_type === 'Manual' ? 'Manual Sequence' : 'Sequence' %> <%= seq.sequence_number %></h3>
+              <span class="badge-pill <%= seq.sequence_type === 'Manual' ? 'diwali-manual-badge' : '' %>"><%= seq.sequence_type === 'Manual' ? 'MANUAL' : 'AUTO-GENERATED' %></span>
               <div style="display:flex; gap:6px; align-items:center;">
                 <span class="badge-pill" style="background:var(--surface); color:var(--diwali-amber); font-weight:700;">
                   <span id="seq-count-<%= seq.id %>"><%= seq.entries ? seq.entries.length : 0 %></span> songs
@@ -134,6 +145,26 @@
             </div>
           </div>
 
+          <% if (seq.sequence_type === 'Manual') { %>
+            <div class="diwali-manual-pool">
+              <label for="manualPool-<%= seq.id %>">Add bhajans from the available pool</label>
+              <select id="manualPool-<%= seq.id %>" multiple size="5" class="diwali-input-text">
+                <% (manualPool || []).forEach(bhajan => { const participant = bhajan.participant || {}; %>
+                  <option value="<%= bhajan.id %>">
+                    <%= bhajan.bhajan_title %> — <%= participant.lead_name || 'Unknown lead' %> / <%= participant.partner_name || 'Unknown partner' %> (<%= participant.gender || '-' %>)
+                  </option>
+                <% }) %>
+              </select>
+              <div class="diwali-manual-pool-footer">
+                <small><%= (manualPool || []).length %> bhajans available. Select one or more; Ctrl/Cmd allows multiple selections.</small>
+                <button type="button" class="btn-diwali btn-diwali-secondary" onclick="addBhajansToManualSequence(<%= seq.id %>)">Add Selected Bhajans</button>
+              </div>
+              <% if (!(manualPool || []).length) { %>
+                <small class="diwali-manual-pool-empty">All event bhajans are already included in manual sequences.</small>
+              <% } %>
+            </div>
+          <% } %>
+
           <!-- Entries Container -->
           <div class="sequence-entries-list" id="seq-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
             <% (seq.entries || []).forEach((e, eIdx) => { %>
@@ -159,6 +190,9 @@
                   <% if (pb.tabla) { %><span class="badge-pill">Tabla Shruti: <%= pb.tabla %></span><% } %>
                   <% if (pb.deity) { %><span class="badge-pill"><%= pb.deity %></span><% } %>
                 </div>
+                <% if (seq.sequence_type === 'Manual') { %>
+                  <button type="button" class="btn-diwali btn-diwali-secondary diwali-manual-remove" onclick="removeBhajanFromManualSequence(<%= seq.id %>, <%= e.id %>)">Remove from manual sequence</button>
+                <% } %>
 
                 <!-- Reordering & Moving Controls -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px dashed var(--diwali-border); font-size:12px;">
@@ -296,6 +330,54 @@
 
 <script src="/js/diwali.js"></script>
 <script>
+async function createManualDiwaliSequence() {
+  try {
+    const response = await fetch("/admin/diwali/sequence/manual/create", { method: "POST" });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not create manual sequence");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function addBhajansToManualSequence(sequenceId) {
+  const select = document.getElementById(`manualPool-${sequenceId}`);
+  const participantBhajanIds = Array.from(select?.selectedOptions || []).map(option => Number(option.value));
+  if (!participantBhajanIds.length) {
+    alert("Select at least one bhajan from the available pool.");
+    return;
+  }
+  try {
+    const response = await fetch("/admin/diwali/sequence/manual/add-bhajans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequenceId, participantBhajanIds })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not add selected bhajans");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function removeBhajanFromManualSequence(sequenceId, entryId) {
+  if (!confirm("Remove this bhajan from the manual sequence? It will return to the available pool.")) return;
+  try {
+    const response = await fetch("/admin/diwali/sequence/manual/remove-bhajan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequenceId, entryId })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not remove bhajan");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 async function onDateChanged(sequenceId, dateVal) {
   try {
     const res = await fetch("/admin/diwali/sequence/assign-date", {

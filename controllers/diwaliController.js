@@ -434,10 +434,11 @@ exports.makeSequence = async (req, res) => {
 exports.showSequenceEditor = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, sequences, musicians] = await Promise.all([
+    const [allEvents, sequences, musicians, manualPool] = await Promise.all([
       diwaliService.getAllEvents(),
       diwaliService.getFullSequences(selectedEvent.id),
-      Singer.findAll({ attributes: ["name"], order: [["name", "ASC"]], raw: true })
+      Singer.findAll({ attributes: ["name"], order: [["name", "ASC"]], raw: true }),
+      diwaliService.getManualSequencePool(selectedEvent.id)
     ]);
 
     res.render("diwali/sequence-editor", {
@@ -446,11 +447,64 @@ exports.showSequenceEditor = async (req, res) => {
       selectedEvent,
       allEvents,
       sequences,
-      musicians
+      musicians,
+      manualPool
     });
   } catch (error) {
     console.error("Error loading sequence editor:", error);
     res.status(500).send("Error loading sequence editor.");
+  }
+};
+
+// Create a separate, manually curated Diwali sequence.
+exports.createManualSequence = async (req, res) => {
+  try {
+    const selectedEvent = await resolveSelectedEvent(req);
+    const sequence = await diwaliService.createManualSequence(selectedEvent.id);
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_CREATED",
+      `Created manual sequence ${sequence.sequence_number} for ${selectedEvent.name}.`
+    );
+    res.json({ success: true, sequence });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Add selected entries from this Diwali event's unassigned manual pool.
+exports.addManualBhajans = async (req, res) => {
+  try {
+    const { sequenceId, participantBhajanIds } = req.body;
+    const ids = Array.isArray(participantBhajanIds) ? participantBhajanIds : [];
+    if (!ids.length) throw new Error("Select at least one bhajan from the pool.");
+
+    const added = await diwaliService.addBhajansToManualSequence(sequenceId, ids);
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_EDITED",
+      `Added ${added} bhajan(s) to manual sequence ${sequenceId}.`
+    );
+    res.json({ success: true, added });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+exports.removeManualBhajan = async (req, res) => {
+  try {
+    await diwaliService.removeBhajanFromManualSequence(
+      req.body.sequenceId,
+      req.body.entryId
+    );
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_EDITED",
+      `Removed entry ${req.body.entryId} from manual sequence ${req.body.sequenceId}.`
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 

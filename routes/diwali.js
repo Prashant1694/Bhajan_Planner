@@ -66,6 +66,9 @@ router.get("/admin/diwali/export/yearly", requireLogin, diwaliController.exportY
 // Sequence Generation & Management
 router.post("/admin/diwali/sequence/generate", requireLogin, diwaliController.makeSequence);
 router.get("/admin/diwali/sequence/editor", requireLogin, diwaliController.showSequenceEditor);
+router.post("/admin/diwali/sequence/manual/create", requireLogin, diwaliController.createManualSequence);
+router.post("/admin/diwali/sequence/manual/add-bhajans", requireLogin, diwaliController.addManualBhajans);
+router.post("/admin/diwali/sequence/manual/remove-bhajan", requireLogin, diwaliController.removeManualBhajan);
 router.post("/admin/diwali/sequence/save-order", requireLogin, diwaliController.saveSequenceOrder);
 router.post("/admin/diwali/sequence/move-entry", requireLogin, diwaliController.moveSequenceEntry);
 router.post("/admin/diwali/sequence/assign-date", requireLogin, diwaliController.assignDate);
