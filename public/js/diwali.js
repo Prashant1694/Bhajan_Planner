@@ -2,6 +2,8 @@
  * DIWALI BHAJANS MODULE - FRONTEND LOGIC
  */
 
+let diwaliAvailablePairs = [];
+
 // ============================================================
 // SCALE & GENDER CALCULATION HELPERS
 // ============================================================
@@ -634,6 +636,7 @@ async function openEditParticipantModal(participantId) {
     }
 
     const p = data.participant;
+    diwaliAvailablePairs = Array.isArray(data.availablePairs) ? data.availablePairs : [];
     document.getElementById("editParticipantId").value = p.id;
     document.getElementById("editLeadName").value = p.lead_name;
     document.getElementById("editPartnerName").value = p.partner_name;
@@ -644,7 +647,7 @@ async function openEditParticipantModal(participantId) {
     bhajansContainer.innerHTML = "";
 
     (p.bhajans || []).forEach((b, idx) => {
-      const row = renderEditBhajanCard(b, idx);
+      const row = renderEditBhajanCard(b, idx, p.id);
       bhajansContainer.appendChild(row);
       initAutocomplete(row);
     });
@@ -655,10 +658,16 @@ async function openEditParticipantModal(participantId) {
   }
 }
 
-function renderEditBhajanCard(b = {}, idx = 0) {
+function renderEditBhajanCard(b = {}, idx = 0, defaultPairId = null) {
   const row = document.createElement("div");
   row.className = "bhajan-item-card modal-bhajan-item";
   row.style.marginBottom = "14px";
+  const selectedPairId = Number(b.participant_id || defaultPairId || "");
+  const pairOptions = diwaliAvailablePairs.map((pair) => {
+    const label = pair.lead_name + " + " + pair.partner_name + " (" + pair.gender + ")";
+    const selected = Number(pair.id) === selectedPairId ? " selected" : "";
+    return "<option value=\"" + pair.id + "\"" + selected + ">" + escapeHtml(label) + "</option>";
+  }).join("");
   row.innerHTML = `
     <div class="bhajan-card-header">
       <span class="bhajan-num-badge">Bhajan #${idx + 1}</span>
@@ -673,6 +682,14 @@ function renderEditBhajanCard(b = {}, idx = 0) {
           <input type="hidden" class="edit-bhajan-id" value="${b.id || ""}">
           <div class="autocomplete-dropdown"></div>
         </div>
+      </div>
+      <div class="diwali-field-group" style="margin:10px 0;">
+        <label class="diwali-field-label">Assigned Singer Pair <span class="req-star">*</span></label>
+        <select class="diwali-input-text edit-bhajan-pair" required>
+          <option value="">Select a singer pair</option>
+          ${pairOptions}
+        </select>
+        <small style="color:var(--text-light);">This assignment applies only to this bhajan.</small>
       </div>
       <div class="bhajan-meta-grid">
         <div class="diwali-field-group">
@@ -722,7 +739,7 @@ function addBhajanToEditModal() {
   const container = document.getElementById("editBhajansContainer");
   if (!container) return;
   const items = container.querySelectorAll(".modal-bhajan-item");
-  const card = renderEditBhajanCard({}, items.length);
+  const card = renderEditBhajanCard({}, items.length, Number(document.getElementById('editParticipantId').value));
   container.appendChild(card);
   initAutocomplete(card);
 }
@@ -746,9 +763,15 @@ async function saveParticipantEdits() {
     const bhajanId = c.querySelector(".edit-bhajan-id")?.value;
     const masterIdVal = c.querySelector(".edit-master-id")?.value;
     if (title) {
+      const assignedPairId = c.querySelector(".edit-bhajan-pair")?.value;
+      if (!assignedPairId) {
+        alert("Select a singer pair for every bhajan.");
+        return;
+      }
       bhajans.push({
         id: bhajanId ? parseInt(bhajanId, 10) : null,
         bhajan_title: title,
+        participant_id: parseInt(assignedPairId, 10),
         master_bhajan_id: (masterIdVal && masterIdVal !== "null" && masterIdVal !== "undefined") ? parseInt(masterIdVal, 10) : null,
         scale: c.querySelector(".edit-bhajan-scale")?.value.trim() || "",
         tabla: c.querySelector(".edit-bhajan-tabla")?.value.trim() || "",
