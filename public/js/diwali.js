@@ -758,6 +758,7 @@ async function saveParticipantEdits() {
 
   const bhajanCards = document.querySelectorAll("#editBhajansContainer .modal-bhajan-item");
   const bhajans = [];
+  let missingPairAssignment = false;
   bhajanCards.forEach((c) => {
     const title = c.querySelector(".edit-bhajan-title")?.value.trim();
     const bhajanId = c.querySelector(".edit-bhajan-id")?.value;
@@ -765,7 +766,7 @@ async function saveParticipantEdits() {
     if (title) {
       const assignedPairId = c.querySelector(".edit-bhajan-pair")?.value;
       if (!assignedPairId) {
-        alert("Select a singer pair for every bhajan.");
+        missingPairAssignment = true;
         return;
       }
       bhajans.push({
@@ -780,6 +781,11 @@ async function saveParticipantEdits() {
       });
     }
   });
+
+  if (missingPairAssignment) {
+    alert("Select a singer pair for every bhajan.");
+    return;
+  }
 
   if (bhajans.length === 0) {
     alert("Please provide at least one valid bhajan.");
