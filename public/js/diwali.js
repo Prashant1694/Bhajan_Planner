@@ -787,11 +787,6 @@ async function saveParticipantEdits() {
     return;
   }
 
-  if (bhajans.length === 0) {
-    alert("Please provide at least one valid bhajan.");
-    return;
-  }
-
   const saveButton = document.querySelector("#modalEditParticipant .diwali-modal-footer .btn-diwali-primary");
   if (saveButton?.disabled) return;
   if (saveButton) { saveButton.disabled = true; saveButton.textContent = "Saving..."; }
