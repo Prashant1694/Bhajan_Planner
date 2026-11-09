@@ -297,29 +297,55 @@ async function updateParticipantWithBhajans(
   if (!cleanGender || !["Gents", "Ladies"].includes(cleanGender)) {
     throw new Error("Gender must be 'Gents' or 'Ladies'.");
   }
-
-  if (!bhajans || !Array.isArray(bhajans)) {
-    throw new Error("At least one valid bhajan is required.");
+  if (!Array.isArray(bhajans)) {
+    throw new Error("A valid bhajan list is required.");
   }
 
   const validBhajans = bhajans.filter((b) => (b.bhajan_title || "").trim().length > 0);
-  if (validBhajans.length === 0) {
-    throw new Error("At least one valid bhajan is required.");
+  const submittedIds = validBhajans
+    .filter((bhajan) => bhajan.id !== undefined && bhajan.id !== null && bhajan.id !== "")
+    .map((bhajan) => requirePositiveId(bhajan.id, "bhajan"));
+  if (new Set(submittedIds).size !== submittedIds.length) {
+    throw new Error("The same existing bhajan was submitted more than once.");
   }
 
   const t = await sequelize.transaction();
   try {
     const participant = await DiwaliParticipant.findOne({
-      where: { id: requirePositiveId(participantId, "participant"), ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {}) },
+      where: {
+        id: requirePositiveId(participantId, "participant"),
+        ...(eventId ? { event_id: requirePositiveId(eventId, "event") } : {})
+      },
       transaction: t
     });
     if (!participant) throw new Error("Participant not found.");
 
-    const submittedIds = validBhajans
-      .filter((bhajan) => bhajan.id !== undefined && bhajan.id !== null && bhajan.id !== "")
-      .map((bhajan) => requirePositiveId(bhajan.id, "bhajan"));
-    if (new Set(submittedIds).size !== submittedIds.length) {
-      throw new Error("The same existing bhajan was submitted more than once.");
+    // Only the pair record being edited is changed here. Each bhajan carries
+    // its own participant_id, which can independently point to another pair.
+    const existingBhajans = await DiwaliParticipantBhajan.findAll({
+      where: { participant_id: participant.id, event_id: participant.event_id },
+      transaction: t
+    });
+    const existingMap = new Map(existingBhajans.map((bhajan) => [Number(bhajan.id), bhajan]));
+    if (submittedIds.some((id) => !existingMap.has(id))) {
+      throw new Error("One or more selected bhajans no longer belong to this pair. Reload and try again.");
+    }
+
+    const targetIds = [...new Set(validBhajans.map((bhajan) =>
+      bhajan.participant_id === undefined || bhajan.participant_id === null || bhajan.participant_id === ""
+        ? Number(participant.id)
+        : requirePositiveId(bhajan.participant_id, "assigned pair")
+    ))];
+    const targetPairs = targetIds.length
+      ? await DiwaliParticipant.findAll({
+        where: { id: { [Op.in]: targetIds }, event_id: participant.event_id },
+        attributes: ["id"],
+        transaction: t
+      })
+      : [];
+    const validTargetIds = new Set(targetPairs.map((pair) => Number(pair.id)));
+    if (targetIds.some((id) => !validTargetIds.has(id))) {
+      throw new Error("One or more selected singer pairs do not belong to this Diwali event. Reload and try again.");
     }
 
     participant.lead_name = cleanLead;
@@ -328,31 +354,33 @@ async function updateParticipantWithBhajans(
     participant.remarks = (remarks || "").trim();
     await participant.save({ transaction: t });
 
-    // Fetch existing bhajans to update in-place (preserving IDs and sequence entries)
-    const existingBhajans = await DiwaliParticipantBhajan.findAll({
-      where: { participant_id: participant.id },
-      transaction: t
+    // Continue order numbers within each destination pair. Existing bhajan IDs
+    // are preserved so any sequence entry remains linked to the same bhajan.
+    const destinationRows = targetIds.length
+      ? await DiwaliParticipantBhajan.findAll({
+        where: { participant_id: { [Op.in]: targetIds }, event_id: participant.event_id },
+        attributes: ["participant_id", "original_order"],
+        transaction: t
+      })
+      : [];
+    const nextOrderByPair = new Map();
+    destinationRows.forEach((row) => {
+      const pairId = Number(row.participant_id);
+      nextOrderByPair.set(pairId, Math.max(
+        nextOrderByPair.get(pairId) || 0,
+        Number(row.original_order || 0)
+      ));
     });
-    const existingMap = new Map();
-    for (const eb of existingBhajans) {
-      existingMap.set(eb.id, eb);
-    }
 
-    if (submittedIds.some((id) => !existingMap.has(id))) {
-      throw new Error("One or more selected bhajans no longer belong to this participant. Reload and try again.");
-    }
-
-    let order = 1;
     for (const b of validBhajans) {
       const title = (b.bhajan_title || "").trim();
+      const assignedPairId = b.participant_id === undefined || b.participant_id === null || b.participant_id === ""
+        ? Number(participant.id)
+        : requirePositiveId(b.participant_id, "assigned pair");
 
-      // Safely validate master_bhajan_id against MasterBhajan table
       let masterId = null;
-      if (
-        b.master_bhajan_id &&
-        !isNaN(parseInt(b.master_bhajan_id, 10)) &&
-        parseInt(b.master_bhajan_id, 10) > 0
-      ) {
+      if (b.master_bhajan_id && !isNaN(parseInt(b.master_bhajan_id, 10)) &&
+        parseInt(b.master_bhajan_id, 10) > 0) {
         const parsed = parseInt(b.master_bhajan_id, 10);
         const check = await MasterBhajan.findByPk(parsed, {
           transaction: t,
@@ -360,7 +388,6 @@ async function updateParticipantWithBhajans(
         });
         if (check) masterId = check.id;
       }
-
       if (!masterId && title) {
         const found = await MasterBhajan.findOne({
           where: sequelize.where(
@@ -373,46 +400,43 @@ async function updateParticipantWithBhajans(
         if (found) masterId = found.id;
       }
 
-      const bhajanId = b.id ? parseInt(b.id, 10) : null;
-      if (bhajanId && existingMap.has(bhajanId)) {
-        // Update existing bhajan record in-place to preserve primary key & sequence linkage
+      const nextOrder = (nextOrderByPair.get(assignedPairId) || 0) + 1;
+      nextOrderByPair.set(assignedPairId, nextOrder);
+      const bhajanId = b.id ? requirePositiveId(b.id, "bhajan") : null;
+      const values = {
+        participant_id: assignedPairId,
+        event_id: participant.event_id,
+        master_bhajan_id: masterId,
+        bhajan_title: title,
+        scale: (b.scale || "").trim(),
+        tabla: (b.tabla || "").trim(),
+        shruti: (b.shruti || "").trim(),
+        deity: (b.deity || "").trim(),
+        remarks: (b.remarks || "").trim(),
+        original_order: nextOrder
+      };
+
+      if (bhajanId) {
         const existingRecord = existingMap.get(bhajanId);
-        existingRecord.master_bhajan_id = masterId;
-        existingRecord.bhajan_title = title;
-        existingRecord.scale = (b.scale || "").trim();
-        existingRecord.tabla = (b.tabla || "").trim();
-        existingRecord.shruti = (b.shruti || "").trim();
-        existingRecord.deity = (b.deity || "").trim();
-        existingRecord.remarks = (b.remarks || "").trim();
-        existingRecord.original_order = order++;
+        if (!existingRecord) {
+          throw new Error("One or more selected bhajans no longer belong to this pair. Reload and try again.");
+        }
+        Object.assign(existingRecord, values);
         await existingRecord.save({ transaction: t });
         existingMap.delete(bhajanId);
       } else {
-        // Insert new bhajan
-        await DiwaliParticipantBhajan.create(
-          {
-            participant_id: participant.id,
-            event_id: participant.event_id,
-            master_bhajan_id: masterId,
-            bhajan_title: title,
-            scale: (b.scale || "").trim(),
-            tabla: (b.tabla || "").trim(),
-            shruti: (b.shruti || "").trim(),
-            deity: (b.deity || "").trim(),
-            remarks: (b.remarks || "").trim(),
-            original_order: order++
-          },
-          { transaction: t }
-        );
+        await DiwaliParticipantBhajan.create(values, { transaction: t });
       }
     }
 
-    // Remove any bhajans deleted by user in the edit modal
-    const removedIds = Array.from(existingMap.keys());
-    if (removedIds.length > 0) {
+    // A pair is allowed to retain zero bhajans: its identity remains available
+    // for future assignments. Only rows actually removed from the editor are
+    // deleted, and their sequence links are cleaned up transactionally.
+    const removedIds = [...existingMap.keys()];
+    if (removedIds.length) {
       await normalizeSequencesAfterBhajanRemoval(removedIds, t);
       await DiwaliParticipantBhajan.destroy({
-        where: { id: removedIds },
+        where: { id: { [Op.in]: removedIds } },
         transaction: t
       });
     }
@@ -467,14 +491,7 @@ async function deleteBhajan(bhajanId, eventId) {
     });
     if (!bhajan) throw new Error("Bhajan not found for the selected Diwali event.");
 
-    const count = await DiwaliParticipantBhajan.count({
-      where: { participant_id: bhajan.participant_id },
-      transaction
-    });
-    if (count <= 1) {
-      throw new Error("A participant must have at least one bhajan. Delete the participant instead.");
-    }
-
+    // Pairs are independent records and may legitimately have no bhajans.
     await normalizeSequencesAfterBhajanRemoval([id], transaction);
     await bhajan.destroy({ transaction });
     await transaction.commit();

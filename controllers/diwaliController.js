@@ -62,12 +62,13 @@ async function resolveSelectedEvent(req) {
 exports.dashboard = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences] = await Promise.all([
+    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences, participants] = await Promise.all([
       diwaliService.getAllEvents(),
       diwaliService.getStats(selectedEvent.id),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Gents" }),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Ladies" }),
-      diwaliService.getFullSequences(selectedEvent.id)
+      diwaliService.getFullSequences(selectedEvent.id),
+      diwaliService.getParticipantsAndBhajans(selectedEvent.id)
     ]);
 
     const allBhajans = [...gentsBhajans, ...ladiesBhajans];
@@ -83,6 +84,7 @@ exports.dashboard = async (req, res) => {
       gentsBhajans,
       ladiesBhajans,
       sequences,
+      participants,
       deities,
       scales,
       successMsg: req.query.success || null,
@@ -204,12 +206,21 @@ exports.createParticipant = async (req, res) => {
 // 4. Get Participant Details for Edit
 exports.getParticipantJson = async (req, res) => {
   try {
-    const participant = await diwaliService.getParticipantById(req.params.id, (await resolveSelectedEvent(req)).id);
+    const selectedEvent = await resolveSelectedEvent(req);
+    const participant = await diwaliService.getParticipantById(req.params.id, selectedEvent.id);
     if (!participant) {
       return res.status(404).json({ success: false, error: "Participant not found" });
     }
-    res.json({ success: true, participant });
+
+    // Give each bhajan editor a complete event-scoped list of reusable pairs.
+    const availablePairs = await DiwaliParticipant.findAll({
+      where: { event_id: selectedEvent.id },
+      attributes: ["id", "lead_name", "partner_name", "gender"],
+      order: [["gender", "ASC"], ["lead_name", "ASC"], ["partner_name", "ASC"]]
+    });
+    res.json({ success: true, participant, availablePairs });
   } catch (error) {
+    console.error("Error loading Diwali pair editor:", error);
     res.status(500).json({ success: false, error: "Failed to load participant." });
   }
 };
