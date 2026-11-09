@@ -716,11 +716,6 @@ function renderEditBhajanCard(b = {}, idx = 0, defaultPairId = null) {
 
 function removeEditModalBhajan(btn) {
   const container = document.getElementById("editBhajansContainer");
-  const items = container.querySelectorAll(".modal-bhajan-item");
-  if (items.length <= 1) {
-    alert("At least one bhajan is required for each participant.");
-    return;
-  }
   btn.closest(".modal-bhajan-item").remove();
   updateEditModalBhajanNumbers();
 }
