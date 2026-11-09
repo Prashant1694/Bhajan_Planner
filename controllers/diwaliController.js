@@ -62,12 +62,13 @@ async function resolveSelectedEvent(req) {
 exports.dashboard = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences] = await Promise.all([
+    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences, participants] = await Promise.all([
       diwaliService.getAllEvents(),
       diwaliService.getStats(selectedEvent.id),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Gents" }),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Ladies" }),
-      diwaliService.getFullSequences(selectedEvent.id)
+      diwaliService.getFullSequences(selectedEvent.id),
+      diwaliService.getParticipantsAndBhajans(selectedEvent.id)
     ]);
 
     const allBhajans = [...gentsBhajans, ...ladiesBhajans];
@@ -83,6 +84,7 @@ exports.dashboard = async (req, res) => {
       gentsBhajans,
       ladiesBhajans,
       sequences,
+      participants,
       deities,
       scales,
       successMsg: req.query.success || null,
