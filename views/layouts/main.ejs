@@ -32,7 +32,7 @@
   <!-- PWA -->
   <link rel="manifest" href="<%= isDevelopmentPwa ? '/manifest.dev.json' : '/manifest.json' %>">
   <link rel="apple-touch-icon" href="<%= pwaIconPath %>">
-  <link rel="icon" type="<%= isDevelopmentPwa ? 'image/svg+xml' : 'image/png' %>" href="<%= pwaIconPath %>">
+  <link rel="icon" type="image/png" href="<%= pwaIconPath %>">
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
 
