@@ -227,7 +227,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: data.icon || APP_ICON,
-    badge: data.badge || APP_ICON,
+    badge: data.badge || "/images/icons/icon-192x192.png",
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
     tag: data.tag || "bhajan-planner-notification",
