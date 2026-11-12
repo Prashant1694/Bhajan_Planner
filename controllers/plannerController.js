@@ -1030,7 +1030,7 @@ exports.sessionLink = async (req, res) => {
 exports.sessionPlanPdf = async (req, res) => {
   try {
     const sessionDate = String(req.query.session_date || "").trim();
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(sessionDate)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) {
       return res.status(400).send("A valid session_date (YYYY-MM-DD) is required.");
     }
 
