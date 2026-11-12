@@ -368,14 +368,14 @@
                                     CATEGORY_INFO[b.category].label : (b.category || 'Event' ) %>
                                 </span>
                                 <span style="font-size: 11.5px; color: #a8a29e; font-weight: 500;">
-                                  <%= b.formattedDate || 'Recent' %>
+                                  <%= b.published_at ? new Date(b.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : (b.formattedDate || 'Recent') %>
                                 </span>
                               </div>
                               <h4 class="zen-bulletin-title">
                                 <%= b.title %>
                               </h4>
                               <p class="zen-bulletin-desc">
-                                <%= b.summary || (b.body ? b.body.substring(0, 140) + '...' : '' ) %>
+                                <%= (b.summary || b.content || b.body || '').substring(0, 140) %><%= (b.summary || b.content || b.body || '').length > 140 ? '...' : '' %>
                               </p>
                             </div>
                             <div style="display: flex; align-items: center; gap: 4px; color: #a8a29e; flex-shrink: 0;">
