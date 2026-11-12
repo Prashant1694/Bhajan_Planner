@@ -10,7 +10,7 @@
 // Query-string variant separates development and production app-shell caches.
 const IS_DEVELOPMENT_PWA = new URL(self.location.href).searchParams.get("variant") === "dev";
 const APP_ICON = IS_DEVELOPMENT_PWA
-  ? "/images/icons/dev/bhajan-planner-dev.svg"
+  ? "/images/icons/dev/bhajan-planner-dev-192.png"
   : "/images/icons/icon-192x192.png";
 const CACHE_VERSION = IS_DEVELOPMENT_PWA ? "v6.5-dev-1" : "v6.5";
 const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
