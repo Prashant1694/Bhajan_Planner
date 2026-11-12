@@ -5,9 +5,9 @@ const PDFDocument = require("pdfkit");
 const { getWesternScale } = require("./helpers");
 
 const C = { maroon:"#7d2f45", gold:"#d98a2b", ink:"#24212a", muted:"#77717c", border:"#e7dfd4", cream:"#fbf8f2", white:"#ffffff", stripe:"#f8f5ef" };
-const clean = (v, fallback="-") => { const s=String(v == null ? "" : v).replace(/\\s+/g," ").trim(); return s || fallback; };
+const clean = (v, fallback="-") => { const s=String(v == null ? "" : v).replace(/\s+/g," ").trim(); return s || fallback; };
 function humanDate(value) {
-  const m=String(value||"").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if(!m) return clean(value);
   return new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
 }
@@ -38,7 +38,7 @@ function generateSessionPlanPdf({sessionDate,submissions}) {
   }
   function drawRow(item,index){
    const west=getWesternScale(item.scale),partner=clean(item.partner_name,"");
-   const vals={n:String(index+1),singer:partner?`${clean(item.singer_name)}\\nWith: ${partner}`:clean(item.singer_name),title:clean(item.title),deity:clean(item.deity).toUpperCase(),scale:west!=="-"?`${clean(item.scale)}  |  ${west}`:clean(item.scale),tempo:clean(item.speed,"Medium").toUpperCase()};
+   const vals={n:String(index+1),singer:partner?`${clean(item.singer_name)}\nWith: ${partner}`:clean(item.singer_name),title:clean(item.title),deity:clean(item.deity).toUpperCase(),scale:west!=="-"?`${clean(item.scale)}  |  ${west}`:clean(item.scale),tempo:clean(item.speed,"Medium").toUpperCase()};
    let rh=30; cols.forEach(col=>{doc.font(col.b?"Helvetica-Bold":"Helvetica").fontSize(8.4);rh=Math.max(rh,doc.heightOfString(vals[col.k],{width:col.w-10,lineGap:1.5})+14);});
    if(doc.y+rh>limit) pageHeader();
    const y=doc.y; doc.rect(L,y,CW,rh).fill(index%2===0?C.white:C.stripe); doc.strokeColor(C.border).lineWidth(.45).moveTo(L,y+rh).lineTo(R,y+rh).stroke();
