@@ -196,6 +196,13 @@
       setTimeout(function () { window.print(); }, 50);
     };
 
+    // Admin session printing deliberately routes through this same Live Plan
+    // table and print routine so every scheduled bhajan is rendered consistently.
+    if (new URLSearchParams(window.location.search).get("autoprint") === "1") {
+      window.switchPlanView("table");
+      setTimeout(function () { window.printPlanSchedule(); }, 350);
+    }
+
     if (!window.__planBeforePrintBound) {
       window.__planBeforePrintBound = true;
       window.addEventListener("beforeprint", function () {
