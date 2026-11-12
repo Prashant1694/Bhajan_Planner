@@ -2,6 +2,14 @@
   // Chromeless embed fallback (e.g. ?standalone=1 or test suite)
   const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false);
   const isAuthAdmin = (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin);
+  // Only the develop deployment receives a separate PWA identity.
+  const isDevelopmentPwa = typeof process !== 'undefined' && (
+    process.env.PWA_APP_VARIANT === 'development' ||
+    process.env.RAILWAY_GIT_BRANCH === 'develop'
+  );
+  const pwaIconPath = isDevelopmentPwa
+    ? '/images/icons/dev/bhajan-planner-dev.svg'
+    : '/images/icons/icon-192x192.png';
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -15,14 +23,16 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Bhajan Planner">
+  <meta name="apple-mobile-web-app-title" content="<%= isDevelopmentPwa ? 'Bhajan Dev' : 'Bhajan Planner' %>">
+  <meta name="application-name" content="<%= isDevelopmentPwa ? 'Bhajan Planner (Dev)' : 'Bhajan Planner' %>">
+  <meta name="bp-pwa-variant" content="<%= isDevelopmentPwa ? 'development' : 'production' %>">
   <meta name="format-detection" content="telephone=no">
   <meta name="color-scheme" content="light dark">
 
   <!-- PWA -->
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
+  <link rel="manifest" href="<%= isDevelopmentPwa ? '/manifest.dev.json' : '/manifest.json' %>">
+  <link rel="apple-touch-icon" href="<%= pwaIconPath %>">
+  <link rel="icon" type="<%= isDevelopmentPwa ? 'image/svg+xml' : 'image/png' %>" href="<%= pwaIconPath %>">
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
 
@@ -197,7 +207,7 @@
     <div class="pwa-install-overlay" id="pwaInstallOverlay">
       <div class="pwa-install-banner">
         <div class="pwa-banner-header">
-          <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" width="48" height="48" class="pwa-banner-icon">
+          <img src="<%= pwaIconPath %>" alt="<%= isDevelopmentPwa ? 'Bhajan Planner Development' : 'Bhajan Planner' %>" width="48" height="48" class="pwa-banner-icon">
           <div class="pwa-banner-info">
             <h3>Install Bhajan Planner</h3>
             <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>

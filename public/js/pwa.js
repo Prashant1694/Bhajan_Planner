@@ -8,11 +8,14 @@
   "use strict";
 
   // ── Service Worker Registration ─────────────────────────────
+  const pwaVariant = document.querySelector('meta[name="bp-pwa-variant"]')?.content;
+  const serviceWorkerUrl = pwaVariant === "development" ? "/sw.js?variant=dev" : "/sw.js";
+
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker
-          .register("/sw.js", { updateViaCache: "none" })
+          .register(serviceWorkerUrl, { updateViaCache: "none" })
           .then((reg) => {
             setInterval(() => reg.update(), 60 * 60 * 1000);
           })

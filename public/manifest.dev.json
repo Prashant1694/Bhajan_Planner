@@ -1,0 +1,65 @@
+{
+  "name": "Bhajan Planner (Dev)",
+  "short_name": "Bhajan Dev",
+  "description": "Development testing instance of Bhajan Planner for Sri Sathya Sai Seva Organisation, Gandhinagar",
+  "id": "bhajan-planner-dev-ssso-gn",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/?pwa=dev",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "theme_color": "#123b95",
+  "background_color": "#081d55",
+  "categories": [
+    "lifestyle",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Songbook Catalog (Dev)",
+      "short_name": "Songbook",
+      "description": "Browse the development Master Bhajan Bank",
+      "url": "/master-bank",
+      "icons": [
+        {
+          "src": "/images/icons/dev/bhajan-planner-dev.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Session Lineup (Dev)",
+      "short_name": "Lineup",
+      "description": "View the development session lineup",
+      "url": "/plan-view",
+      "icons": [
+        {
+          "src": "/images/icons/dev/bhajan-planner-dev.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/images/icons/dev/bhajan-planner-dev.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icons/dev/bhajan-planner-dev.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

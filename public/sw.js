@@ -7,7 +7,12 @@
 // - Network-first for HTML & App Shell fragments (never injects HTML offline page into fragment JSON/pane fetches)
 // ============================================================
 
-const CACHE_VERSION = "v6.5";
+// Query-string variant separates development and production app-shell caches.
+const IS_DEVELOPMENT_PWA = new URL(self.location.href).searchParams.get("variant") === "dev";
+const APP_ICON = IS_DEVELOPMENT_PWA
+  ? "/images/icons/dev/bhajan-planner-dev.svg"
+  : "/images/icons/icon-192x192.png";
+const CACHE_VERSION = IS_DEVELOPMENT_PWA ? "v6.5-dev-1" : "v6.5";
 const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -33,7 +38,7 @@ const PRECACHE_URLS = [
   "/js/session-audio-player.js?v=6.5",
   "/images/logo_birthday.png",
   "/images/logo.png",
-  "/images/icons/icon-192x192.png",
+  APP_ICON,
   "/images/icons/icon-512x512.png"
 ];
 
@@ -221,8 +226,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: data.body || "",
-    icon: data.icon || "/images/icons/icon-192x192.png",
-    badge: data.badge || "/images/icons/icon-192x192.png",
+    icon: data.icon || APP_ICON,
+    badge: data.badge || APP_ICON,
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
     tag: data.tag || "bhajan-planner-notification",
