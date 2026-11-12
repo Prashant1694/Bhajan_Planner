@@ -2,13 +2,11 @@
   // Chromeless embed fallback (e.g. ?standalone=1 or test suite)
   const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false);
   const isAuthAdmin = (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin);
-  // Only the develop deployment receives a separate PWA identity.
-  // Set PWA_APP_VARIANT=development on the Railway develop service.
-  const deploymentBranch = typeof process !== 'undefined' ? process.env.RAILWAY_GIT_BRANCH : '';
+  // PWA identity is controlled by a per-deployment Railway variable.
+  // Set PWA_APP_VARIANT=development ONLY on the develop service.
+  // This remains safe after merging develop into main.
   const pwaVariant = typeof process !== 'undefined' ? process.env.PWA_APP_VARIANT : '';
-  const isDevelopmentPwa =
-    String(pwaVariant || '').toLowerCase() === 'development' ||
-    String(deploymentBranch || '').toLowerCase() === 'develop';
+  const isDevelopmentPwa = String(pwaVariant || '').trim().toLowerCase() === 'development';
   const pwaIconPath = isDevelopmentPwa
     ? '/images/icons/dev/bhajan-planner-dev-192.png'
     : '/images/icons/icon-192x192.png';
