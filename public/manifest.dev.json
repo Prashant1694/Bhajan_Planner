@@ -1,7 +1,7 @@
 {
   "name": "Bhajan Planner DEV",
-  "short_name": "Bhajan Dev",
-  "description": "Development testing instance of Bhajan Planner for Sri Sathya Sai Seva Organisation, Gandhinagar",
+  "short_name": "Bhajan DEV",
+  "description": "Development testing app for Bhajan Planner",
   "id": "bhajan-planner-dev-ssso-gn",
   "lang": "en",
   "dir": "ltr",

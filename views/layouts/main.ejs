@@ -3,10 +3,12 @@
   const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false);
   const isAuthAdmin = (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin);
   // Only the develop deployment receives a separate PWA identity.
-  const isDevelopmentPwa = typeof process !== 'undefined' && (
-    process.env.PWA_APP_VARIANT === 'development' ||
-    process.env.RAILWAY_GIT_BRANCH === 'develop'
-  );
+  // Set PWA_APP_VARIANT=development on the Railway develop service.
+  const deploymentBranch = typeof process !== 'undefined' ? process.env.RAILWAY_GIT_BRANCH : '';
+  const pwaVariant = typeof process !== 'undefined' ? process.env.PWA_APP_VARIANT : '';
+  const isDevelopmentPwa =
+    String(pwaVariant || '').toLowerCase() === 'development' ||
+    String(deploymentBranch || '').toLowerCase() === 'develop';
   const pwaIconPath = isDevelopmentPwa
     ? '/images/icons/dev/bhajan-planner-dev-192.png'
     : '/images/icons/icon-192x192.png';
