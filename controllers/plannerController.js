@@ -1021,3 +1021,52 @@ exports.sessionLink = async (req, res) => {
     res.redirect("/database");
   }
 };
+
+
+/**
+ * Dedicated server-side PDF export for session sequences.
+ * This endpoint exports database rows directly and never prints the app shell.
+ */
+exports.sessionPlanPdf = async (req, res) => {
+  try {
+    const sessionDate = String(req.query.session_date || "").trim();
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(sessionDate)) {
+      return res.status(400).send("A valid session_date (YYYY-MM-DD) is required.");
+    }
+
+    const results = await BhajanSubmission.findAll({
+      where: { session_date: sessionDate },
+      raw: true
+    });
+
+    const sorted = results.sort((a, b) => {
+      if (a.list_order > 0 || b.list_order > 0) {
+        if (a.list_order === 0) return 1;
+        if (b.list_order === 0) return -1;
+        return a.list_order - b.list_order;
+      }
+      const deityCompare = deityOrderKey(a.deity) - deityOrderKey(b.deity);
+      if (deityCompare !== 0) return deityCompare;
+      const speedCompare =
+        (SPEED_ORDER[(a.speed || "").toLowerCase()] || 1) -
+        (SPEED_ORDER[(b.speed || "").toLowerCase()] || 1);
+      if (speedCompare !== 0) return speedCompare;
+      return (a.singer_name || "").toLowerCase().localeCompare((b.singer_name || "").toLowerCase());
+    });
+
+    const { generateSessionPlanPdf } = require("../services/sessionPdfService");
+    const pdfBuffer = await generateSessionPlanPdf({
+      sessionDate,
+      submissions: sorted
+    });
+    const filename = `Bhajan-Session-Plan-${sessionDate}`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}.pdf"`);
+    res.setHeader("Content-Length", String(pdfBuffer.length));
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.status(200).send(pdfBuffer);
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] sessionPlanPdf error:`, error);
+    return res.status(500).send("Failed to generate the session PDF.");
+  }
+};
