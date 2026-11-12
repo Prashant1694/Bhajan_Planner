@@ -10771,7 +10771,7 @@ body.modal-open #appBottomNav {
    ========================================================================== */
 @media print {
   @page {
-    size: auto;
+    size: A4 portrait;
     margin: 8mm 10mm 10mm 10mm;
   }
 
@@ -10909,6 +10909,10 @@ body.modal-open #appBottomNav {
     height: 65px !important;
     object-fit: contain !important;
     display: block !important;
+  }
+
+  .letterhead-logo-right {
+    margin-left: auto !important;
   }
 
   .letterhead-center-text {

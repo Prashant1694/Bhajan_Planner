@@ -330,12 +330,12 @@
             <span class="sec-tool-label">Duplicate</span>
           </button>
 
-          <button type="button" class="sec-tool-btn" onclick="window.open('/plan-view/pdf?session_date=<%= encodeURIComponent(date) %>', '_blank', 'noopener')" title="Download professionally formatted session PDF">
+          <a class="sec-tool-btn" href="/plan-view?session_date=<%= encodeURIComponent(date) %>&amp;autoprint=1" target="_blank" rel="noopener" title="Open the native print dialog for this session">
             <span class="sec-tool-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </span>
             <span class="sec-tool-label">Print</span>
-          </button>
+          </a>
 
           <a href="/admin" class="sec-tool-btn" title="Back to session calendar">
             <span class="sec-tool-icon">

@@ -52,7 +52,7 @@
             <span>Share</span>
           </button>
         <% } %>
-        <button type="button" id="planPrintPdfBtn" data-session-date="<%= sessionDate %>" class="plan-btn plan-btn-secondary" title="Open print-ready PDF preview (Print or Save as PDF)">
+        <button type="button" class="plan-btn plan-btn-secondary" onclick="window.printPlanSchedule && window.printPlanSchedule()" title="Print or save the bhajan sequence">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           <span>Print</span>
         </button>
@@ -147,23 +147,6 @@
     const _WHATSAPP_ENCODED = <%- JSON.stringify(whatsappEncoded) %>;
     const _PLAN_DATE = <%- JSON.stringify(sessionDate) %>;
 
-    // Use the actual rendered session date, not a template-local variable
-    // from an inline HTML attribute. Preview remains user-controlled.
-    const printPdfButton = document.getElementById("planPrintPdfBtn");
-    if (printPdfButton && !printPdfButton.dataset.bound) {
-      printPdfButton.dataset.bound = "1";
-      printPdfButton.addEventListener("click", function () {
-        const selectedDate = printPdfButton.dataset.sessionDate || _PLAN_DATE;
-        const pdfUrl = "/plan-view/pdf?session_date=" + encodeURIComponent(selectedDate);
-        const preview = window.open(pdfUrl, "_blank");
-        if (preview) {
-          try { preview.opener = null; } catch (_) {}
-        } else {
-          window.location.assign(pdfUrl);
-        }
-      });
-    }
-
     const dateSelect = document.getElementById("planDateSelect");
     if (dateSelect && !dateSelect.dataset.bound) {
       dateSelect.dataset.bound = "1";
@@ -208,11 +191,34 @@
       try { localStorage.setItem("plan_view_mode", mode); } catch (_) {}
     };
 
+    // Print the actual Live Plan HTML through the browser/Android print UI.
+    // The user can select a printer or choose Save as PDF in that native dialog.
+    let _prePrintView = "timeline";
     window.printPlanSchedule = function () {
+      const table = document.getElementById("planTable");
+      if (!table) return;
+      const activeTimeline = document.getElementById("planTimeline");
+      _prePrintView = activeTimeline && activeTimeline.classList.contains("active-view") ? "timeline" : "table";
       window.switchPlanView("table");
-      setTimeout(function () { window.print(); }, 50);
+      // Allow the table layout to settle before opening the native print dialog.
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { window.print(); });
+      });
     };
 
+    window.addEventListener("afterprint", function () {
+      if (_prePrintView === "timeline") window.switchPlanView("timeline");
+    });
+
+    // Admin session Print links arrive here after loading the same Live Plan
+    // HTML. Trigger the native print dialog only after the page and logos load.
+    if (new URLSearchParams(window.location.search).get("autoprint") === "1") {
+      const runAutoPrint = function () {
+        setTimeout(function () { window.printPlanSchedule(); }, 250);
+      };
+      if (document.readyState === "complete") runAutoPrint();
+      else window.addEventListener("load", runAutoPrint, { once: true });
+    }
 
     if (!window.__planBeforePrintBound) {
       window.__planBeforePrintBound = true;
