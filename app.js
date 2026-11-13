@@ -165,8 +165,8 @@ app.use(
       // Service workers and every PWA manifest variant must be revalidated.
       // In particular, manifest.dev.json must never inherit the 7-day static cache.
       if (
-        /(?:^|[\\/])sw\\.js$/.test(filePath) ||
-        /(?:^|[\\/])manifest(?:\\.[a-z0-9_-]+)?\\.json$/i.test(filePath)
+        /(?:^|[\\/])sw\.js$/.test(filePath) ||
+        /(?:^|[\\/])manifest(?:\.[a-z0-9_-]+)?\.json$/i.test(filePath)
       ) {
         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         res.setHeader("Pragma", "no-cache");
