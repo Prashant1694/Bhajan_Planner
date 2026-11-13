@@ -162,8 +162,15 @@ app.use(
     maxAge: "7d",
     etag: true,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json")) {
-        res.setHeader("Cache-Control", "no-cache");
+      // Service workers and every PWA manifest variant must be revalidated.
+      // In particular, manifest.dev.json must never inherit the 7-day static cache.
+      if (
+        /(?:^|[\\/])sw\\.js$/.test(filePath) ||
+        /(?:^|[\\/])manifest(?:\\.[a-z0-9_-]+)?\\.json$/i.test(filePath)
+      ) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
       }
     }
   })
