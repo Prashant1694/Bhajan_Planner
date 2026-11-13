@@ -17,7 +17,25 @@ const DiwaliSequence = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false
     },
+    sequence_type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Auto"
+    },
+    session_period: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Morning"
+    },
     assigned_date: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    harmonium_player: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    tabla_player: {
       type: DataTypes.STRING,
       allowNull: true
     },

@@ -142,6 +142,14 @@ async function attachSinger(req, res, next) {
   }
 }
 
+function prefersJsonResponse(req) {
+  return (
+    req.path.startsWith("/api/") ||
+    req.xhr ||
+    req.accepts(["html", "json"]) === "json"
+  );
+}
+
 async function requireSingerAuth(req, res, next) {
   const isAdmin = Boolean(req.session && (req.session.admin || req.session.adminUserId));
 
@@ -154,11 +162,7 @@ async function requireSingerAuth(req, res, next) {
     }
 
     delete req.session.singer;
-    if (
-      req.path.startsWith("/api/") ||
-      req.xhr ||
-      (req.headers.accept && req.headers.accept.includes("application/json"))
-    ) {
+    if (prefersJsonResponse(req)) {
       return res.status(401).json({ error: "Session expired. Please sign in again.", bookmarks: [] });
     }
     const { safeRedirect } = require("../services/securityHelpers");
@@ -188,11 +192,7 @@ async function requireSingerAuth(req, res, next) {
     return next();
   }
 
-  if (
-    req.path.startsWith("/api/") ||
-    req.xhr ||
-    (req.headers.accept && req.headers.accept.includes("application/json"))
-  ) {
+  if (prefersJsonResponse(req)) {
     return res.status(401).json({ error: "Unauthorized", bookmarks: [] });
   }
 

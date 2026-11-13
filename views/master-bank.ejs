@@ -177,9 +177,11 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </span>
+          <label for="filterBankTitle" class="sr-only">Search Master Bhajan Bank</label>
           <input
             type="search"
             id="filterBankTitle"
+            aria-label="Search Master Bhajan Bank"
             class="bank-glass-search-input"
             placeholder="Search <%= bhajans.length %> bhajans by title, raag, deity, tempo, or scale..."
             autocomplete="off"
@@ -429,10 +431,10 @@
       </div>
 
       <!-- Load More Button -->
-      <% if (bhajans.length > 60) { %>
+      <% if (bhajans.length > INITIAL_RENDER) { %>
         <div id="masterBankLoadMore" class="bank-load-more-wrap">
           <button type="button" id="bankLoadMoreBtn" class="bank-load-more-btn">
-            Load More Bhajans (<span id="bankRemainingCount"><%= bhajans.length - 60 %></span> remaining)
+            Load More Bhajans (<span id="bankRemainingCount"><%= bhajans.length - INITIAL_RENDER %></span> remaining)
           </button>
         </div>
       <% } %>
@@ -636,7 +638,7 @@
 
   <!-- Master Bhajans Data Cache for Instant Zero-Latency Filtering -->
   <script id="allMasterBhajansData" type="application/json">
-    <%- JSON.stringify(bhajans.map(b => ({
+    <%- safeJson(bhajans.map(b => ({
       id: b.id,
       title: b.title,
       deity: b.deity || '',
@@ -1876,6 +1878,12 @@
           }
         }
       } catch (e) {}
+
+      var isSingerLoggedIn = Boolean(
+        (window.__SHELL_BOOT__ && window.__SHELL_BOOT__.hasSinger) ||
+        <%= Boolean(typeof currentSinger !== 'undefined' && currentSinger) %>
+      );
+      if (!isSingerLoggedIn) return;
 
       try {
         var res = await fetch('/api/singer/songbook');

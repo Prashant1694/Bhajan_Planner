@@ -1,0 +1,19 @@
+<div class="adm-error-wrap">
+  <div class="adm-card adm-error-card">
+    <div class="adm-error-badge"><%= typeof statusCode !== 'undefined' ? statusCode : 403 %></div>
+    <h1><%= typeof errorTitle !== 'undefined' ? errorTitle : 'Access Restricted' %></h1>
+    <p class="adm-error-message">
+      <%= typeof errorMessage !== 'undefined' ? errorMessage : 'You do not have permission to view this section.' %>
+    </p>
+    <p class="adm-error-code-hint">
+      <%= typeof technicalDetail !== 'undefined' ? technicalDetail : 'Forbidden: Super Admin access required' %>
+    </p>
+    <div class="adm-error-actions">
+      <a href="<%= typeof backUrl !== 'undefined' ? backUrl : '/admin' %>" class="button button-confirm">
+        &larr; Return to Admin Dashboard
+      </a>
+      <a href="/" class="button secondary">Public Home</a>
+    </div>
+  </div>
+</div>
+

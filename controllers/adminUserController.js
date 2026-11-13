@@ -16,6 +16,7 @@ exports.listAdmins = async (req, res) => {
 
     res.render("admin-users", {
       admins,
+      pageTitle: "Admin Management",
       currentAdmin: req.session.admin,
       isAdminPage: true,
       pageCSS: "admin.css",
@@ -125,8 +126,12 @@ exports.showResetPasswordForm = async (req, res) => {
     const admin = await adminUserService.findById(req.params.id);
 
     res.render("admin-reset-password", {
+      pageTitle: "Reset Password",
       admin,
-      error: null
+      error: null,
+      isAdminPage: true,
+      pageCSS: "admin.css",
+      page: "admin-users"
     });
   } catch (error) {
     res.status(404).send(error.message);
@@ -141,8 +146,12 @@ exports.resetPassword = async (req, res) => {
     const admin = await adminUserService.findById(req.params.id);
 
     res.render("admin-reset-password", {
+      pageTitle: "Reset Password",
       admin,
-      error: error.message
+      error: error.message,
+      isAdminPage: true,
+      pageCSS: "admin.css",
+      page: "admin-users"
     });
   }
 };

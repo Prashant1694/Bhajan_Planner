@@ -4,6 +4,7 @@ const singerController = require("../controllers/singerController");
 const { requireLogin, requireApiLogin } = require("../middleware/auth");
 
 router.get("/admin/singers", requireLogin, singerController.showSingers);
+router.get("/admin/singers/export.csv", requireLogin, singerController.exportSingersCsv);
 router.get("/admin/singer-dictionary", requireLogin, singerController.showSingerDictionary);
 router.get("/singers", (req, res) => {
   if (req.session && req.session.admin) {
@@ -23,5 +24,7 @@ router.post("/api/admin/edit-singer/:id", requireApiLogin, singerController.edit
 router.post("/api/admin/delete-singer/:id", requireApiLogin, singerController.deleteSinger);
 router.post("/api/admin/reset-singer-pin/:id", requireApiLogin, singerController.resetSingerPin);
 router.post("/api/admin/set-singer-pin/:id", requireApiLogin, singerController.setSingerPin);
+router.post("/api/admin/singers/quick-gender", requireApiLogin, singerController.quickUpdateGender);
+router.post("/api/admin/singers/import-csv", requireApiLogin, singerController.importSingersCsv);
 
 module.exports = router;

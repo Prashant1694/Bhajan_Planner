@@ -122,7 +122,59 @@ function escapeJsSingleQuoted(val) {
 }
 
 /**
- * Generates deity HTML cards from deity status map
+ * Builds structured deity card view-models from deity status map (for EJS partial rendering)
+ */
+function buildDeityCardsData(deityStatus) {
+  const toCardModel = (deity) => {
+    const status = deityStatus[deity] || { count: 0, maxAllowed: 2, minReq: 0, mandatory: false };
+    const countClass = `count-${Math.min(status.count || 0, 3)}`;
+    if (status.maxAllowed === 0) {
+      return {
+        deity,
+        blocked: true,
+        countClass
+      };
+    }
+    const isFull = status.count >= status.maxAllowed;
+    const bhajanText = `${status.count} Bhajan${status.count === 1 ? "" : "s"}`;
+    return {
+      deity,
+      blocked: false,
+      isFull,
+      countClass,
+      cardClass: `deity-card ${isFull ? "taken" : "available"} ${countClass}`,
+      badgeText: isFull ? `${status.count} Taken` : bhajanText,
+      by: status.by || "",
+      bhajan: status.bhajan || "",
+      scale: status.scale || "",
+      speed: status.speed || "",
+      mandatory: Boolean(status.mandatory),
+      minReq: status.minReq || 0,
+      mandatoryFulfilled: (status.count || 0) >= (status.minReq || 0)
+    };
+  };
+
+  const otherDeities = [
+    "Guru",
+    "Mata",
+    "SarvaDharma",
+    "Sai",
+    "Shiva",
+    "Krishna",
+    "Rama",
+    "Narayana",
+    "Vitthala"
+  ];
+
+  return {
+    ganeshaCard: toCardModel("Ganesha"),
+    otherDeityCards: otherDeities.map(toCardModel),
+    hanumanCard: toCardModel("Hanuman")
+  };
+}
+
+/**
+ * Generates deity HTML cards from deity status map (legacy wrapper)
  */
 function generateDeityCardsHtml(deityStatus) {
   const generateCard = (deity) => {
@@ -215,6 +267,7 @@ module.exports = {
   normalizeBhajanTitle,
   getAvailableDates,
   buildDeityStatus,
+  buildDeityCardsData,
   generateDeityCardsHtml,
   buildSessionOptions
 };

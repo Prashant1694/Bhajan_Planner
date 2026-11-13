@@ -87,11 +87,11 @@
             <% const key = (r.deity_name || '').toLowerCase().trim(); %>
             <tr data-deity="<%= key %>" class="rule-row">
               
-              <td style="text-align:center; color:var(--text-light); font-weight:700;">
+              <td data-label="#" style="text-align:center; color:var(--text-light); font-weight:700;">
                 <%= idx + 1 %>
               </td>
 
-              <td>
+              <td data-label="Deity">
                 <div style="display:flex; align-items:center; gap:10px;">
                   <div style="width:28px; height:28px; border-radius:6px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#475569;">
                     <%= (r.deity_name || 'D').charAt(0).toUpperCase() %>
@@ -103,7 +103,7 @@
                 </div>
               </td>
 
-              <td style="text-align:center;">
+              <td data-label="Min Required" style="text-align:center;">
                 <div style="display:inline-flex; align-items:center; gap:6px;">
                   <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 9)">&minus;</button>
                   <input type="number" class="rule-min workspace-search-input" value="<%= r.min_required %>" min="0" max="9" style="width:54px; text-align:center; padding:4px 6px; font-weight:700;" onchange="updateRuleStatus(this)">
@@ -111,7 +111,7 @@
                 </div>
               </td>
 
-              <td style="text-align:center;">
+              <td data-label="Max Allowed" style="text-align:center;">
                 <div style="display:inline-flex; align-items:center; gap:6px;">
                   <button type="button" class="sec-tool-btn" style="width:28px; min-height:28px; padding:0; font-size:14px; font-weight:800;" onclick="stepValue(this, -1, 0, 99)">&minus;</button>
                   <input type="number" class="rule-max workspace-search-input" value="<%= r.max_allowed %>" min="0" max="99" style="width:54px; text-align:center; padding:4px 6px; font-weight:700;" onchange="updateRuleStatus(this)">
@@ -119,7 +119,7 @@
                 </div>
               </td>
 
-              <td style="text-align:center;">
+              <td data-label="Flow Status" style="text-align:center;">
                 <span class="rule-status-chip diag-chip <%= r.max_allowed === 0 ? 'warn' : (r.min_required > 0 ? 'pass' : '') %>" style="font-size:11px;">
                   <%= r.max_allowed === 0 ? 'Blocked' : (r.min_required > 0 ? 'Guaranteed' : 'Flexible') %>
                 </span>

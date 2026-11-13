@@ -273,6 +273,9 @@ async function ensureSingerPinColumn() {
     if (!columns.some((column) => column.name === "locked_until")) {
       await sequelize.query("ALTER TABLE singer_dictionary ADD COLUMN locked_until DATETIME");
     }
+    if (!columns.some((column) => column.name === "unavailable_dates")) {
+      await sequelize.query("ALTER TABLE singer_dictionary ADD COLUMN unavailable_dates TEXT");
+    }
   } catch (err) {
     // Ignore if table info query fails
   }
@@ -469,7 +472,13 @@ async function ensureDatabaseIndexes() {
     "CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)",
     "CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON user_presence(last_seen_at)",
     "CREATE INDEX IF NOT EXISTS idx_singer_bookmarks_singer ON singer_bookmarks(singer_id)",
-    "CREATE INDEX IF NOT EXISTS idx_sessions_expires ON Sessions(expires)"
+    "CREATE INDEX IF NOT EXISTS idx_sessions_expires ON Sessions(expires)",
+    "CREATE INDEX IF NOT EXISTS idx_session_perm_date ON session_permissions(date)",
+    "CREATE INDEX IF NOT EXISTS idx_session_audios_date ON session_audios(session_date)",
+    "CREATE INDEX IF NOT EXISTS idx_session_audio_ts_audio ON session_audio_timestamps(session_audio_id)",
+    "CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_diwali_part_lead ON diwali_participants(lead_name COLLATE NOCASE)",
+    "CREATE INDEX IF NOT EXISTS idx_diwali_bhajans_title ON diwali_participant_bhajans(bhajan_title COLLATE NOCASE)"
   ];
 
   for (const sql of indexStatements) {

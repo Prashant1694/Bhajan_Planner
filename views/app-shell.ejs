@@ -55,14 +55,14 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
   </noscript>
 
-  <!-- Core Shell & Component Stylesheets (v6.5) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <!-- Core Shell & Component Stylesheets (v6.6) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.6">
   <link rel="stylesheet" href="/css/pwa.css?v=6.5">
   <link rel="stylesheet" href="/css/notifications.css?v=6.5">
   <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
   <link rel="stylesheet" href="/css/tanpura.css?v=6.5">
   <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
-  <link rel="stylesheet" href="/css/app-shell.css?v=6.5">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.6">
   <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
     <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.5">
   <% } else if (activeTabKey === 'home') { %>
@@ -70,7 +70,7 @@
   <% } %>
 
   <!-- Native Polish Layer (Loaded Last) -->
-  <link rel="stylesheet" href="/css/native.css?v=6.5">
+  <link rel="stylesheet" href="/css/native.css?v=6.7">
 
   <style id="nav-core-critical">
     /* Universal Mobile Bottom Capsule Default: Completely hidden on desktop */
@@ -85,7 +85,7 @@
     }
 
     /* Desktop Navigation (> 1024px) */
-    @media (min-width: 1025px) {
+    @media screen and (min-width: 1025px) {
       .mobile-bottom-capsule,
       .native-bottom-nav,
       #mobileBottomCapsule,
@@ -271,7 +271,7 @@
     }
 
     /* Mobile Floating Capsule Navbar (<= 1024px) */
-    @media (max-width: 1024px) {
+    @media screen and (max-width: 1024px) {
       body, body.shell-body {
         padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
       }
@@ -591,6 +591,62 @@
         position: relative !important;
         z-index: 100051 !important;
         box-sizing: border-box !important;
+      }
+    }
+
+    @media print {
+      #shellTopHeader,
+      .shell-top-header,
+      .header-right,
+      #shellThemeToggle,
+      #shellNotifBtn,
+      #desktopNav,
+      .desktop-nav,
+      #shellSidebar,
+      .shell-sidebar,
+      #shellSidebarOverlay,
+      .shell-sidebar-overlay,
+      #mobileBottomCapsule,
+      .mobile-bottom-capsule,
+      #nativeBottomNav,
+      .native-bottom-nav,
+      #appBottomNav,
+      .app-bottom-nav,
+      .shell-bottom-nav,
+      .shell-load-bar,
+      .shell-detail-header,
+      #tanpuraFloatingWidget,
+      #stickyAudioBar,
+      .pwa-install-overlay,
+      .floating-theme-toggle {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        position: static !important;
+        pointer-events: none !important;
+      }
+
+      html.shell-root,
+      body.shell-body,
+      .shell-app-layout,
+      .shell-main-column,
+      .shell-workspace-container,
+      .shell-pane.active-pane {
+        display: block !important;
+        position: static !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        contain: none !important;
+        padding-bottom: 0 !important;
+        margin: 0 !important;
       }
     }
   </style>
@@ -1027,18 +1083,31 @@
   <%- include('partials/whats-new-modal') %>
 
   <!-- Initial Shell Boot Configuration & Session Sync -->
+  <%
+    const _safeJson = typeof safeJson === 'function'
+      ? safeJson
+      : function(v) {
+          const s = JSON.stringify(v);
+          return (s === undefined ? 'null' : s)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026')
+            .replace(/\u2028/g, '\\u2028')
+            .replace(/\u2029/g, '\\u2029');
+        };
+  %>
   <script>
     window.__SHELL_BOOT__ = {
-      initialTab: <%- JSON.stringify(activeTabKey) %>,
-      initialRoute: <%- JSON.stringify(initRoute) %>,
+      initialTab: <%- _safeJson(activeTabKey) %>,
+      initialRoute: <%- _safeJson(initRoute) %>,
       hasSinger: <%- Boolean(singerObj) %>,
       hasAdmin: <%- Boolean(adminObj) %>
     };
     try {
       <% if (singerObj) { %>
-        localStorage.setItem('bp_singer_id', <%- JSON.stringify(String(singerObj.id)) %>);
-        localStorage.setItem('bp_singer_name', <%- JSON.stringify(singerObj.name || '') %>);
-        localStorage.setItem('bp_singer_gender', <%- JSON.stringify(singerObj.gender || '') %>);
+        localStorage.setItem('bp_singer_id', <%- _safeJson(String(singerObj.id)) %>);
+        localStorage.setItem('bp_singer_name', <%- _safeJson(singerObj.name || '') %>);
+        localStorage.setItem('bp_singer_gender', <%- _safeJson(singerObj.gender || '') %>);
         localStorage.setItem('bp_singer_login_time', String(Date.now()));
       <% } else { %>
         localStorage.removeItem('bp_singer_id');
@@ -1047,8 +1116,8 @@
       <% } %>
       <% if (adminObj) { %>
         localStorage.setItem('bp_is_admin', 'true');
-        localStorage.setItem('bp_admin_name', <%- JSON.stringify(adminObj.display_name || adminObj.displayName || adminObj.username || 'Admin') %>);
-        localStorage.setItem('bp_admin_role', <%- JSON.stringify(adminObj.role || 'admin') %>);
+        localStorage.setItem('bp_admin_name', <%- _safeJson(adminObj.display_name || adminObj.displayName || adminObj.username || 'Admin') %>);
+        localStorage.setItem('bp_admin_role', <%- _safeJson(adminObj.role || 'admin') %>);
       <% } else { %>
         localStorage.removeItem('bp_is_admin');
         localStorage.removeItem('bp_admin_name');

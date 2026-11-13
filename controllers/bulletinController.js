@@ -64,11 +64,11 @@ exports.bulletinDetail = async (req, res) => {
   try {
     const bulletin = await Bulletin.findByPk(req.params.id);
     if (!bulletin || bulletin.status !== "published") {
-      return res
-        .status(404)
-        .send(
-          `<!DOCTYPE html><html><head><title>Not Found</title><link rel="stylesheet" href="/css/style.css"></head><body><div class="container" style="text-align:center;padding:40px;"><h2>Bulletin Not Found</h2><p>This bulletin may have been removed or is not yet published.</p><a href="/bulletins" class="button secondary">← Back to Updates</a></div></body></html>`
-        );
+      return res.status(404).render("not-found", {
+        pageTitle: "Bulletin Not Found",
+        message: "This bulletin may have been removed or is not yet published.",
+        pageCSS: null
+      });
     }
 
     res.render("bulletin-detail", {

@@ -4,7 +4,51 @@ const BhajanSubmission = require("../models/BhajanSubmission");
 const SessionAudio = require("../models/SessionAudio");
 const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const { getLocalDateStr, deityOrderKey, SPEED_ORDER } = require("../services/helpers");
-const { getMasterCatalog } = require("../services/catalogCache");
+const { getMasterCatalog, normalizeTitleKey } = require("../services/catalogCache");
+
+/** Allocate integer percentages summing strictly to 100 using largest remainder. */
+function allocatePercentages(counts) {
+  const total = counts.reduce((sum, n) => sum + n, 0);
+  if (total <= 0) return counts.map(() => 0);
+
+  const exact = counts.map((n) => (n / total) * 100);
+  const floored = exact.map((v) => Math.floor(v));
+  let remainder = 100 - floored.reduce((sum, v) => sum + v, 0);
+
+  const ranked = exact
+    .map((v, idx) => ({ idx, frac: v - floored[idx], count: counts[idx] }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.frac - a.frac || a.idx - b.idx);
+
+  for (let i = 0; i < ranked.length && remainder > 0; i++) {
+    floored[ranked[i].idx] += 1;
+    remainder -= 1;
+  }
+  return floored;
+}
+
+const TEMPO_BUCKET_DEFS = [
+  { key: "slow", label: "Slow", color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0", text: "#166534", subText: "#15803d" },
+  { key: "mediumSlow", label: "Med Slow", color: "#0ea5e9", bg: "#f0f9ff", border: "#bae6fd", text: "#075985", subText: "#0369a1" },
+  { key: "medium", label: "Medium", color: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe", text: "#3730a3", subText: "#4338ca" },
+  { key: "mediumFast", label: "Med Fast", color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe", text: "#5b21b6", subText: "#6d28d9" },
+  { key: "fast", label: "Fast", color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", text: "#92400e", subText: "#b45309" },
+  { key: "unspecified", label: "Unspecified", color: "#94a3b8", bg: "#f8fafc", border: "#cbd5e1", text: "#334155", subText: "#475569" }
+];
+
+function classifyTempoBucket(rawSpeed) {
+  const sp = String(rawSpeed || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  if (sp === "slow") return "slow";
+  if (sp === "medium slow" || sp === "vilambit") return "mediumSlow";
+  if (sp === "medium" || sp === "madhya") return "medium";
+  if (sp === "medium fast" || sp === "drut") return "mediumFast";
+  if (sp === "fast") return "fast";
+  return "unspecified";
+}
 const { cleanAndStemBhajanTitle } = require("../services/fuzzyMatcher");
 
 let analyticsCache = null;
@@ -182,7 +226,7 @@ exports.showAnalytics = async (req, res) => {
       const [
         topBhajans,
         totalSung,
-        uniqueSongsCount,
+        distinctTitleRows,
         totalSessions,
         uniqueSingers,
         rawDeities,
@@ -202,7 +246,10 @@ exports.showAnalytics = async (req, res) => {
           raw: true
         }),
         BhajanSubmission.count(),
-        BhajanSubmission.count({ distinct: true, col: "title" }),
+        BhajanSubmission.findAll({
+          attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
+          raw: true
+        }),
         BhajanSubmission.count({ distinct: true, col: "session_date" }),
         BhajanSubmission.count({ distinct: true, col: "singer_name" }),
         BhajanSubmission.findAll({
@@ -229,26 +276,45 @@ exports.showAnalytics = async (req, res) => {
         })
       ]);
 
-      const deityStats = rawDeities.map((d) => {
+      const uniqueSongsCount = new Set(
+        distinctTitleRows.map((r) => normalizeTitleKey(r.title)).filter(Boolean)
+      ).size;
+
+      const deityCounts = rawDeities.map((d) => parseInt(d.count, 10) || 0);
+      const deityPcts = allocatePercentages(deityCounts);
+      const deityStats = rawDeities.map((d, idx) => {
         const name = d.deity || "Unknown";
-        const count = parseInt(d.count, 10) || 0;
-        const pct = totalSung > 0 ? Math.round((count / totalSung) * 100) : 0;
+        const count = deityCounts[idx];
         const icon = DEITY_ICONS[name.toLowerCase().trim()] || "🕉️";
-        return { name, count, pct, icon };
+        return { name, count, pct: deityPcts[idx], icon };
       });
 
-      const tempoStats = { slow: 0, medium: 0, fast: 0 };
+      const tempoCountsMap = {
+        slow: 0,
+        mediumSlow: 0,
+        medium: 0,
+        mediumFast: 0,
+        fast: 0,
+        unspecified: 0
+      };
       rawSpeeds.forEach((s) => {
-        const sp = (s.speed || "").toLowerCase().trim();
         const count = parseInt(s.count, 10) || 0;
-        if (sp === "slow") tempoStats.slow += count;
-        else if (sp === "fast") tempoStats.fast += count;
-        else tempoStats.medium += count;
+        const bucket = classifyTempoBucket(s.speed);
+        tempoCountsMap[bucket] += count;
       });
 
-      const slowPct = totalSung > 0 ? Math.round((tempoStats.slow / totalSung) * 100) : 0;
-      const medPct = totalSung > 0 ? Math.round((tempoStats.medium / totalSung) * 100) : 0;
-      const fastPct = totalSung > 0 ? Math.round((tempoStats.fast / totalSung) * 100) : 0;
+      const bucketCounts = TEMPO_BUCKET_DEFS.map((def) => tempoCountsMap[def.key]);
+      const bucketPcts = allocatePercentages(bucketCounts);
+      const tempoBuckets = TEMPO_BUCKET_DEFS.map((def, idx) => ({
+        ...def,
+        count: bucketCounts[idx],
+        pct: bucketPcts[idx]
+      }));
+
+      const pctByKey = Object.fromEntries(tempoBuckets.map((b) => [b.key, b.pct]));
+      const slowPct = pctByKey.slow || 0;
+      const medPct = pctByKey.medium || 0;
+      const fastPct = pctByKey.fast || 0;
 
       analyticsCache = {
         topBhajans,
@@ -261,10 +327,14 @@ exports.showAnalytics = async (req, res) => {
         },
         deityStats,
         tempoStats: {
-          ...tempoStats,
+          ...tempoCountsMap,
           slowPct,
           medPct,
-          fastPct
+          fastPct,
+          mediumSlowPct: pctByKey.mediumSlow || 0,
+          mediumFastPct: pctByKey.mediumFast || 0,
+          unspecifiedPct: pctByKey.unspecified || 0,
+          buckets: tempoBuckets
         },
         topSingers
       };

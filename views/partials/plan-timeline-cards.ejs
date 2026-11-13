@@ -1,0 +1,91 @@
+<% if (!planItems || planItems.length === 0) { %>
+  <div class="plan-empty-state">
+    <div class="plan-empty-icon">🪔</div>
+    <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:700;">No Bhajans Scheduled Yet</h3>
+    <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 16px 0;">Be the first to submit a bhajan slot for this session!</p>
+    <a href="/submit-form?session_date=<%= encodeURIComponent(sessionDate) %>" class="button" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">Submit Bhajan Slot</a>
+  </div>
+<% } else { %>
+  <% planItems.forEach((entry) => { %>
+    <div class="timeline-item" id="bhajan-step-<%= entry.stepNum %>">
+      <div class="timeline-spine">
+        <div class="timeline-step-badge"><%= entry.stepNum %></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="timeline-card">
+        <div class="timeline-card-header">
+          <div class="timeline-card-header-left">
+            <span class="deity-pill"><span><%= entry.deityIcon %></span><span><%= entry.deity %></span></span>
+            <span class="speed-pill"><%= entry.speedIcon %> <%= entry.speed %></span>
+          </div>
+          <span style="font-size:12px; font-weight:700; color:var(--ink-soft);">#<%= entry.stepNum %></span>
+        </div>
+        <div>
+          <h3 class="timeline-bhajan-title">
+            <% if (entry.masterId) { %>
+              <a href="/bhajan/<%= entry.masterId %>" style="color:inherit; text-decoration:none;" title="View lyrics &amp; details"><%= entry.title %></a>
+            <% } else { %>
+              <%= entry.title %>
+            <% } %>
+          </h3>
+          <% if (entry.raga) { %>
+            <div class="plan-raga-cue">Raag: <%= entry.raga %></div>
+          <% } %>
+          <% if (entry.sheetFilename || entry.masterId || entry.audioTimestamp) { %>
+            <div class="timeline-actions-row no-print">
+              <% if (entry.sheetFilename) { %>
+                <a href="/sheets/<%= encodeURIComponent(entry.sheetFilename) %>" target="_blank" rel="noopener noreferrer" class="plan-card-action-btn plan-action-sheet sheet-link-pill no-print" title="Open official reference sheet music (PDF)">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  <span>Sheet</span>
+                </a>
+              <% } %>
+              <% if (entry.masterId) { %>
+                <button type="button" class="plan-card-action-btn plan-action-lyrics btn-quick-lyrics no-print" onclick="window.openPlanLyrics && window.openPlanLyrics(<%= entry.masterId %>)" title="Read full lyrics">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                  <span>Lyrics</span>
+                </button>
+              <% } %>
+              <% if (entry.audioTimestamp && sessionAudio && sessionAudio.audio_url) { %>
+                <button type="button" class="plan-card-action-btn plan-action-audio btn-play-bhajan no-print" data-start="<%= entry.audioTimestamp.start_seconds %>" data-title="<%= entry.title %>" data-singer="<%= entry.singerName %>" data-url="<%= sessionAudio.audio_url %>" onclick="window.playSessionAudioBtn && window.playSessionAudioBtn(this)" title="Play bhajan recording at <%= entry.audioTimeFormatted %>">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span><%= entry.audioTimeFormatted %></span>
+                </button>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+        <div class="timeline-singer-row">
+          <span class="timeline-avatar"><%= entry.initials %></span>
+          <div class="timeline-singer-info">
+            <span class="timeline-singer-name"><%= entry.singerName %></span>
+            <% if (entry.partnerName) { %>
+              <span class="timeline-partner-tag">with <%= entry.partnerName %></span>
+            <% } %>
+          </div>
+        </div>
+        <div class="timeline-accompanist-strip">
+          <div class="acc-tile">
+            <span class="acc-tile-icon" aria-hidden="true">🎹</span>
+            <div class="acc-tile-text">
+              <span class="acc-label">Pitch / Scale</span>
+              <span class="acc-value">
+                <%= entry.scale || "N/A" %>
+                <% if (entry.westernKey && entry.westernKey !== "-") { %>
+                  <span class="acc-key-tag"><%= entry.westernKey %></span>
+                <% } %>
+              </span>
+            </div>
+          </div>
+          <div class="acc-tile">
+            <span class="acc-tile-icon" aria-hidden="true">🥁</span>
+            <div class="acc-tile-text">
+              <span class="acc-label">Tempo</span>
+              <span class="acc-value"><%= entry.speedIcon %> <%= entry.speed %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% }) %>
+<% } %>
+

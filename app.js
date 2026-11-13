@@ -156,6 +156,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Legacy dev icon alias so stale cached manifests/HTML resolve cleanly
+app.get("/images/icons/bhajan-planner-dev-192.png", (req, res) => {
+  res.redirect(301, "/images/icons/dev/icon-192x192.png");
+});
+
 // Static Files — 7-day browser caching with ETag validation (sw.js always revalidates)
 app.use(
   express.static(path.join(__dirname, "public"), {
@@ -254,10 +259,11 @@ const ADMIN_PATH_PREFIXES = [
   "/forgot-password"
 ];
 
-const { getCachedMissingCount } = require("./services/helpers");
+const { getCachedMissingCount, safeJson } = require("./services/helpers");
 const { getPwaMetadata } = require("./services/pwaConfig");
 
 app.use(async (req, res, next) => {
+  res.locals.safeJson = safeJson;
   try {
     res.locals.csrfToken =
       typeof req.csrfToken === "function" ? req.csrfToken() : generateToken(req, res);
@@ -464,10 +470,10 @@ app.use((req, res, next) => {
 
 app.use("/", homeRoutes);
 app.use("/", plannerRoutes);
+app.use("/", masterBankRoutes);
 app.use("/", apiRoutes);
 app.use("/", authRoutes);
 app.use("/", adminRoutes);
-app.use("/", masterBankRoutes);
 app.use("/", analyticsRoutes);
 app.use("/", singerRoutes);
 app.use("/", adminUserRoutes);

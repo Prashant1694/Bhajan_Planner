@@ -1,6 +1,6 @@
 <div class="page-header">
   <div>
-    <h2>Notification Management</h2>
+    <h1 style="margin:0 0 4px; font-size:24px;">Notification Management</h1>
     <p class="page-subtitle">View notification history and broadcast announcements to devotees.</p>
   </div>
 </div>
@@ -29,7 +29,7 @@
 
   <form id="customNotifForm" onsubmit="handleSendCustom(event)">
     <div style="margin-bottom:14px;">
-      <label
+      <label for="custTitle"
         style="display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Notification
         Title
         *</label>
@@ -38,7 +38,7 @@
     </div>
 
     <div style="margin-bottom:14px;">
-      <label style="display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Message /
+      <label for="custBody" style="display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Message /
         Body
         *</label>
       <textarea id="custBody" required rows="3" maxlength="500" placeholder="Enter message for devotees..."
@@ -47,7 +47,7 @@
     </div>
 
     <div style="margin-bottom:14px;">
-      <label style="display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Action
+      <label for="custLink" style="display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Action
         Link
         (optional)</label>
       <input type="text" id="custLink" placeholder="e.g. /submit-form or /plan-view" value="/" class="filter-input"
@@ -69,6 +69,7 @@
       </div>
 
       <div id="singerSelectWrap" style="display:none; margin-top:8px;">
+        <label for="custSingerId" class="sr-only">Choose a Singer</label>
         <select id="custSingerId" class="filter-input" style="width:100%; box-sizing:border-box;">
           <option value="">-- Choose a Singer --</option>
           <% if (typeof allSingers !=='undefined' && allSingers) { %>

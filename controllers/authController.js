@@ -13,6 +13,17 @@ const { invalidateAdminCache } = require("../middleware/auth");
 
 const googleClient = new OAuth2Client();
 
+function getPublicGoogleClientId(req) {
+  const clientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+  if (!clientId) return null;
+  if (process.env.GOOGLE_ALLOW_LOCALHOST === "true") return clientId;
+  const host = String(req.hostname || req.headers.host || "").toLowerCase();
+  if (host.startsWith("localhost") || host.startsWith("127.0.0.1") || host === "::1") {
+    return null;
+  }
+  return clientId;
+}
+
 async function createAdminSession(req, admin) {
   return new Promise((resolve, reject) => {
     const prevVisitorId = req.session?.visitorId;
@@ -94,7 +105,7 @@ exports.showLogin = (req, res) => {
 
   res.render("admin-login", {
     error: null,
-    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    googleClientId: getPublicGoogleClientId(req),
     showLoader: true
   });
 };
@@ -112,7 +123,7 @@ exports.login = async (req, res) => {
       return res.status(401).render("admin-login", {
         error: "Invalid username or password.",
         username,
-        googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+        googleClientId: getPublicGoogleClientId(req),
         showLoader: false
       });
     }
@@ -122,7 +133,7 @@ exports.login = async (req, res) => {
       return res.status(401).render("admin-login", {
         error: "Invalid username or password.",
         username,
-        googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+        googleClientId: getPublicGoogleClientId(req),
         showLoader: false
       });
     }
@@ -135,7 +146,7 @@ exports.login = async (req, res) => {
         return res.status(500).render("admin-login", {
           error: "Login failed. Please try again.",
           username,
-          googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+          googleClientId: getPublicGoogleClientId(req),
           showLoader: false
         });
       }
@@ -158,7 +169,7 @@ exports.login = async (req, res) => {
     console.error("Admin login failed:", error);
     res.status(500).render("admin-login", {
       error: "Login failed. Please try again.",
-      googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+      googleClientId: getPublicGoogleClientId(req),
       showLoader: false
     });
   }

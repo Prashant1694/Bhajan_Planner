@@ -18,14 +18,18 @@ const APP_ICON_512 = IS_DEVELOPMENT_PWA
 const APP_ICON_MASKABLE = IS_DEVELOPMENT_PWA
   ? "/images/icons/dev/icon-maskable-512x512.png"
   : "/images/icons/icon-maskable-512x512.png";
-const CACHE_VERSION = "v6.5";
+const CACHE_VERSION = "v6.13";
 const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/offline.html",
-  "/css/native.css?v=6.5",
-  "/css/style.css?v=6.5",
-  "/css/app-shell.css?v=6.5",
+  "/plan-view",
+  "/master-bank",
+  "/api/master-bhajans/catalog.json",
+  "/css/native.css?v=6.7",
+  "/css/diwali.css?v=7.0",
+  "/css/style.css?v=6.6",
+  "/css/app-shell.css?v=6.6",
   "/css/dashboard-glass.css?v=6.5",
   "/css/loading.css?v=6.5",
   "/css/pwa.css?v=6.5",
@@ -36,10 +40,11 @@ const PRECACHE_URLS = [
   "/js/native-ui.js?v=6.5",
   "/js/haptics.js?v=6.5",
   "/js/app-shell-router.js?v=6.5",
-  "/js/script.js?v=6.5",
+  "/js/script.js?v=6.6",
   "/js/loading.js?v=6.5",
   "/js/pwa.js?v=6.5",
   "/js/notifications.js?v=6.5",
+  "/js/diwali.js?v=7.2.1",
   "/js/tanpura.js?v=6.5",
   "/js/session-audio-player.js?v=6.5",
   "/images/logo_birthday.png",
@@ -131,7 +136,44 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 4. Document Navigation: network-first with offline fallback
+  // 3B. Offline-Ready Devotional Read Endpoints (Catalog, Songbook, Lyrics, Live Plan): stale-while-revalidate
+  const isOfflineDevotionalEndpoint =
+    url.pathname === "/api/master-bhajans/catalog.json" ||
+    url.pathname === "/api/singer/songbook" ||
+    /^\/api\/bhajan\/\d+\/lyrics$/.test(url.pathname) ||
+    url.pathname === "/plan-view" ||
+    url.pathname === "/master-bank";
+
+  if (isOfflineDevotionalEndpoint && request.headers.get("X-App-Shell") !== "1") {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request);
+        const networkPromise = fetch(request)
+          .then((response) => {
+            if (response && response.ok && response.status === 200) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(networkPromise);
+          return cached;
+        }
+        const netResp = await networkPromise;
+        if (netResp) return netResp;
+        if (request.mode === "navigate") {
+          const fallback = await cache.match("/offline.html");
+          if (fallback) return fallback;
+        }
+        return new Response("", { status: 503, statusText: "Offline" });
+      })
+    );
+    return;
+  }
+
+  // 4. Document Navigation: network-first with cached route or offline fallback
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => {

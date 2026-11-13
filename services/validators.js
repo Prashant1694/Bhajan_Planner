@@ -5,6 +5,20 @@
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Checks whether a YYYY-MM-DD string represents an actual calendar date.
+ */
+function isValidCalendarDate(dateStr) {
+  if (typeof dateStr !== "string" || !DATE_REGEX.test(dateStr.trim())) return false;
+  const [y, m, d] = dateStr.trim().split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
 function validateKeys(body, allowedKeys) {
   const allowedSet = new Set(allowedKeys);
   const unexpected = Object.keys(body).filter((key) => !allowedSet.has(key));
@@ -148,7 +162,7 @@ function validateUpdatePermission(body) {
     errors.push("Valid session date (YYYY-MM-DD) is required.");
   }
 
-  const validTypes = ["open", "restricted", "closed", "clear"];
+  const validTypes = ["open", "restricted", "closed", "clear", "special", "festival"];
   const type = (body.type || "").toString().trim().toLowerCase();
   if (!validTypes.includes(type)) {
     errors.push(`Permission type must be one of: ${validTypes.join(", ")}.`);
@@ -232,10 +246,94 @@ function validateToggleLock(body) {
   };
 }
 
+/**
+ * Validates admin bhajan submission edits.
+ */
+function validateAdminSubmissionEdit(body) {
+  const allowedKeys = [
+    "session_date",
+    "singer_name",
+    "partner_name",
+    "title",
+    "deity",
+    "scale",
+    "speed",
+    "raga",
+    "_csrf"
+  ];
+  const unexpectedErr = validateKeys(body, allowedKeys);
+  const errors = [];
+  if (unexpectedErr) errors.push(unexpectedErr);
+
+  const sessionDate = (body.session_date || "").toString().trim();
+  if (!isValidCalendarDate(sessionDate)) {
+    errors.push("Valid session date (YYYY-MM-DD) is required.");
+  }
+
+  const singerName = (body.singer_name || "").toString().trim();
+  if (!singerName) {
+    errors.push("Lead singer name is required.");
+  } else if (singerName.length > 100) {
+    errors.push("Lead singer name must not exceed 100 characters.");
+  }
+
+  const partnerName = (body.partner_name || "").toString().trim();
+  if (partnerName.length > 100) {
+    errors.push("Partner singer name must not exceed 100 characters.");
+  }
+
+  const title = (body.title || "").toString().trim();
+  if (!title) {
+    errors.push("Bhajan title is required.");
+  } else if (title.length > 200) {
+    errors.push("Bhajan title must not exceed 200 characters.");
+  }
+
+  const deity = (body.deity || "").toString().trim();
+  if (!deity) {
+    errors.push("Deity is required.");
+  } else if (deity.length > 100) {
+    errors.push("Deity must not exceed 100 characters.");
+  }
+
+  const scale = (body.scale || "").toString().trim();
+  if (scale.length > 30) {
+    errors.push("Pitch / scale must not exceed 30 characters.");
+  }
+
+  const speed = (body.speed || "").toString().trim().toLowerCase();
+  const validSpeeds = ["slow", "medium slow", "medium", "medium fast", "fast"];
+  if (!validSpeeds.includes(speed)) {
+    errors.push(`Speed must be one of: ${validSpeeds.join(", ")}.`);
+  }
+
+  const raga = (body.raga || "").toString().trim();
+  if (raga.length > 100) {
+    errors.push("Raag must not exceed 100 characters.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    data: {
+      session_date: sessionDate,
+      singer_name: singerName,
+      partner_name: partnerName || null,
+      title,
+      deity,
+      scale: scale || null,
+      speed,
+      raga: raga || null
+    }
+  };
+}
+
 module.exports = {
+  isValidCalendarDate,
   validateSubmitForm,
   validateCopySession,
   validateUpdatePermission,
   validateReorder,
-  validateToggleLock
+  validateToggleLock,
+  validateAdminSubmissionEdit
 };

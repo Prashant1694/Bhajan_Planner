@@ -1,0 +1,42 @@
+<div class="calendar-weekdays">
+  <% (calendarData.weekdays || []).forEach((wd) => { %>
+    <div class="calendar-day-header"><%= wd %></div>
+  <% }) %>
+</div>
+
+<div class="calendar-grid">
+  <% for (let i = 0; i < (calendarData.leadingEmptyCount || 0); i++) { %>
+    <div class="calendar-day empty"></div>
+  <% } %>
+
+  <% (calendarData.days || []).forEach((cell) => { %>
+    <div
+      class="calendar-day <%= cell.colorClass %> <%= cell.isToday ? 'today' : '' %>"
+      data-date="<%= cell.dateStr %>"
+      data-perm="<%= cell.perm || '' %>"
+      data-desc="<%= cell.desc || '' %>"
+      onclick="openAdminDateModal(this.dataset.date, this.dataset.perm, this.dataset.desc)"
+    >
+      <div class="calendar-date-num"><%= cell.day %></div>
+      <div class="calendar-actions desktop-only">
+        <% if (cell.pillText) { %>
+          <div class="event-pill <%= cell.pillClass %>"><%= cell.pillText %></div>
+        <% } %>
+        <% if (cell.perm) { %>
+          <div class="perm-pill"><%= cell.perm.toUpperCase() %></div>
+        <% } %>
+      </div>
+      <div class="calendar-actions-mobile mobile-only">
+        <% if (cell.mobileIndicatorText) { %>
+          <span class="<%= cell.mobileIndicatorClass %>"><%= cell.mobileIndicatorText %></span>
+        <% } %>
+        <% if (cell.perm === 'special') { %>
+          <span class="mobile-perm-pill special">✨ Spec</span>
+        <% } else if (cell.perm === 'festival') { %>
+          <span class="mobile-perm-pill festival">🪔 Fest</span>
+        <% } %>
+      </div>
+    </div>
+  <% }) %>
+</div>
+

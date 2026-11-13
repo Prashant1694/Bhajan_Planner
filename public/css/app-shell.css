@@ -1206,7 +1206,7 @@ html, body {
 /* ──────────────────────────────────────────────────────────────────────────
    A. DESKTOP NAVIGATION (> 1024px)
    ────────────────────────────────────────────────────────────────────────── */
-@media (min-width: 1025px) {
+@media screen and (min-width: 1025px) {
   /* Strictly isolate and completely hide mobile bottom bar and drawer on desktop */
   .mobile-bottom-capsule,
   .native-bottom-nav,
@@ -1301,7 +1301,7 @@ html, body {
 /* ──────────────────────────────────────────────────────────────────────────
    B. MOBILE FLOATING CAPSULE NAVBAR (<= 1024px)
    ────────────────────────────────────────────────────────────────────────── */
-@media (max-width: 1024px) {
+@media screen and (max-width: 1024px) {
   /* Content Clearance: floating bottom nav never covers page content or footers */
   body,
   body.shell-body {
@@ -1649,18 +1649,41 @@ body.shell-body .tanpura-floating-widget:not(.visible) {
   body.shell-body,
   .shell-app-layout,
   .shell-main-column,
-  .shell-workspace-container {
+  .shell-workspace-container,
+  .shell-pane,
+  .shell-pane.active-pane,
+  .shell-pane > .container,
+  .plan-page-shell {
+    position: static !important;
+    flex: none !important;
+    contain: none !important;
     height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
     overflow: visible !important;
     display: block !important;
     background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .shell-sidebar,
   .shell-sidebar-overlay,
   .shell-top-header,
+  #shellTopHeader,
+  .header-right,
+  #shellThemeToggle,
+  #shellNotifBtn,
+  .desktop-nav,
+  #desktopNav,
   .shell-load-bar,
   .native-bottom-nav,
+  #nativeBottomNav,
+  .mobile-bottom-capsule,
+  #mobileBottomCapsule,
+  #appBottomNav,
+  .app-bottom-nav,
+  .shell-bottom-nav,
   .shell-detail-header,
   #tanpuraFloatingWidget,
   #stickyAudioBar {

@@ -6,15 +6,19 @@ const SessionPermission = require("../models/SessionPermission");
 const SessionMeta = require("../models/SessionMeta");
 const DeityRule = require("../models/DeityRule");
 const AdminUser = require("../models/AdminUser");
+const Singer = require("../models/Singer");
 const SessionAudio = require("../models/SessionAudio");
 const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const bcrypt = require("bcrypt");
 const path = require("path");
+const { getAvailableDates } = require("../services/plannerService");
 const {
+  isValidCalendarDate,
   validateCopySession,
   validateUpdatePermission,
   validateReorder,
-  validateToggleLock
+  validateToggleLock,
+  validateAdminSubmissionEdit
 } = require("../services/validators");
 const { createBackup, getOrGenerateBackup } = require("../services/backupService");
 const {
@@ -23,6 +27,7 @@ const {
   DEITY_ORDER,
   getWesternScale,
   getDeityIcon,
+  getMissingBhajanTitles,
   invalidateMissingCount
 } = require("../services/helpers");
 const { matchWithIndex } = require("../services/fuzzyMatcher");
@@ -117,15 +122,7 @@ exports.dashboard = async (req, res) => {
     const firstDayIndex = new Date(year, month - 1, 1).getDay();
 
     const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    let calendarHeadersHtml = "";
-    for (const wd of weekdays) {
-      calendarHeadersHtml += `<div class="calendar-day-header">${wd}</div>`;
-    }
-
-    let calendarCells = "";
-    for (let i = 0; i < firstDayIndex; i++) {
-      calendarCells += `<div class="calendar-day empty"></div>`;
-    }
+    const calendarDays = [];
 
     const todayDate = new Date();
     const isCurrentMonth = todayDate.getFullYear() === year && todayDate.getMonth() + 1 === month;
@@ -142,7 +139,8 @@ exports.dashboard = async (req, res) => {
       const isPast = dateStr < todayStrGlobal;
 
       let colorClass = "day-none";
-      let pillHtml = count ? `<div class="event-pill">${count} Bhajans</div>` : "";
+      let pillText = count ? `${count} Bhajans` : "";
+      let pillClass = "";
 
       if (perm === "special") {
         colorClass = "day-special";
@@ -152,44 +150,89 @@ exports.dashboard = async (req, res) => {
         colorClass = isThursday ? "day-thursday" : "day-festival";
       } else if (isThursday && !isPast) {
         colorClass = "day-thursday-upcoming";
-        pillHtml = `<div class="event-pill pill-muted">Regular Session</div>`;
+        pillText = "Regular Session";
+        pillClass = "pill-muted";
       } else if (isThursday && isPast) {
         colorClass = "day-thursday-missed";
-        pillHtml = `<div class="event-pill pill-missed">Missed Session</div>`;
+        pillText = "Missed Session";
+        pillClass = "pill-missed";
       }
 
-      let mobileIndicatorHtml = "";
+      let mobileIndicatorText = "";
+      let mobileIndicatorClass = "";
       if (count > 0) {
-        mobileIndicatorHtml = `<span class="mobile-count-pill">${count}</span>`;
+        mobileIndicatorText = String(count);
+        mobileIndicatorClass = "mobile-count-pill";
       } else if (isThursday && !isPast) {
-        mobileIndicatorHtml = `<span class="mobile-thu-indicator">Thu</span>`;
+        mobileIndicatorText = "Thu";
+        mobileIndicatorClass = "mobile-thu-indicator";
       } else if (isThursday && isPast) {
-        mobileIndicatorHtml = `<span class="mobile-missed-indicator">✕</span>`;
+        mobileIndicatorText = "✕";
+        mobileIndicatorClass = "mobile-missed-indicator";
       }
 
-      let mobilePermHtml = "";
-      if (perm === "special") {
-        mobilePermHtml = `<span class="mobile-perm-pill special">✨ Spec</span>`;
-      } else if (perm === "festival") {
-        mobilePermHtml = `<span class="mobile-perm-pill festival">🪔 Fest</span>`;
-      }
-
-      const isToday = isCurrentMonth && todayDate.getDate() === day;
-
-      calendarCells += `
-<div class="calendar-day ${colorClass} ${isToday ? "today" : ""}"
-onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "&apos;")}')">
-  <div class="calendar-date-num">${day}</div>
-  <div class="calendar-actions desktop-only">
-    ${pillHtml}
-    ${perm ? `<div class="perm-pill">${perm.toUpperCase()}</div>` : ""}
-  </div>
-  <div class="calendar-actions-mobile mobile-only">
-    ${mobileIndicatorHtml}
-    ${mobilePermHtml}
-  </div>
-</div>`;
+      calendarDays.push({
+        day,
+        dateStr,
+        perm: perm || "",
+        desc,
+        colorClass,
+        isToday: isCurrentMonth && todayDate.getDate() === day,
+        pillText,
+        pillClass,
+        mobileIndicatorText,
+        mobileIndicatorClass
+      });
     }
+
+    const calendarData = {
+      weekdays,
+      leadingEmptyCount: firstDayIndex,
+      days: calendarDays
+    };
+
+    // Build 1-tap WhatsApp open-slot reminder summary for next open Thursday
+    let openSlotSummary = null;
+    try {
+      const { dates: availDates, status: thuStatus } = await getAvailableDates();
+      const targetDate = thuStatus.openThursday || thuStatus.nextThursdayDate || Array.from(availDates.keys()).sort()[0];
+      if (targetDate) {
+        const [targetSubs, targetRules, defaultRules] = await Promise.all([
+          BhajanSubmission.findAll({
+            attributes: ["deity"],
+            where: { session_date: targetDate },
+            raw: true
+          }),
+          DeityRule.findAll({ where: { session_date: targetDate }, raw: true }),
+          DeityRule.findAll({ where: { session_date: "default" }, raw: true })
+        ]);
+        const activeRules = targetRules.length > 0 ? targetRules : defaultRules;
+        const deityCounts = {};
+        targetSubs.forEach((s) => {
+          const d = (s.deity || "").trim().toLowerCase();
+          if (d) deityCounts[d] = (deityCounts[d] || 0) + 1;
+        });
+        const neededDeities = activeRules
+          .filter((r) => (r.min_required || 0) > (deityCounts[(r.deity_name || "").trim().toLowerCase()] || 0))
+          .map((r) => r.deity_name);
+
+        const protocol = req.protocol || "https";
+        const host = req.get("host") || "bhajanplanner.app";
+        const submitUrl = `${protocol}://${host}/submit-form?session_date=${encodeURIComponent(targetDate)}`;
+        const neededLine =
+          neededDeities.length > 0
+            ? `Needed categories: ${neededDeities.join(", ")}.`
+            : "All mandatory deities covered — additional devotional offerings welcome!";
+        const openSlotWhatsappText = `Sai Ram! Bhajan slots are open for ${targetDate} (Thursday 7:30 PM).\nBooked so far: ${targetSubs.length} bhajan(s).\n${neededLine}\nSubmit your bhajan here: ${submitUrl}`;
+        openSlotSummary = {
+          targetDate,
+          totalBooked: targetSubs.length,
+          neededDeities,
+          openSlotWhatsappText,
+          openSlotWhatsappEncoded: encodeURIComponent(openSlotWhatsappText)
+        };
+      }
+    } catch (_) {}
 
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
@@ -204,8 +247,8 @@ onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "
       year,
       month,
       currentMonthName,
-      calendarHeadersHtml,
-      calendarCells,
+      calendarData,
+      openSlotSummary,
       prevMonth,
       prevYear,
       nextMonth,
@@ -230,6 +273,18 @@ onclick="openAdminDateModal('${dateStr}','${perm || ""}','${desc.replace(/'/g, "
 exports.sessionView = async (req, res) => {
   try {
     const { date } = req.params;
+    if (!isValidCalendarDate(date)) {
+      return res.status(400).render("admin-error", {
+        statusCode: 400,
+        errorTitle: "Invalid Session Date",
+        errorMessage: "Session dates must use YYYY-MM-DD format (for example, 2026-11-12).",
+        technicalDetail: "Invalid session_date parameter",
+        backUrl: "/admin",
+        isAdminPage: true,
+        pageCSS: "admin.css",
+        pageTitle: "Invalid Date"
+      });
+    }
 
     const [submissions, meta, sessionPerm, catalog, recentSessions, sessionAudio] =
       await Promise.all([
@@ -335,20 +390,111 @@ exports.sessionView = async (req, res) => {
     );
 
     const consecutiveRepeats = [];
+    const consecutiveSingerRepeats = [];
+    const duplicateRagas = [];
     for (let i = 0; i < enrichedSubmissions.length - 1; i++) {
-      if (
-        String(enrichedSubmissions[i].deity || "").toLowerCase() ===
-        String(enrichedSubmissions[i + 1].deity || "").toLowerCase()
-      ) {
+      const cur = enrichedSubmissions[i];
+      const nxt = enrichedSubmissions[i + 1];
+      if (String(cur.deity || "").toLowerCase() === String(nxt.deity || "").toLowerCase()) {
         consecutiveRepeats.push({
           index1: i + 1,
           index2: i + 2,
-          deity: enrichedSubmissions[i].deity,
-          song1: enrichedSubmissions[i].title,
-          song2: enrichedSubmissions[i + 1].title
+          deity: cur.deity,
+          song1: cur.title,
+          song2: nxt.title
+        });
+      }
+      if (
+        cur.singer_name &&
+        nxt.singer_name &&
+        cur.singer_name.trim().toLowerCase() === nxt.singer_name.trim().toLowerCase()
+      ) {
+        consecutiveSingerRepeats.push({
+          index1: i + 1,
+          index2: i + 2,
+          singer: cur.singer_name
+        });
+      }
+      const curMaster = cur.master_id ? catalog.fullById.get(cur.master_id) : null;
+      const nxtMaster = nxt.master_id ? catalog.fullById.get(nxt.master_id) : null;
+      if (
+        curMaster &&
+        nxtMaster &&
+        curMaster.raga &&
+        nxtMaster.raga &&
+        curMaster.raga.trim().toLowerCase() === nxtMaster.raga.trim().toLowerCase()
+      ) {
+        duplicateRagas.push({
+          index1: i + 1,
+          index2: i + 2,
+          raga: curMaster.raga
         });
       }
     }
+
+    // Repertoire cooldown (sung in last 2 prior sessions) + Singer travel conflicts
+    const recentRepeatTitles = [];
+    const unavailableConflicts = [];
+    try {
+      const [priorRows, allSingers] = await Promise.all([
+        BhajanSubmission.findAll({
+          attributes: ["session_date", "title"],
+          where: { session_date: { [Sequelize.Op.lt]: date } },
+          order: [["session_date", "DESC"]],
+          limit: 60,
+          raw: true
+        }),
+        Singer.findAll({
+          attributes: ["name", "unavailable_dates"],
+          where: { unavailable_dates: { [Sequelize.Op.ne]: null } },
+          raw: true
+        })
+      ]);
+
+      const priorDates = [];
+      const priorTitleToDate = new Map();
+      priorRows.forEach((r) => {
+        if (!priorDates.includes(r.session_date) && priorDates.length < 2) {
+          priorDates.push(r.session_date);
+        }
+        if (priorDates.includes(r.session_date)) {
+          const norm = normalizeTitleKey(r.title || "");
+          if (norm && !priorTitleToDate.has(norm)) {
+            priorTitleToDate.set(norm, r.session_date);
+          }
+        }
+      });
+
+      enrichedSubmissions.forEach((s) => {
+        const norm = normalizeTitleKey(s.title || "");
+        if (norm && priorTitleToDate.has(norm)) {
+          recentRepeatTitles.push({
+            title: s.title,
+            lastSungDate: priorTitleToDate.get(norm)
+          });
+        }
+      });
+
+      const unavailableSet = new Set();
+      allSingers.forEach((sg) => {
+        try {
+          const arr = JSON.parse(sg.unavailable_dates || "[]");
+          if (Array.isArray(arr) && arr.includes(date)) {
+            unavailableSet.add((sg.name || "").trim().toLowerCase());
+          }
+        } catch (_) {}
+      });
+
+      enrichedSubmissions.forEach((s) => {
+        const singerLower = (s.singer_name || "").trim().toLowerCase();
+        const partnerLower = (s.partner_name || "").trim().toLowerCase();
+        if (singerLower && unavailableSet.has(singerLower)) {
+          unavailableConflicts.push({ singer: s.singer_name, title: s.title });
+        } else if (partnerLower && unavailableSet.has(partnerLower)) {
+          unavailableConflicts.push({ singer: s.partner_name, title: s.title });
+        }
+      });
+    } catch (_) {}
 
     const protocol = req.protocol || "http";
     const host = req.get("host") || "localhost:8000";
@@ -394,6 +540,10 @@ exports.sessionView = async (req, res) => {
       ganeshaOpening,
       saiIncluded,
       consecutiveRepeats,
+      consecutiveSingerRepeats,
+      duplicateRagas,
+      recentRepeatTitles,
+      unavailableConflicts,
       whatsappText,
       whatsappEncoded,
       livePlanUrl,
@@ -412,10 +562,25 @@ exports.sessionView = async (req, res) => {
 exports.editSubmissionForm = async (req, res) => {
   try {
     const submission = await BhajanSubmission.findByPk(req.params.id);
-    if (!submission) return res.status(404).send("Entry not found");
+    if (!submission) {
+      return res.status(404).render("admin-error", {
+        statusCode: 404,
+        errorTitle: "Entry Not Found",
+        errorMessage: "That bhajan entry could not be found. It may have been deleted.",
+        technicalDetail: "Entry not found",
+        backUrl: "/admin",
+        isAdminPage: true,
+        pageCSS: "admin.css",
+        pageTitle: "Entry Not Found"
+      });
+    }
     res.render("admin-edit-submission", {
       s: submission,
-      pageTitle: "Edit Bhajan Entry"
+      error: null,
+      pageTitle: "Edit Bhajan Entry",
+      isAdminPage: true,
+      pageCSS: "admin.css",
+      page: "sessions"
     });
   } catch (error) {
     res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
@@ -424,24 +589,46 @@ exports.editSubmissionForm = async (req, res) => {
 
 exports.updateSubmission = async (req, res) => {
   try {
-    const { session_date, singer_name, partner_name, title, deity, scale, speed, raga } = req.body;
-    await BhajanSubmission.update(
-      {
-        session_date,
-        singer_name,
-        partner_name,
-        title,
-        deity,
-        scale,
-        speed,
-        raga: raga || null
-      },
-      {
-        where: { id: req.params.id }
-      }
-    );
+    const submission = await BhajanSubmission.findByPk(req.params.id);
+    if (!submission) {
+      return res.status(404).render("admin-error", {
+        statusCode: 404,
+        errorTitle: "Entry Not Found",
+        errorMessage: "That bhajan entry could not be found. It may have been deleted.",
+        technicalDetail: "Entry not found",
+        backUrl: "/admin",
+        isAdminPage: true,
+        pageCSS: "admin.css",
+        pageTitle: "Entry Not Found"
+      });
+    }
+
+    const validation = validateAdminSubmissionEdit(req.body);
+    if (!validation.valid) {
+      const mergedDraft = {
+        ...submission.toJSON(),
+        session_date: (req.body.session_date || submission.session_date || "").toString().trim(),
+        singer_name: (req.body.singer_name ?? submission.singer_name ?? "").toString(),
+        partner_name: (req.body.partner_name ?? submission.partner_name ?? "").toString(),
+        title: (req.body.title ?? submission.title ?? "").toString(),
+        deity: (req.body.deity ?? submission.deity ?? "").toString(),
+        scale: (req.body.scale ?? submission.scale ?? "").toString(),
+        speed: (req.body.speed ?? submission.speed ?? "medium").toString(),
+        raga: (req.body.raga ?? submission.raga ?? "").toString()
+      };
+      return res.status(400).render("admin-edit-submission", {
+        s: mergedDraft,
+        error: validation.errors.join(" "),
+        pageTitle: "Edit Bhajan Entry",
+        isAdminPage: true,
+        pageCSS: "admin.css",
+        page: "sessions"
+      });
+    }
+
+    await submission.update(validation.data);
     invalidateMissingCount();
-    res.redirect(`/admin/date/${session_date}`);
+    res.redirect(`/admin/date/${validation.data.session_date}`);
   } catch (error) {
     res.status(500).send(`<h1>Error</h1><p>${escapeHtml(error.message)}</p>`);
   }
@@ -704,15 +891,12 @@ exports.dangerResetHistory = async (req, res) => {
       await sequelize.query("DROP TABLE IF EXISTS bhajan_submissions");
     } catch (_) {}
 
-    res.send(`
-      <!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/css/style.css"><title>Reset Complete</title></head>
-      <body style="text-align:center; padding:50px; background:#fff5f5;">
-        <h1 style="color:#e03131; font-size:40px;">🚨 History Wiped!</h1>
-        <p style="font-size:18px; margin-bottom:20px;">All past bhajan submissions and session locks have been permanently deleted.</p>
-        <p style="font-size:14px; color:#555; margin-bottom:30px;">A pre-wipe backup was automatically preserved in the backups directory.</p>
-        <a class="button" href="/admin" style="background:#b23b32; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px;">Return to Control Tower</a>
-      </body></html>
-    `);
+    res.render("admin-danger-reset-complete", {
+      page: "danger",
+      pageTitle: "Reset Complete",
+      isAdminPage: true,
+      pageCSS: "admin.css"
+    });
   } catch (error) {
     console.error("dangerResetHistory error:", error);
     res.status(500).send("Failed to execute danger reset.");
@@ -772,17 +956,7 @@ exports.processImportSessions = async (req, res) => {
 
 exports.showMissingBhajans = async (req, res) => {
   try {
-    const [submittedTitles, catalog] = await Promise.all([
-      BhajanSubmission.findAll({
-        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-        raw: true
-      }),
-      getMasterCatalog()
-    ]);
-
-    const rawMissingTitles = submittedTitles
-      .map((s) => (s.title || "").trim())
-      .filter((title) => title && !catalog.byExactLowerTitle.has(title.toLowerCase()));
+    const { titles: rawMissingTitles, catalog } = await getMissingBhajanTitles();
 
     const totalMissing = rawMissingTitles.length;
     const PAGE_SIZE = 50;

@@ -33,11 +33,12 @@
 
   <div class="card" style="padding:24px; margin-bottom:24px;">
     <form action="/admin/import-sessions" method="POST">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
       <div style="margin-bottom:16px;">
-        <label style="display:block; font-weight:700; font-size:15px; margin-bottom:8px; color:var(--ink);">
+        <label for="rawSessionText" style="display:block; font-weight:700; font-size:15px; margin-bottom:8px; color:var(--ink);">
           Paste Session Text / WhatsApp Plan Data below:
         </label>
-        <textarea name="raw_text" required rows="14" placeholder="Paste your session export or plan text here...&#10;&#10;Example (WhatsApp Session Export):&#10;*SRI SATHYA SAI SEVA ORGANISATION*&#10;*BHAJAN PROGRAM – Thursday, Oct 22, 2026*&#10;Total Bhajans: 2&#10;--------------------------------------------------&#10;&#10;1. [Ganesha] Tum Ho Vighna Vinasha Ganesha&#10;   Singer: Prashant Bhatt (with Nisarg Chaudhry)&#10;   Pitch: F# | Tempo: Medium&#10;&#10;2. [Mata] Omkara Roopini Janani Ma&#10;   Singer: Gopinadhan Kalon&#10;   Pitch: 1P | Tempo: Medium&#10;&#10;--------------------------------------------------&#10;Sai Ram to all Accompanists &amp; Devotees&#10;Live Plan: https://bhajanplanner.typhoone.xyz/plan-view?session_date=2026-10-22" class="filter-input" style="width:100%; padding:14px; font-family:monospace; font-size:13.5px; line-height:1.5; resize:vertical; box-sizing:border-box;"></textarea>
+        <textarea id="rawSessionText" name="raw_text" required rows="14" placeholder="Paste your session export or plan text here...&#10;&#10;Example (WhatsApp Session Export):&#10;*SRI SATHYA SAI SEVA ORGANISATION*&#10;*BHAJAN PROGRAM – Thursday, Oct 22, 2026*&#10;Total Bhajans: 2&#10;--------------------------------------------------&#10;&#10;1. [Ganesha] Tum Ho Vighna Vinasha Ganesha&#10;   Singer: Prashant Bhatt (with Nisarg Chaudhry)&#10;   Pitch: F# | Tempo: Medium&#10;&#10;2. [Mata] Omkara Roopini Janani Ma&#10;   Singer: Gopinadhan Kalon&#10;   Pitch: 1P | Tempo: Medium&#10;&#10;--------------------------------------------------&#10;Sai Ram to all Accompanists &amp; Devotees&#10;Live Plan: https://bhajanplanner.typhoone.xyz/plan-view?session_date=2026-10-22" class="filter-input" style="width:100%; padding:14px; font-family:monospace; font-size:13.5px; line-height:1.5; resize:vertical; box-sizing:border-box;"></textarea>
       </div>
 
       <button type="submit" class="button button-success" style="padding:12px 28px; font-weight:700; font-size:15px; cursor:pointer;">

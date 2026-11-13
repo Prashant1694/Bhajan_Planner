@@ -1,7 +1,7 @@
-<div class="session-unified-page" style="padding: 24px 32px; background: var(--bg-app); min-height: 100vh;">
+<div class="session-unified-page session-padded-page" style="background: var(--bg-app); min-height: 100vh;">
 
   <!-- Featured Banner Header -->
-  <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); border-radius: 14px; padding: 24px 28px; color: white; box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.35); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+  <div class="hero-dark-banner">
     <div>
       <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; color: #a5b4fc; margin-bottom: 6px;">
         Analytics &amp; Intelligence
@@ -15,12 +15,12 @@
     </div>
 
     <!-- Quick Navigation -->
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <a href="/admin/singers" class="button outline" style="border-color: rgba(255,255,255,0.25); color: #ffffff; background: rgba(255,255,255,0.08); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <a href="/admin/singers" class="hero-btn-ghost">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Singers
       </a>
-      <a href="/admin" class="button outline" style="border-color: rgba(255,255,255,0.25); color: #ffffff; background: rgba(255,255,255,0.08); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+      <a href="/admin" class="hero-btn-ghost">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Dashboard
       </a>
@@ -123,29 +123,29 @@
           <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Session Balance</span>
         </div>
 
+        <%
+          const displayTempoBuckets = (tempoStats.buckets || [
+            { key: 'slow', label: 'Slow', count: tempoStats.slow, pct: tempoStats.slowPct, color: '#10b981', bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', subText: '#15803d' },
+            { key: 'medium', label: 'Medium', count: tempoStats.medium, pct: tempoStats.medPct, color: '#4f46e5', bg: '#eef2ff', border: '#c7d2fe', text: '#3730a3', subText: '#4338ca' },
+            { key: 'fast', label: 'Fast', count: tempoStats.fast, pct: tempoStats.fastPct, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a', text: '#92400e', subText: '#b45309' }
+          ]).filter(b => b.count > 0 || b.key === 'slow' || b.key === 'medium' || b.key === 'fast');
+        %>
+
         <!-- Segmented Bar -->
         <div style="width: 100%; height: 14px; background: #e2e8f0; border-radius: 8px; overflow: hidden; display: flex; margin-bottom: 16px;">
-          <div style="width: <%= tempoStats.slowPct %>%; background: #10b981;" title="Slow: <%= tempoStats.slow %> (<%= tempoStats.slowPct %>%)"></div>
-          <div style="width: <%= tempoStats.medPct %>%; background: #4f46e5;" title="Medium: <%= tempoStats.medium %> (<%= tempoStats.medPct %>%)"></div>
-          <div style="width: <%= tempoStats.fastPct %>%; background: #f59e0b;" title="Fast: <%= tempoStats.fast %> (<%= tempoStats.fastPct %>%)"></div>
+          <% displayTempoBuckets.forEach(b => { if (b.pct > 0) { %>
+            <div style="width: <%= b.pct %>%; background: <%= b.color %>;" title="<%= b.label %>: <%= b.count %> (<%= b.pct %>%)"></div>
+          <% } }); %>
         </div>
 
-        <!-- Three Mini Stat Boxes -->
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center;">
-            <strong style="color: #166534; font-size: 18px; display: block; font-weight: 800;"><%= tempoStats.slow %></strong>
-            <span style="font-size: 11px; color: #15803d; font-weight: 700; text-transform: uppercase;">Slow (<%= tempoStats.slowPct %>%)</span>
-          </div>
-
-          <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 12px; text-align: center;">
-            <strong style="color: #3730a3; font-size: 18px; display: block; font-weight: 800;"><%= tempoStats.medium %></strong>
-            <span style="font-size: 11px; color: #4338ca; font-weight: 700; text-transform: uppercase;">Medium (<%= tempoStats.medPct %>%)</span>
-          </div>
-
-          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px; text-align: center;">
-            <strong style="color: #92400e; font-size: 18px; display: block; font-weight: 800;"><%= tempoStats.fast %></strong>
-            <span style="font-size: 11px; color: #b45309; font-weight: 700; text-transform: uppercase;">Fast (<%= tempoStats.fastPct %>%)</span>
-          </div>
+        <!-- Tempo Stat Boxes -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px;">
+          <% displayTempoBuckets.forEach(b => { %>
+            <div style="background: <%= b.bg %>; border: 1px solid <%= b.border %>; border-radius: 8px; padding: 12px; text-align: center;">
+              <strong style="color: <%= b.text %>; font-size: 18px; display: block; font-weight: 800;"><%= b.count %></strong>
+              <span style="font-size: 11px; color: <%= b.subText %>; font-weight: 700; text-transform: uppercase;"><%= b.label %> (<%= b.pct %>%)</span>
+            </div>
+          <% }); %>
         </div>
       </div>
 

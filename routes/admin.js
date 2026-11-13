@@ -32,6 +32,11 @@ router.get(
   requireSuperAdmin,
   adminController.showDangerResetHistory
 );
+router.post(
+  "/admin/danger-reset-history",
+  requireSuperAdmin,
+  adminController.dangerResetHistory
+);
 router.get("/admin/download-backup", requireSuperAdmin, adminController.downloadBackup);
 
 // Session Audio & Cloudflare R2 Management

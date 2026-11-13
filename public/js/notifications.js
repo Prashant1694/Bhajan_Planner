@@ -283,6 +283,9 @@
   // ONE-TIME FIRST-VISIT PERMISSION PROMPT
   // ============================================================
   function initFirstVisitPrompt() {
+    const curPath = window.location.pathname || "/";
+    if (/^\/(admin|forgot-password|singer\/login)/.test(curPath)) return;
+
     const PROMPT_KEY = "bp_notif_prompt_shown";
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("reset_notif")) {
@@ -291,6 +294,10 @@
     }
     const alreadyHandled = localStorage.getItem(PROMPT_KEY);
     if (alreadyHandled) return;
+
+    // Never stack two blocking modals on top of fresh first-time visitors
+    const whatsNewSeen = localStorage.getItem("bp_update_popup_2026_10_03") === "true";
+    if (!whatsNewSeen) return;
 
     const promptOverlay = document.getElementById("notifPromptOverlay");
     const singerSelect = document.getElementById("notifPromptSingerSelect");

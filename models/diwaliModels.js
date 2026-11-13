@@ -66,9 +66,10 @@ if (!DiwaliEvent.associations.participants) {
     foreignKey: "participant_bhajan_id",
     as: "participantBhajan"
   });
-  DiwaliParticipantBhajan.hasOne(DiwaliSequenceEntry, {
+  // Each selected bhajan has at most one sequence assignment per Diwali event.
+  DiwaliParticipantBhajan.hasMany(DiwaliSequenceEntry, {
     foreignKey: "participant_bhajan_id",
-    as: "sequenceEntry",
+    as: "sequenceEntries",
     onDelete: "CASCADE"
   });
 }

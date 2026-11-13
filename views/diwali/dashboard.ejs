@@ -93,10 +93,10 @@
       Make Sequence
     </button>
 
+    <a href="/admin/diwali/sequence/editor" class="btn-diwali btn-diwali-secondary">
+      Sequence Editor / Manual Builder
+    </a>
     <% if (stats.generatedSequences > 0) { %>
-      <a href="/admin/diwali/sequence/editor" class="btn-diwali btn-diwali-secondary">
-        Sequence Editor
-      </a>
       <a href="/admin/diwali/export/sequence?format=pdf&category=Both" class="btn-diwali btn-diwali-secondary" style="border-color:var(--diwali-maroon); color:var(--diwali-maroon); font-weight:700;" title="Print Sequence PDF directly">
         Print Sequence (PDF)
       </a>
@@ -113,6 +113,9 @@
     </button>
     <button type="button" class="diwali-tab" data-tab="ladies">
       Ladies Bhajans <span class="diwali-tab-badge"><%= ladiesBhajans.length %></span>
+    </button>
+    <button type="button" class="diwali-tab" data-tab="pairs">
+      Singer Pairs <span class="diwali-tab-badge"><%= participants.length %></span>
     </button>
     <button type="button" class="diwali-tab" data-tab="sequences">
       Generated Sequences <span class="diwali-tab-badge"><%= sequences.length %></span>
@@ -191,6 +194,7 @@
                         Edit
                       </button>
                       <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -255,6 +259,7 @@
                         Edit
                       </button>
                       <form action="/admin/diwali/participant/delete/<%= b.participant.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete participant pair <%= b.participant.lead_name %> &amp; <%= b.participant.partner_name %> and all their bhajans?">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">
                           Delete
                         </button>
@@ -270,7 +275,48 @@
     </div>
   </div>
 
-  <!-- Tab 3: Sequences Overview -->
+  <!-- Tab 3: Reusable singer pairs, including pairs with no current bhajan assignments -->
+  <div id="tab-pairs" class="diwali-tab-content" style="display:none;">
+    <div class="diwali-table-card">
+      <div style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="margin:0; color:var(--diwali-maroon);">Singer Pair Directory</h3>
+          <p style="margin:4px 0 0; color:var(--text-light); font-size:12px;">Pairs are maintained independently. Assign or reassign each bhajan from its Edit panel.</p>
+        </div>
+        <span class="badge-pill"><%= participants.length %> pairs</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="diwali-table">
+          <thead><tr><th>Sr.</th><th>Lead Singer</th><th>Partner</th><th>Category</th><th>Assigned Bhajans</th><th>Remarks</th><th style="text-align:right;">Actions</th></tr></thead>
+          <tbody>
+            <% if (!participants.length) { %>
+              <tr><td colspan="7" style="text-align:center; padding:24px;">No singer pairs recorded for this Diwali event.</td></tr>
+            <% } else { %>
+              <% participants.forEach((pair, idx) => { %>
+                <tr>
+                  <td><%= idx + 1 %></td>
+                  <td><strong><%= pair.lead_name %></strong></td>
+                  <td><strong><%= pair.partner_name %></strong></td>
+                  <td><span class="badge-gender <%= pair.gender === "Ladies" ? "ladies" : "gents" %>"><%= pair.gender %></span></td>
+                  <td><span class="badge-pill"><%= (pair.bhajans || []).length %></span></td>
+                  <td><%= pair.remarks || "-" %></td>
+                  <td style="text-align:right; white-space:nowrap;">
+                    <button type="button" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditParticipantModal(<%= pair.id %>)">Edit Pair / Assign Bhajans</button>
+                    <form action="/admin/diwali/participant/delete/<%= pair.id %>" method="POST" style="display:inline; margin:0;" data-confirm="Delete singer pair <%= pair.lead_name %> &amp; <%= pair.partner_name %> and any bhajans currently assigned to it?">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn-diwali btn-diwali-secondary" style="padding:4px 8px; font-size:12px; color:var(--danger);" title="Delete Pair">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Sequences Overview -->
   <div id="tab-sequences" class="diwali-tab-content" style="display:none;">
     <% if (sequences.length === 0) { %>
       <div class="card" style="text-align:center; padding:40px;">
@@ -302,7 +348,8 @@
           <div class="sequence-column-card">
             <div class="sequence-col-header">
               <div class="sequence-title-row">
-                <h3>Sequence <%= seq.sequence_number %></h3>
+                <h3><%= seq.sequence_type === 'Manual' ? 'Manual Sequence' : 'Sequence' %> <%= seq.sequence_number %></h3>
+                <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" onclick="deleteDiwaliSequence(<%= seq.id %>, '<%= seq.sequence_type === 'Manual' ? 'Manual' : 'Auto' %>', <%= seq.sequence_number %>)">Delete Sequence</button>
                 <span class="badge-pill" style="background:var(--diwali-gold-light); color:var(--diwali-amber);">
                   <%= seq.entries ? seq.entries.length : 0 %> Bhajans
                 </span>
@@ -582,6 +629,7 @@
       <button type="button" class="close-btn" onclick="diwaliCloseModal('modalAddYear')">&times;</button>
     </div>
     <form action="/admin/diwali/event/create" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="diwali-modal-body">
         <div class="diwali-field-group">
           <label class="diwali-field-label">Year (e.g. 2026, 2027) <span class="req-star">*</span></label>
@@ -600,4 +648,21 @@
   </div>
 </div>
 
-<script src="/js/diwali.js"></script>
+<script src="/js/diwali.js?v=7.2.1"></script>
+<script>
+async function deleteDiwaliSequence(sequenceId, sequenceType, sequenceNumber) {
+  const label = sequenceType === "Manual" ? "manual" : "automatically generated";
+  if (!window.confirm(`Delete ${label} sequence ${sequenceNumber}? Its bhajan assignments and session musician/date settings will be removed. Original Diwali entries will remain.`)) return;
+  try {
+    const response = await window.diwaliPost(`/admin/diwali/sequence/delete/${sequenceId}`);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not delete sequence.");
+    window.location.reload();
+  } catch (error) {
+    alert("Sequence deletion failed: " + error.message);
+  }
+}
+</script>
+
+
+

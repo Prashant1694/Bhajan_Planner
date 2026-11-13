@@ -1031,3 +1031,370 @@
     font-size: 24px;
   }
 }
+
+
+/* Touch-friendly drag-and-drop in the Diwali sequence editor */
+.sequence-entry-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sequence-drag-handle {
+  display: inline-flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--diwali-border);
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--text-light, #8b8394);
+  font-size: 21px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sequence-drag-handle:active {
+  cursor: grabbing;
+  color: var(--diwali-maroon);
+  border-color: var(--diwali-gold);
+}
+
+.sequence-entry-card.is-dragging {
+  opacity: 0.45;
+  border: 2px dashed var(--diwali-gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: scale(0.99);
+}
+
+.sequence-entry-card.is-drop-saved {
+  border-color: #4f9b68;
+  box-shadow: 0 0 0 2px rgba(79, 155, 104, 0.16);
+}
+
+.sequence-entries-list:has(.sequence-entry-card.is-dragging) {
+  background: rgba(217, 138, 43, 0.06);
+}
+
+@media (max-width: 768px) {
+  .sequence-drag-handle {
+    width: 36px;
+    height: 40px;
+    flex-basis: 36px;
+    font-size: 23px;
+  }
+
+  .sequence-entry-card {
+    touch-action: pan-y;
+  }
+}
+
+
+/* Per-session Diwali instrumentalist assignments */
+.diwali-musician-assignment {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--diwali-gold-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.diwali-musician-assignment-heading,
+.diwali-musician-assignment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diwali-musician-assignment-heading {
+  color: var(--diwali-maroon);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.diwali-musician-required {
+  color: #a65d12;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diwali-musician-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diwali-musician-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.diwali-musician-fields .diwali-input-text {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 9px;
+  font-size: 12px;
+}
+
+.diwali-musician-assignment-footer {
+  margin-top: 10px;
+}
+
+.diwali-musician-assignment-footer small {
+  color: var(--text-light);
+  font-size: 10.5px;
+}
+
+.diwali-musician-assignment-footer button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+@media (max-width: 480px) {
+  .diwali-musician-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Diwali-only manual sequence builder */
+.diwali-manual-builder-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border: 1px solid var(--diwali-gold-border);
+  border-radius: 12px;
+  background: var(--diwali-gold-light);
+}
+.diwali-manual-builder-toolbar strong {
+  color: var(--diwali-maroon);
+  font-size: 15px;
+}
+.diwali-manual-builder-toolbar p {
+  margin: 4px 0 0;
+  color: var(--text-light);
+  font-size: 12px;
+}
+.diwali-manual-badge {
+  background: rgba(125, 47, 69, 0.1);
+  color: var(--diwali-maroon);
+}
+.diwali-manual-pool {
+  margin: 12px 14px 0;
+  padding: 12px;
+  border: 1px dashed var(--diwali-gold);
+  border-radius: 9px;
+  background: var(--diwali-gold-light);
+}
+.diwali-manual-pool > label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--diwali-maroon);
+  font-size: 12px;
+  font-weight: 700;
+}
+.diwali-manual-pool select {
+  width: 100%;
+  min-height: 116px;
+  padding: 7px;
+  border: 1px solid var(--diwali-border);
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--text, #221e2a);
+  font-size: 12px;
+}
+.diwali-manual-pool-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 9px;
+}
+.diwali-manual-pool-footer small,
+.diwali-manual-pool-empty {
+  color: var(--text-light);
+  font-size: 10.5px;
+}
+.diwali-manual-remove {
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 10.5px;
+}
+@media (max-width: 560px) {
+  .diwali-manual-builder-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .diwali-manual-pool-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* Destructive action remains visually distinct within Diwali controls. */
+.diwali-delete-generated-btn {
+  border-color: #b64b4b !important;
+  color: #a93636 !important;
+}
+.diwali-delete-generated-btn:hover {
+  background: rgba(169, 54, 54, 0.08);
+}
+
+
+/* Diwali sequence editor: desktop card/table presentation switch. */
+.diwali-sequence-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: -8px 0 14px;
+  color: var(--text-light, #8b8394);
+  font-size: 13px;
+}
+.diwali-sequence-view-toolbar .btn-diwali {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.diwali-sequence-view-toolbar .is-active {
+  background: var(--diwali-maroon);
+  border-color: var(--diwali-maroon);
+  color: #fff;
+}
+.sequence-view-table { display: none; }
+#diwaliSequenceEditor[data-sequence-view="table"] .sequence-view-cards { display: none; }
+#diwaliSequenceEditor[data-sequence-view="table"] .sequence-view-table { display: block; }
+.sequence-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.sequence-entry-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--text, #221e2a);
+  font-size: 12px;
+}
+.sequence-entry-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 9px;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--diwali-gold-light);
+  color: var(--diwali-maroon);
+  border-bottom: 1px solid var(--diwali-gold-border);
+}
+.sequence-entry-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--diwali-border);
+  background: var(--surface, #fff);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.sequence-entry-table .sequence-table-row {
+  cursor: grab;
+  transition: background-color .15s ease, opacity .15s ease;
+}
+.sequence-entry-table .sequence-table-row:hover td {
+  background: var(--diwali-gold-light);
+}
+.sequence-entry-table .sequence-table-row.is-dragging td {
+  opacity: .45;
+  background: var(--diwali-gold-light);
+}
+.sequence-entry-table .sequence-table-row.is-drop-saved td {
+  background: rgba(79, 155, 104, .12);
+}
+.sequence-entry-table .sequence-table-order {
+  display: table-cell;
+  min-width: 82px;
+}
+.sequence-table-order .sequence-drag-handle {
+  width: 27px;
+  height: 29px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.sequence-table-order .order-badge {
+  display: inline-block;
+  min-width: 18px;
+  font-weight: 800;
+  color: var(--diwali-maroon);
+}
+.sequence-table-bhajan {
+  min-width: 180px;
+  white-space: normal !important;
+}
+.sequence-table-empty {
+  padding: 14px;
+  margin: 0;
+  color: var(--text-light, #8b8394);
+  font-size: 12px;
+}
+.sequence-table-body.sequence-entries-list {
+  display: table-row-group;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+.sequence-table-body .sequence-table-row {
+  display: table-row;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  position: static;
+}
+.sequence-table-body .sequence-table-row:hover {
+  transform: none;
+  box-shadow: none;
+}
+.sequence-table-body .sequence-table-row .sequence-drag-handle {
+  touch-action: none;
+}
+.sequence-table-body:has(.sequence-table-row.is-dragging) {
+  background: rgba(217, 138, 43, .06);
+}
+
+@media (max-width: 768px) {
+  .diwali-sequence-view-toolbar { display: none; }
+  #diwaliSequenceEditor .sequence-view-table { display: none !important; }
+  #diwaliSequenceEditor .sequence-view-cards { display: block !important; }
+}
+
+.sequence-table-drop-placeholder td {
+  height: 58px;
+  text-align: center;
+  color: var(--text-light, #8b8394);
+  font-style: italic;
+  border: 1px dashed var(--diwali-gold-border);
+  background: var(--diwali-gold-light);
+}
+.sequence-table-body:has(.sequence-table-row) .sequence-table-drop-placeholder {
+  display: none;
+}
+.sequence-table-wrap:has(.sequence-table-row) .sequence-table-empty {
+  display: none;
+}

@@ -132,7 +132,26 @@ const requireSuperAdmin = async (req, res, next) => {
       });
     }
 
-    return res.status(403).send("Forbidden: Super Admin access required");
+    res.locals.currentAdmin = req.session.admin;
+    return res.status(403).render(
+      "admin-error",
+      {
+        statusCode: 403,
+        errorTitle: "Super Admin Access Required",
+        errorMessage: "This administrative section is restricted to Super Admins.",
+        technicalDetail: "Forbidden: Super Admin access required",
+        backUrl: "/admin",
+        isAdminPage: true,
+        pageCSS: "admin.css",
+        pageTitle: "Access Restricted"
+      },
+      (renderErr, html) => {
+        if (renderErr) {
+          return res.status(403).send("Forbidden: Super Admin access required");
+        }
+        return res.status(403).send(html);
+      }
+    );
   } catch (err) {
     console.error("[Auth] requireSuperAdmin error:", err.message);
     return res.redirect("/admin-login");

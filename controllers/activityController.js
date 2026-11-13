@@ -3,6 +3,7 @@ const UserPresence = require("../models/UserPresence");
 const AdminUser = require("../models/AdminUser");
 const Singer = require("../models/Singer");
 const { Sequelize, Op } = require("sequelize");
+const { flushActivityBuffer } = require("../middleware/activityTracker");
 
 exports.showActivityLogs = async (req, res) => {
   try {
@@ -14,13 +15,15 @@ exports.showActivityLogs = async (req, res) => {
         );
     }
 
-    // 1. Fetch Presence List & evaluate online status (45 seconds threshold)
-    const presence = await UserPresence.findAll({
-      order: [Sequelize.literal("last_seen_at DESC")]
-    });
+    await flushActivityBuffer();
 
+    // 1. Fetch Bounded Presence List & evaluate online status (30 seconds threshold)
     const now = new Date();
     const thirtySecondsAgo = new Date(now.getTime() - 30 * 1000);
+    const presence = await UserPresence.findAll({
+      order: [Sequelize.literal("last_seen_at DESC")],
+      limit: 50
+    });
 
     const presenceList = presence.map((p) => {
       const pObj = p.toJSON();
@@ -56,7 +59,7 @@ exports.showActivityLogs = async (req, res) => {
       ],
       group: ["username", "user_type"],
       order: [[Sequelize.fn("MAX", Sequelize.col("created_at")), "DESC"]],
-      limit: 60,
+      limit: 30,
       raw: true
     });
 
@@ -76,9 +79,9 @@ exports.showActivityLogs = async (req, res) => {
       whereClause.user_type = "guest";
     }
 
-    // 4. Fetch Activity Logs
-    const pageNum = parseInt(req.query.page || 1, 10);
-    const limit = 120;
+    // 4. Fetch Bounded Activity Logs
+    const pageNum = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+    const limit = 50;
     const offset = (pageNum - 1) * limit;
 
     const { count, rows: logs } = await ActivityLog.findAndCountAll({
@@ -117,6 +120,7 @@ exports.showActivityLogs = async (req, res) => {
       currentPage: pageNum,
       totalPages: Math.max(1, Math.ceil(count / limit)),
       currentAdmin: req.session.admin,
+      pageTitle: "Activity Monitor & User Audit",
       isAdminPage: true,
       pageCSS: "admin.css",
       page: "activity"
@@ -161,8 +165,11 @@ exports.getActivityFeedJson = async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    await flushActivityBuffer();
+
     const presence = await UserPresence.findAll({
-      order: [Sequelize.literal("last_seen_at DESC")]
+      order: [Sequelize.literal("last_seen_at DESC")],
+      limit: 50
     });
 
     const now = new Date();
@@ -176,9 +183,12 @@ exports.getActivityFeedJson = async (req, res) => {
       return pObj;
     });
 
+    const feedLimit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 30));
+    const feedOffset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const { count, rows: logs } = await ActivityLog.findAndCountAll({
       order: [Sequelize.literal("created_at DESC")],
-      limit: 60
+      limit: feedLimit,
+      offset: feedOffset
     });
 
     res.json({

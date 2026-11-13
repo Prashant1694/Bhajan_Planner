@@ -1,4 +1,23 @@
 <!-- What's New Update Modal (Appears Only Once After Today's Update) -->
+<style>
+  @media (max-width: 480px) {
+    #whatsNewOverlay {
+      padding: 10px !important;
+    }
+    #whatsNewCard {
+      max-height: calc(100dvh - 20px) !important;
+      border-radius: 18px !important;
+    }
+    #whatsNewBody {
+      padding: 18px 16px 0 16px !important;
+    }
+    #whatsNewCard .bp-sticky-actions {
+      bottom: 0 !important;
+      margin-top: 12px !important;
+      padding: 10px 0 calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+  }
+</style>
 <div id="whatsNewOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.68); backdrop-filter: blur(6px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; opacity: 0; transition: opacity 0.3s ease;">
   <div id="whatsNewCard" style="background: var(--surface, #ffffff); border: 1px solid var(--border, #e2e8f0); border-radius: 22px; width: 100%; max-width: 520px; max-height: 90vh; max-height: calc(100dvh - 32px); overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); position: relative; transform: scale(0.92) translateY(15px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); animation: modalFloat 0.3s ease forwards; -webkit-overflow-scrolling: touch;">
     
@@ -10,7 +29,7 @@
       &times;
     </button>
 
-    <div style="padding: 26px 24px 24px 24px;">
+    <div id="whatsNewBody" style="padding: 26px 24px 24px 24px;">
       
       <!-- Modal Header -->
       <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px;">
@@ -109,6 +128,11 @@
 
 <script>
 (function() {
+  const path = window.location.pathname || "/";
+  if (/^\/(admin|forgot-password|singer\/login)/.test(path)) {
+    return;
+  }
+
   const POPUP_STORAGE_KEY = "bp_update_popup_2026_10_03";
 
   // Check if user already saw today's update popup
@@ -136,6 +160,9 @@
     card.style.transform = "scale(0.92) translateY(15px)";
     setTimeout(function() {
       overlay.style.display = "none";
+      try {
+        window.dispatchEvent(new CustomEvent("bp:whatsnew-dismissed"));
+      } catch (_) {}
       if (callback) callback();
     }, 280);
   }

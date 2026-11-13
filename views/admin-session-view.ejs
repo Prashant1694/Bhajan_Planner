@@ -178,6 +178,18 @@
     width: 13px !important;
     height: 13px !important;
   }
+
+  /* Keep the floating reorder action clear of the persistent mobile navbar. */
+  @media (max-width: 768px) {
+    .sequencer-save-bar {
+      bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+      z-index: 1101 !important;
+      max-width: calc(100vw - 24px) !important;
+    }
+    .session-unified-page {
+      padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+  }
 </style>
 
 <div class="session-unified-page">
@@ -217,9 +229,11 @@
         <div class="session-title-block">
           <h1>
             <span><%= humanDate || date %></span>
+            <% if (dayOfWeek && !(humanDate || '').toLowerCase().includes(dayOfWeek.toLowerCase())) { %>
             <span style="font-size:15px; font-weight:500; color:var(--text-light); font-family:var(--font-body);">
-              (<%= dayOfWeek || 'Session' %>)
+              (<%= dayOfWeek %>)
             </span>
+            <% } %>
           </h1>
 
           <div class="session-tags-row">
@@ -239,7 +253,7 @@
 
             <span id="sessionLockBadge" class="session-lock-tag <%= isLocked ? 'is-locked' : 'is-open' %>">
               <span class="session-pulse-indicator"></span>
-              <span id="sessionLockText"><%= isLocked ? 'Submissions Locked' : 'Submissions Open' %></span>
+              <span id="sessionLockText"><%= isUpcoming ? (isLocked ? 'Submissions Locked' : 'Submissions Open') : (isLocked ? 'Session Locked (Past)' : 'Session Closed (Past)') %></span>
             </span>
 
             <% if (isUpcoming) { %>
@@ -318,12 +332,12 @@
             <span class="sec-tool-label">Duplicate</span>
           </button>
 
-          <button type="button" class="sec-tool-btn" onclick="window.print()" title="Print physical session schedule">
+          <a class="sec-tool-btn" href="/plan-view?session_date=<%= encodeURIComponent(date) %>&amp;autoprint=1" target="_blank" rel="noopener" title="Open the native print dialog for this session">
             <span class="sec-tool-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </span>
             <span class="sec-tool-label">Print</span>
-          </button>
+          </a>
 
           <a href="/admin" class="sec-tool-btn" title="Back to session calendar">
             <span class="sec-tool-icon">
@@ -415,6 +429,30 @@
           <% } else { %>
             <span class="diag-chip pass" title="Balanced deity distribution">
               <strong>Flow</strong>: Balanced
+            </span>
+          <% } %>
+
+          <% if (typeof consecutiveSingerRepeats !== 'undefined' && consecutiveSingerRepeats.length > 0) { %>
+            <span class="diag-chip warn" title="Same singer scheduled consecutively">
+              <strong>Back-to-Back</strong>: <%= consecutiveSingerRepeats[0].singer %> (#<%= consecutiveSingerRepeats[0].index1 %> &amp; #<%= consecutiveSingerRepeats[0].index2 %>)
+            </span>
+          <% } %>
+
+          <% if (typeof recentRepeatTitles !== 'undefined' && recentRepeatTitles.length > 0) { %>
+            <span class="diag-chip warn" title="Bhajan already sung in recent sessions (<%= recentRepeatTitles[0].lastSungDate %>)">
+              <strong>Cooldown</strong>: &ldquo;<%= recentRepeatTitles[0].title %>&rdquo; (<%= recentRepeatTitles[0].lastSungDate %>)
+            </span>
+          <% } %>
+
+          <% if (typeof duplicateRagas !== 'undefined' && duplicateRagas.length > 0) { %>
+            <span class="diag-chip warn" title="Repeated Raag back-to-back">
+              <strong>Raag Repeat</strong>: <%= duplicateRagas[0].raga %> (#<%= duplicateRagas[0].index1 %> &amp; #<%= duplicateRagas[0].index2 %>)
+            </span>
+          <% } %>
+
+          <% if (typeof unavailableConflicts !== 'undefined' && unavailableConflicts.length > 0) { %>
+            <span class="diag-chip warn" title="Singer marked Traveling / Unavailable for this Thursday">
+              <strong>Traveling</strong>: <%= unavailableConflicts[0].singer %>
             </span>
           <% } %>
         </div>
@@ -740,18 +778,19 @@
         <button type="button" class="close-btn" onclick="closeCopyModal()" style="border:none; background:none; font-size:22px; cursor:pointer;" aria-label="Close modal">&times;</button>
       </div>
       <form action="/admin/copy-session" method="POST">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
         <input type="hidden" name="target_date" value="<%= date %>">
         <div class="session-modal-body">
           <p style="font-size:13px; color:var(--text-light); margin-top:0; margin-bottom:16px;">
             Duplicate singers and their bhajans from an earlier session into <strong><%= humanDate || date %></strong>. This appends to the current date.
           </p>
 
-          <label style="display:block; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--text);">
+          <label for="copySourceDateSelect" style="display:block; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--text);">
             Choose Source Session Date:
           </label>
 
           <% if (recentSessions && recentSessions.length > 0) { %>
-            <select name="source_date" required class="workspace-search-input" style="width:100%; max-width:none; padding:10px 14px; margin-bottom:14px;">
+            <select id="copySourceDateSelect" name="source_date" required class="workspace-search-input" style="width:100%; max-width:none; padding:10px 14px; margin-bottom:14px;">
               <option value="">-- Select Recent Session --</option>
               <% recentSessions.forEach(rs => { %>
                 <option value="<%= rs.session_date %>">
@@ -1323,9 +1362,9 @@
   };
 
   // ═══ SESSION AUDIO & TIMESTAMPS MODAL JS ═══
-  const sessionDateStr = '<%= date %>';
-  let cachedScheduledBhajans = <%- JSON.stringify(submissions.map(s => ({ id: s.id, title: s.title, singer_name: s.singer_name, deity: s.deity }))) %>;
-  let currentAudioRecord = <%- JSON.stringify(sessionAudio ? { id: sessionAudio.id, title: sessionAudio.title, audio_url: sessionAudio.audio_url, storage_key: sessionAudio.storage_key, is_published: sessionAudio.is_published, duration_seconds: sessionAudio.duration_seconds, timestamps: sessionAudio.timestamps || [] } : null) %>;
+  const sessionDateStr = <%- safeJson(date) %>;
+  let cachedScheduledBhajans = <%- safeJson(submissions.map(s => ({ id: s.id, title: s.title, singer_name: s.singer_name, deity: s.deity }))) %>;
+  let currentAudioRecord = <%- safeJson(sessionAudio ? { id: sessionAudio.id, title: sessionAudio.title, audio_url: sessionAudio.audio_url, storage_key: sessionAudio.storage_key, is_published: sessionAudio.is_published, duration_seconds: sessionAudio.duration_seconds, timestamps: sessionAudio.timestamps || [] } : null) %>;
 
   function formatSecToMMSS(seconds) {
     if (isNaN(seconds) || seconds < 0) return '00:00';

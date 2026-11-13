@@ -1,7 +1,7 @@
-<div class="session-unified-page" style="padding: 24px 32px; background: var(--bg-app); min-height: 100vh;">
+<div class="session-unified-page session-padded-page" style="background: var(--bg-app); min-height: 100vh;">
 
   <!-- Featured Banner Header -->
-  <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); border-radius: 14px; padding: 24px 28px; color: white; box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.35); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+  <div class="hero-dark-banner">
     <div>
       <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; color: #a5b4fc; margin-bottom: 6px;">
         Audit &amp; Telemetry
@@ -15,14 +15,14 @@
     </div>
 
     <!-- Quick Navigation -->
-    <div style="display: flex; gap: 10px; align-items: center;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <% if (currentAdmin && (currentAdmin.role === 'super_admin' || currentAdmin.role === 'SUPER_ADMIN')) { %>
-        <button type="button" onclick="purgeOldActivityLogs()" class="button outline" style="border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; background: rgba(239, 68, 68, 0.15); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <button type="button" onclick="purgeOldActivityLogs()" class="hero-btn-danger">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           Purge (&gt;30d)
         </button>
       <% } %>
-      <a href="/admin" class="button outline" style="border-color: rgba(255,255,255,0.25); color: #ffffff; background: rgba(255,255,255,0.08); font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+      <a href="/admin" class="hero-btn-ghost">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Dashboard
       </a>
@@ -213,68 +213,44 @@
               const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
               const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
             %>
-            <tr 
+            <tr
               class="activity-row"
               data-search="<%= ((log.username||'') + ' ' + (log.action||'') + ' ' + (log.details||'') + ' ' + (log.section||'')).toLowerCase() %>"
-              style="border-bottom: 1px solid var(--border-subtle); background: <%= idx % 2 === 1 ? '#fafbfc' : '#ffffff' %>;"
             >
-              <!-- Index -->
-              <td style="padding: 10px 16px; text-align: center; color: var(--text-muted); font-weight: 700; font-size: 11px;">
-                <%= idx + 1 %>
-              </td>
-
-              <!-- User -->
-              <td style="padding: 10px 16px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <div style="width: 26px; height: 26px; border-radius: 6px; background: <%= avatarBg %>; color: #fff; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <td data-label="#" class="adm-act-idx"><%= idx + 1 %></td>
+              <td data-label="User">
+                <div class="adm-act-user-wrap">
+                  <div class="adm-act-avatar adm-role-<%= isSinger ? 'singer' : (isAdmin ? 'admin' : 'guest') %>">
                     <%= userInitial %>
                   </div>
                   <div>
-                    <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);"><%= log.username %></div>
-                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; background: <%= roleBg %>; color: <%= roleColor %>; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-top: 1px;">
+                    <div class="adm-act-username"><%= log.username %></div>
+                    <span class="adm-act-role-pill adm-role-pill-<%= isSinger ? 'singer' : (isAdmin ? 'admin' : 'guest') %>">
                       <%= roleBadge %>
                     </span>
                   </div>
                 </div>
               </td>
-
-              <!-- Action & Details -->
-              <td style="padding: 10px 16px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">
-                  <%= log.details || log.action %>
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: monospace;">
-                  <%= log.action %>
-                </div>
+              <td data-label="Action">
+                <div class="adm-act-detail"><%= log.details || log.action %></div>
+                <div class="adm-act-action-code"><%= log.action %></div>
               </td>
-
-              <!-- Section -->
-              <td style="padding: 10px 16px;">
-                <span class="badge" style="background: #f1f5f9; color: var(--text-secondary); border: 1px solid var(--border); font-size: 11px; padding: 2px 8px; border-radius: 9999px;">
-                  <%= log.section %>
-                </span>
+              <td data-label="Section">
+                <span class="adm-act-section-badge"><%= log.section %></span>
               </td>
-
-              <!-- Timestamp -->
-              <td style="padding: 10px 16px;">
-                <div style="font-weight: 600; font-size: 12.5px; color: var(--text-primary);"><%= timeStr %></div>
-                <div style="font-size: 11px; color: var(--text-muted);"><%= dateStr %></div>
+              <td data-label="Timestamp">
+                <div class="adm-act-time"><%= timeStr %></div>
+                <div class="adm-act-date"><%= dateStr %></div>
               </td>
-
-              <!-- Method & IP -->
-              <td style="padding: 10px 16px; text-align: right;">
-                <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: <%= log.method === 'POST' ? '#fef3c7; color: #92400e;' : '#e0f2fe; color: #0369a1;' %>">
-                  <%= log.method %>
-                </span>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; font-family: monospace;">
-                  <%= log.ip_address || 'Local' %>
-                </div>
+              <td data-label="Method &amp; IP" class="adm-act-ip-col">
+                <span class="adm-act-method adm-act-method-<%= log.method === 'POST' ? 'post' : 'get' %>"><%= log.method %></span>
+                <div class="adm-act-ip"><%= log.ip_address || 'Local' %></div>
               </td>
             </tr>
             <% }) %>
           <% } else { %>
             <tr>
-              <td colspan="6" style="text-align: center; padding: 36px; color: var(--text-muted);">
+              <td colspan="6" class="adm-empty-cell">
                 No activity records found.
               </td>
             </tr>
@@ -282,6 +258,22 @@
         </tbody>
       </table>
     </div>
+
+    <% if (typeof totalPages !== 'undefined' && totalPages > 1) { %>
+      <% const typeParam = filterType ? '&user_type=' + encodeURIComponent(filterType) : ''; %>
+      <% const userParam = filterUser ? '&user=' + encodeURIComponent(filterUser) : ''; %>
+      <nav class="adm-pagination-bar" aria-label="Activity Logs Pagination">
+        <span class="adm-pagination-info">Page <%= currentPage %> of <%= totalPages %> (<%= totalLogs %> total events)</span>
+        <div class="adm-pagination-links">
+          <% if (currentPage > 1) { %>
+            <a class="button secondary" href="/admin/activity-logs?page=<%= currentPage - 1 %><%= typeParam %><%= userParam %>">&larr; Previous</a>
+          <% } %>
+          <% if (currentPage < totalPages) { %>
+            <a class="button secondary" href="/admin/activity-logs?page=<%= currentPage + 1 %><%= typeParam %><%= userParam %>">Next &rarr;</a>
+          <% } %>
+        </div>
+      </nav>
+    <% } %>
 
     <!-- Empty State -->
     <div id="activityEmptyState" style="display: none; text-align: center; padding: 40px 20px;">

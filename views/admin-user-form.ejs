@@ -35,15 +35,17 @@
     <form
         method="POST"
         action="<%= admin ? '/admin/admin-users/' + admin.id : '/admin/admin-users' %>">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
 
-
-<div class="section-title">
-    <span class="section-icon" style="display:inline-flex; align-items:center;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    </span>
-    <h2>Administrator Information</h2>
-
-</div>
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <div class="section-title">
+                    <span class="section-icon" style="display:inline-flex; align-items:center;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <h2>Administrator Information</h2>
+                </div>
+            </div>
 
             <div class="admin-card-body">
 
@@ -51,9 +53,10 @@
 
                     <div class="field">
 
-                        <label>Display Name</label>
+                        <label for="adminDisplayName">Display Name</label>
 
                         <input
+                            id="adminDisplayName"
                             type="text"
                             name="display_name"
                             value="<%= admin ? admin.display_name : '' %>"
@@ -63,9 +66,10 @@
 
                     <div class="field">
 
-                        <label>Admin Title (Designation)</label>
+                        <label for="adminTitleDesignation">Admin Title (Designation)</label>
 
                         <input
+                            id="adminTitleDesignation"
                             type="text"
                             name="title"
                             placeholder="e.g., Samiti Incharge, President"
@@ -75,9 +79,9 @@
 
                     <div class="field">
 
-                        <label>Linked Singer Profile (for My Hub &amp; Bhajan Submissions)</label>
+                        <label for="adminSingerId">Linked Singer Profile (for My Hub &amp; Bhajan Submissions)</label>
 
-                        <select name="singer_id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border, #cbd5e1); font-size: 14px; background: var(--surface, #fff); color: var(--ink, #1e293b);">
+                        <select id="adminSingerId" name="singer_id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border, #cbd5e1); font-size: 14px; background: var(--surface, #fff); color: var(--ink, #1e293b);">
                             <option value="">-- Auto-detect by Name --</option>
                             <% if (typeof singers !== 'undefined' && singers) { %>
                                 <% singers.forEach(function(s) { %>
@@ -92,9 +96,10 @@
 
                     <div class="field">
 
-                        <label>Username</label>
+                        <label for="adminUsername">Username</label>
 
                         <input
+                            id="adminUsername"
                             type="text"
                             name="username"
                             value="<%= admin ? admin.username : '' %>"
@@ -104,9 +109,10 @@
 
                     <div class="field">
 
-                        <label>Google Email</label>
+                        <label for="adminGoogleEmail">Google Email</label>
 
                         <input
+                            id="adminGoogleEmail"
                             type="email"
                             name="google_email"
                             value="<%= admin ? admin.google_email : '' %>">
@@ -115,9 +121,9 @@
 
                     <div class="field">
 
-                        <label>Role</label>
+                        <label for="adminRole">Role</label>
 
-                        <select name="role">
+                        <select id="adminRole" name="role">
 
                             <option value="admin"
                                 <%= admin && admin.role==="admin" ? "selected":"" %>>
@@ -154,9 +160,10 @@
 
                 <div class="field">
 
-                    <label>Temporary Password</label>
+                    <label for="adminPassword">Temporary Password</label>
 
                     <input
+                        id="adminPassword"
                         type="password"
                         name="password"
                         <%= admin ? "" : "required" %>>

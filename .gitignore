@@ -95,7 +95,7 @@ test-*.js
 # ============================================================
 sairhythms/Sai Rhythms/
 sairhythms/Sai Rhythms.zip
-tests/
+# Note: tests/ must remain tracked so CI and team workflows run reliably.
 
 # ============================================================
 # ONE-TIME UTILITY SCRIPTS (not needed at runtime)

@@ -12,7 +12,7 @@
   </div>
 
   <div class="card" style="margin-bottom:24px; padding:28px;">
-    <h2 style="color:var(--diwali-maroon); margin:0 0 10px 0;">Import Diwali Audition Excel</h2>
+    <h1 style="color:var(--diwali-maroon); margin:0 0 10px 0; font-size:24px;">Import Diwali Audition Excel</h1>
     <p style="color:var(--text-light); font-size:14px; margin-bottom:20px; line-height:1.5;">
       Upload an Excel file (.xlsx or .xls) from previous years (such as 2025) or standard template.
       The importer supports legacy sheet formats (Gents &amp; Ladies) with repeated singers.
@@ -89,6 +89,7 @@
 
 </div>
 
+<script src="/js/diwali.js?v=7.2.1"></script>
 <script>
 let globalPreviewData = null;
 
@@ -113,8 +114,8 @@ async function uploadAndPreview() {
   formData.append("file", input.files[0]);
 
   try {
-    const res = await fetch("/admin/diwali/import/preview", {
-      method: "POST",
+    const res = await window.diwaliPost("/admin/diwali/import/preview", undefined, {
+      headers: { Accept: "application/json" },
       body: formData
     });
 
@@ -265,13 +266,9 @@ async function commitConfirmedImport() {
   btn.textContent = "Importing Records...";
 
   try {
-    const res = await fetch("/admin/diwali/import/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        year: "<%= selectedEvent.year %>",
-        participants: globalPreviewData.participants
-      })
+    const res = await window.diwaliPost("/admin/diwali/import/confirm", {
+      year: "<%= selectedEvent.year %>",
+      participants: globalPreviewData.participants
     });
 
     const data = await res.json();

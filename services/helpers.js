@@ -183,32 +183,42 @@ function timeSince(dateStr) {
 let cachedMissingCount = null;
 let lastMissingCountTime = 0;
 
+async function getMissingBhajanTitles() {
+  const BhajanSubmission = require("../models/BhajanSubmission");
+  const { getMasterCatalog, normalizeTitleKey } = require("./catalogCache");
+  const { Sequelize } = require("sequelize");
+
+  const [submitted, catalog] = await Promise.all([
+    BhajanSubmission.findAll({
+      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
+      raw: true
+    }),
+    getMasterCatalog()
+  ]);
+
+  const seenNorm = new Set();
+  const missingTitles = [];
+  for (const s of submitted) {
+    const trimmed = (s.title || "").trim();
+    const norm = normalizeTitleKey(trimmed);
+    if (!norm || catalog.byNormTitle.has(norm) || seenNorm.has(norm)) continue;
+    seenNorm.add(norm);
+    missingTitles.push(trimmed);
+  }
+
+  cachedMissingCount = missingTitles.length;
+  lastMissingCountTime = Date.now();
+  return { titles: missingTitles, catalog };
+}
+
 async function getCachedMissingCount(forceRefresh = false) {
   const now = Date.now();
   if (!forceRefresh && cachedMissingCount !== null && now - lastMissingCountTime < 60000) {
     return cachedMissingCount;
   }
   try {
-    const BhajanSubmission = require("../models/BhajanSubmission");
-    const { getMasterCatalog, normalizeTitleKey } = require("./catalogCache");
-    const { Sequelize } = require("sequelize");
-
-    const [submitted, catalog] = await Promise.all([
-      BhajanSubmission.findAll({
-        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("title")), "title"]],
-        raw: true
-      }),
-      getMasterCatalog()
-    ]);
-
-    const count = submitted.filter((s) => {
-      const norm = normalizeTitleKey(s.title);
-      return norm && !catalog.byNormTitle.has(norm);
-    }).length;
-
-    cachedMissingCount = count;
-    lastMissingCountTime = now;
-    return count;
+    const { titles } = await getMissingBhajanTitles();
+    return titles.length;
   } catch (e) {
     return cachedMissingCount || 0;
   }
@@ -292,6 +302,21 @@ function getNumberEmoji(num) {
   return map[num] || `${num}.`;
 }
 
+/**
+ * Serialize JSON safely for embedding inside HTML <script> tags.
+ * Escapes '<', '>', '&', and Unicode line/paragraph separators so </script> breakout is impossible.
+ */
+function safeJson(value) {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) return "null";
+  return serialized
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 module.exports = {
   DEITY_ORDER,
   SPEED_ORDER,
@@ -302,11 +327,13 @@ module.exports = {
   normalizeName,
   formatDateHuman,
   timeSince,
+  getMissingBhajanTitles,
   getCachedMissingCount,
   invalidateMissingCount,
   getWesternScale,
   getDeityIcon,
   getNumberEmoji,
   parseSessionEndTime,
-  isSessionActiveOrUpcoming
+  isSessionActiveOrUpcoming,
+  safeJson
 };

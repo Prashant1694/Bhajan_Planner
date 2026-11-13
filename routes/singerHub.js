@@ -26,6 +26,11 @@ router.post(
   requireSingerAuth,
   singerHubController.updatePreferredScale
 );
+router.post(
+  "/api/singer/availability",
+  requireSingerAuth,
+  singerHubController.updateAvailability
+);
 
 // Songbook & Repertoire
 router.get("/api/singer/songbook", requireSingerAuth, singerHubController.getSongbookList);

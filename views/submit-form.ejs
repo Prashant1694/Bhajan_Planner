@@ -169,15 +169,29 @@
           </p>
 
           <div class="deity-grid ganesha-row">
-            <%- ganeshaCardHtml %>
+            <% if (typeof deityCards !== 'undefined' && deityCards && deityCards.ganeshaCard) { %>
+              <%- include('partials/deity-cards-grid', { card: deityCards.ganeshaCard }) %>
+            <% } else { %>
+              <%- ganeshaCardHtml %>
+            <% } %>
           </div>
 
           <div class="deity-grid other-deities-grid">
-            <%- otherDeitiesHtml %>
+            <% if (typeof deityCards !== 'undefined' && deityCards && Array.isArray(deityCards.otherDeityCards)) { %>
+              <% deityCards.otherDeityCards.forEach((card) => { %>
+                <%- include('partials/deity-cards-grid', { card }) %>
+              <% }) %>
+            <% } else { %>
+              <%- otherDeitiesHtml %>
+            <% } %>
           </div>
 
           <div class="deity-grid ganesha-row">
-            <%- hanumanCard %>
+            <% if (typeof deityCards !== 'undefined' && deityCards && deityCards.hanumanCard) { %>
+              <%- include('partials/deity-cards-grid', { card: deityCards.hanumanCard, extraClass: 'hanuman-card' }) %>
+            <% } else { %>
+              <%- hanumanCard %>
+            <% } %>
           </div>
 
           <input type="hidden" name="deity" id="selectedDeity" />

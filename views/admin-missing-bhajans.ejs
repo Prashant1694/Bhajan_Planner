@@ -112,49 +112,49 @@
     </div>
 
     <!-- Missing Songs Cards Stream -->
-    <div id="missingListContainer" style="display:flex; flex-direction:column; gap:12px; margin-top:14px;">
+    <div id="missingListContainer" class="adm-missing-list">
       <% if (missingBhajans && missingBhajans.length > 0) { %>
-        <div class="session-cards-stream" style="display:flex; flex-direction:column; gap:12px;">
+        <div class="session-cards-stream adm-missing-stream">
           <% missingBhajans.forEach(function(item, idx) { %>
-            <article class="session-track-card missing-card-item" data-title="<%= item.submittedTitle.toLowerCase() %>" style="display:flex; flex-direction:column; gap:10px; padding:16px 18px; border-radius:12px; background:var(--surface); border:1px solid var(--border);">
+            <article class="session-track-card missing-card-item adm-missing-card" data-title="<%= item.submittedTitle.toLowerCase() %>">
               
               <!-- Card Header Row -->
-              <div class="track-card-header" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div class="track-card-header adm-missing-head">
                 <div class="card-seq-badge-wrap">
-                  <span class="card-seq-num" style="font-size:12px; font-family:monospace; color:var(--text-light); font-weight:700;">
+                  <span class="card-seq-num adm-missing-seq">
                     #<%= startIndex + idx %>
                   </span>
                 </div>
                 <div class="card-header-main" style="flex:1;">
                   <div class="card-title-wrap">
-                    <span class="card-bhajan-title" style="font-size:16px; font-weight:700;"><%= item.submittedTitle %></span>
+                    <span class="card-bhajan-title adm-missing-title"><%= item.submittedTitle %></span>
                   </div>
                 </div>
               </div>
 
               <!-- Candidate Auto-Matches -->
               <% if (item.candidates && item.candidates.length > 0) { %>
-                <div style="font-size:12px; font-weight:700; color:var(--text-light); display:flex; align-items:center; gap:6px; margin-top:2px;">
+                <div class="adm-missing-match-lbl">
                   Potential matches found in Master Database:
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="adm-missing-matches">
                   <% item.candidates.forEach(function(c) { %>
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; background:var(--surface-raised); border:1px solid var(--border); border-radius:10px; padding:10px 14px;">
-                      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
-                        <span class="card-deity-pill" style="font-size:11px;">
+                    <div class="adm-missing-match-row">
+                      <div class="adm-missing-match-info">
+                        <span class="card-deity-pill adm-missing-score">
                           <%= c.master.deity %>
                         </span>
-                        <strong style="font-size:14px; color:var(--text);"><%= c.master.title %></strong>
+                        <strong class="adm-missing-match-title"><%= c.master.title %></strong>
                         <% if (c.master.raga) { %>
-                          <span style="font-size:11.5px; color:var(--text-light);">&bull; Raag: <%= c.master.raga %></span>
+                          <span class="adm-missing-match-raga">&bull; Raag: <%= c.master.raga %></span>
                         <% } %>
-                        <span class="diag-chip pass" style="font-size:10.5px; padding:2px 7px;">
+                        <span class="diag-chip pass adm-missing-score">
                           <%= Math.round(c.score * 100) %>% match
                         </span>
                       </div>
 
-                      <button type="button" class="cmd-btn cmd-btn-share" style="height:32px; font-size:12px; padding:0 14px;"
+                      <button type="button" class="cmd-btn cmd-btn-share adm-missing-btn-sm"
                               onclick="liveReconcile('<%= item.submittedTitle.replace(/'/g, "\\'") %>', 'link', <%= c.master.id %>, '<%= c.master.title.replace(/'/g, "\\'") %>')">
                         Yes, Link This
                       </button>
@@ -162,17 +162,17 @@
                   <% }); %>
                 </div>
 
-                <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:4px;">
-                  <span style="font-size:12px; color:var(--text-light);">None of these match?</span>
+                <div class="adm-missing-add-row">
+                  <span class="adm-muted-note">None of these match?</span>
                   <button type="button" class="card-touch-btn btn-edit" onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
                     + Add as New Canonical Song
                   </button>
                 </div>
 
               <% } else { %>
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:var(--surface-raised); padding:10px 14px; border-radius:10px; border:1px solid var(--border-soft);">
-                  <span style="font-size:12.5px; color:var(--text-light);">No similar titles found in Master Bank.</span>
-                  <button type="button" class="cmd-btn cmd-btn-add" style="height:34px; font-size:12.5px; padding:0 16px;"
+                <div class="adm-missing-none-row">
+                  <span class="adm-muted-note">No similar titles found in Master Bank.</span>
+                  <button type="button" class="cmd-btn cmd-btn-add adm-missing-btn-sm"
                           onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
                     + Add to Master Bank
                   </button>
@@ -184,12 +184,12 @@
         </div>
 
       <% } else { %>
-        <div style="padding:48px 20px; text-align:center;">
-          <div style="width:48px; height:48px; border-radius:12px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
+        <div class="adm-empty-synced">
+          <div class="adm-empty-synced-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
-          <h3 style="margin:0 0 8px 0; font-size:18px; font-weight:700; color:#0f172a;">100% Synchronized!</h3>
-          <p style="font-size:13.5px; color:#64748b; margin:0;">
+          <h3>100% Synchronized!</h3>
+          <p class="adm-muted-note">
             Every single bhajan submitted in past sessions matches a canonical record in the Master Database.
           </p>
         </div>
@@ -203,16 +203,16 @@
     <div class="session-modal-card" style="max-width:480px;">
       <div class="session-modal-header">
         <h3>Add to Master Database</h3>
-        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeMissingBhajanModal()">&times;</button>
+        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeMissingBhajanModal()" aria-label="Close modal">&times;</button>
       </div>
       <div class="session-modal-body" style="display:flex; flex-direction:column; gap:12px;">
         <div>
-          <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Bhajan Title</label>
+          <label for="mbTitle" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Bhajan Title</label>
           <input type="text" id="mbTitle" required class="workspace-search-input" style="width:100%; max-width:none;">
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Deity</label>
+            <label for="mbDeity" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Deity</label>
             <select id="mbDeity" class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="Ganesha">Ganesha</option>
               <option value="Guru">Guru</option>
@@ -228,7 +228,7 @@
             </select>
           </div>
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Tempo</label>
+            <label for="mbTempo" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Tempo</label>
             <select id="mbTempo" class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="Slow">Slow</option>
               <option value="Medium" selected>Medium</option>
@@ -238,21 +238,21 @@
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Male)</label>
+            <label for="mbShruti" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Male)</label>
             <input type="text" id="mbShruti" placeholder="e.g. C#" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Female)</label>
+            <label for="mbShrutiFemale" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Shruti (Female)</label>
             <input type="text" id="mbShrutiFemale" placeholder="e.g. G#" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Raga</label>
+            <label for="mbRaga" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Raga</label>
             <input type="text" id="mbRaga" placeholder="e.g. Yaman" class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Difficulty Level</label>
+            <label for="mbLevel" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Difficulty Level</label>
             <select id="mbLevel" class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="Easy">Easy</option>
               <option value="Medium" selected>Medium</option>

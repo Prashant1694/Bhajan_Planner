@@ -1,6 +1,24 @@
-<link rel="stylesheet" href="/css/diwali.css">
+<link rel="stylesheet" href="/css/diwali.css?v=7.2">
 
-<div class="container container-xl">
+<div class="container container-xl" id="diwaliSequenceEditor" data-sequence-view="cards">
+  <h1 class="sr-only">Diwali Sequence Editor</h1>
+
+<datalist id="diwaliMusicianOptions">
+  <% (musicians || []).forEach(musician => { %>
+    <option value="<%= musician.name %>"></option>
+  <% }) %>
+</datalist>
+
+
+  <div class="diwali-manual-builder-toolbar">
+    <div>
+      <strong>Manual sequence builder</strong>
+      <p>Create a separate sequence and add bhajans directly from the available pool. Automatic sequences are preserved.</p>
+    </div>
+    <button type="button" class="btn-diwali btn-diwali-maroon" onclick="createManualDiwaliSequence()">
+      + Create Manual Sequence
+    </button>
+  </div>
 
   <div style="margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <a href="/admin/diwali?year=<%= selectedEvent.year %>" class="btn-diwali btn-diwali-secondary">
@@ -40,23 +58,31 @@
       <div>
         <strong style="color:var(--diwali-maroon); font-size:15px;">Manual Sequence Editor</strong>
         <p style="margin:2px 0 0 0; font-size:12.5px; color:var(--text-light);">
-          Reorder bhajans within sequences, move songs between sessions, and assign optional dates. All changes persist and reflect in final exports.
+          Drag the handle to reorder bhajans within a sequence or move them between sequences. You can also use the arrow and Move to controls. Changes save automatically and reflect in final exports.
         </p>
       </div>
       <span class="badge-pill" style="font-weight:700;"><%= sequences.length %> Active Sequences</span>
     </div>
 
+    <div class="diwali-sequence-view-toolbar" role="group" aria-label="Sequence display mode">
+      <span>View:</span>
+      <button type="button" class="btn-diwali btn-diwali-secondary is-active" data-sequence-view-button="cards" aria-pressed="true" onclick="setDiwaliSequenceView('cards')">Card view</button>
+      <button type="button" class="btn-diwali btn-diwali-secondary" data-sequence-view-button="table" aria-pressed="false" onclick="setDiwaliSequenceView('table')">Table view</button>
+    </div>
+
     <!-- Sequence Columns Grid -->
-    <div class="sequences-board-grid">
+    <div class="sequences-board-grid" id="diwaliSequenceBoard">
       <% sequences.forEach(seq => { %>
         <div class="sequence-column-card" id="seq-col-<%= seq.id %>">
           <div class="sequence-col-header">
             <div class="sequence-title-row">
-              <h3>Sequence <%= seq.sequence_number %></h3>
+              <h3><%= seq.sequence_type === 'Manual' ? 'Manual Sequence' : 'Sequence' %> <%= seq.sequence_number %></h3>
+              <span class="badge-pill <%= seq.sequence_type === 'Manual' ? 'diwali-manual-badge' : '' %>"><%= seq.sequence_type === 'Manual' ? 'MANUAL' : 'AUTO-GENERATED' %></span>
               <div style="display:flex; gap:6px; align-items:center;">
                 <span class="badge-pill" style="background:var(--surface); color:var(--diwali-amber); font-weight:700;">
                   <span id="seq-count-<%= seq.id %>"><%= seq.entries ? seq.entries.length : 0 %></span> songs
                 </span>
+                <button type="button" class="btn-diwali btn-diwali-secondary diwali-delete-generated-btn" style="padding:2px 7px; font-size:11px;" onclick="deleteDiwaliSequence(<%= seq.id %>, '<%= seq.sequence_type === 'Manual' ? 'Manual' : 'Auto' %>', <%= seq.sequence_number %>)" title="Delete only this sequence">Delete</button>
                 <% if (seq.status === 'Finalized') { %>
                   <span class="badge-pill" style="background:#e8f1e9; color:#4f7a5b;">✓ Finalized</span>
                 <% } else { %>
@@ -74,20 +100,106 @@
                 type="date"
                 id="seqDate-<%= seq.id %>"
                 class="sequence-date-input"
+                data-saved-value="<%= seq.assigned_date || '' %>"
                 value="<%= seq.assigned_date || '' %>"
                 onchange="onDateChanged(<%= seq.id %>, this.value)"
               >
-              <small style="font-size:11px; color:var(--text-light);">(Saved auto)</small>
+              <small id="dateStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
+            </div>
+
+            <!-- Morning / Evening assignment for this sequence -->
+            <div class="sequence-date-wrap" style="margin-top:8px;">
+              <label for="seqPeriod-<%= seq.id %>" style="font-size:12px; font-weight:600;">Session:</label>
+              <select
+                id="seqPeriod-<%= seq.id %>"
+                class="sequence-date-input"
+                data-saved-value="<%= seq.session_period || 'Morning' %>"
+                onchange="onSessionPeriodChanged(<%= seq.id %>, this.value)"
+                aria-label="Select morning or evening session"
+              >
+                <option value="Morning" <%= (seq.session_period || 'Morning') === 'Morning' ? 'selected' : '' %>>Morning</option>
+                <option value="Evening" <%= seq.session_period === 'Evening' ? 'selected' : '' %>>Evening</option>
+              </select>
+              <small id="periodStatus-<%= seq.id %>" style="font-size:11px; color:var(--text-light);" aria-live="polite">Saved</small>
+            </div>
+
+            <!-- Required musician assignments for this session/day -->
+            <div class="diwali-musician-assignment">
+              <div class="diwali-musician-assignment-heading">
+                <strong>Session Musicians</strong>
+                <span class="diwali-musician-required">Both required</span>
+              </div>
+              <div class="diwali-musician-fields">
+                <label>
+                  <span>Harmonium Player <span class="req-star">*</span></span>
+                  <input
+                    type="text"
+                    id="harmoniumPlayer-<%= seq.id %>"
+                    class="diwali-input-text"
+                    list="diwaliMusicianOptions"
+                    maxlength="255"
+                    autocomplete="off"
+                    placeholder="Select or enter harmonium player"
+                    value="<%= seq.harmonium_player || '' %>"
+                    required
+                  >
+                </label>
+                <label>
+                  <span>Tabla Player <span class="req-star">*</span></span>
+                  <input
+                    type="text"
+                    id="tablaPlayer-<%= seq.id %>"
+                    class="diwali-input-text"
+                    list="diwaliMusicianOptions"
+                    maxlength="255"
+                    autocomplete="off"
+                    placeholder="Select or enter tabla player"
+                    value="<%= seq.tabla_player || '' %>"
+                    required
+                  >
+                </label>
+              </div>
+              <div class="diwali-musician-assignment-footer">
+                <small id="musicianStatus-<%= seq.id %>" aria-live="polite">
+                  <%= seq.harmonium_player && seq.tabla_player ? 'Assignments saved' : 'Assign both players before finalizing this session' %>
+                </small>
+                <button type="button" class="btn-diwali btn-diwali-secondary" onclick="saveSequenceMusicians(<%= seq.id %>)">
+                  Save Players
+                </button>
+              </div>
             </div>
           </div>
 
+          <% if (seq.sequence_type === 'Manual') { %>
+            <div class="diwali-manual-pool">
+              <label for="manualPool-<%= seq.id %>">Add bhajans from the available pool</label>
+              <select id="manualPool-<%= seq.id %>" multiple size="5" class="diwali-input-text">
+                <% (manualPool || []).forEach(bhajan => { const participant = bhajan.participant || {}; %>
+                  <option value="<%= bhajan.id %>">
+                    <%= bhajan.bhajan_title %> — <%= participant.lead_name || 'Unknown lead' %> / <%= participant.partner_name || 'Unknown partner' %> (<%= participant.gender || '-' %>)
+                  </option>
+                <% }) %>
+              </select>
+              <div class="diwali-manual-pool-footer">
+                <small><%= (manualPool || []).length %> bhajans available. Select one or more; Ctrl/Cmd allows multiple selections.</small>
+                <button type="button" class="btn-diwali btn-diwali-secondary" onclick="addBhajansToManualSequence(<%= seq.id %>)">Add Selected Bhajans</button>
+              </div>
+              <% if (!(manualPool || []).length) { %>
+                <small class="diwali-manual-pool-empty">All event bhajans are already assigned to a sequence.</small>
+              <% } %>
+            </div>
+          <% } %>
+
+          <!-- Card presentation (default on mobile and desktop) -->
+          <div class="sequence-view-cards">
           <!-- Entries Container -->
           <div class="sequence-entries-list" id="seq-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
             <% (seq.entries || []).forEach((e, eIdx) => { %>
               <% const pb = e.participantBhajan || {}; const p = pb.participant || {}; %>
-              <div class="sequence-entry-card" id="entry-card-<%= e.id %>" data-entry-id="<%= e.id %>">
+              <div class="sequence-entry-card" id="entry-card-<%= e.id %>" data-entry-id="<%= e.id %>" data-seq-id="<%= seq.id %>">
                 <div class="sequence-entry-top">
                   <span class="sequence-entry-title">
+                    <button type="button" class="sequence-drag-handle" aria-label="Drag to reorder or move this bhajan" title="Drag to reorder or move" tabindex="0">⠿</button>
                     <span class="order-badge" style="font-weight:800; color:var(--diwali-maroon);"><%= e.sequence_order %>.</span>
                     <%= pb.bhajan_title || '-' %>
                   </span>
@@ -105,6 +217,9 @@
                   <% if (pb.tabla) { %><span class="badge-pill">Tabla Shruti: <%= pb.tabla %></span><% } %>
                   <% if (pb.deity) { %><span class="badge-pill"><%= pb.deity %></span><% } %>
                 </div>
+                <% if (seq.sequence_type === 'Manual') { %>
+                  <button type="button" class="btn-diwali btn-diwali-secondary diwali-manual-remove" onclick="removeBhajanFromManualSequence(<%= seq.id %>, <%= e.id %>)">Remove from manual sequence</button>
+                <% } %>
 
                 <!-- Reordering & Moving Controls -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px dashed var(--diwali-border); font-size:12px;">
@@ -131,6 +246,46 @@
                 </div>
               </div>
             <% }) %>
+          </div>
+          </div>
+
+          <!-- Table presentation; shares the same entry IDs and drag/drop API. -->
+          <div class="sequence-view-table">
+            <div class="sequence-table-wrap">
+              <table class="sequence-entry-table">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Bhajan</th>
+                    <th scope="col">Lead</th>
+                    <th scope="col">Partner</th>
+                    <th scope="col">Gender</th>
+                    <th scope="col">Scale</th>
+                    <th scope="col">Tabla</th>
+                    <th scope="col">Deity</th>
+                  </tr>
+                </thead>
+                <tbody class="sequence-entries-list sequence-table-body" id="seq-table-list-<%= seq.id %>" data-seq-id="<%= seq.id %>">
+                  <% (seq.entries || []).forEach((e) => { %>
+                    <% const pb = e.participantBhajan || {}; const p = pb.participant || {}; %>
+                    <tr class="sequence-entry-card sequence-table-row" id="table-entry-<%= e.id %>" data-entry-id="<%= e.id %>" data-seq-id="<%= seq.id %>">
+                      <td class="sequence-table-order">
+                        <button type="button" class="sequence-drag-handle" aria-label="Drag to reorder or move this bhajan" title="Drag to reorder or move" tabindex="0">⠿</button>
+                        <span class="order-badge"><%= e.sequence_order %>.</span>
+                      </td>
+                      <td class="sequence-table-bhajan"><strong><%= pb.bhajan_title || '-' %></strong></td>
+                      <td><%= p.lead_name || '-' %></td>
+                      <td><%= p.partner_name || '-' %></td>
+                      <td><span class="badge-gender <%= p.gender === 'Ladies' ? 'ladies' : 'gents' %>"><%= p.gender || '-' %></span></td>
+                      <td><%= pb.scale || '-' %></td>
+                      <td><%= pb.tabla || '-' %></td>
+                      <td><%= pb.deity || '-' %></td>
+                    </tr>
+                  <% }) %>
+                  <tr class="sequence-table-drop-placeholder" aria-hidden="true"><td colspan="8">Drop a bhajan here to add it to this sequence</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       <% }) %>
@@ -240,19 +395,136 @@
   </div>
 </div>
 
-<script src="/js/diwali.js"></script>
+<script src="/js/diwali.js?v=7.2.1"></script>
 <script>
-async function onDateChanged(sequenceId, dateVal) {
+async function deleteDiwaliSequence(sequenceId, sequenceType, sequenceNumber) {
+  const label = sequenceType === "Manual" ? "manual" : "automatically generated";
+  if (!window.confirm(`Delete ${label} sequence ${sequenceNumber}? Its bhajan assignments and session musician/date settings will be removed. Original Diwali entries will remain.`)) return;
   try {
-    const res = await fetch("/admin/diwali/sequence/assign-date", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, assignedDate: dateVal })
-    });
-    const data = await res.json();
-    if (!data.success) alert("Failed to save date: " + data.error);
-  } catch (err) {
-    alert("Network error: " + err.message);
+    const response = await window.diwaliPost(`/admin/diwali/sequence/delete/${sequenceId}`);
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not delete sequence.");
+    window.location.reload();
+  } catch (error) {
+    alert("Sequence deletion failed: " + error.message);
+  }
+}
+
+async function createManualDiwaliSequence() {
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/create");
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not create manual sequence");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function addBhajansToManualSequence(sequenceId) {
+  const select = document.getElementById(`manualPool-${sequenceId}`);
+  const participantBhajanIds = Array.from(select?.selectedOptions || []).map(option => Number(option.value));
+  if (!participantBhajanIds.length) {
+    alert("Select at least one bhajan from the available pool.");
+    return;
+  }
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/add-bhajans", { sequenceId, participantBhajanIds });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not add selected bhajans");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function removeBhajanFromManualSequence(sequenceId, entryId) {
+  if (!confirm("Remove this bhajan from the manual sequence? It will return to the available pool.")) return;
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/manual/remove-bhajan", { sequenceId, entryId });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not remove bhajan");
+    window.location.reload();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function onDateChanged(sequenceId, dateVal) {
+  const input = document.getElementById(`seqDate-${sequenceId}`);
+  const status = document.getElementById(`dateStatus-${sequenceId}`);
+  const previousValue = input?.dataset.savedValue ?? "";
+  if (input?.dataset.saving === "true") return;
+  if (input) { input.dataset.saving = "true"; input.disabled = true; }
+  if (status) status.textContent = "Saving...";
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-date", { sequenceId, assignedDate: dateVal });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || "Could not save session date.");
+    if (input) input.dataset.savedValue = dateVal;
+    if (status) status.textContent = "Saved";
+  } catch (error) {
+    if (input) input.value = previousValue;
+    if (status) status.textContent = "Not saved";
+    alert("Failed to save date: " + error.message);
+  } finally {
+    if (input) { delete input.dataset.saving; input.disabled = false; }
+  }
+}
+
+async function onSessionPeriodChanged(sequenceId, sessionPeriod) {
+  const input = document.getElementById(`seqPeriod-${sequenceId}`);
+  const status = document.getElementById(`periodStatus-${sequenceId}`);
+  const previousValue = input?.dataset.savedValue || "Morning";
+  if (input?.dataset.saving === "true") return;
+  if (input) { input.dataset.saving = "true"; input.disabled = true; }
+  if (status) status.textContent = "Saving...";
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-period", { sequenceId, sessionPeriod });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save session period.");
+    if (input) input.dataset.savedValue = sessionPeriod;
+    if (status) status.textContent = "Saved";
+  } catch (error) {
+    if (input) input.value = previousValue;
+    if (status) status.textContent = "Not saved";
+    alert("Failed to save session: " + error.message);
+  } finally {
+    if (input) { delete input.dataset.saving; input.disabled = false; }
+  }
+}
+
+async function saveSequenceMusicians(sequenceId) {
+  const harmoniumInput = document.getElementById(`harmoniumPlayer-${sequenceId}`);
+  const tablaInput = document.getElementById(`tablaPlayer-${sequenceId}`);
+  const status = document.getElementById(`musicianStatus-${sequenceId}`);
+  const harmoniumPlayer = harmoniumInput?.value.trim() || "";
+  const tablaPlayer = tablaInput?.value.trim() || "";
+
+  if (!harmoniumPlayer || !tablaPlayer) {
+    if (status) status.textContent = "Both harmonium and tabla players are required.";
+    (!harmoniumPlayer ? harmoniumInput : tablaInput)?.focus();
+    return;
+  }
+
+  const button = status?.parentElement.querySelector("button");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving...";
+  }
+
+  try {
+    const response = await window.diwaliPost("/admin/diwali/sequence/assign-musicians", { sequenceId, harmoniumPlayer, tablaPlayer });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save player assignments");
+    if (status) status.textContent = "✓ Players saved";
+    if (button) button.textContent = "Saved";
+  } catch (error) {
+    if (status) status.textContent = error.message;
+    if (button) button.textContent = "Save Players";
+    alert(error.message);
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -262,9 +534,7 @@ async function finalizeSeq(sequenceId) {
     : confirm("Finalize this sequence?");
   if (!ok) return;
   try {
-    const res = await fetch(`/admin/diwali/sequence/finalize/${sequenceId}`, {
-      method: "POST"
-    });
+    const res = await window.diwaliPost(`/admin/diwali/sequence/finalize/${sequenceId}`);
     const data = await res.json();
     if (data.success) window.location.reload();
     else alert("Error: " + data.error);
@@ -277,7 +547,9 @@ async function moveItemOrder(sequenceId, entryId, delta) {
   const container = document.getElementById(`seq-list-${sequenceId}`);
   if (!container) return;
 
-  const cards = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  if (container.dataset.saving === "true") return;
+  const originalOrder = Array.from(container.querySelectorAll(".sequence-entry-card"));
+  const cards = [...originalOrder];
   const idx = cards.findIndex(c => c.dataset.entryId === String(entryId));
   if (idx === -1) return;
 
@@ -302,26 +574,28 @@ async function moveItemOrder(sequenceId, entryId, delta) {
 
   const orderedIds = newCards.map(c => c.dataset.entryId);
 
-  // Persist order to server
+  // Persist once; restore the original order if the server rejects the save.
+  container.dataset.saving = "true";
+  const buttons = container.closest(".sequence-column-card")?.querySelectorAll("button") || [];
+  buttons.forEach(button => { button.disabled = true; });
   try {
-    await fetch("/admin/diwali/sequence/save-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sequenceId, orderedEntryIds: orderedIds })
-    });
+    const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds: orderedIds });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order.");
   } catch (err) {
-    console.error("Error saving sequence order:", err);
+    originalOrder.forEach(card => container.appendChild(card));
+    alert("Sequence order was not saved: " + err.message);
+  } finally {
+    delete container.dataset.saving;
+    buttons.forEach(button => { button.disabled = false; });
+    Array.from(container.querySelectorAll(".order-badge")).forEach((badge, index) => { badge.textContent = `${index + 1}.`; });
   }
 }
 
 async function moveEntryToSeq(entryId, targetSequenceId) {
   if (!targetSequenceId) return;
   try {
-    const res = await fetch("/admin/diwali/sequence/move-entry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryId, targetSequenceId })
-    });
+    const res = await window.diwaliPost("/admin/diwali/sequence/move-entry", { entryId, targetSequenceId });
     const data = await res.json();
     if (data.success) {
       window.location.reload();
@@ -331,5 +605,201 @@ async function moveEntryToSeq(entryId, targetSequenceId) {
   } catch (err) {
     alert("Error: " + err.message);
   }
+}
+
+// Keep the selected desktop presentation while defaulting mobile to cards.
+function setDiwaliSequenceView(mode) {
+  const root = document.getElementById("diwaliSequenceEditor");
+  if (!root) return;
+  const nextMode = mode === "table" && window.matchMedia("(min-width: 769px)").matches ? "table" : "cards";
+  root.dataset.sequenceView = nextMode;
+  try { window.localStorage.setItem("diwali-sequence-view", nextMode); } catch (_) { /* storage may be disabled */ }
+  document.querySelectorAll("[data-sequence-view-button]").forEach(button => {
+    const active = button.dataset.sequenceViewButton === nextMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function initDiwaliSequenceView() {
+  let saved = "cards";
+  try { saved = window.localStorage.getItem("diwali-sequence-view") || "cards"; } catch (_) { /* storage may be disabled */ }
+  setDiwaliSequenceView(saved);
+  window.addEventListener("resize", () => {
+    if (!window.matchMedia("(min-width: 769px)").matches) setDiwaliSequenceView("cards");
+  }, { passive: true });
+}
+
+// Touch + mouse drag-and-drop for sequence cards and table rows.
+function initDiwaliSequenceDragDrop() {
+  const board = document.querySelector(".sequences-board-grid");
+  if (!board || board.dataset.dragReady === "true") return;
+  board.dataset.dragReady = "true";
+
+  let drag = null;
+  let dragStarted = false;
+  let autoScrollFrame = null;
+
+  function refreshSequenceList(list) {
+    if (!list) return;
+    Array.from(list.querySelectorAll(".sequence-entry-card")).forEach((card, index) => {
+      const badge = card.querySelector(".order-badge");
+      if (badge) badge.textContent = (index + 1) + ".";
+      card.dataset.seqId = list.dataset.seqId;
+    });
+    const count = document.getElementById("seq-count-" + list.dataset.seqId);
+    if (count) count.textContent = list.querySelectorAll(".sequence-entry-card").length;
+  }
+
+  async function saveListOrder(list) {
+    const sequenceId = Number(list.dataset.seqId);
+    const orderedEntryIds = Array.from(list.querySelectorAll(".sequence-entry-card"))
+      .map(card => card.dataset.entryId);
+    const response = await window.diwaliPost("/admin/diwali/sequence/save-order", { sequenceId, orderedEntryIds });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.error || "Could not save sequence order");
+  }
+
+  function updateDragTarget(clientX, clientY) {
+    const element = document.elementFromPoint(clientX, clientY);
+    const list = element?.closest(".sequence-entries-list");
+    if (!list || !board.contains(list)) return;
+    placeDraggedCard(list, element.closest(".sequence-entry-card"), clientY);
+  }
+
+  function autoScrollWhileDragging() {
+    if (!drag || !dragStarted) { autoScrollFrame = null; return; }
+    const edge = 92;
+    const y = drag.lastClientY;
+    const height = window.innerHeight;
+    let scrollDelta = 0;
+    if (y < edge) scrollDelta = -Math.max(2, Math.ceil((edge - y) / 5));
+    else if (y > height - edge) scrollDelta = Math.max(2, Math.ceil((y - (height - edge)) / 5));
+    if (scrollDelta) {
+      window.scrollBy({ top: scrollDelta, left: 0, behavior: "auto" });
+      updateDragTarget(drag.lastClientX, drag.lastClientY);
+    }
+    autoScrollFrame = window.requestAnimationFrame(autoScrollWhileDragging);
+  }
+
+  function syncCardAndTableLists() {
+    const root = document.getElementById("diwaliSequenceEditor");
+    const activeClass = root?.dataset.sequenceView === "table" ? ".sequence-view-table" : ".sequence-view-cards";
+    const inactiveClass = root?.dataset.sequenceView === "table" ? ".sequence-view-cards" : ".sequence-view-table";
+    const activeLists = Array.from(board.querySelectorAll(activeClass + " .sequence-entries-list"));
+    const inactiveLists = Array.from(board.querySelectorAll(inactiveClass + " .sequence-entries-list"));
+    const inactiveEntries = new Map();
+    inactiveLists.forEach(list => list.querySelectorAll(".sequence-entry-card").forEach(card => inactiveEntries.set(card.dataset.entryId, card)));
+
+    activeLists.forEach(activeList => {
+      const inactiveList = inactiveLists.find(list => list.dataset.seqId === activeList.dataset.seqId);
+      if (!inactiveList) return;
+      Array.from(activeList.querySelectorAll(".sequence-entry-card")).forEach(card => {
+        const twin = inactiveEntries.get(card.dataset.entryId);
+        if (twin) inactiveList.appendChild(twin);
+      });
+    });
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  }
+
+  function placeDraggedCard(list, targetCard, y) {
+    if (!list || !drag?.card) return;
+    if (targetCard && targetCard !== drag.card && targetCard.parentElement === list) {
+      const rect = targetCard.getBoundingClientRect();
+      const insertAfter = y > rect.top + rect.height / 2;
+      list.insertBefore(drag.card, insertAfter ? targetCard.nextSibling : targetCard);
+    } else if (!targetCard) {
+      list.appendChild(drag.card);
+    }
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  }
+
+  board.addEventListener("pointerdown", event => {
+    const handle = event.target.closest(".sequence-drag-handle");
+    if (!handle || event.button > 0) return;
+    const card = handle.closest(".sequence-entry-card");
+    const list = card?.closest(".sequence-entries-list");
+    if (!card || !list) return;
+    drag = { card, sourceList: list, originalNextSibling: card.nextSibling, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    dragStarted = false;
+  });
+
+  document.addEventListener("pointermove", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+    if (!dragStarted && distance < 6) return;
+    dragStarted = true;
+    drag.lastClientX = event.clientX;
+    drag.lastClientY = event.clientY;
+    event.preventDefault();
+    drag.card.classList.add("is-dragging");
+    updateDragTarget(event.clientX, event.clientY);
+    if (autoScrollFrame === null) autoScrollFrame = window.requestAnimationFrame(autoScrollWhileDragging);
+  }, { passive: false });
+
+  async function finishDrag(event) {
+    if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+    const state = drag;
+    drag = null;
+    if (autoScrollFrame !== null) window.cancelAnimationFrame(autoScrollFrame);
+    autoScrollFrame = null;
+    state.card.classList.remove("is-dragging");
+    if (!dragStarted) return;
+
+    const targetList = state.card.closest(".sequence-entries-list");
+    if (!targetList) {
+      window.location.reload();
+      return;
+    }
+
+    try {
+      if (targetList !== state.sourceList) {
+        const targetCards = Array.from(targetList.querySelectorAll(".sequence-entry-card"));
+        const targetOrder = targetCards.indexOf(state.card) + 1;
+        const response = await window.diwaliPost("/admin/diwali/sequence/move-entry", {
+          entryId: state.card.dataset.entryId,
+          targetSequenceId: Number(targetList.dataset.seqId),
+          targetOrder
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || "Could not move bhajan");
+      } else {
+        await saveListOrder(targetList);
+      }
+      syncCardAndTableLists();
+      state.card.classList.add("is-drop-saved");
+      window.setTimeout(() => state.card?.classList.remove("is-drop-saved"), 650);
+    } catch (error) {
+      alert("Could not save the new bhajan order: " + error.message);
+      window.location.reload();
+    }
+  }
+
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", event => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const state = drag;
+    drag = null;
+    if (autoScrollFrame !== null) window.cancelAnimationFrame(autoScrollFrame);
+    autoScrollFrame = null;
+    state.card.classList.remove("is-dragging");
+    state.sourceList.insertBefore(
+      state.card,
+      state.originalNextSibling && state.originalNextSibling.parentElement === state.sourceList
+        ? state.originalNextSibling
+        : null
+    );
+    board.querySelectorAll(".sequence-entries-list").forEach(refreshSequenceList);
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    initDiwaliSequenceView();
+    initDiwaliSequenceDragDrop();
+  });
+} else {
+  initDiwaliSequenceView();
+  initDiwaliSequenceDragDrop();
 }
 </script>

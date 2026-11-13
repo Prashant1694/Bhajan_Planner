@@ -20,6 +20,12 @@
         <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer; line-height:1;">&times;</button>
       </div>
     <% } %>
+    <% if (typeof csvImportedMessage !== 'undefined' && csvImportedMessage) { %>
+      <div style="margin-bottom:12px; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#065f46; padding:10px 16px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600;">
+        <span>CSV import complete: <%= csvImportedMessage %></span>
+        <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; font-size:18px; cursor:pointer; line-height:1;" aria-label="Dismiss">&times;</button>
+      </div>
+    <% } %>
     <% if (typeof errorMessage !== 'undefined' && errorMessage) { %>
       <div style="margin-bottom:12px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#991b1b; padding:10px 16px; border-radius:8px; display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600;">
         <span style="display:flex; align-items:center; gap:8px;">
@@ -46,11 +52,17 @@
       </div>
 
       <!-- Quick Action Buttons -->
-      <div class="session-primary-actions" style="max-width:320px;">
+      <div class="session-primary-actions" style="max-width:460px; flex-wrap:wrap;">
         <button type="button" class="cmd-btn cmd-btn-add" onclick="toggleAddSingerDrawer()" title="Add a new singer to directory">
           <span class="cmd-btn-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
           <span class="cmd-btn-text">Add Singer</span>
         </button>
+        <button type="button" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;" onclick="toggleCsvImportDrawer()" title="Bulk import singer roster / genders via CSV">
+          <span>Import CSV</span>
+        </button>
+        <a href="/admin/singers/export.csv" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;" title="Download singers roster CSV">
+          <span>Export CSV</span>
+        </a>
         <a href="/admin" class="sec-tool-btn" style="height:42px; min-height:42px; flex-direction:row; gap:6px;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Dashboard</span>
@@ -107,20 +119,42 @@
       <h3 style="margin:0; font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
         Register New Devotee Singer
       </h3>
-      <button type="button" onclick="toggleAddSingerDrawer()" class="sec-tool-btn" style="width:32px; min-height:32px; padding:0; border-radius:50%;">&times;</button>
+      <button type="button" onclick="toggleAddSingerDrawer()" class="sec-tool-btn" aria-label="Close add singer drawer" style="width:32px; min-height:32px; padding:0; border-radius:50%;">&times;</button>
     </div>
-    <form action="/api/admin/add-singer" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) auto; gap:10px; align-items:center;">
+    <form action="/api/admin/add-singer" method="POST" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)) auto; gap:10px; align-items:end;">
       <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-      <input type="text" name="name" required class="workspace-search-input" placeholder="Singer Full Name (e.g. Ramesh S.)" style="max-width:none;">
-      <select name="gender" required class="workspace-search-input" style="max-width:none;">
-        <option value="">-- Select Gender --</option>
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Other">Other</option>
-      </select>
+      <div>
+        <label for="addSingerName" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Singer Full Name</label>
+        <input type="text" id="addSingerName" name="name" required class="workspace-search-input" placeholder="Singer Full Name (e.g. Ramesh S.)" style="width:100%; max-width:none;">
+      </div>
+      <div>
+        <label for="addSingerGender" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:var(--text);">Gender</label>
+        <select id="addSingerGender" name="gender" required class="workspace-search-input" style="width:100%; max-width:none;">
+          <option value="">-- Select Gender --</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
       <button type="submit" class="cmd-btn cmd-btn-share" style="height:40px; padding:0 20px;">
         Save Singer
       </button>
+    </form>
+  </div>
+
+  <!-- ═══ BULK CSV IMPORT DRAWER (FEAT-04) ═══ -->
+  <div id="csvImportDrawer" class="session-unified-header" style="display:none; margin-bottom:14px; border:2px dashed #0284c7; background:var(--surface-raised);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h3 style="margin:0; font-size:16px; font-weight:700;">Bulk Import Singers &amp; Missing Genders (CSV)</h3>
+      <button type="button" onclick="toggleCsvImportDrawer()" class="sec-tool-btn" aria-label="Close CSV import drawer" style="width:32px; min-height:32px; padding:0; border-radius:50%;">&times;</button>
+    </div>
+    <form action="/api/admin/singers/import-csv" method="POST">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+      <label for="csvImportTextarea" style="display:block; font-size:12px; font-weight:700; margin-bottom:6px; color:var(--text);">Paste lines formatted as: Name,Gender,Preferred Scale</label>
+      <textarea id="csvImportTextarea" name="csv_text" rows="5" required class="workspace-search-input" style="width:100%; max-width:none; min-height:110px;" placeholder="Name,Gender,Preferred Scale&#10;Ramesh Patel,Male,C#&#10;Meera Shah,Female,G#"></textarea>
+      <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px;">
+        <button type="submit" class="cmd-btn cmd-btn-share" style="height:38px; padding:0 18px;">Run Bulk Import</button>
+      </div>
     </form>
   </div>
 
@@ -145,6 +179,7 @@
           <button type="button" class="view-switch-btn active" id="btnGenderAll" onclick="setGenderFilter('all')">All</button>
           <button type="button" class="view-switch-btn" id="btnGenderMale" onclick="setGenderFilter('male')">Male</button>
           <button type="button" class="view-switch-btn" id="btnGenderFemale" onclick="setGenderFilter('female')">Female</button>
+          <button type="button" class="view-switch-btn" id="btnGenderMissing" onclick="setGenderFilter('unset')" title="Show singers missing Gender">Missing Gender (<%= metrics.missingGender || 0 %>)</button>
           <button type="button" class="view-switch-btn" id="btnPinProtected" onclick="setPinFilter('protected')" title="Show only PIN protected singers">
             🔒 Protected (<%= metrics.pinProtected %>)
           </button>
@@ -176,76 +211,81 @@
                   data-gender="<%= (s.gender || 'unset').toLowerCase() %>"
                   data-pin="<%= s.has_pin ? 'yes' : 'no' %>">
                 
-                <td style="text-align:center; color:var(--text-light); font-weight:700;">
+                <td data-label="#" class="adm-cell-idx">
                   <%= idx + 1 %>
                 </td>
 
-                <td>
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg, rgba(217,138,43,0.15), rgba(125,47,69,0.15)); color:var(--primary); font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(217,138,43,0.25); flex-shrink:0;">
+                <td data-label="Singer Devotee">
+                  <div class="adm-singer-cell">
+                    <div class="adm-singer-avatar">
                       <%= (s.name || 'S').charAt(0).toUpperCase() %>
                     </div>
                     <div>
-                      <strong style="font-size:14px; color:var(--text);"><%= s.name %></strong>
+                      <strong class="adm-singer-name"><%= s.name %></strong>
                       <% if (s.is_unrecorded) { %>
-                        <br><small style="color:var(--danger); font-size:11px;">Sung in past session, not in dictionary</small>
+                        <br><small class="adm-singer-unrec">Sung in past session, not in dictionary</small>
                       <% } %>
                     </div>
                   </div>
                 </td>
 
-                <td>
+                <td data-label="Gender" class="singer-gender-cell">
                   <% if (s.gender) { %>
-                    <span class="card-gender-chip" style="font-size:11.5px; font-weight:600; padding:3px 9px;">
+                    <span class="card-gender-chip adm-gender-chip">
                       <%= s.gender %>
                     </span>
+                  <% } else if (s.id) { %>
+                    <div class="adm-pin-group">
+                      <button type="button" class="sec-tool-btn adm-pin-action-btn" onclick="quickSetSingerGender(<%= s.id %>, 'Male', this)">M</button>
+                      <button type="button" class="sec-tool-btn adm-pin-action-btn" onclick="quickSetSingerGender(<%= s.id %>, 'Female', this)">F</button>
+                    </div>
                   <% } else { %>
-                    <span style="color:var(--text-light); font-size:12px;">—</span>
+                    <span class="adm-muted-note">—</span>
                   <% } %>
                 </td>
 
-                <td style="text-align:center;">
+                <td data-label="Bhajans Sung" class="adm-cell-center">
                   <span class="table-order-badge" style="cursor:default; min-width:32px; height:28px; display:inline-flex;">
                     <%= s.total_sung %>
                   </span>
                 </td>
 
-                <td>
+                <td data-label="Last Participation">
                   <div style="line-height:1.2;">
-                    <span style="font-size:12.5px; font-weight:600; color:var(--text);"><%= s.formattedDate %></span>
+                    <span class="adm-singer-name"><%= s.formattedDate %></span>
                     <% if (s.last_sung) { %>
-                      <br><small style="color:var(--text-light); font-size:11px;"><%= s.lastSungHuman %></small>
+                      <br><small class="adm-muted-note"><%= s.lastSungHuman %></small>
                     <% } %>
                   </div>
                 </td>
 
-                <td>
+                <td data-label="Portal PIN">
                   <% if (s.has_pin) { %>
-                    <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                      <span class="diag-chip pass" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+                    <div class="adm-pin-group">
+                      <span class="diag-chip pass adm-pin-chip">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         Protected
                       </span>
                       <% if (s.id) { %>
-                        <button type="button" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--primary); font-weight:700;" data-id="<%= s.id %>" data-name="<%= s.name %>" onclick="openPinModal(this.dataset.id, this.dataset.name, true)" title="Change 4-digit PIN">
+                        <button type="button" class="sec-tool-btn adm-pin-action-btn" style="color:var(--primary);" data-id="<%= s.id %>" data-name="<%= s.name %>" onclick="openPinModal(this.dataset.id, this.dataset.name, true)" title="Change 4-digit PIN">
                           Change
                         </button>
                         <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="display:inline; margin:0;" data-name="<%= s.name %>" data-confirm="Reset PIN for <%= s.name.replace(/"/g, '&quot;') %>? The singer will have no PIN until a new one is set.">
                           <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                          <button type="submit" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--danger, #ef4444); font-weight:700;" title="Reset / Clear PIN">
+                          <button type="submit" class="sec-tool-btn adm-pin-action-btn" style="color:var(--danger, #ef4444);" title="Reset / Clear PIN">
                             Reset
                           </button>
                         </form>
                       <% } %>
                     </div>
                   <% } else { %>
-                    <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                      <span class="diag-chip warn" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
+                    <div class="adm-pin-group">
+                      <span class="diag-chip warn adm-pin-chip">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
                         Not set
                       </span>
                       <% if (s.id) { %>
-                        <button type="button" class="sec-tool-btn" style="display:inline-flex; min-height:auto; padding:3px 8px; font-size:11px; width:auto; border-radius:6px; color:var(--primary); font-weight:700;" data-id="<%= s.id %>" data-name="<%= s.name %>" onclick="openPinModal(this.dataset.id, this.dataset.name, false)" title="Set initial 4-digit PIN">
+                        <button type="button" class="sec-tool-btn adm-pin-action-btn" style="color:var(--primary);" data-id="<%= s.id %>" data-name="<%= s.name %>" onclick="openPinModal(this.dataset.id, this.dataset.name, false)" title="Set initial 4-digit PIN">
                           + Set PIN
                         </button>
                       <% } %>
@@ -253,15 +293,15 @@
                   <% } %>
                 </td>
 
-                <td style="text-align:right;">
-                  <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+                <td data-label="Actions" class="adm-cell-right">
+                  <div class="adm-actions-group">
                     <% if (s.id) { %>
-                      <button type="button" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11.5px;" data-id="<%= s.id %>" data-name="<%= s.name %>" data-gender="<%= s.gender || '' %>" onclick="openEditModal(this.dataset.id, this.dataset.name, this.dataset.gender)" title="Edit singer details">
+                      <button type="button" class="card-touch-btn btn-edit adm-icon-btn-sm" data-id="<%= s.id %>" data-name="<%= s.name %>" data-gender="<%= s.gender || '' %>" onclick="openEditModal(this.dataset.id, this.dataset.name, this.dataset.gender)" title="Edit singer details">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
                       <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" data-confirm="Delete this singer from the directory?" style="margin:0; display:inline;">
                         <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-                        <button type="submit" class="card-touch-btn btn-delete" style="padding:4px 9px; font-size:11.5px;" title="Delete singer">
+                        <button type="submit" class="card-touch-btn btn-delete adm-icon-btn-sm" title="Delete singer">
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                       </form>
@@ -270,7 +310,7 @@
                       <form action="/api/admin/add-singer" method="POST" style="margin:0; display:inline;">
                         <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                         <input type="hidden" name="name" value="<%= s.name %>">
-                        <button type="submit" class="card-touch-btn btn-edit" style="padding:4px 9px; font-size:11px;" title="Register into dictionary">
+                        <button type="submit" class="card-touch-btn btn-edit adm-icon-btn-sm" title="Register into dictionary">
                           + Register
                         </button>
                       </form>
@@ -298,17 +338,17 @@
     <div class="session-modal-card">
       <div class="session-modal-header">
         <h3>Edit Singer Details</h3>
-        <button type="button" class="sec-tool-btn" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeEditModal()">&times;</button>
+        <button type="button" class="sec-tool-btn" aria-label="Close edit singer modal" style="width:30px; min-height:30px; padding:0; border-radius:50%;" onclick="closeEditModal()">&times;</button>
       </div>
       <form id="editSingerForm" method="POST">
         <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
         <div class="session-modal-body" style="display:flex; flex-direction:column; gap:12px;">
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:5px; color:var(--text);">Full Name</label>
+            <label for="editModalName" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px; color:var(--text);">Full Name</label>
             <input type="text" name="name" id="editModalName" required class="workspace-search-input" style="width:100%; max-width:none;">
           </div>
           <div>
-            <label style="display:block; font-size:12px; font-weight:700; margin-bottom:5px; color:var(--text);">Gender</label>
+            <label for="editModalGender" style="display:block; font-size:12px; font-weight:700; margin-bottom:5px; color:var(--text);">Gender</label>
             <select name="gender" id="editModalGender" required class="workspace-search-input" style="width:100%; max-width:none;">
               <option value="">-- Select Gender --</option>
               <option value="Male">Male</option>
@@ -387,12 +427,39 @@
     if (d) d.style.display = (d.style.display === 'none' || !d.style.display) ? 'block' : 'none';
   }
 
+  function toggleCsvImportDrawer() {
+    const d = document.getElementById('csvImportDrawer');
+    if (d) d.style.display = (d.style.display === 'none' || !d.style.display) ? 'block' : 'none';
+  }
+
+  async function quickSetSingerGender(id, gender, btnEl) {
+    const csrf = '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>';
+    try {
+      btnEl.disabled = true;
+      const res = await fetch('/api/admin/singers/quick-gender', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ id, gender })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        const cell = btnEl.closest('td');
+        const row = btnEl.closest('tr');
+        if (row) row.setAttribute('data-gender', gender.toLowerCase());
+        if (cell) cell.innerHTML = `<span class="card-gender-chip" style="font-size:11.5px; font-weight:600; padding:3px 9px;">${gender}</span>`;
+      }
+    } catch (_) {
+      btnEl.disabled = false;
+    }
+  }
+
   function setGenderFilter(g) {
     activeGender = g;
     activePinFilter = 'all';
     document.querySelectorAll('.view-switcher-pill .view-switch-btn').forEach(b => b.classList.remove('active'));
     if (g === 'male') document.getElementById('btnGenderMale')?.classList.add('active');
     else if (g === 'female') document.getElementById('btnGenderFemale')?.classList.add('active');
+    else if (g === 'unset') document.getElementById('btnGenderMissing')?.classList.add('active');
     else document.getElementById('btnGenderAll')?.classList.add('active');
     filterSingersTable(document.getElementById('singerSearchInput')?.value || '');
   }

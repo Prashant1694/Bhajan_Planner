@@ -4,6 +4,7 @@ const { requireLogin, requireApiLogin } = require("../middleware/auth");
 
 const masterBankController = require("../controllers/masterBankController");
 router.get("/master-bank", masterBankController.showMasterBank);
+router.get("/api/master-bhajans/catalog.json", masterBankController.getCatalogJson);
 router.get("/bhajan/:id", masterBankController.showBhajanDetails);
 router.post("/api/add-master-bhajan", requireApiLogin, masterBankController.addMasterBhajan);
 router.post(

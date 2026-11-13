@@ -9,6 +9,7 @@ const {
 } = require("../models/diwaliModels");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const { getMasterCatalog } = require("../services/catalogCache");
+const Singer = require("../models/Singer");
 
 // Pitch-shift calculation matching Thursday Bhajan form
 function femaleFallbackShruti(maleShruti) {
@@ -61,12 +62,13 @@ async function resolveSelectedEvent(req) {
 exports.dashboard = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences] = await Promise.all([
+    const [allEvents, stats, gentsBhajans, ladiesBhajans, sequences, participants] = await Promise.all([
       diwaliService.getAllEvents(),
       diwaliService.getStats(selectedEvent.id),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Gents" }),
       diwaliService.getFlatBhajanRows(selectedEvent.id, { gender: "Ladies" }),
-      diwaliService.getFullSequences(selectedEvent.id)
+      diwaliService.getFullSequences(selectedEvent.id),
+      diwaliService.getParticipantsAndBhajans(selectedEvent.id)
     ]);
 
     const allBhajans = [...gentsBhajans, ...ladiesBhajans];
@@ -82,6 +84,7 @@ exports.dashboard = async (req, res) => {
       gentsBhajans,
       ladiesBhajans,
       sequences,
+      participants,
       deities,
       scales,
       successMsg: req.query.success || null,
@@ -162,7 +165,7 @@ exports.createParticipant = async (req, res) => {
       gender,
       remarks,
       bhajans
-    });
+    }, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -203,12 +206,21 @@ exports.createParticipant = async (req, res) => {
 // 4. Get Participant Details for Edit
 exports.getParticipantJson = async (req, res) => {
   try {
-    const participant = await diwaliService.getParticipantById(req.params.id);
+    const selectedEvent = await resolveSelectedEvent(req);
+    const participant = await diwaliService.getParticipantById(req.params.id, selectedEvent.id);
     if (!participant) {
       return res.status(404).json({ success: false, error: "Participant not found" });
     }
-    res.json({ success: true, participant });
+
+    // Give each bhajan editor a complete event-scoped list of reusable pairs.
+    const availablePairs = await DiwaliParticipant.findAll({
+      where: { event_id: selectedEvent.id },
+      attributes: ["id", "lead_name", "partner_name", "gender"],
+      order: [["gender", "ASC"], ["lead_name", "ASC"], ["partner_name", "ASC"]]
+    });
+    res.json({ success: true, participant, availablePairs });
   } catch (error) {
+    console.error("Error loading Diwali pair editor:", error);
     res.status(500).json({ success: false, error: "Failed to load participant." });
   }
 };
@@ -225,13 +237,14 @@ exports.updateParticipant = async (req, res) => {
       }
     }
 
+    const selectedEvent = await resolveSelectedEvent(req);
     const updated = await diwaliService.updateParticipantWithBhajans(req.params.id, {
       lead_name,
       partner_name,
       gender,
       remarks,
       bhajans
-    });
+    }, selectedEvent.id);
 
     await activityService.log(
       req.session.admin,
@@ -249,12 +262,12 @@ exports.updateParticipant = async (req, res) => {
 // 6. Delete Participant
 exports.deleteParticipant = async (req, res) => {
   try {
-    const participant = await diwaliService.getParticipantById(req.params.id);
+    const participant = await diwaliService.getParticipantById(req.params.id, (await resolveSelectedEvent(req)).id);
     const desc = participant
       ? `'${participant.lead_name}' & '${participant.partner_name}'`
       : `ID ${req.params.id}`;
 
-    await diwaliService.deleteParticipant(req.params.id);
+    await diwaliService.deleteParticipant(req.params.id, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -278,7 +291,7 @@ exports.deleteParticipant = async (req, res) => {
 // 7. Delete Bhajan
 exports.deleteBhajan = async (req, res) => {
   try {
-    await diwaliService.deleteBhajan(req.params.id);
+    await diwaliService.deleteBhajan(req.params.id, (await resolveSelectedEvent(req)).id);
     await activityService.log(
       req.session.admin,
       "DIWALI_BHAJAN_REMOVED",
@@ -429,13 +442,34 @@ exports.makeSequence = async (req, res) => {
   }
 };
 
+// Delete one sequence belonging to the currently selected Diwali event.
+exports.deleteSequence = async (req, res) => {
+  try {
+    const selectedEvent = await resolveSelectedEvent(req);
+    const result = await diwaliService.deleteSequence(selectedEvent.id, req.params.id);
+
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_SEQUENCE_DELETED",
+      `Deleted ${result.sequenceType === "Manual" ? "manual" : "automatically generated"} sequence ${result.sequenceNumber} for ${selectedEvent.name}.`
+    );
+
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Error deleting Diwali sequence:", error);
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
 // 14. Sequence Editor View
 exports.showSequenceEditor = async (req, res) => {
   try {
     const selectedEvent = await resolveSelectedEvent(req);
-    const [allEvents, sequences] = await Promise.all([
+    const [allEvents, sequences, musicians, manualPool] = await Promise.all([
       diwaliService.getAllEvents(),
-      diwaliService.getFullSequences(selectedEvent.id)
+      diwaliService.getFullSequences(selectedEvent.id),
+      Singer.findAll({ attributes: ["name"], order: [["name", "ASC"]], raw: true }),
+      diwaliService.getManualSequencePool(selectedEvent.id)
     ]);
 
     res.render("diwali/sequence-editor", {
@@ -443,7 +477,9 @@ exports.showSequenceEditor = async (req, res) => {
       page: "diwali",
       selectedEvent,
       allEvents,
-      sequences
+      sequences,
+      musicians,
+      manualPool
     });
   } catch (error) {
     console.error("Error loading sequence editor:", error);
@@ -451,11 +487,64 @@ exports.showSequenceEditor = async (req, res) => {
   }
 };
 
+// Create a separate, manually curated Diwali sequence.
+exports.createManualSequence = async (req, res) => {
+  try {
+    const selectedEvent = await resolveSelectedEvent(req);
+    const sequence = await diwaliService.createManualSequence(selectedEvent.id);
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_CREATED",
+      `Created manual sequence ${sequence.sequence_number} for ${selectedEvent.name}.`
+    );
+    res.json({ success: true, sequence });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Add selected entries from this Diwali event's unassigned manual pool.
+exports.addManualBhajans = async (req, res) => {
+  try {
+    const { sequenceId, participantBhajanIds } = req.body;
+    const ids = Array.isArray(participantBhajanIds) ? participantBhajanIds : [];
+    if (!ids.length) throw new Error("Select at least one bhajan from the pool.");
+
+    const added = await diwaliService.addBhajansToManualSequence(sequenceId, ids, (await resolveSelectedEvent(req)).id);
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_EDITED",
+      `Added ${added} bhajan(s) to manual sequence ${sequenceId}.`
+    );
+    res.json({ success: true, added });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+exports.removeManualBhajan = async (req, res) => {
+  try {
+    await diwaliService.removeBhajanFromManualSequence(
+      req.body.sequenceId,
+      req.body.entryId,
+      (await resolveSelectedEvent(req)).id
+    );
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_MANUAL_SEQUENCE_EDITED",
+      `Removed entry ${req.body.entryId} from manual sequence ${req.body.sequenceId}.`
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
 // 15. Save Sequence Order / Move
 exports.saveSequenceOrder = async (req, res) => {
   try {
     const { sequenceId, orderedEntryIds } = req.body;
-    await diwaliService.updateSequenceEntriesOrder(sequenceId, orderedEntryIds);
+    await diwaliService.updateSequenceEntriesOrder(sequenceId, orderedEntryIds, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -474,7 +563,7 @@ exports.saveSequenceOrder = async (req, res) => {
 exports.moveSequenceEntry = async (req, res) => {
   try {
     const { entryId, targetSequenceId, targetOrder } = req.body;
-    await diwaliService.moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder);
+    await diwaliService.moveEntryToAnotherSequence(entryId, targetSequenceId, targetOrder, (await resolveSelectedEvent(req)).id);
 
     await activityService.log(
       req.session.admin,
@@ -492,8 +581,46 @@ exports.moveSequenceEntry = async (req, res) => {
 exports.assignDate = async (req, res) => {
   try {
     const { sequenceId, assignedDate } = req.body;
-    const seq = await diwaliService.assignSequenceDate(sequenceId, assignedDate);
+    const seq = await diwaliService.assignSequenceDate(sequenceId, assignedDate, (await resolveSelectedEvent(req)).id);
     res.json({ success: true, sequence: seq });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Assign morning or evening period for one Diwali sequence.
+exports.assignSequencePeriod = async (req, res) => {
+  try {
+    const { sequenceId, sessionPeriod } = req.body;
+    const sequence = await diwaliService.assignSequencePeriod(
+      sequenceId,
+      sessionPeriod,
+      (await resolveSelectedEvent(req)).id
+    );
+    res.json({ success: true, sequence });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// Assign harmonium and tabla players for one Diwali session.
+exports.assignMusicians = async (req, res) => {
+  try {
+    const { sequenceId, harmoniumPlayer, tablaPlayer } = req.body;
+    const sequence = await diwaliService.assignSequenceMusicians(
+      sequenceId,
+      harmoniumPlayer,
+      tablaPlayer,
+      (await resolveSelectedEvent(req)).id
+    );
+
+    await activityService.log(
+      req.session.admin,
+      "DIWALI_SEQUENCE_MUSICIANS_ASSIGNED",
+      `Assigned harmonium: ${sequence.harmonium_player}; tabla: ${sequence.tabla_player} to sequence ${sequence.sequence_number}.`
+    );
+
+    res.json({ success: true, sequence });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
@@ -502,7 +629,7 @@ exports.assignDate = async (req, res) => {
 // 18. Finalize Sequence
 exports.finalizeSequence = async (req, res) => {
   try {
-    const seq = await diwaliService.finalizeSequence(req.params.id);
+    const seq = await diwaliService.finalizeSequence(req.params.id, (await resolveSelectedEvent(req)).id);
     await activityService.log(
       req.session.admin,
       "DIWALI_SEQUENCE_FINALIZED",

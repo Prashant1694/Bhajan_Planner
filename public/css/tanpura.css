@@ -5,7 +5,7 @@
 
 .tanpura-floating-widget {
   position: fixed;
-  top: 52%;
+  top: 76%;
   right: 0;
   z-index: 9990;
   display: flex;
@@ -653,6 +653,10 @@
 }
 
 @media (max-width: 600px) {
+  .tanpura-floating-widget {
+    top: auto;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
   .tanpura-drawer-panel {
     width: calc(100vw - 24px);
     max-width: 312px;

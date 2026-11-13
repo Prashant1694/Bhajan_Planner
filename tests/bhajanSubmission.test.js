@@ -54,13 +54,26 @@ test("Validator: validateCopySession rejects same source and target date", () =>
 });
 
 test("Validator: validateUpdatePermission validates valid types", () => {
-  const valid = validateUpdatePermission({
+  const invalidType = validateUpdatePermission({
+    date: "2026-10-15",
+    type: "bogus_status",
+    description: "Invalid status"
+  });
+  assert.strictEqual(invalidType.valid, false);
+
+  const validFestival = validateUpdatePermission({
     date: "2026-10-15",
     type: "festival",
     description: "Navaratri Session"
   });
-  // 'festival' is invalid type, valid are open, restricted, closed, clear
-  assert.strictEqual(valid.valid, false);
+  assert.strictEqual(validFestival.valid, true);
+
+  const validSpecial = validateUpdatePermission({
+    date: "2026-10-15",
+    type: "special",
+    description: "Special Session"
+  });
+  assert.strictEqual(validSpecial.valid, true);
 
   const validClear = validateUpdatePermission({
     date: "2026-10-15",

@@ -1,0 +1,43 @@
+<%
+  const card = locals.card;
+  const extraClass = locals.extraClass || '';
+%>
+<% if (card) { %>
+  <% if (card.blocked) { %>
+    <div class="deity-card disabled <%= extraClass %> <%= card.countClass %>" style="opacity:0.4; pointer-events:none;">
+      <div class="deity-name"><%= card.deity %></div>
+      <span class="badge badge-taken" style="background:#e03131;">Blocked</span>
+    </div>
+  <% } else { %>
+    <div
+      class="<%= card.cardClass %> <%= extraClass %>"
+      data-deity="<%= card.deity %>"
+      <% if (card.isFull) { %>
+        data-by="<%= card.by %>"
+        data-bhajan="<%= card.bhajan %>"
+        data-scale="<%= card.scale %>"
+        data-speed="<%= card.speed %>"
+        onclick="showDetails(this.dataset.deity, this.dataset.by, this.dataset.bhajan, this.dataset.scale, this.dataset.speed)"
+        style="cursor:pointer;"
+      <% } %>
+    >
+      <div class="deity-name"><%= card.deity %></div>
+      <span class="badge <%= card.isFull ? 'badge-taken' : 'badge-available' %>">
+        <% if (card.isFull) { %>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:-1px; margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+        <% } %>
+        <%= card.badgeText %>
+      </span>
+      <% if (card.mandatory) { %>
+        <div class="rule-warning <%= card.mandatoryFulfilled ? 'rule-fulfilled' : '' %>">
+          <svg class="req-star-svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:-1px; margin-right:3px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Required (<%= card.minReq %>)
+          <% if (card.mandatoryFulfilled) { %>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:-1px; margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+<% } %>
+

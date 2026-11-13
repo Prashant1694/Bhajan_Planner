@@ -13,7 +13,8 @@ const Singer = sequelize.define(
     preferred_scale: { type: DataTypes.STRING, allowNull: true },
     auth_token: { type: DataTypes.STRING, allowNull: true },
     failed_attempts: { type: DataTypes.INTEGER, defaultValue: 0, allowNull: false },
-    locked_until: { type: DataTypes.DATE, allowNull: true }
+    locked_until: { type: DataTypes.DATE, allowNull: true },
+    unavailable_dates: { type: DataTypes.TEXT, allowNull: true }
   },
   {
     tableName: "singer_dictionary",

@@ -75,7 +75,7 @@
 
 .pwa-banner-size {
   font-size: 0.8rem;
-  color: #8b8394;
+  color: #5c5464;
   margin: 0;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@
   border-radius: 50%;
   border: none;
   background: #f4f0e8;
-  color: #8b8394;
+  color: #5c5464;
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
@@ -186,7 +186,7 @@
 .pwa-btn-dismiss {
   padding: 14px 20px;
   background: transparent;
-  color: #8b8394;
+  color: #5c5464;
   border: 1.5px solid #e7e0d2;
   border-radius: 12px;
   font-size: 0.95rem;

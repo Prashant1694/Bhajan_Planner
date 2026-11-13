@@ -65,10 +65,20 @@ router.get("/admin/diwali/export/yearly", requireLogin, diwaliController.exportY
 
 // Sequence Generation & Management
 router.post("/admin/diwali/sequence/generate", requireLogin, diwaliController.makeSequence);
+router.post("/admin/diwali/sequence/delete/:id", requireLogin, diwaliController.deleteSequence);
+router.get("/admin/diwali/csrf-token", requireLogin, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ csrfToken: res.locals.csrfToken || (typeof req.csrfToken === "function" ? req.csrfToken() : "") });
+});
 router.get("/admin/diwali/sequence/editor", requireLogin, diwaliController.showSequenceEditor);
+router.post("/admin/diwali/sequence/manual/create", requireLogin, diwaliController.createManualSequence);
+router.post("/admin/diwali/sequence/manual/add-bhajans", requireLogin, diwaliController.addManualBhajans);
+router.post("/admin/diwali/sequence/manual/remove-bhajan", requireLogin, diwaliController.removeManualBhajan);
 router.post("/admin/diwali/sequence/save-order", requireLogin, diwaliController.saveSequenceOrder);
 router.post("/admin/diwali/sequence/move-entry", requireLogin, diwaliController.moveSequenceEntry);
 router.post("/admin/diwali/sequence/assign-date", requireLogin, diwaliController.assignDate);
+router.post("/admin/diwali/sequence/assign-period", requireLogin, diwaliController.assignSequencePeriod);
+router.post("/admin/diwali/sequence/assign-musicians", requireLogin, diwaliController.assignMusicians);
 router.post("/admin/diwali/sequence/finalize/:id", requireLogin, diwaliController.finalizeSequence);
 
 // Sequence Export

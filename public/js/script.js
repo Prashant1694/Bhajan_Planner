@@ -1191,27 +1191,60 @@ window.addEventListener("keydown", function (event) {
 // ADMIN PORTAL & TABLE UTILITIES
 // ============================================================================
 function bindAdminSidebar() {
+  const sidebar = document.getElementById("adminSidebar");
   const sidebarToggle = document.getElementById("sidebarToggle");
   const mobileSidebarToggle = document.getElementById("mobileSidebarToggle");
   const sidebarOverlay = document.getElementById("sidebarOverlay");
+  if (!sidebar) return;
 
-  if (localStorage.getItem("admin_sidebar_collapsed") === "true" && window.innerWidth > 1024) {
-    document.body.classList.add("sidebar-collapsed");
+  const desktopQuery = window.matchMedia("(min-width: 1025px)");
+
+  function applyDesktopSidebarState(state, persist = false) {
+    // "hover" = compact rail that expands only while hovered/focused.
+    // "pinned" = full-width sidebar that remains open.
+    const hoverMode = state === "hover";
+    document.body.classList.toggle("sidebar-collapsed", hoverMode);
+    document.body.classList.toggle("sidebar-pinned-open", !hoverMode);
+    if (sidebarToggle) {
+      sidebarToggle.setAttribute("aria-expanded", String(!hoverMode));
+      sidebarToggle.setAttribute("aria-label", hoverMode ? "Pin sidebar open" : "Collapse to hover sidebar");
+      sidebarToggle.title = hoverMode ? "Pin sidebar open" : "Collapse to hover sidebar";
+    }
+    if (persist) {
+      try { localStorage.setItem("admin_sidebar_mode", state); } catch (_) {}
+    }
+  }
+
+  // Restore the desktop preference. Migrate the previous boolean setting so
+  // existing users keep their compact/full-width preference.
+  if (desktopQuery.matches) {
+    let savedMode = null;
+    try {
+      savedMode = localStorage.getItem("admin_sidebar_mode");
+      if (!savedMode) {
+        const legacy = localStorage.getItem("admin_sidebar_collapsed");
+        if (legacy === "true") savedMode = "hover";
+        else if (legacy === "false") savedMode = "pinned";
+      }
+    } catch (_) {}
+    applyDesktopSidebarState(savedMode === "hover" ? "hover" : "pinned");
+  } else {
+    document.body.classList.remove("sidebar-collapsed", "sidebar-pinned-open");
   }
 
   window.toggleAdminSidebar = function (e) {
-    if (e && e.preventDefault) e.preventDefault();
-    if (window.innerWidth <= 1024) {
+    if (e) {
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+    }
+    if (!desktopQuery.matches) {
       window.closeMobileSidebar();
       return;
     }
-    document.body.classList.toggle("sidebar-collapsed");
-    try {
-      localStorage.setItem(
-        "admin_sidebar_collapsed",
-        String(document.body.classList.contains("sidebar-collapsed"))
-      );
-    } catch (_) {}
+    // Clicking the toggle while the hover-expanded rail is open pins it.
+    // Clicking again returns to the compact hover-to-expand rail.
+    const nextMode = document.body.classList.contains("sidebar-collapsed") ? "pinned" : "hover";
+    applyDesktopSidebarState(nextMode, true);
   };
 
   window.toggleMobileSidebar = function (e) {
@@ -1220,9 +1253,7 @@ function bindAdminSidebar() {
       if (e.stopPropagation) e.stopPropagation();
     }
     const now = Date.now();
-    if (window._lastMobileSidebarToggle && now - window._lastMobileSidebarToggle < 250) {
-      return;
-    }
+    if (window._lastMobileSidebarToggle && now - window._lastMobileSidebarToggle < 250) return;
     window._lastMobileSidebarToggle = now;
     document.body.classList.toggle("mobile-sidebar-open");
   };
@@ -1232,20 +1263,16 @@ function bindAdminSidebar() {
     document.body.classList.remove("mobile-sidebar-open");
   };
 
-  if (sidebarToggle && !sidebarToggle._sidebarBound) {
-    sidebarToggle._sidebarBound = true;
-    sidebarToggle.addEventListener("click", function (e) {
-      if (window.innerWidth <= 1024) {
-        window.closeMobileSidebar(e);
-      } else {
-        window.toggleAdminSidebar(e);
-      }
-    });
-  }
+  if (!window._adminGlobalHandlersBound) {
+    if (sidebarToggle && !sidebarToggle._sidebarBound) {
+      sidebarToggle._sidebarBound = true;
+      sidebarToggle.addEventListener("click", window.toggleAdminSidebar);
+    }
 
-  if (mobileSidebarToggle && !mobileSidebarToggle._mobileBound) {
-    mobileSidebarToggle._mobileBound = true;
-    mobileSidebarToggle.addEventListener("click", window.toggleMobileSidebar);
+    if (mobileSidebarToggle && !mobileSidebarToggle._mobileBound) {
+      mobileSidebarToggle._mobileBound = true;
+      mobileSidebarToggle.addEventListener("click", window.toggleMobileSidebar);
+    }
   }
 
   if (sidebarOverlay && !sidebarOverlay._overlayBound) {
@@ -1257,7 +1284,7 @@ function bindAdminSidebar() {
     if (!link._sidebarCloseBound) {
       link._sidebarCloseBound = true;
       link.addEventListener("click", () => {
-        if (window.innerWidth <= 1024) window.closeMobileSidebar();
+        if (!desktopQuery.matches) window.closeMobileSidebar();
       });
     }
   });
@@ -1265,7 +1292,14 @@ function bindAdminSidebar() {
   if (!window._adminResizeBound) {
     window._adminResizeBound = true;
     window.addEventListener("resize", () => {
-      if (window.innerWidth > 1024) window.closeMobileSidebar();
+      if (desktopQuery.matches) {
+        window.closeMobileSidebar();
+        let savedMode = "pinned";
+        try { savedMode = localStorage.getItem("admin_sidebar_mode") || "pinned"; } catch (_) {}
+        applyDesktopSidebarState(savedMode === "hover" ? "hover" : "pinned");
+      } else {
+        document.body.classList.remove("sidebar-collapsed", "sidebar-pinned-open");
+      }
     });
   }
 }

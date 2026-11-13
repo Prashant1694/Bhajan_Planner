@@ -57,8 +57,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
   </noscript>
 
-  <!-- Global CSS (v6.5) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <!-- Global CSS (v6.6) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.6">
   <link rel="stylesheet" href="/css/pwa.css?v=6.5">
   <link rel="stylesheet" href="/css/notifications.css?v=6.5">
   <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
@@ -68,7 +68,7 @@
   <% } %>
 
   <% if (typeof isAdminPage !== "undefined" && isAdminPage) { %>
-    <link rel="stylesheet" href="/css/admin.css?v=6.5">
+    <link rel="stylesheet" href="/css/admin.css?v=6.6">
   <% } %>
 
   <% if (pageCSS && (!(typeof isAdminPage !== "undefined" && isAdminPage) || pageCSS !== "admin.css")) { %>
@@ -76,7 +76,7 @@
   <% } %>
 
   <!-- Native Polish Layer (Loaded Last) -->
-  <link rel="stylesheet" href="/css/native.css?v=6.5">
+  <link rel="stylesheet" href="/css/native.css?v=6.7">
 
   <!-- Early Anti-FOUC Dark Mode Init -->
   <script>
@@ -187,11 +187,18 @@
       document.body.classList.remove('mobile-sidebar-open');
     };
 
-    // Delegated click handler on document for resilient theme toggle clicks & mobile sidebar toggle
+    window._adminGlobalHandlersBound = true;
+
+    // Single delegated click handler on document for theme toggle & sidebar toggles
     document.addEventListener('click', function (e) {
       var themeBtn = e.target && e.target.closest ? e.target.closest('#topbarThemeToggle, #shellThemeToggle, .admin-theme-toggle-btn') : null;
       if (themeBtn) {
         window.toggleTheme(e);
+        return;
+      }
+      var sidebarCollapseBtn = e.target && e.target.closest ? e.target.closest('#sidebarToggle') : null;
+      if (sidebarCollapseBtn) {
+        window.toggleAdminSidebar(e);
         return;
       }
       var mobileSidebarBtn = e.target && e.target.closest ? e.target.closest('#mobileSidebarToggle, .admin-sidebar-toggle-btn, .mobile-menu-btn') : null;
@@ -281,9 +288,9 @@
   <!-- Universal SSSO Print Footer -->
   <%- include('../partials/universal-print-footer') %>
 
-  <!-- Global JS (v6.5) -->
+  <!-- Global JS (v6.6) -->
   <script src="/js/haptics.js?v=6.5"></script>
-  <script src="/js/script.js?v=6.5"></script>
+  <script src="/js/script.js?v=6.6"></script>
   <script src="/js/native-ui.js?v=6.5"></script>
   <% if (!isEmbed) { %>
     <script src="/js/pwa.js?v=6.5"></script>

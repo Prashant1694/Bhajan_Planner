@@ -124,6 +124,8 @@
       p.startsWith("/forgot-password") ||
       p === "/logout" ||
       p === "/singer/logout" ||
+      p === "/plan-view/session.ics" ||
+      /\.(ics|pdf|csv|xlsx|xls|sqlite)$/i.test(p) ||
       p.startsWith("/api/") ||
       p.startsWith("/sheets/") ||
       p.startsWith("/audio/")
@@ -857,8 +859,8 @@
     sheet.setAttribute("aria-hidden", "false");
     document.body.classList.add("detail-sheet-open");
     const titleEl = document.getElementById("shellDetailTitle");
-    if (titleEl && initialTitle) {
-      titleEl.textContent = initialTitle;
+    if (titleEl) {
+      titleEl.textContent = cleanDetailHeaderTitle(initialTitle || "Details");
     }
   }
 
@@ -976,7 +978,10 @@
     }
 
     currentDetailUrl = normUrl;
-    openDetailSheetDom(currentDetailTitle || "Loading...");
+    if (!alreadyShowingSame) {
+      currentDetailTitle = opts.title || "Loading...";
+    }
+    openDetailSheetDom(opts.title || (alreadyShowingSame ? currentDetailTitle : "Loading..."));
     syncNavIndicators(activeTab);
 
     if (!alreadyShowingSame) {
@@ -1235,14 +1240,14 @@
       .catch(() => {});
   }
 
-  function prefetchRoute(rawUrl) {
+  function prefetchRoute(rawUrl, opts = {}) {
     if (!rawUrl) return;
     const normUrl = normalizeInternalUrl(rawUrl);
     const pathname = extractPathname(normUrl);
     if (isBypassPath(pathname)) return;
 
     const targetTab = mapPathToTab(pathname);
-    if (!isDetailRoute(pathname) && targetTab && !paneState[targetTab].loaded) {
+    if (!opts.fromPrefetchTab && !isDetailRoute(pathname) && targetTab && !paneState[targetTab].loaded) {
       prefetchTab(targetTab);
       return;
     }
@@ -1296,7 +1301,7 @@
     if (!TAB_KEYS.includes(tabKey) || paneState[tabKey].loaded) return;
     const defaultUrl = TAB_DEFAULTS[tabKey];
     if (defaultUrl) {
-      prefetchRoute(defaultUrl);
+      prefetchRoute(defaultUrl, { fromPrefetchTab: true });
     }
   }
 

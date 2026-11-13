@@ -2,12 +2,13 @@
   <a href="/admin/bulletins" style="color:#4f46e5; text-decoration:none; font-size:14px;">&larr; Back to Bulletins</a>
 </div>
 
-<h2 style="margin:0 0 20px;">
+<h1 style="margin:0 0 20px; font-size:24px;">
   <%= bulletin ? 'Edit Bulletin' : 'New Bulletin' %>
-</h2>
+</h1>
 
 <form class="admin-bulletin-form" method="POST"
   action="<%= bulletin ? `/admin/bulletins/${bulletin.id}` : '/admin/bulletins' %>">
+  <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <div class="form-group">
     <label for="bulletinTitle">Title *</label>
     <input type="text" id="bulletinTitle" name="title" required maxlength="200"

@@ -297,7 +297,7 @@
 
 <!-- Raw Unrendered Sessions Data (13th session onwards) -->
 <script id="remainingSessionsData" type="application/json">
-  <%- JSON.stringify(sessions.slice(12)) %>
+  <%- safeJson(sessions.slice(12)) %>
 </script>
 
 <script>

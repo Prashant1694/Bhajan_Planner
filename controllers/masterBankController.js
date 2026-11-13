@@ -1,8 +1,8 @@
 const MasterBhajan = require("../models/MasterBhajan");
 const BhajanSubmission = require("../models/BhajanSubmission");
 const sequelize = require("../config/database");
-const { Sequelize } = require("sequelize");
-const { invalidateMissingCount } = require("../services/helpers");
+const { Sequelize, Op } = require("sequelize");
+const { invalidateMissingCount, getWesternScale } = require("../services/helpers");
 const {
   getMasterCatalog,
   invalidateMasterCache,
@@ -24,6 +24,36 @@ exports.showMasterBank = async (req, res) => {
   } catch (error) {
     console.error(`[Req ${req.id || ""}] showMasterBank error:`, error);
     res.status(500).send("<h1>Error</h1><p>Failed to load master songbook.</p>");
+  }
+};
+
+exports.getCatalogJson = async (req, res) => {
+  try {
+    const catalog = await getMasterCatalog();
+    const compactRows = catalog.lightRows.map((b) => ({
+      id: b.id,
+      title: b.title,
+      deity: b.deity || "",
+      tempo: b.tempo || "",
+      raga: b.raga || "",
+      shruti: b.shruti || "",
+      shruti_female: b.shruti_female || "",
+      wm: getWesternScale(b.shruti),
+      wf: getWesternScale(b.shruti_female),
+      level: b.level || "",
+      language: b.language || "",
+      sheet_filename: b.sheet_filename || "",
+      has_lyrics: !!b.has_lyrics
+    }));
+    res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    return res.json({
+      success: true,
+      count: compactRows.length,
+      bhajans: compactRows
+    });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] getCatalogJson error:`, error);
+    return res.status(500).json({ success: false, error: "Failed to load catalog JSON." });
   }
 };
 
@@ -206,25 +236,49 @@ exports.exportMaster = async (req, res) => {
 exports.showArchivedMasterBank = async (req, res) => {
   try {
     const isAdmin = !!(req.session && (req.session.adminUserId || req.session.admin));
+    const q = (req.query.q || "").toString().trim();
+    const limit = 50;
+    const requestedPage = Math.max(1, parseInt(req.query.page, 10) || 1);
+
+    const where = { is_active: false };
+    if (q) {
+      const orConditions = [{ title: { [Op.like]: `%${q}%` } }, { deity: { [Op.like]: `%${q}%` } }];
+      if (/^\d+$/.test(q)) {
+        orConditions.push({ id: Number(q) });
+      }
+      where[Op.or] = orConditions;
+    }
+
+    const totalCount = await MasterBhajan.count({ where });
+    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
+    const pageNum = Math.min(requestedPage, totalPages);
+    const offset = (pageNum - 1) * limit;
+
     const archivedBhajans = await MasterBhajan.findAll({
-      where: { is_active: false },
-      order: [["title", "ASC"]]
+      where,
+      attributes: ["id", "title", "deity", "tempo", "shruti"],
+      order: [["title", "ASC"]],
+      limit,
+      offset
     });
 
-    let diwaliRefs = [];
-    try {
-      const [refs] = await sequelize.query(`
-        SELECT master_bhajan_id, COUNT(*) as ref_count
-        FROM diwali_participant_bhajans
-        WHERE master_bhajan_id IS NOT NULL
-        GROUP BY master_bhajan_id
-      `);
-      diwaliRefs = refs || [];
-    } catch (_) {
-      diwaliRefs = [];
-    }
+    const ids = archivedBhajans.map((b) => b.id);
     const refMap = new Map();
-    diwaliRefs.forEach((r) => refMap.set(Number(r.master_bhajan_id), r.ref_count));
+    if (ids.length > 0) {
+      try {
+        const placeholders = ids.map(() => "?").join(",");
+        const [refs] = await sequelize.query(
+          `SELECT master_bhajan_id, COUNT(*) as ref_count
+           FROM diwali_participant_bhajans
+           WHERE master_bhajan_id IN (${placeholders})
+           GROUP BY master_bhajan_id`,
+          { replacements: ids }
+        );
+        (refs || []).forEach((r) => refMap.set(Number(r.master_bhajan_id), r.ref_count));
+      } catch (_) {
+        // Optional Diwali reference table might not exist on minimal fixture DBs
+      }
+    }
 
     const bhajansWithRefs = archivedBhajans.map((b) => ({
       ...b.toJSON(),
@@ -234,7 +288,13 @@ exports.showArchivedMasterBank = async (req, res) => {
     res.render("admin-archived-master", {
       pageTitle: "Archived Master Bhajans",
       isAdminPage: true,
+      pageCSS: "admin.css",
+      page: "archived-master",
       bhajans: bhajansWithRefs,
+      totalCount,
+      pageNum,
+      totalPages,
+      query: q,
       isAdmin
     });
   } catch (error) {

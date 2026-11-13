@@ -163,6 +163,72 @@
 
   </div>
 
+  <!-- Upcoming Thursday Availability Toggle (FEAT-03) -->
+  <% if (typeof upcomingThursdays !== 'undefined' && Array.isArray(upcomingThursdays) && upcomingThursdays.length > 0) { %>
+    <% const safeUnavailable = Array.isArray(unavailableDates) ? unavailableDates : []; %>
+    <section class="hub-availability-card" aria-label="Upcoming Thursday Attendance">
+      <div class="hub-availability-head">
+        <div>
+          <h2 class="hub-availability-title">Upcoming Thursday Availability</h2>
+          <p class="hub-availability-sub">Tap a Thursday to mark if you are traveling or unavailable so coordinators know early.</p>
+        </div>
+        <span id="hubAvailStatus" style="font-size:12px; font-weight:600; color:var(--text-light);"></span>
+      </div>
+      <div class="hub-availability-grid">
+        <% upcomingThursdays.forEach((thu) => { %>
+          <% const isTrav = safeUnavailable.includes(thu.date); %>
+          <button
+            type="button"
+            class="hub-avail-btn <%= isTrav ? 'is-traveling' : '' %>"
+            data-date="<%= thu.date %>"
+            onclick="toggleThursdayAvailability(this)"
+            aria-pressed="<%= isTrav ? 'true' : 'false' %>"
+          >
+            <span><%= thu.label %></span>
+            <span class="hub-avail-state"><%= isTrav ? 'Traveling' : 'Available' %></span>
+          </button>
+        <% }) %>
+      </div>
+    </section>
+    <script>
+      (function () {
+        var csrfToken = <%= JSON.stringify(typeof csrfToken !== 'undefined' ? csrfToken : '') %>;
+        window.toggleThursdayAvailability = async function (btn) {
+          if (!btn || btn.disabled) return;
+          var dateStr = btn.getAttribute('data-date');
+          var statusEl = document.getElementById('hubAvailStatus');
+          btn.disabled = true;
+          try {
+            var res = await fetch('/api/singer/availability', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-csrf-token': csrfToken
+              },
+              body: JSON.stringify({ toggle_date: dateStr })
+            });
+            var data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'Update failed');
+            var list = Array.isArray(data.unavailable_dates) ? data.unavailable_dates : [];
+            document.querySelectorAll('.hub-avail-btn').forEach(function (el) {
+              var d = el.getAttribute('data-date');
+              var trav = list.includes(d);
+              el.classList.toggle('is-traveling', trav);
+              el.setAttribute('aria-pressed', trav ? 'true' : 'false');
+              var badge = el.querySelector('.hub-avail-state');
+              if (badge) badge.textContent = trav ? 'Traveling' : 'Available';
+            });
+            if (statusEl) statusEl.textContent = 'Saved';
+          } catch (e) {
+            if (statusEl) statusEl.textContent = e.message || 'Could not save';
+          } finally {
+            btn.disabled = false;
+          }
+        };
+      })();
+    </script>
+  <% } %>
+
   <!-- Interactive Segmented Capsule Tab Control -->
   <div class="hub-tabs-scroll-wrap">
     <div class="segmented-control hub-segmented-tabs">

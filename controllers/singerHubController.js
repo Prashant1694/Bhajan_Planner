@@ -11,6 +11,7 @@ const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const { NINETY_DAYS_MS, resolveSingerForAdmin } = require("../middleware/singerAuth");
 const { getLocalDateStr } = require("../services/helpers");
 const { safeRedirect, DUMMY_BCRYPT_HASH } = require("../services/securityHelpers");
+const { isValidCalendarDate } = require("../services/validators");
 const {
   getMasterCatalog,
   getSingersCatalog,
@@ -362,6 +363,32 @@ exports.showHubPage = async (req, res) => {
       deitySummary[d] = (deitySummary[d] || 0) + 1;
     });
 
+    // Build next 4 Thursdays + parse unavailable dates for singer availability toggle (FEAT-03)
+    const upcomingThursdays = [];
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    const daysUntilThu = (4 - cursor.getDay() + 7) % 7;
+    cursor.setDate(cursor.getDate() + daysUntilThu);
+    for (let i = 0; i < 4; i++) {
+      const thuDate = new Date(cursor.getTime());
+      thuDate.setDate(cursor.getDate() + i * 7);
+      const iso = getLocalDateStr(thuDate);
+      const human = thuDate.toLocaleDateString("en-US", {
+        weekday: "short",
+        day: "numeric",
+        month: "short"
+      });
+      upcomingThursdays.push({ date: iso, label: human });
+    }
+
+    let unavailableDates = [];
+    try {
+      const parsed = JSON.parse(singer.unavailable_dates || "[]");
+      if (Array.isArray(parsed)) {
+        unavailableDates = parsed.filter((d) => typeof d === "string" && isValidCalendarDate(d));
+      }
+    } catch (_) {}
+
     const showWelcome = req.query.welcome === "true";
 
     res.render("singer-hub", {
@@ -378,6 +405,8 @@ exports.showHubPage = async (req, res) => {
       myReports,
       myReportsCount: myReports.length,
       deitySummary,
+      upcomingThursdays,
+      unavailableDates,
       daysRemaining,
       showWelcome,
       todayStr,
@@ -670,5 +699,55 @@ exports.updatePreferredScale = async (req, res) => {
   } catch (error) {
     console.error(`[Req ${req.id || ""}] updatePreferredScale error:`, error);
     res.status(500).json({ error: "Failed to update preferred scale." });
+  }
+};
+
+/**
+ * Toggle or set upcoming Thursday availability ("Available" vs "Traveling")
+ */
+exports.updateAvailability = async (req, res) => {
+  try {
+    const singerId = req.session?.singer?.id;
+    if (!singerId) return res.status(401).json({ error: "Unauthorized" });
+
+    const singer = await Singer.findByPk(singerId);
+    if (!singer) return res.status(404).json({ error: "Singer not found" });
+
+    let existing = [];
+    try {
+      const parsed = JSON.parse(singer.unavailable_dates || "[]");
+      if (Array.isArray(parsed)) {
+        existing = parsed.filter((d) => typeof d === "string" && isValidCalendarDate(d));
+      }
+    } catch (_) {}
+
+    let nextDates = existing;
+    const { toggle_date, unavailable_dates } = req.body;
+    if (typeof toggle_date === "string" && isValidCalendarDate(toggle_date.trim())) {
+      const d = toggle_date.trim();
+      if (existing.includes(d)) {
+        nextDates = existing.filter((x) => x !== d);
+      } else {
+        nextDates = [...existing, d];
+      }
+    } else if (Array.isArray(unavailable_dates)) {
+      nextDates = unavailable_dates
+        .map((d) => String(d || "").trim())
+        .filter((d) => isValidCalendarDate(d));
+    } else {
+      return res.status(400).json({ error: "Invalid date payload." });
+    }
+
+    const deduped = Array.from(new Set(nextDates)).sort().slice(0, 24);
+    await singer.update({ unavailable_dates: JSON.stringify(deduped) });
+    invalidateSingerCache();
+
+    res.json({
+      success: true,
+      unavailable_dates: deduped
+    });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] updateAvailability error:`, error);
+    res.status(500).json({ error: "Failed to update availability." });
   }
 };

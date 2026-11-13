@@ -19,11 +19,12 @@
 
   <div class="diwali-form-container">
     <form action="/admin/diwali/entry" method="POST" id="diwaliEntryForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="hidden" name="year" value="<%= selectedEvent.year %>">
 
       <!-- Participant Pair Section -->
       <div class="diwali-form-card">
-        <h2>Audition Participant Pair</h2>
+        <h1 style="margin:0 0 8px 0; font-size:22px; color:var(--diwali-maroon);">Audition Participant Pair</h1>
         <p style="margin: -10px 0 20px 0; color:var(--text-light); font-size:13.5px;">
           Both Lead Singer and Partner names are strictly mandatory for Diwali Audition pairs.
         </p>
@@ -208,4 +209,4 @@
 
 </div>
 
-<script src="/js/diwali.js"></script>
+<script src="/js/diwali.js?v=7.2.1"></script>

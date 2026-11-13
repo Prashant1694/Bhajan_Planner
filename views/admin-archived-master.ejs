@@ -7,7 +7,7 @@
   <div class="bank-body">
     <div class="page-toolbar">
       <div class="toolbar-heading">
-        <h2><%= bhajans.length %> Archived Bhajans</h2>
+        <h2><%= typeof totalCount !== 'undefined' ? totalCount : bhajans.length %> Archived Bhajans</h2>
         <p>These records are hidden from normal search, Thursday submissions, and Diwali module.</p>
       </div>
       <div class="toolbar-actions">
@@ -16,20 +16,29 @@
       </div>
     </div>
 
-    <div class="search-field">
-      <span class="search-icon">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </span>
-      <input
-        type="search"
-        id="filterArchivedTitle"
-        onkeyup="filterArchivedTable()"
-        placeholder="Filter archived by title or ID…"
-        autocomplete="off"
-      >
-    </div>
+    <form method="GET" action="/admin/archived-master-bhajans" class="adm-search-form-row">
+      <div class="search-field" style="flex:1;">
+        <label for="filterArchivedTitle" class="sr-only">Filter archived bhajans by title or ID</label>
+        <span class="search-icon" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input
+          type="search"
+          id="filterArchivedTitle"
+          name="q"
+          value="<%= typeof query !== 'undefined' ? query : '' %>"
+          onkeyup="filterArchivedTable()"
+          placeholder="Search archived by title, deity, or ID…"
+          autocomplete="off"
+        >
+      </div>
+      <button type="submit" class="button secondary">Search All</button>
+      <% if (typeof query !== 'undefined' && query) { %>
+        <a href="/admin/archived-master-bhajans" class="button secondary">Clear</a>
+      <% } %>
+    </form>
 
-    <div class="table-container bank-table" style="margin-top: 16px;">
+    <div class="table-container bank-table adm-table-mt">
       <table id="archivedTable" data-mobile-cards>
         <thead>
           <tr>
@@ -46,21 +55,17 @@
           <% if (bhajans.length > 0) { %>
             <% bhajans.forEach(b => { %>
               <tr class="archived-row">
-                <td data-label="ID" style="font-weight: 700; color: var(--muted);"><%= b.id %></td>
-                <td data-label="Title" style="font-weight: 600;"><%= b.title %></td>
+                <td data-label="ID" class="adm-archived-id"><%= b.id %></td>
+                <td data-label="Title" class="adm-archived-title"><%= b.title %></td>
                 <td data-label="Deity"><span class="deity-pill"><%= b.deity || '-' %></span></td>
                 <td data-label="Status">
-                  <span class="badge-pill" style="background: rgba(220, 53, 69, 0.15); color: #dc3545; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">
-                    Archived (Inactive)
-                  </span>
+                  <span class="adm-badge-archived">Archived (Inactive)</span>
                 </td>
                 <td data-label="Historical References">
                   <% if (b.refCount > 0) { %>
-                    <span class="badge-pill" style="background: rgba(40, 167, 69, 0.15); color: #28a745; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                      <%= b.refCount %> Active Reference(s)
-                    </span>
+                    <span class="adm-badge-ref"><%= b.refCount %> Active Reference(s)</span>
                   <% } else { %>
-                    <span style="color: var(--muted); font-size: 12px;">0 (Unreferenced)</span>
+                    <span class="adm-muted-note">0 (Unreferenced)</span>
                   <% } %>
                 </td>
                 <td data-label="Tempo"><%= b.tempo || '-' %></td>
@@ -68,11 +73,28 @@
               </tr>
             <% }) %>
           <% } else { %>
-            <tr><td colspan="7" style="text-align:center; padding: 24px;">No archived bhajans found.</td></tr>
+            <tr><td colspan="7" class="adm-empty-cell">No archived bhajans found.</td></tr>
           <% } %>
         </tbody>
       </table>
     </div>
+
+    <% const curPg = typeof pageNum !== 'undefined' ? pageNum : 1; %>
+    <% const maxPg = typeof totalPages !== 'undefined' ? totalPages : 1; %>
+    <% const qEnc = encodeURIComponent(typeof query !== 'undefined' ? query : ''); %>
+    <% if (maxPg > 1) { %>
+      <nav class="adm-pagination-bar" aria-label="Archived Master Bhajans Pagination">
+        <span class="adm-pagination-info">Page <%= curPg %> of <%= maxPg %> (<%= typeof totalCount !== 'undefined' ? totalCount : bhajans.length %> total)</span>
+        <div class="adm-pagination-links">
+          <% if (curPg > 1) { %>
+            <a class="button secondary" href="/admin/archived-master-bhajans?page=<%= curPg - 1 %><%= qEnc ? '&q=' + qEnc : '' %>">&larr; Previous</a>
+          <% } %>
+          <% if (curPg < maxPg) { %>
+            <a class="button secondary" href="/admin/archived-master-bhajans?page=<%= curPg + 1 %><%= qEnc ? '&q=' + qEnc : '' %>">Next &rarr;</a>
+          <% } %>
+        </div>
+      </nav>
+    <% } %>
   </div>
 </div>
 

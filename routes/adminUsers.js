@@ -5,6 +5,8 @@ const adminUserController = require("../controllers/adminUserController");
 
 const { requireLogin, requireSuperAdmin } = require("../middleware/auth");
 
+router.get("/admin/users", requireLogin, requireSuperAdmin, (req, res) => res.redirect("/admin/admin-users"));
+
 router.use("/admin/admin-users", requireLogin, requireSuperAdmin);
 
 router.get("/admin/admin-users", adminUserController.listAdmins);
