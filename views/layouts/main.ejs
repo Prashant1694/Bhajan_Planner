@@ -2,14 +2,21 @@
   // Chromeless embed fallback (e.g. ?standalone=1 or test suite)
   const isEmbed = typeof locals._embed !== 'undefined' ? locals._embed : (typeof _embed !== 'undefined' ? _embed : false);
   const isAuthAdmin = (typeof isAdminPage !== 'undefined' && isAdminPage && currentAdmin);
-  // PWA identity is controlled by a per-deployment Railway variable.
-  // Set PWA_APP_VARIANT=development ONLY on the develop service.
-  // This remains safe after merging develop into main.
-  const pwaVariant = typeof process !== 'undefined' ? process.env.PWA_APP_VARIANT : '';
-  const isDevelopmentPwa = String(pwaVariant || '').trim().toLowerCase() === 'development';
-  const pwaIconPath = isDevelopmentPwa
-    ? '/images/icons/dev/bhajan-planner-dev-192.png'
-    : '/images/icons/icon-192x192.png';
+  const fallbackVariant = typeof process !== 'undefined'
+    ? String(process.env.PWA_APP_VARIANT || process.env.RAILWAY_GIT_BRANCH || process.env.RAILWAY_ENVIRONMENT_NAME || '').trim().toLowerCase()
+    : '';
+  const isDevelopmentPwa = typeof locals.isDevelopmentPwa !== 'undefined'
+    ? Boolean(locals.isDevelopmentPwa)
+    : ['dev', 'develop', 'development', 'staging', 'preview'].includes(fallbackVariant);
+  const pwaMeta = (typeof locals.pwa !== 'undefined' && locals.pwa) ? locals.pwa : {
+    isDevelopmentPwa,
+    variant: isDevelopmentPwa ? 'development' : 'production',
+    manifestPath: isDevelopmentPwa ? '/manifest.dev.json' : '/manifest.json',
+    icon192Path: isDevelopmentPwa ? '/images/icons/dev/icon-192x192.png' : '/images/icons/icon-192x192.png',
+    appleTouchIconPath: isDevelopmentPwa ? '/images/icons/dev/apple-touch-icon.png' : '/images/icons/icon-192x192.png',
+    appleTitle: isDevelopmentPwa ? 'Bhajan DEV' : 'Bhajan Planner',
+    appName: isDevelopmentPwa ? 'Bhajan Planner DEV' : 'Bhajan Planner'
+  };
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,19 +31,19 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <% if (isDevelopmentPwa) { %>
-  <meta name="apple-mobile-web-app-title" content="Bhajan Dev">
+  <meta name="apple-mobile-web-app-title" content="Bhajan DEV">
   <% } else { %>
   <meta name="apple-mobile-web-app-title" content="Bhajan Planner">
   <% } %>
-  <meta name="application-name" content="<%= isDevelopmentPwa ? 'Bhajan Planner (Dev)' : 'Bhajan Planner' %>">
-  <meta name="bp-pwa-variant" content="<%= isDevelopmentPwa ? 'development' : 'production' %>">
+  <meta name="application-name" content="<%= pwaMeta.appName %>">
+  <meta name="bp-pwa-variant" content="<%= pwaMeta.variant %>">
   <meta name="format-detection" content="telephone=no">
   <meta name="color-scheme" content="light dark">
 
   <!-- PWA -->
-  <link rel="manifest" href="<%= isDevelopmentPwa ? '/manifest.dev.json' : '/manifest.json' %>">
-  <link rel="apple-touch-icon" href="<%= pwaIconPath %>">
-  <link rel="icon" type="image/png" href="<%= pwaIconPath %>">
+  <link rel="manifest" href="<%= pwaMeta.manifestPath %>">
+  <link rel="apple-touch-icon" href="<%= pwaMeta.appleTouchIconPath %>">
+  <link rel="icon" type="image/png" href="<%= pwaMeta.icon192Path %>">
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
 
@@ -211,9 +218,9 @@
     <div class="pwa-install-overlay" id="pwaInstallOverlay">
       <div class="pwa-install-banner">
         <div class="pwa-banner-header">
-          <img src="<%= pwaIconPath %>" alt="<%= isDevelopmentPwa ? 'Bhajan Planner Development' : 'Bhajan Planner' %>" width="48" height="48" class="pwa-banner-icon">
+          <img src="<%= pwaMeta.icon192Path %>" alt="<%= pwaMeta.appName %>" width="48" height="48" class="pwa-banner-icon">
           <div class="pwa-banner-info">
-            <h3>Install Bhajan Planner</h3>
+            <h3>Install <%= pwaMeta.appName %></h3>
             <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>
           </div>
           <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>

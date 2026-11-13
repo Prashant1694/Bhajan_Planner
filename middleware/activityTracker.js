@@ -189,6 +189,7 @@ const trackActivity = async (req, res, next) => {
       path === "/healthz" ||
       path === "/favicon.ico" ||
       path === "/manifest.json" ||
+      path === "/manifest.dev.json" ||
       path.startsWith("/sheets/") ||
       path.startsWith("/images/") ||
       path.startsWith("/icons/") ||

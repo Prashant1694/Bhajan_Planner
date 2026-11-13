@@ -10,8 +10,14 @@
 // Query-string variant separates development and production app-shell caches.
 const IS_DEVELOPMENT_PWA = new URL(self.location.href).searchParams.get("variant") === "dev";
 const APP_ICON = IS_DEVELOPMENT_PWA
-  ? "/images/icons/dev/bhajan-planner-dev-192.png"
+  ? "/images/icons/dev/icon-192x192.png"
   : "/images/icons/icon-192x192.png";
+const APP_ICON_512 = IS_DEVELOPMENT_PWA
+  ? "/images/icons/dev/icon-512x512.png"
+  : "/images/icons/icon-512x512.png";
+const APP_ICON_MASKABLE = IS_DEVELOPMENT_PWA
+  ? "/images/icons/dev/icon-maskable-512x512.png"
+  : "/images/icons/icon-maskable-512x512.png";
 const CACHE_VERSION = "v6.5";
 const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
@@ -39,7 +45,8 @@ const PRECACHE_URLS = [
   "/images/logo_birthday.png",
   "/images/logo.png",
   APP_ICON,
-  "/images/icons/icon-512x512.png"
+  APP_ICON_512,
+  APP_ICON_MASKABLE
 ];
 
 self.addEventListener("install", (event) => {
@@ -227,7 +234,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: data.icon || APP_ICON,
-    badge: data.badge || "/images/icons/icon-192x192.png",
+    badge: data.badge || APP_ICON,
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
     tag: data.tag || "bhajan-planner-notification",

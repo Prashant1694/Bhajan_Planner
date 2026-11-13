@@ -3,6 +3,7 @@ const Notification = require("../models/Notification");
 const NotificationRead = require("../models/NotificationRead");
 const PushSubscription = require("../models/PushSubscription");
 const { Sequelize } = require("sequelize");
+const { getPwaMetadata } = require("./pwaConfig");
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
@@ -60,12 +61,13 @@ async function sendPushToAll(notification) {
   const subscriptions = await PushSubscription.findAll({ where: { enabled: true } });
   if (subscriptions.length === 0) return [];
 
+  const pwaIcon = getPwaMetadata().icon192Path;
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
     url: notification.link || "/",
-    icon: "/images/icons/icon-192x192.png",
-    badge: "/images/icons/icon-192x192.png"
+    icon: pwaIcon,
+    badge: pwaIcon
   });
 
   return dispatchBatchedPush(subscriptions, payload, 15);
@@ -79,12 +81,13 @@ async function sendPushToSinger(singerId, notification) {
   });
   if (subscriptions.length === 0) return [];
 
+  const pwaIcon = getPwaMetadata().icon192Path;
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
     url: notification.link || "/",
-    icon: "/images/icons/icon-192x192.png",
-    badge: "/images/icons/icon-192x192.png"
+    icon: pwaIcon,
+    badge: pwaIcon
   });
 
   return dispatchBatchedPush(subscriptions, payload, 15);

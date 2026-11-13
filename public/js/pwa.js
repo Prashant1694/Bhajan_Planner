@@ -9,7 +9,9 @@
 
   // ── Service Worker Registration ─────────────────────────────
   const pwaVariant = document.querySelector('meta[name="bp-pwa-variant"]')?.content;
-  const serviceWorkerUrl = pwaVariant === "development" ? "/sw.js?variant=dev" : "/sw.js";
+  const isDevPwa = pwaVariant === "development";
+  const appDisplayName = isDevPwa ? "Bhajan Planner DEV" : "Bhajan Planner";
+  const serviceWorkerUrl = isDevPwa ? "/sw.js?variant=dev" : "/sw.js";
 
   function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
@@ -126,7 +128,7 @@
       window.navigator.standalone === true;
 
     if (isStandalone) {
-      alert("Bhajan Planner is already installed and running on your device!");
+      alert(`${appDisplayName} is already installed and running on your device!`);
       return;
     }
 
@@ -170,7 +172,7 @@
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Install on iPhone / iPad';
     } else {
       btn.innerHTML =
-        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Install Bhajan Planner App';
+        `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Install ${appDisplayName} App`;
     }
 
     btn.addEventListener("click", (e) => {

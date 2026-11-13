@@ -5,7 +5,7 @@
   "id": "bhajan-planner-dev-ssso-gn",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/?pwa=dev",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": [
@@ -14,8 +14,8 @@
   ],
   "orientation": "any",
   "prefer_related_applications": false,
-  "theme_color": "#123b95",
-  "background_color": "#081d55",
+  "theme_color": "#FAF7F2",
+  "background_color": "#FAF7F2",
   "categories": [
     "lifestyle",
     "utilities"
@@ -24,11 +24,11 @@
     {
       "name": "Songbook Catalog (Dev)",
       "short_name": "Songbook",
-      "description": "Browse the development Master Bhajan Bank",
+      "description": "Browse and search the development Master Bhajan Bank",
       "url": "/master-bank",
       "icons": [
         {
-          "src": "/images/icons/dev/bhajan-planner-dev-192.png",
+          "src": "/images/icons/dev/icon-192x192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -37,11 +37,24 @@
     {
       "name": "Session Lineup (Dev)",
       "short_name": "Lineup",
-      "description": "View the development session lineup",
+      "description": "View development scheduled bhajan lineup",
       "url": "/plan-view",
       "icons": [
         {
-          "src": "/images/icons/dev/bhajan-planner-dev-192.png",
+          "src": "/images/icons/dev/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Submit Bhajan (Dev)",
+      "short_name": "Submit",
+      "description": "Submit a bhajan for upcoming development session",
+      "url": "/submit-form",
+      "icons": [
+        {
+          "src": "/images/icons/dev/icon-192x192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -50,14 +63,20 @@
   ],
   "icons": [
     {
-      "src": "/images/icons/dev/bhajan-planner-dev-192.png",
+      "src": "/images/icons/dev/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icons/dev/bhajan-planner-dev-192.png",
-      "sizes": "192x192",
+      "src": "/images/icons/dev/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icons/dev/icon-maskable-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }

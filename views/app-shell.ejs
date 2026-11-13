@@ -3,6 +3,18 @@
   const initRoute = (typeof initialRoute !== 'undefined' && initialRoute) ? initialRoute : '/';
   const singerObj = (typeof currentSinger !== 'undefined' && currentSinger) ? currentSinger : null;
   const adminObj = (typeof currentAdmin !== 'undefined' && currentAdmin) ? currentAdmin : null;
+  const isDevPwa = typeof isDevelopmentPwa !== 'undefined'
+    ? Boolean(isDevelopmentPwa)
+    : (typeof pwa !== 'undefined' && pwa ? Boolean(pwa.isDevelopmentPwa) : false);
+  const pwaMeta = (typeof pwa !== 'undefined' && pwa) ? pwa : {
+    isDevelopmentPwa: isDevPwa,
+    variant: isDevPwa ? 'development' : 'production',
+    manifestPath: isDevPwa ? '/manifest.dev.json' : '/manifest.json',
+    icon192Path: isDevPwa ? '/images/icons/dev/icon-192x192.png' : '/images/icons/icon-192x192.png',
+    appleTouchIconPath: isDevPwa ? '/images/icons/dev/apple-touch-icon.png' : '/images/icons/icon-192x192.png',
+    appleTitle: isDevPwa ? 'Bhajan DEV' : 'Bhajan Planner',
+    appName: isDevPwa ? 'Bhajan Planner DEV' : 'Bhajan Planner'
+  };
 %>
 <!DOCTYPE html>
 <html lang="en" class="shell-root">
@@ -10,7 +22,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Bhajan Planner | Sri Sathya Sai Seva Organisation' %></title>
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : (isDevPwa ? 'Bhajan Planner DEV | Sri Sathya Sai Seva Organisation' : 'Bhajan Planner | Sri Sathya Sai Seva Organisation') %></title>
   <meta name="description" content="Sri Sathya Sai Seva Organisations, Gandhinagar — Devotional Bhajan Management & Satsang Scheduling System">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF7F2">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100E">
@@ -18,13 +30,19 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <% if (isDevPwa) { %>
+  <meta name="apple-mobile-web-app-title" content="Bhajan DEV">
+  <% } else { %>
   <meta name="apple-mobile-web-app-title" content="Bhajan Planner">
+  <% } %>
+  <meta name="application-name" content="<%= pwaMeta.appName %>">
+  <meta name="bp-pwa-variant" content="<%= pwaMeta.variant %>">
   <meta name="format-detection" content="telephone=no">
   <meta name="color-scheme" content="light dark">
 
-  <link rel="icon" type="image/png" sizes="192x192" href="/images/icons/icon-192x192.png">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="<%= pwaMeta.icon192Path %>">
+  <link rel="manifest" href="<%= pwaMeta.manifestPath %>">
+  <link rel="apple-touch-icon" href="<%= pwaMeta.appleTouchIconPath %>">
 
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>window.csrfToken = "<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>";</script>
@@ -973,9 +991,9 @@
   <div class="pwa-install-overlay" id="pwaInstallOverlay">
     <div class="pwa-install-banner">
       <div class="pwa-banner-header">
-        <img src="/images/icons/icon-192x192.png" alt="Bhajan Planner" width="48" height="48" class="pwa-banner-icon">
+        <img src="<%= pwaMeta.icon192Path %>" alt="<%= pwaMeta.appName %>" width="48" height="48" class="pwa-banner-icon">
         <div class="pwa-banner-info">
-          <h3>Install Bhajan Planner</h3>
+          <h3>Install <%= pwaMeta.appName %></h3>
           <p class="pwa-banner-size">App size <span class="size-dot"></span> <span id="pwaBannerSize">calculating…</span></p>
         </div>
         <button class="pwa-banner-close" id="pwaBannerClose" aria-label="Close">✕</button>

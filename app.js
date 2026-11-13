@@ -255,6 +255,7 @@ const ADMIN_PATH_PREFIXES = [
 ];
 
 const { getCachedMissingCount } = require("./services/helpers");
+const { getPwaMetadata } = require("./services/pwaConfig");
 
 app.use(async (req, res, next) => {
   try {
@@ -263,6 +264,9 @@ app.use(async (req, res, next) => {
   } catch (_) {
     res.locals.csrfToken = "";
   }
+  const pwa = getPwaMetadata(req);
+  res.locals.pwa = pwa;
+  res.locals.isDevelopmentPwa = pwa.isDevelopmentPwa;
   res.locals.currentAdmin = req.session?.admin || null;
   res.locals.page = "";
   res.locals.pageTitle = "Bhajan Planner";
@@ -418,7 +422,9 @@ app.use((req, res, next) => {
             currentAdmin: req.session?.admin || null,
             currentSinger: req.session?.singer || null,
             initialFragmentHtml: "",
-            initialPageCss: opts.pageCSS || ""
+            initialPageCss: opts.pageCSS || "",
+            pwa: res.locals.pwa,
+            isDevelopmentPwa: res.locals.isDevelopmentPwa
           },
           cb
         );
@@ -444,7 +450,9 @@ app.use((req, res, next) => {
           currentAdmin: req.session?.admin || null,
           currentSinger: req.session?.singer || null,
           initialFragmentHtml: finalFragment,
-          initialPageCss: opts.pageCSS || ""
+          initialPageCss: opts.pageCSS || "",
+          pwa: res.locals.pwa,
+          isDevelopmentPwa: res.locals.isDevelopmentPwa
         },
         cb
       );
