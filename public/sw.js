@@ -12,8 +12,8 @@ const IS_DEVELOPMENT_PWA = new URL(self.location.href).searchParams.get("variant
 const APP_ICON = IS_DEVELOPMENT_PWA
   ? "/images/icons/dev/bhajan-planner-dev-192.png"
   : "/images/icons/icon-192x192.png";
-const CACHE_VERSION = IS_DEVELOPMENT_PWA ? "v6.5-dev-3" : "v6.5";
-const CACHE_NAME = `bhajan-planner-${CACHE_VERSION}`;
+const CACHE_VERSION = "v6.5";
+const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/offline.html",

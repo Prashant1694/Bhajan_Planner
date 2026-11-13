@@ -23,7 +23,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="<%= isDevelopmentPwa ? 'Bhajan Dev' : 'Bhajan Planner' %>">
+  <% if (isDevelopmentPwa) { %>
+  <meta name="apple-mobile-web-app-title" content="Bhajan Dev">
+  <% } else { %>
+  <meta name="apple-mobile-web-app-title" content="Bhajan Planner">
+  <% } %>
   <meta name="application-name" content="<%= isDevelopmentPwa ? 'Bhajan Planner (Dev)' : 'Bhajan Planner' %>">
   <meta name="bp-pwa-variant" content="<%= isDevelopmentPwa ? 'development' : 'production' %>">
   <meta name="format-detection" content="telephone=no">
