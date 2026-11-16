@@ -772,7 +772,7 @@ exports.planView = async (req, res) => {
                 <span class="timeline-avatar no-print" style="width:26px; height:26px; font-size:11px;">${initials}</span>
                 <div>
                   <strong>${escapeHtml(item.singer_name)}</strong>
-                  ${item.partner_name ? `<br><small style="color:var(--ink-soft); font-weight:500;">w/ ${escapeHtml(item.partner_name)}</small>` : ""}
+                  ${item.partner_name ? `<br><small style="color:var(--ink-soft); font-weight:500;">&amp; ${escapeHtml(item.partner_name)}</small>` : ""}
                 </div>
               </div>
             </td>
