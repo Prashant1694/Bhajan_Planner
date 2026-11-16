@@ -5,6 +5,133 @@
   <link rel="stylesheet" href="/css/session-audio.css?v=6.0">
 <% } %>
 
+
+<style id="plan-view-print-styles">
+  @page { size: A4 portrait; margin: 11mm 10mm; }
+
+  @media print {
+    html, body, body.shell-body, .shell-root, .shell-app-layout,
+    .shell-main-column, .shell-workspace-container, .shell-pane,
+    .shell-pane.active-pane, .shell-detail-body {
+      width: 100% !important; max-width: none !important;
+      min-height: 0 !important; height: auto !important;
+      margin: 0 !important; padding: 0 !important;
+      overflow: visible !important; display: block !important;
+      background: #fff !important; color: #20202a !important;
+      box-shadow: none !important;
+    }
+
+    .universal-print-letterhead, .universal-print-footer,
+    .shell-top-header, .shell-sidebar, .shell-sidebar-overlay,
+    .shell-menu-btn, .shell-load-bar, .top-nav-progress,
+    .native-bottom-nav, .mobile-bottom-capsule, .app-bottom-nav,
+    .shell-bottom-nav, #mobileBottomCapsule, #nativeBottomNav,
+    .floating-theme-toggle, .theme-toggle, #themeToggle,
+    #shellThemeToggle, #topbarThemeToggle, .notif-bell-btn,
+    #notifBellBtn, .notification-bell, .plan-header-card,
+    .session-audio-banner, .plan-share-card, .plan-timeline,
+    .no-print {
+      display: none !important; visibility: hidden !important;
+    }
+
+    .plan-page-shell {
+      width: 100% !important; max-width: none !important;
+      margin: 0 !important; padding: 0 !important;
+      display: block !important;
+    }
+
+    .print-session-banner {
+      display: block !important; width: 100% !important;
+      margin: 0 0 7mm !important; padding: 4mm 5mm !important;
+      border: 1px solid #d8c9b7 !important;
+      border-left: 4px solid #7d2f45 !important;
+      border-radius: 2mm !important; background: #fbf8f2 !important;
+      color: #332b32 !important; break-after: avoid-page;
+      page-break-after: avoid;
+    }
+    .print-banner-title {
+      font-size: 15pt !important; line-height: 1.25 !important;
+      font-weight: 800 !important; letter-spacing: .25px !important;
+      color: #7d2f45 !important;
+    }
+    .print-banner-meta {
+      margin-top: 1.5mm !important; font-size: 10.5pt !important;
+      line-height: 1.35 !important; color: #514653 !important;
+    }
+
+    #planTable, .plan-table-container {
+      display: block !important; width: 100% !important;
+      max-width: none !important; margin: 0 !important; padding: 0 !important;
+      overflow: visible !important; border: 0 !important;
+      border-radius: 0 !important; box-shadow: none !important;
+      visibility: visible !important;
+    }
+    .plan-table-container table {
+      display: table !important; width: 100% !important;
+      min-width: 0 !important; max-width: none !important;
+      table-layout: fixed !important; border-collapse: collapse !important;
+      border-spacing: 0 !important; font-family: Arial, Helvetica, sans-serif !important;
+      color: #20202a !important; background: #fff !important;
+    }
+    .plan-table-container thead { display: table-header-group !important; }
+    .plan-table-container tr {
+      break-inside: avoid !important; page-break-inside: avoid !important;
+    }
+    .plan-table-container th {
+      padding: 3.2mm 2.2mm !important; font-size: 9.5pt !important;
+      line-height: 1.2 !important; font-weight: 800 !important;
+      letter-spacing: .35px !important; text-align: left !important;
+      vertical-align: middle !important; color: #fff !important;
+      background: #7d2f45 !important; border: 1px solid #7d2f45 !important;
+      white-space: normal !important;
+    }
+    .plan-table-container td {
+      padding: 3.3mm 2.2mm !important; font-size: 10.5pt !important;
+      line-height: 1.35 !important; font-weight: 500 !important;
+      vertical-align: middle !important; text-align: left !important;
+      color: #20202a !important; background: #fff !important;
+      border: 1px solid #d9d2ca !important;
+      overflow-wrap: anywhere !important; word-break: normal !important;
+    }
+    .plan-table-container tbody tr:nth-child(even) td {
+      background: #faf8f5 !important;
+    }
+    .plan-table-container td:first-child,
+    .plan-table-container th:first-child { text-align: center !important; }
+    .plan-table-container td strong {
+      font-size: 10.5pt !important; line-height: 1.35 !important;
+      font-weight: 700 !important; color: #20202a !important;
+    }
+    .plan-table-container td small {
+      display: inline-block !important; margin-top: 1mm !important;
+      font-size: 9.5pt !important; line-height: 1.3 !important;
+      font-weight: 500 !important; color: #514653 !important;
+    }
+    .plan-table-container .deity-pill,
+    .plan-table-container .speed-pill,
+    .plan-table-container .acc-key-tag {
+      display: inline-flex !important; align-items: center !important;
+      gap: 1mm !important; max-width: 100% !important;
+      padding: 1.2mm 1.5mm !important; margin: 0 !important;
+      font-size: 9.5pt !important; line-height: 1.25 !important;
+      font-weight: 700 !important; white-space: normal !important;
+      color: #332b32 !important; border: 1px solid #d9d2ca !important;
+      border-radius: 1.5mm !important; background: #f8f5ef !important;
+    }
+    .plan-table-container .timeline-avatar,
+    .plan-table-container .table-actions-row,
+    .plan-table-container td::before { display: none !important; }
+    .plan-table-container a {
+      color: #20202a !important; text-decoration: none !important;
+    }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      box-shadow: none !important; text-shadow: none !important;
+    }
+  }
+</style>
+
 <div class="plan-page-shell">
   <!-- Print Session Banner -->
   <div class="print-session-banner">
