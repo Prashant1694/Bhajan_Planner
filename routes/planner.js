@@ -11,6 +11,7 @@ router.post("/submit-form", bhajanSubmitLimit, plannerController.submitForm);
 // Public Live Program Plan & WhatsApp Share View
 router.get("/plan-view", plannerController.planView);
 router.get("/plan-view/session.ics", plannerController.exportSessionIcs);
+router.get("/plan-view/pdf", plannerController.exportSessionPdf);
 router.post("/submit", requireApiLogin, plannerController.submitApi);
 router.get("/plan/:session_date", plannerController.getPlan);
 

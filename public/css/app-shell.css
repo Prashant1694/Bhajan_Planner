@@ -1650,23 +1650,28 @@ body.shell-body .tanpura-floating-widget:not(.visible) {
   .shell-app-layout,
   .shell-main-column,
   .shell-workspace-container,
-  .shell-pane,
   .shell-pane.active-pane,
-  .shell-pane > .container,
+  .shell-pane.active-pane > .container,
   .plan-page-shell {
     position: static !important;
-    flex: none !important;
-    contain: none !important;
+    flex: none;
+    contain: none;
     height: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 100%;
+    max-width: 100%;
     overflow: visible !important;
     display: block !important;
     background: #ffffff !important;
+    color: #1e293b !important;
     padding: 0 !important;
     margin: 0 !important;
   }
 
+  /* Strictly suppress inactive cached panes (e.g. Home dashboard) & floating chrome */
+  .shell-pane:not(.active-pane),
+  body.shell-body:not(.detail-sheet-open) .shell-detail-sheet,
+  .sacred-orbs-canvas,
+  .prasanthi-border,
   .shell-sidebar,
   .shell-sidebar-overlay,
   .shell-top-header,
@@ -1686,7 +1691,17 @@ body.shell-body .tanpura-floating-widget:not(.visible) {
   .shell-bottom-nav,
   .shell-detail-header,
   #tanpuraFloatingWidget,
-  #stickyAudioBar {
+  #stickyAudioBar,
+  .sticky-audio-bar,
+  #sessionAudioTab,
+  .session-audio-edge-tab,
+  .session-audio-banner,
+  .pwa-install-overlay,
+  #pwaInstallOverlay,
+  .notif-panel,
+  .notif-overlay,
+  .notif-prompt-overlay,
+  #whatsNewOverlay {
     display: none !important;
   }
 
@@ -1697,20 +1712,21 @@ body.shell-body .tanpura-floating-widget:not(.visible) {
 
   body.shell-body.detail-sheet-open .shell-detail-sheet,
   body.shell-body.detail-sheet-open .shell-detail-body {
-    position: static !important;
-    transform: none !important;
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    padding: 0 !important;
+    position: static;
+    transform: none;
+    visibility: visible;
+    height: auto;
+    overflow: visible;
+    box-shadow: none;
+    padding: 0;
   }
 
   /* Otherwise print only the active pane (e.g. Live Session Plan / Archives) */
   body.shell-body:not(.detail-sheet-open) .shell-pane.active-pane {
-    position: static !important;
-    height: auto !important;
-    overflow: visible !important;
-    padding: 0 !important;
+    display: block !important;
+    position: static;
+    height: auto;
+    overflow: visible;
+    padding: 0;
   }
 }

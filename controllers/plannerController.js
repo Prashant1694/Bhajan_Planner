@@ -35,6 +35,12 @@ const {
   buildSessionOptions
 } = require("../services/plannerService");
 const { isValidCalendarDate } = require("../services/validators");
+const { generateSessionPlanPdf } = require("../services/sessionPdfService");
+
+function parseValidSessionDate(raw) {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  return isValidCalendarDate(s) ? s : null;
+}
 
 function renderStatusPage(res, status, { heading, messageHtml, details = null, backHref = "/submit-form", backLabel = "Go Back", variant = "warning" }) {
   return res.status(status).render("submission-status", {
@@ -584,203 +590,224 @@ exports.submitForm = async (req, res) => {
   }
 };
 
+async function buildPlanViewData(rawDateInput) {
+  let sessionDate = parseValidSessionDate(rawDateInput);
+
+  const [{ dates: availableDatesMap, status }, pastSessions, catalog] = await Promise.all([
+    getAvailableDates(),
+    BhajanSubmission.findAll({
+      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("session_date")), "session_date"]],
+      order: [["session_date", "DESC"]],
+      limit: 20,
+      raw: true
+    }),
+    getMasterCatalog()
+  ]);
+
+  const dateOptionsList = [];
+  const seenDates = new Set();
+
+  if (status.isThursdayLiveActive) {
+    seenDates.add(status.todayStr);
+    dateOptionsList.push({
+      date: status.todayStr,
+      label: `${status.todayStr} (Today's Live Session — 7:30 PM to 8:30 PM)`,
+      isCurrent: false
+    });
+  }
+
+  const upcomingThursday = status.openThursday || status.nextThursdayDate;
+  if (upcomingThursday && !seenDates.has(upcomingThursday)) {
+    seenDates.add(upcomingThursday);
+    dateOptionsList.push({
+      date: upcomingThursday,
+      label: `${upcomingThursday} (Upcoming Thursday)`,
+      isCurrent: false
+    });
+  }
+
+  availableDatesMap.forEach((meta, d) => {
+    if (!seenDates.has(d)) {
+      seenDates.add(d);
+      dateOptionsList.push({
+        date: d,
+        label: `${d} (${meta.label}${meta.desc ? " - " + meta.desc : ""})`,
+        isCurrent: false
+      });
+    }
+  });
+
+  pastSessions.forEach((p) => {
+    const d = p.session_date;
+    if (!seenDates.has(d)) {
+      seenDates.add(d);
+      dateOptionsList.push({ date: d, label: `${d} (Past Session)`, isCurrent: false });
+    }
+  });
+
+  if (!sessionDate) {
+    if (status.isThursdayLiveActive) {
+      sessionDate = status.todayStr;
+    } else {
+      const activeAvailable = Array.from(availableDatesMap.keys()).sort();
+      if (activeAvailable.length > 0) {
+        sessionDate = activeAvailable[0];
+      } else if (upcomingThursday) {
+        sessionDate = upcomingThursday;
+      } else if (pastSessions.length > 0) {
+        sessionDate = pastSessions[0].session_date;
+      } else {
+        sessionDate = getLocalDateStr();
+      }
+    }
+  }
+
+  dateOptionsList.forEach((opt) => {
+    opt.isCurrent = opt.date === sessionDate;
+  });
+  if (!seenDates.has(sessionDate)) {
+    dateOptionsList.unshift({ date: sessionDate, label: sessionDate, isCurrent: true });
+  }
+
+  const [results, sessionAudio] = await Promise.all([
+    BhajanSubmission.findAll({ where: { session_date: sessionDate }, raw: true }),
+    SessionAudio.findOne({
+      where: { session_date: sessionDate, is_published: true },
+      include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
+      order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
+    }).catch((audioErr) => {
+      console.warn("Could not load plan session audio:", audioErr.message);
+      return null;
+    })
+  ]);
+
+  const sorted = results.sort((a, b) => {
+    if (a.list_order > 0 || b.list_order > 0) {
+      if (a.list_order === 0) return 1;
+      if (b.list_order === 0) return -1;
+      return a.list_order - b.list_order;
+    }
+    const deityCompare = deityOrderKey(a.deity) - deityOrderKey(b.deity);
+    if (deityCompare !== 0) return deityCompare;
+    const speedCompare =
+      (SPEED_ORDER[(a.speed || "").toLowerCase()] || 1) -
+      (SPEED_ORDER[(b.speed || "").toLowerCase()] || 1);
+    if (speedCompare !== 0) return speedCompare;
+    return (a.singer_name || "")
+      .toLowerCase()
+      .localeCompare((b.singer_name || "").toLowerCase());
+  });
+
+  const timestampMap = new Map();
+  if (sessionAudio && sessionAudio.timestamps) {
+    sessionAudio.timestamps.forEach((t) => {
+      if (t.submission_id) timestampMap.set(`sub_${t.submission_id}`, t);
+      if (t.bhajan_title) timestampMap.set(`title_${normalizeBhajanTitle(t.bhajan_title)}`, t);
+    });
+  }
+
+  const planItems = [];
+  const whatsappItems = [];
+
+  sorted.forEach((item, index) => {
+    const stepNum = index + 1;
+    const lowerTitle = String(item.title || "").trim().toLowerCase();
+    const matchedMaster =
+      catalog.byExactLowerTitle.get(lowerTitle) ||
+      catalog.byNormTitle.get(normalizeTitleKey(item.title));
+    const sheetFilename = matchedMaster ? matchedMaster.sheet_filename : null;
+    const raga = matchedMaster && matchedMaster.raga ? matchedMaster.raga : "";
+    const westernKey = getWesternScale(item.scale);
+    const deityIcon = getDeityIcon(item.deity);
+
+    const itemTimestamp =
+      (item.id && timestampMap.get(`sub_${item.id}`)) ||
+      timestampMap.get(`title_${normalizeBhajanTitle(item.title)}`);
+
+    let audioTimeFormatted = "";
+    if (itemTimestamp && sessionAudio && sessionAudio.audio_url) {
+      const m = Math.floor(itemTimestamp.start_seconds / 60);
+      const s = itemTimestamp.start_seconds % 60;
+      audioTimeFormatted = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    const nameParts = (item.singer_name || "").trim().split(/\s+/);
+    const initials =
+      nameParts.length > 1
+        ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+        : nameParts[0]
+          ? nameParts[0].substring(0, 2).toUpperCase()
+          : "SB";
+
+    const speedStr = (item.speed || "Medium").toLowerCase();
+    let speedIcon = "🎵";
+    if (speedStr.includes("fast")) speedIcon = "⚡";
+    if (speedStr.includes("slow")) speedIcon = "🕊️";
+
+    planItems.push({
+      stepNum,
+      id: item.id,
+      singerName: item.singer_name,
+      partnerName: item.partner_name || "",
+      initials,
+      title: item.title,
+      deity: item.deity,
+      deityIcon,
+      scale: item.scale || "",
+      westernKey,
+      speed: item.speed || "Medium",
+      speedIcon,
+      raga,
+      masterId: matchedMaster ? matchedMaster.id : null,
+      sheetFilename,
+      audioTimestamp: itemTimestamp || null,
+      audioTimeFormatted
+    });
+
+    const scaleStr = `${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""}`;
+    const tempoDisplay = item.speed
+      ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
+      : "Medium";
+    const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
+
+    const waItem = `${index + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${tempoDisplay}`;
+    whatsappItems.push(waItem);
+  });
+
+  let sessionDateHuman = sessionDate;
+  try {
+    const [y, m, d] = sessionDate.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    sessionDateHuman = dateObj.toLocaleDateString("en-US", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  } catch (_) {}
+
+  return {
+    sessionDate,
+    sessionDateHuman,
+    planItems,
+    dateOptionsList,
+    sorted,
+    whatsappItems,
+    sessionAudio
+  };
+}
+
 exports.planView = async (req, res) => {
   try {
-    const rawSessionDate = typeof req.query.session_date === "string" ? req.query.session_date.trim() : "";
-    let sessionDate = /^\d{4}-\d{2}-\d{2}$/.test(rawSessionDate) ? rawSessionDate : null;
-
-    const [{ dates: availableDatesMap, status }, pastSessions, catalog] = await Promise.all([
-      getAvailableDates(),
-      BhajanSubmission.findAll({
-        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("session_date")), "session_date"]],
-        order: [["session_date", "DESC"]],
-        limit: 20,
-        raw: true
-      }),
-      getMasterCatalog()
-    ]);
-
-    const dateOptionsList = [];
-    const seenDates = new Set();
-
-    if (status.isThursdayLiveActive) {
-      seenDates.add(status.todayStr);
-      dateOptionsList.push({
-        date: status.todayStr,
-        label: `${status.todayStr} (Today's Live Session — 7:30 PM to 8:30 PM)`,
-        isCurrent: false
-      });
-    }
-
-    const upcomingThursday = status.openThursday || status.nextThursdayDate;
-    if (upcomingThursday && !seenDates.has(upcomingThursday)) {
-      seenDates.add(upcomingThursday);
-      dateOptionsList.push({
-        date: upcomingThursday,
-        label: `${upcomingThursday} (Upcoming Thursday)`,
-        isCurrent: false
-      });
-    }
-
-    availableDatesMap.forEach((meta, d) => {
-      if (!seenDates.has(d)) {
-        seenDates.add(d);
-        dateOptionsList.push({
-          date: d,
-          label: `${d} (${meta.label}${meta.desc ? " - " + meta.desc : ""})`,
-          isCurrent: false
-        });
-      }
-    });
-
-    pastSessions.forEach((p) => {
-      const d = p.session_date;
-      if (!seenDates.has(d)) {
-        seenDates.add(d);
-        dateOptionsList.push({ date: d, label: `${d} (Past Session)`, isCurrent: false });
-      }
-    });
-
-    if (!sessionDate) {
-      if (status.isThursdayLiveActive) {
-        sessionDate = status.todayStr;
-      } else {
-        const activeAvailable = Array.from(availableDatesMap.keys()).sort();
-        if (activeAvailable.length > 0) {
-          sessionDate = activeAvailable[0];
-        } else if (upcomingThursday) {
-          sessionDate = upcomingThursday;
-        } else if (pastSessions.length > 0) {
-          sessionDate = pastSessions[0].session_date;
-        } else {
-          sessionDate = getLocalDateStr();
-        }
-      }
-    }
-
-    dateOptionsList.forEach((opt) => {
-      opt.isCurrent = opt.date === sessionDate;
-    });
-    if (!seenDates.has(sessionDate)) {
-      dateOptionsList.unshift({ date: sessionDate, label: sessionDate, isCurrent: true });
-    }
-
-    const [results, sessionAudio] = await Promise.all([
-      BhajanSubmission.findAll({ where: { session_date: sessionDate }, raw: true }),
-      SessionAudio.findOne({
-        where: { session_date: sessionDate, is_published: true },
-        include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
-        order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
-      }).catch((audioErr) => {
-        console.warn("Could not load plan session audio:", audioErr.message);
-        return null;
-      })
-    ]);
-
-    const sorted = results.sort((a, b) => {
-      if (a.list_order > 0 || b.list_order > 0) {
-        if (a.list_order === 0) return 1;
-        if (b.list_order === 0) return -1;
-        return a.list_order - b.list_order;
-      }
-      const deityCompare = deityOrderKey(a.deity) - deityOrderKey(b.deity);
-      if (deityCompare !== 0) return deityCompare;
-      const speedCompare =
-        (SPEED_ORDER[(a.speed || "").toLowerCase()] || 1) -
-        (SPEED_ORDER[(b.speed || "").toLowerCase()] || 1);
-      if (speedCompare !== 0) return speedCompare;
-      return (a.singer_name || "")
-        .toLowerCase()
-        .localeCompare((b.singer_name || "").toLowerCase());
-    });
-
-    const timestampMap = new Map();
-    if (sessionAudio && sessionAudio.timestamps) {
-      sessionAudio.timestamps.forEach((t) => {
-        if (t.submission_id) timestampMap.set(`sub_${t.submission_id}`, t);
-        if (t.bhajan_title) timestampMap.set(`title_${normalizeBhajanTitle(t.bhajan_title)}`, t);
-      });
-    }
-
-    const planItems = [];
-    const whatsappItems = [];
-
-    sorted.forEach((item, index) => {
-      const stepNum = index + 1;
-      const lowerTitle = String(item.title || "").trim().toLowerCase();
-      const matchedMaster =
-        catalog.byExactLowerTitle.get(lowerTitle) ||
-        catalog.byNormTitle.get(normalizeTitleKey(item.title));
-      const sheetFilename = matchedMaster ? matchedMaster.sheet_filename : null;
-      const raga = matchedMaster && matchedMaster.raga ? matchedMaster.raga : "";
-      const westernKey = getWesternScale(item.scale);
-      const deityIcon = getDeityIcon(item.deity);
-
-      const itemTimestamp =
-        (item.id && timestampMap.get(`sub_${item.id}`)) ||
-        timestampMap.get(`title_${normalizeBhajanTitle(item.title)}`);
-
-      let audioTimeFormatted = "";
-      if (itemTimestamp && sessionAudio && sessionAudio.audio_url) {
-        const m = Math.floor(itemTimestamp.start_seconds / 60);
-        const s = itemTimestamp.start_seconds % 60;
-        audioTimeFormatted = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-      }
-
-      const nameParts = (item.singer_name || "").trim().split(/\s+/);
-      const initials =
-        nameParts.length > 1
-          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-          : nameParts[0]
-            ? nameParts[0].substring(0, 2).toUpperCase()
-            : "SB";
-
-      const speedStr = (item.speed || "Medium").toLowerCase();
-      let speedIcon = "🎵";
-      if (speedStr.includes("fast")) speedIcon = "⚡";
-      if (speedStr.includes("slow")) speedIcon = "🕊️";
-
-      planItems.push({
-        stepNum,
-        id: item.id,
-        singerName: item.singer_name,
-        partnerName: item.partner_name || "",
-        initials,
-        title: item.title,
-        deity: item.deity,
-        deityIcon,
-        scale: item.scale || "",
-        westernKey,
-        speed: item.speed || "Medium",
-        speedIcon,
-        raga,
-        masterId: matchedMaster ? matchedMaster.id : null,
-        sheetFilename,
-        audioTimestamp: itemTimestamp || null,
-        audioTimeFormatted
-      });
-
-      const scaleStr = `${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""}`;
-      const tempoDisplay = item.speed
-        ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
-        : "Medium";
-      const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
-
-      const waItem = `${index + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${tempoDisplay}`;
-      whatsappItems.push(waItem);
-    });
-
-    let sessionDateHuman = sessionDate;
-    try {
-      const [y, m, d] = sessionDate.split("-").map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      sessionDateHuman = dateObj.toLocaleDateString("en-US", {
-        weekday: "long",
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
-      });
-    } catch (_) {}
+    const {
+      sessionDate,
+      sessionDateHuman,
+      planItems,
+      dateOptionsList,
+      sorted,
+      whatsappItems,
+      sessionAudio
+    } = await buildPlanViewData(req.query.session_date);
 
     const protocol = req.protocol || "http";
     const host = req.get("host") || "localhost:8000";
@@ -816,86 +843,37 @@ exports.planView = async (req, res) => {
   }
 };
 
-function escapeIcsText(val) {
-  return String(val || "")
-    .replace(/\\/g, "\\\\")
-    .replace(/\r?\n/g, "\\n")
-    .replace(/;/g, "\\;")
-    .replace(/,/g, "\\,");
-}
-
-exports.exportSessionIcs = async (req, res) => {
-  try {
-    const rawDate = typeof req.query.session_date === "string" ? req.query.session_date.trim() : "";
-    let sessionDate = isValidCalendarDate(rawDate) ? rawDate : null;
-    if (!sessionDate) {
-      const { status } = await getAvailableDates();
-      sessionDate = status.openThursday || status.nextThursdayDate || getLocalDateStr();
-    }
-
-    const submissions = await BhajanSubmission.findAll({
-      where: { session_date: sessionDate },
-      raw: true
-    });
-    const sorted = submissions.sort((a, b) => {
-      if (a.list_order > 0 || b.list_order > 0) {
-        if (a.list_order === 0) return 1;
-        if (b.list_order === 0) return -1;
-        return a.list_order - b.list_order;
-      }
-      const dCmp = deityOrderKey(a.deity) - deityOrderKey(b.deity);
-      if (dCmp !== 0) return dCmp;
-      return (a.singer_name || "").localeCompare(b.singer_name || "");
-    });
-
-    const compactDate = sessionDate.replace(/-/g, "");
-    const dtStamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-    const linesText =
-      sorted.length > 0
-        ? sorted
-            .map((item, idx) => `${idx + 1}. [${item.deity}] ${item.title} - ${item.singer_name} (${item.scale || "N/A"})`)
-            .join("\n")
-        : "Thursday Evening Satsang Bhajan Offerings (7:30 PM - 8:30 PM IST)";
-
-    const icsContent = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//SSSSO Gandhinagar//Bhajan Planner//EN",
-      "CALSCALE:GREGORIAN",
-      "METHOD:PUBLISH",
-      "BEGIN:VTIMEZONE",
-      "TZID:Asia/Kolkata",
-      "X-LIC-LOCATION:Asia/Kolkata",
-      "BEGIN:STANDARD",
-      "TZOFFSETFROM:+0530",
-      "TZOFFSETTO:+0530",
-      "TZNAME:IST",
-      "DTSTART:19700101T000000",
-      "END:STANDARD",
-      "END:VTIMEZONE",
-      "BEGIN:VEVENT",
-      `UID:bhajan-session-${compactDate}@bhajanplanner.ssssogandhinagar`,
-      `DTSTAMP:${dtStamp}`,
-      `DTSTART;TZID=Asia/Kolkata:${compactDate}T193000`,
-      `DTEND;TZID=Asia/Kolkata:${compactDate}T203000`,
-      `SUMMARY:${escapeIcsText(`Sai Bhajan Session (${sessionDate})`)}`,
-      `DESCRIPTION:${escapeIcsText(linesText)}`,
-      `LOCATION:${escapeIcsText("Sri Sathya Sai Seva Organisation, Gandhinagar")}`,
-      "BEGIN:VALARM",
-      "TRIGGER:-PT60M",
-      "ACTION:DISPLAY",
-      "DESCRIPTION:Sai Bhajan Session starts in 1 hour",
-      "END:VALARM",
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].join("\r\n");
-
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="bhajan-session-${sessionDate}.ics"`);
     res.send(icsContent);
   } catch (error) {
     console.error(`[Req ${req.id || ""}] exportSessionIcs error:`, error);
     res.status(500).send("Unable to export calendar event.");
+  }
+};
+
+exports.exportSessionPdf = async (req, res) => {
+  try {
+    const { sessionDate, sessionDateHuman, planItems } = await buildPlanViewData(
+      req.query.session_date
+    );
+    const pdfBuffer = await generateSessionPlanPdf({
+      sessionDate,
+      sessionDateHuman,
+      planItems
+    });
+    const isDownload = req.query.download === "1";
+    const disposition = isDownload ? "attachment" : "inline";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${disposition}; filename="Bhajan_Plan_${sessionDate}.pdf"`
+    );
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] exportSessionPdf error:`, error);
+    return res.status(500).send("Unable to generate session PDF.");
   }
 };
 

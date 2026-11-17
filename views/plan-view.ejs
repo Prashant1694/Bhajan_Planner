@@ -56,6 +56,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>.ics</span>
         </a>
+        <a href="/plan-view/pdf?session_date=<%= encodeURIComponent(sessionDate) %>&amp;download=1" download="Bhajan_Plan_<%= sessionDate || 'session' %>.pdf" data-no-shell="1" class="plan-btn plan-btn-pdf" id="planDownloadPdfBtn" title="Download clean A4 PDF schedule">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+          <span>PDF</span>
+        </a>
         <button type="button" class="plan-btn plan-btn-secondary" onclick="window.printPlanSchedule && window.printPlanSchedule()" title="Print as PDF or paper">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           <span>Print</span>
@@ -101,12 +105,12 @@
     <table>
       <thead>
         <tr>
-          <th width="4%">#</th>
+          <th width="5%">#</th>
           <th width="20%">Singer</th>
-          <th width="28%">Bhajan &amp; Raag</th>
-          <th width="22%">Deity</th>
+          <th width="29%">Bhajan &amp; Raag</th>
+          <th width="19%">Deity</th>
           <th width="15%">Pitch / Scale</th>
-          <th width="11%">Tempo</th>
+          <th width="12%">Tempo</th>
         </tr>
       </thead>
       <tbody>
@@ -175,22 +179,22 @@
       if (mode === "timeline") {
         if (timeline) {
           timeline.classList.add("active-view");
-          timeline.style.setProperty("display", "flex", "important");
+          timeline.style.removeProperty("display");
         }
         if (table) {
           table.classList.remove("active-view");
-          table.style.setProperty("display", "none", "important");
+          table.style.removeProperty("display");
         }
         if (tabTl) tabTl.classList.add("active");
         if (tabTb) tabTb.classList.remove("active");
       } else {
         if (table) {
           table.classList.add("active-view");
-          table.style.setProperty("display", "block", "important");
+          table.style.removeProperty("display");
         }
         if (timeline) {
           timeline.classList.remove("active-view");
-          timeline.style.setProperty("display", "none", "important");
+          timeline.style.removeProperty("display");
         }
         if (tabTb) tabTb.classList.add("active");
         if (tabTl) tabTl.classList.remove("active");

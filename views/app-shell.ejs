@@ -55,14 +55,14 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
   </noscript>
 
-  <!-- Core Shell & Component Stylesheets (v6.6) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.6">
+  <!-- Core Shell & Component Stylesheets (v6.7) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.7">
   <link rel="stylesheet" href="/css/pwa.css?v=6.5">
   <link rel="stylesheet" href="/css/notifications.css?v=6.5">
   <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
   <link rel="stylesheet" href="/css/tanpura.css?v=6.5">
   <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
-  <link rel="stylesheet" href="/css/app-shell.css?v=6.6">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.7">
   <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
     <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.5">
   <% } else if (activeTabKey === 'home') { %>
@@ -595,6 +595,10 @@
     }
 
     @media print {
+      .shell-pane:not(.active-pane),
+      body.shell-body:not(.detail-sheet-open) .shell-detail-sheet,
+      .sacred-orbs-canvas,
+      .prasanthi-border,
       #shellTopHeader,
       .shell-top-header,
       .header-right,
@@ -617,7 +621,15 @@
       .shell-detail-header,
       #tanpuraFloatingWidget,
       #stickyAudioBar,
+      .sticky-audio-bar,
+      #sessionAudioTab,
+      .session-audio-edge-tab,
+      .session-audio-banner,
       .pwa-install-overlay,
+      .notif-panel,
+      .notif-overlay,
+      .notif-prompt-overlay,
+      #whatsNewOverlay,
       .floating-theme-toggle {
         display: none !important;
         visibility: hidden !important;
@@ -647,6 +659,7 @@
         contain: none !important;
         padding-bottom: 0 !important;
         margin: 0 !important;
+        background: #ffffff !important;
       }
     }
   </style>
@@ -801,7 +814,7 @@
 
 <body class="shell-body">
 
-  <!-- Universal SSSO Print Letterhead -->
+  <!-- Universal SSSSO Print Letterhead -->
   <%- include('partials/universal-print-header') %>
 
   <div class="shell-app-layout" id="shellAppLayout">
@@ -815,7 +828,7 @@
           <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="38" height="38" class="shell-sidebar-emblem">
           <div class="shell-sidebar-brand-text">
             <span class="shell-sidebar-title">Bhajan Planner</span>
-            <span class="shell-sidebar-sub">SSSO · GANDHINAGAR</span>
+            <span class="shell-sidebar-sub">SSSSO · GANDHINAGAR</span>
           </div>
         </a>
         <button type="button" class="shell-sidebar-close" aria-label="Close navigation menu" onclick="closeShellSidebar()">
@@ -912,13 +925,13 @@
       <header class="shell-top-header" id="shellTopHeader" role="banner">
         <!-- Left: Brand symbol square + logo text -->
         <div class="header-left">
-          <a href="/" class="header-brand-wrap" onclick="return handleNavClick('home', '/', event)" title="Bhajan Planner - SSSO Gandhinagar">
+          <a href="/" class="header-brand-wrap" onclick="return handleNavClick('home', '/', event)" title="Bhajan Planner - SSSSO Gandhinagar">
             <div class="brand-symbol-square header-logo-box">
               <img src="/images/logo.png" alt="Sri Sathya Sai Emblem" width="34" height="34" class="brand-symbol-img">
             </div>
             <div class="header-titles-box">
               <span class="header-page-title" id="headerPageTitle">Bhajan Planner</span>
-              <span class="header-breadcrumb" id="headerBreadcrumb">SSSO · GANDHINAGAR</span>
+              <span class="header-breadcrumb" id="headerBreadcrumb">SSSSO · GANDHINAGAR</span>
             </div>
           </a>
         </div>
@@ -1040,7 +1053,7 @@
     </div>
   </div>
 
-  <!-- Universal SSSO Print Footer -->
+  <!-- Universal SSSSO Print Footer -->
   <%- include('partials/universal-print-footer') %>
 
   <!-- PWA Install Banner -->
