@@ -843,6 +843,80 @@ exports.planView = async (req, res) => {
   }
 };
 
+function escapeIcsText(val) {
+  return String(val || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\r?\n/g, "\\n")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,");
+}
+
+exports.exportSessionIcs = async (req, res) => {
+  try {
+    const rawDate = typeof req.query.session_date === "string" ? req.query.session_date.trim() : "";
+    let sessionDate = isValidCalendarDate(rawDate) ? rawDate : null;
+    if (!sessionDate) {
+      const { status } = await getAvailableDates();
+      sessionDate = status.openThursday || status.nextThursdayDate || getLocalDateStr();
+    }
+
+    const submissions = await BhajanSubmission.findAll({
+      where: { session_date: sessionDate },
+      raw: true
+    });
+    const sorted = submissions.sort((a, b) => {
+      if (a.list_order > 0 || b.list_order > 0) {
+        if (a.list_order === 0) return 1;
+        if (b.list_order === 0) return -1;
+        return a.list_order - b.list_order;
+      }
+      const dCmp = deityOrderKey(a.deity) - deityOrderKey(b.deity);
+      if (dCmp !== 0) return dCmp;
+      return (a.singer_name || "").localeCompare(b.singer_name || "");
+    });
+
+    const compactDate = sessionDate.replace(/-/g, "");
+    const dtStamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const linesText =
+      sorted.length > 0
+        ? sorted
+            .map((item, idx) => `${idx + 1}. [${item.deity}] ${item.title} - ${item.singer_name} (${item.scale || "N/A"})`)
+            .join("\n")
+        : "Thursday Evening Satsang Bhajan Offerings (7:30 PM - 8:30 PM IST)";
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//SSSSO Gandhinagar//Bhajan Planner//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VTIMEZONE",
+      "TZID:Asia/Kolkata",
+      "X-LIC-LOCATION:Asia/Kolkata",
+      "BEGIN:STANDARD",
+      "TZOFFSETFROM:+0530",
+      "TZOFFSETTO:+0530",
+      "TZNAME:IST",
+      "DTSTART:19700101T000000",
+      "END:STANDARD",
+      "END:VTIMEZONE",
+      "BEGIN:VEVENT",
+      `UID:bhajan-session-${compactDate}@bhajanplanner.ssssogandhinagar`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART;TZID=Asia/Kolkata:${compactDate}T193000`,
+      `DTEND;TZID=Asia/Kolkata:${compactDate}T203000`,
+      `SUMMARY:${escapeIcsText(`Sai Bhajan Session (${sessionDate})`)}`,
+      `DESCRIPTION:${escapeIcsText(linesText)}`,
+      `LOCATION:${escapeIcsText("Sri Sathya Sai Seva Organisation, Gandhinagar")}`,
+      "BEGIN:VALARM",
+      "TRIGGER:-PT60M",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:Sai Bhajan Session starts in 1 hour",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="bhajan-session-${sessionDate}.ics"`);
     res.send(icsContent);

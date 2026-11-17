@@ -14,12 +14,19 @@ exports.showMasterBank = async (req, res) => {
   try {
     const catalog = await getMasterCatalog();
     const isAdmin = !!(req.session && (req.session.adminUserId || req.session.admin));
+    const isSuperAdmin = Boolean(
+      res.locals.isSuperAdmin ||
+        (req.session &&
+          req.session.admin &&
+          String(req.session.admin.role || "").toLowerCase() === "super_admin")
+    );
     res.render("master-bank", {
       bhajans: catalog.lightRows,
       aggregates: catalog.aggregates,
       pageTitle: "Songbook — Prashanti Bhajan Catalog",
       page: "master-bank",
-      isAdmin
+      isAdmin,
+      isSuperAdmin
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] showMasterBank error:`, error);
@@ -97,12 +104,17 @@ exports.addMasterBhajan = async (req, res) => {
       level,
       shruti,
       shruti_female,
+      language,
       lyrics,
       sheet_filename
     } = req.body;
+    const cleanTitle = typeof title === "string" ? title.trim() : "";
+    if (!cleanTitle) {
+      return res.status(400).json({ success: false, error: "Title is required." });
+    }
     const cleanDeity = normalizeDeityString(deity);
-    await MasterBhajan.create({
-      title,
+    const created = await MasterBhajan.create({
+      title: cleanTitle,
       deity: cleanDeity,
       raga,
       raga_notes,
@@ -110,13 +122,14 @@ exports.addMasterBhajan = async (req, res) => {
       level,
       shruti,
       shruti_female,
+      language,
       lyrics,
-      sheet_filename,
+      sheet_filename: sheet_filename || null,
       is_active: true
     });
     invalidateMasterCache();
     invalidateMissingCount();
-    res.json({ success: true });
+    res.json({ success: true, bhajan: created });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] addMasterBhajan error:`, error);
     res.status(500).json({ error: "Failed to add bhajan to catalog." });
@@ -303,6 +316,55 @@ exports.showArchivedMasterBank = async (req, res) => {
   }
 };
 
+exports.searchMasterBhajans = async (req, res) => {
+  try {
+    const rawQuery = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+    if (!rawQuery) {
+      return res.json({ results: [] });
+    }
+
+    const tokens = rawQuery.split(/\s+/).filter(Boolean);
+    const catalog = await getMasterCatalog();
+    const matches = [];
+
+    for (const item of catalog.lightRows) {
+      const titleLower = (item.title || "").toLowerCase();
+      const deityLower = (item.deity || "").toLowerCase();
+      const ragaLower = (item.raga || "").toLowerCase();
+      const combined = `${titleLower} ${deityLower} ${ragaLower}`;
+
+      if (!tokens.every((t) => combined.includes(t))) continue;
+
+      let rank = 3;
+      if (titleLower === rawQuery) rank = 0;
+      else if (titleLower.startsWith(rawQuery)) rank = 1;
+      else if (titleLower.includes(rawQuery)) rank = 2;
+
+      matches.push({ item, rank });
+    }
+
+    matches.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return (a.item.title || "").localeCompare(b.item.title || "");
+    });
+
+    const results = matches.slice(0, 15).map(({ item }) => ({
+      id: item.id,
+      title: item.title,
+      deity: item.deity,
+      raga: item.raga || "",
+      tempo: item.tempo || "",
+      shruti: item.shruti || "",
+      shruti_female: item.shruti_female || ""
+    }));
+
+    return res.json({ results });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] searchMasterBhajans error:`, error);
+    return res.status(500).json({ error: "Failed to search master bhajans." });
+  }
+};
+
 exports.reconcileBhajan = async (req, res) => {
   try {
     const { submitted_title, action, master_bhajan_id } = req.body;
@@ -322,6 +384,7 @@ exports.reconcileBhajan = async (req, res) => {
         return res.status(404).json({ error: "Active Master bhajan not found." });
       }
 
+      const exactLowerSubmitted = String(submitted_title).trim().toLowerCase();
       const normSubmitted = normalizeTitleKey(submitted_title);
 
       const allSubmissions = await BhajanSubmission.findAll({
@@ -329,9 +392,13 @@ exports.reconcileBhajan = async (req, res) => {
         raw: true
       });
 
-      const toUpdate = allSubmissions.filter(
-        (s) => normalizeTitleKey(s.title) === normSubmitted
-      );
+      const toUpdate = allSubmissions.filter((s) => {
+        const lower = (s.title || "").trim().toLowerCase();
+        return (
+          lower === exactLowerSubmitted ||
+          (normSubmitted && normalizeTitleKey(s.title) === normSubmitted)
+        );
+      });
 
       if (toUpdate.length > 0) {
         const ids = toUpdate.map((s) => s.id);

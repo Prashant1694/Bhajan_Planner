@@ -158,8 +158,9 @@
 </div>
 
 <!-- ===========================
-     MISSING BHAJAN MODAL
+     MISSING BHAJAN MODAL (Super Admin Only)
 =========================== -->
+<% if (locals.isSuperAdmin) { %>
 <div id="missingBhajanModal" class="modal">
     <div class="modal-content admin-modal-card" style="max-width:440px;">
         <div class="modal-header">
@@ -282,6 +283,7 @@
         </div>
     </div>
 </div>
+<% } %>
 
 <!-- ===========================
      COPY SESSION MODAL

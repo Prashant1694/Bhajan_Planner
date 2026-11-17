@@ -69,11 +69,11 @@
         </div>
         <div class="metric-card">
           <div class="metric-card-icon" style="color:#16a34a;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           </div>
           <div class="metric-card-data">
-            <span class="metric-card-val"><%= missingBhajans ? missingBhajans.filter(b => b.candidates && b.candidates.length > 0).length : 0 %></span>
-            <span class="metric-card-lbl">With Auto-Matches</span>
+            <span class="metric-card-val"><%= typeof masterTotalCount !== 'undefined' ? masterTotalCount : 0 %></span>
+            <span class="metric-card-lbl">Master Bank Songs</span>
           </div>
         </div>
       </div>
@@ -87,9 +87,9 @@
     <div class="workspace-header-bar">
       <div class="workspace-filter-box">
         <input type="text" id="missingSearchInput" onkeyup="filterMissingBhajans()"
-               placeholder="Filter this batch of <%= missingBhajans ? missingBhajans.length : 0 %> bhajans..." 
+               placeholder="Filter this batch of <%= missingBhajans ? missingBhajans.length : 0 %> bhajans..."
                class="workspace-search-input" aria-label="Filter missing bhajans">
-        
+
         <span class="workspace-meta-text">
           Showing #<%= startIndex %> to #<%= endIndex %> of <%= totalMissing %>
         </span>
@@ -116,68 +116,42 @@
       <% if (missingBhajans && missingBhajans.length > 0) { %>
         <div class="session-cards-stream adm-missing-stream">
           <% missingBhajans.forEach(function(item, idx) { %>
-            <article class="session-track-card missing-card-item adm-missing-card" data-title="<%= item.submittedTitle.toLowerCase() %>">
-              
+            <article class="session-track-card missing-card-item adm-missing-card"
+                     data-title="<%= item.submittedTitle.toLowerCase() %>"
+                     data-submitted-title="<%= item.submittedTitle %>"
+                     style="display:flex; flex-direction:column; gap:10px;">
+
               <!-- Card Header Row -->
-              <div class="track-card-header adm-missing-head">
-                <div class="card-seq-badge-wrap">
+              <div class="track-card-header adm-missing-head" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div class="card-seq-badge-wrap" style="display:flex; align-items:center; gap:10px; flex:1; min-width:220px;">
                   <span class="card-seq-num adm-missing-seq">
                     #<%= startIndex + idx %>
                   </span>
+                  <span class="card-bhajan-title adm-missing-title"><%= item.submittedTitle %></span>
                 </div>
-                <div class="card-header-main" style="flex:1;">
-                  <div class="card-title-wrap">
-                    <span class="card-bhajan-title adm-missing-title"><%= item.submittedTitle %></span>
-                  </div>
-                </div>
+                <% if (isSuperAdmin) { %>
+                  <button type="button" class="card-touch-btn btn-edit mb-add-new-btn" style="white-space:nowrap;">
+                    + Add as New
+                  </button>
+                <% } %>
               </div>
 
-              <!-- Candidate Auto-Matches -->
-              <% if (item.candidates && item.candidates.length > 0) { %>
-                <div class="adm-missing-match-lbl">
-                  Potential matches found in Master Database:
+              <!-- Simple Search & Link Control -->
+              <div class="mb-link-search-box" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px; position:relative;">
+                  <input type="text"
+                         class="workspace-search-input mb-master-search-input"
+                         placeholder="Search Master Bank by bhajan name, deity, or raag..."
+                         aria-label="Search Master Bank for <%= item.submittedTitle %>"
+                         style="width:100%; max-width:none; padding-right:34px;">
+                  <button type="button"
+                          class="mb-clear-search-btn"
+                          aria-label="Clear search"
+                          title="Clear search"
+                          style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--text-light); font-size:18px; line-height:1; cursor:pointer; padding:4px 6px;">&times;</button>
                 </div>
-
-                <div class="adm-missing-matches">
-                  <% item.candidates.forEach(function(c) { %>
-                    <div class="adm-missing-match-row">
-                      <div class="adm-missing-match-info">
-                        <span class="card-deity-pill adm-missing-score">
-                          <%= c.master.deity %>
-                        </span>
-                        <strong class="adm-missing-match-title"><%= c.master.title %></strong>
-                        <% if (c.master.raga) { %>
-                          <span class="adm-missing-match-raga">&bull; Raag: <%= c.master.raga %></span>
-                        <% } %>
-                        <span class="diag-chip pass adm-missing-score">
-                          <%= Math.round(c.score * 100) %>% match
-                        </span>
-                      </div>
-
-                      <button type="button" class="cmd-btn cmd-btn-share adm-missing-btn-sm"
-                              onclick="liveReconcile('<%= item.submittedTitle.replace(/'/g, "\\'") %>', 'link', <%= c.master.id %>, '<%= c.master.title.replace(/'/g, "\\'") %>')">
-                        Yes, Link This
-                      </button>
-                    </div>
-                  <% }); %>
-                </div>
-
-                <div class="adm-missing-add-row">
-                  <span class="adm-muted-note">None of these match?</span>
-                  <button type="button" class="card-touch-btn btn-edit" onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
-                    + Add as New Canonical Song
-                  </button>
-                </div>
-
-              <% } else { %>
-                <div class="adm-missing-none-row">
-                  <span class="adm-muted-note">No similar titles found in Master Bank.</span>
-                  <button type="button" class="cmd-btn cmd-btn-add adm-missing-btn-sm"
-                          onclick="openMissingBhajanModal('<%= item.submittedTitle.replace(/'/g, "\\'") %>')">
-                    + Add to Master Bank
-                  </button>
-                </div>
-              <% } %>
+                <div class="mb-search-results" style="display:none; flex-direction:column; gap:6px;"></div>
+              </div>
 
             </article>
           <% }); %>
@@ -198,7 +172,8 @@
 
   </main>
 
-  <!-- ADD MISSING BHAJAN MODAL -->
+  <!-- ADD MISSING BHAJAN MODAL (Super Admin Only) -->
+  <% if (isSuperAdmin) { %>
   <div id="missingBhajanModal" class="session-modal-overlay">
     <div class="session-modal-card" style="max-width:480px;">
       <div class="session-modal-header">
@@ -267,10 +242,14 @@
       </div>
     </div>
   </div>
+  <% } %>
 
 </div>
 
 <script>
+  const IS_SUPERADMIN_MISSING_CATCHER = <%= isSuperAdmin ? 'true' : 'false' %>;
+  let _activeMissingTitle = '';
+
   function showToast(msg, type) {
     const toast = document.getElementById('catcherToast');
     if (!toast) return;
@@ -281,23 +260,43 @@
   }
 
   function liveRemoveCard(submittedTitle) {
+    const targetLower = (submittedTitle || '').toLowerCase();
     const cards = document.querySelectorAll('.missing-card-item');
     cards.forEach(card => {
-      if (card.getAttribute('data-title') === submittedTitle.toLowerCase()) {
+      if (card.getAttribute('data-title') === targetLower) {
         card.style.transition = 'all 0.3s ease';
         card.style.opacity = '0';
         card.style.transform = 'scale(0.95)';
-        setTimeout(() => card.remove(), 300);
+        setTimeout(() => {
+          card.remove();
+          if (document.querySelectorAll('.missing-card-item').length === 0) {
+            const container = document.getElementById('missingListContainer');
+            if (container) {
+              container.innerHTML = `
+                <div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:40px 20px; text-align:center;">
+                  <div style="width:48px; height:48px; border-radius:12px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <h3 style="color:#16a34a; margin-bottom:8px;">Batch Completed!</h3>
+                  <p style="color:#64748b; margin-bottom:18px;">All bhajans in this batch have been reconciled.</p>
+                  <a href="/admin/missing-bhajans" class="cmd-btn cmd-btn-share" style="display:inline-flex; text-decoration:none; height:38px; padding:0 22px;">
+                    Continue to Next Batch &rarr;
+                  </a>
+                </div>
+              `;
+            }
+          }
+        }, 300);
 
         const badgeEls = document.querySelectorAll('.total-missing-count');
         badgeEls.forEach(el => {
-          const current = parseInt(el.textContent) || 0;
+          const current = parseInt(el.textContent, 10) || 0;
           if (current > 0) el.textContent = current - 1;
         });
 
         const sidebarBadge = document.querySelector('.missing-catcher-badge');
         if (sidebarBadge) {
-          const cur = parseInt(sidebarBadge.textContent) || 0;
+          const cur = parseInt(sidebarBadge.textContent, 10) || 0;
           if (cur <= 1) {
             sidebarBadge.style.display = 'none';
           } else {
@@ -306,28 +305,13 @@
         }
       }
     });
-
-    const remaining = document.querySelectorAll('.missing-card-item');
-    if (remaining.length === 0) {
-      const container = document.getElementById('missingListContainer');
-      if (container) {
-        container.innerHTML = `
-          <div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:40px 20px; text-align:center;">
-            <div style="width:48px; height:48px; border-radius:12px; background:#ecfdf5; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <h3 style="color:#16a34a; margin-bottom:8px;">Batch Completed!</h3>
-            <p style="color:#64748b; margin-bottom:18px;">All 50 bhajans in this batch have been reconciled.</p>
-            <a href="/admin/missing-bhajans" class="cmd-btn cmd-btn-share" style="display:inline-flex; text-decoration:none; height:38px; padding:0 22px;">
-              Continue to Next Batch &rarr;
-            </a>
-          </div>
-        `;
-      }
-    }
   }
 
-  function liveReconcile(submittedTitle, action, masterBhajanId, masterTitle) {
+  function liveReconcile(submittedTitle, action, masterBhajanId, masterTitle, triggerBtn) {
+    if (triggerBtn) {
+      triggerBtn.disabled = true;
+      triggerBtn.textContent = 'Linking...';
+    }
     fetch('/api/admin/reconcile-bhajan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -339,22 +323,39 @@
           showToast('Linked "' + submittedTitle + '" to "' + (masterTitle || data.masterTitle || '') + '"');
           liveRemoveCard(submittedTitle);
         } else {
+          if (triggerBtn) {
+            triggerBtn.disabled = false;
+            triggerBtn.textContent = 'Link with This';
+          }
           showToast('Error: ' + (data.error || 'Unknown error'), 'error');
         }
       })
-      .catch(err => showToast('Request failed: ' + err.message, 'error'));
+      .catch(err => {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          triggerBtn.textContent = 'Link with This';
+        }
+        showToast('Request failed: ' + err.message, 'error');
+      });
   }
 
   function openMissingBhajanModal(title) {
+    if (!IS_SUPERADMIN_MISSING_CATCHER || !document.getElementById('missingBhajanModal')) return;
+    _activeMissingTitle = title;
     document.getElementById('mbTitle').value = title;
     document.getElementById('missingBhajanModal').classList.add('show');
   }
 
   function closeMissingBhajanModal() {
-    document.getElementById('missingBhajanModal').classList.remove('show');
+    const modal = document.getElementById('missingBhajanModal');
+    if (modal) modal.classList.remove('show');
   }
 
   function liveSaveMissingBhajan() {
+    if (!IS_SUPERADMIN_MISSING_CATCHER) {
+      showToast('Forbidden: Only Super Admins can add Master Bank bhajans.', 'error');
+      return;
+    }
     const title = document.getElementById('mbTitle').value;
     const data = {
       title: title,
@@ -376,7 +377,7 @@
         if (result.success) {
           closeMissingBhajanModal();
           showToast('Added "' + title + '" to Master Database!');
-          liveRemoveCard(title);
+          liveRemoveCard(_activeMissingTitle || title);
         } else {
           showToast('Error: ' + (result.error || 'Failed to add'), 'error');
         }
@@ -389,11 +390,147 @@
     const cards = document.querySelectorAll('.missing-card-item');
     cards.forEach(card => {
       const title = card.getAttribute('data-title') || '';
-      if (!query || title.includes(query)) {
-        card.style.display = 'flex';
-      } else {
-        card.style.display = 'none';
-      }
+      card.style.display = (!query || title.includes(query)) ? 'flex' : 'none';
     });
   }
+
+  function renderMasterSearchResults(resultsEl, submittedTitle, results, query) {
+    resultsEl.textContent = '';
+    resultsEl.style.display = 'flex';
+
+    if (!results || results.length === 0) {
+      const emptyRow = document.createElement('div');
+      emptyRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--surface-raised); padding:10px 14px; border-radius:10px; border:1px solid var(--border);';
+      const msg = document.createElement('span');
+      msg.style.cssText = 'font-size:12.5px; color:var(--text-light);';
+      msg.textContent = 'No matching bhajans found in Master Bank for "' + query + '".';
+      emptyRow.appendChild(msg);
+      if (IS_SUPERADMIN_MISSING_CATCHER) {
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'cmd-btn cmd-btn-add';
+        addBtn.style.cssText = 'height:32px; font-size:12px; padding:0 14px;';
+        addBtn.textContent = '+ Add to Master Bank';
+        addBtn.addEventListener('click', () => openMissingBhajanModal(submittedTitle));
+        emptyRow.appendChild(addBtn);
+      } else {
+        const note = document.createElement('span');
+        note.style.cssText = 'font-size:12px; color:var(--text-light); font-style:italic;';
+        note.textContent = 'Only Super Admins can add new bhajans.';
+        emptyRow.appendChild(note);
+      }
+      resultsEl.appendChild(emptyRow);
+      return;
+    }
+
+    results.forEach((m) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; background:var(--surface-raised); border:1px solid var(--border); border-radius:10px; padding:9px 12px;';
+
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; min-width:200px;';
+
+      if (m.deity) {
+        const deityPill = document.createElement('span');
+        deityPill.className = 'card-deity-pill';
+        deityPill.style.fontSize = '11px';
+        deityPill.textContent = m.deity;
+        info.appendChild(deityPill);
+      }
+
+      const titleEl = document.createElement('strong');
+      titleEl.style.cssText = 'font-size:13.5px; color:var(--text);';
+      titleEl.textContent = m.title;
+      info.appendChild(titleEl);
+
+      if (m.raga) {
+        const ragaEl = document.createElement('span');
+        ragaEl.style.cssText = 'font-size:11.5px; color:var(--text-light);';
+        ragaEl.textContent = '• Raag: ' + m.raga;
+        info.appendChild(ragaEl);
+      }
+
+      const shrutiText = [m.shruti, m.shruti_female].filter(Boolean).join(' / ');
+      if (shrutiText) {
+        const shrutiEl = document.createElement('span');
+        shrutiEl.style.cssText = 'font-size:11.5px; color:var(--text-light);';
+        shrutiEl.textContent = '• Scale: ' + shrutiText;
+        info.appendChild(shrutiEl);
+      }
+
+      const linkBtn = document.createElement('button');
+      linkBtn.type = 'button';
+      linkBtn.className = 'cmd-btn cmd-btn-share';
+      linkBtn.style.cssText = 'height:32px; font-size:12px; padding:0 14px; white-space:nowrap;';
+      linkBtn.textContent = 'Link with This';
+      linkBtn.addEventListener('click', () => liveReconcile(submittedTitle, 'link', m.id, m.title, linkBtn));
+
+      row.appendChild(info);
+      row.appendChild(linkBtn);
+      resultsEl.appendChild(row);
+    });
+  }
+
+  // Bind simple per-card Master Bank search and "+ Add as New" actions
+  document.querySelectorAll('.missing-card-item').forEach((card) => {
+    const submittedTitle = card.dataset.submittedTitle || '';
+    const searchInput = card.querySelector('.mb-master-search-input');
+    const clearBtn = card.querySelector('.mb-clear-search-btn');
+    const resultsEl = card.querySelector('.mb-search-results');
+    const addNewBtn = card.querySelector('.mb-add-new-btn');
+
+    if (addNewBtn) {
+      addNewBtn.addEventListener('click', () => openMissingBhajanModal(submittedTitle));
+    }
+
+    if (!searchInput || !resultsEl) return;
+
+    let debounceTimer = null;
+    let activeAbort = null;
+
+    const runSearch = () => {
+      const q = (searchInput.value || '').trim();
+      if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+      if (q.length < 2) {
+        if (activeAbort) activeAbort.abort();
+        resultsEl.style.display = 'none';
+        resultsEl.textContent = '';
+        return;
+      }
+
+      if (activeAbort) activeAbort.abort();
+      activeAbort = new AbortController();
+
+      fetch('/api/admin/master-bhajans/search?q=' + encodeURIComponent(q), {
+        signal: activeAbort.signal
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && Array.isArray(data.results)) {
+            renderMasterSearchResults(resultsEl, submittedTitle, data.results, q);
+          }
+        })
+        .catch(err => {
+          if (err && err.name === 'AbortError') return;
+          showToast('Search failed: ' + err.message, 'error');
+        });
+    };
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runSearch, 150);
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        if (activeAbort) activeAbort.abort();
+        resultsEl.style.display = 'none';
+        resultsEl.textContent = '';
+        searchInput.focus();
+      });
+    }
+  });
 </script>

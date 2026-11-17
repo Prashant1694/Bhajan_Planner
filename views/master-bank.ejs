@@ -158,6 +158,11 @@
 
             <% if (isAdmin) { %>
               <div class="bank-glass-admin-tools" aria-label="Admin catalog tools">
+                <% if (isSuperAdmin) { %>
+                  <button type="button" class="glass-btn-sm" id="btnAddMasterBhajan" onclick="window.openAdminAddBhajanModal()" title="Add new bhajan to Master Bank">
+                    + Add Bhajan
+                  </button>
+                <% } %>
                 <a href="/admin/archived-master-bhajans" class="glass-btn-sm" title="View deactivated master bhajans">
                   Archived
                 </a>
@@ -281,9 +286,11 @@
                         <button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(<%= b.id %>)" title="Edit Master Bhajan" aria-label="Edit">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                        </button>
+                        <% if (isSuperAdmin) { %>
+                          <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                          </button>
+                        <% } %>
                       </div>
                     <% } else { %>
                       <button type="button" class="btn-card-bookmark" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Add to My Songbook" aria-label="Bookmark">
@@ -402,9 +409,11 @@
                       <button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(<%= b.id %>)" title="Edit Master Bhajan" aria-label="Edit">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
+                      <% if (isSuperAdmin) { %>
+                        <button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(<%= b.id %>)" title="Delete Bhajan" aria-label="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                      <% } %>
                     </div>
                   <% } else { %>
                     <button type="button" class="btn-card-bookmark" data-id="<%= b.id %>" onclick="event.stopPropagation(); window.toggleSongbookBookmark(<%= b.id %>, this)" title="Add to My Songbook" aria-label="Bookmark">
@@ -512,7 +521,7 @@
       
       <div class="modal-header">
         <div class="admin-edit-title-wrap">
-          <span class="admin-edit-badge">Master Catalog Editor</span>
+          <span class="admin-edit-badge" id="adminEditBhajanBadge">Master Catalog Editor</span>
           <h2 id="adminEditBhajanTitle" class="admin-edit-title">Edit Bhajan</h2>
         </div>
         <button type="button" class="close-btn" onclick="closeAdminEditBhajanModal()" aria-label="Close">&times;</button>
@@ -663,6 +672,7 @@
     try { allData = JSON.parse(dataElem.textContent); } catch (e) { return; }
     window.ALL_MASTER_BHAJANS = allData;
     window.IS_ADMIN_MASTER_BANK = <%= isAdmin ? 'true' : 'false' %>;
+    window.IS_SUPERADMIN_MASTER_BANK = <%= isSuperAdmin ? 'true' : 'false' %>;
 
     var catalogContainer = document.getElementById('masterBankCatalog');
     var loadMoreBtn = document.getElementById('bankLoadMoreBtn');
@@ -819,6 +829,7 @@
 
     function createGlassBhajanCardHtml(b) {
       var isAdmin = window.IS_ADMIN_MASTER_BANK;
+      var isSuperAdmin = window.IS_SUPERADMIN_MASTER_BANK;
       var jewel = getDeityJewelClient(b.deity);
       var deityTokens = (b.deity || 'Devotional').split(/[,;&\/]+/).map(function(s) { return s.trim(); }).filter(Boolean);
       var deityPills = deityTokens.map(function(d) { return '<span class="deity-pill">' + escapeHtml(d) + '</span>'; }).join('');
@@ -840,6 +851,12 @@
       var starFill = isBookmarked ? '#f59e0b' : 'none';
       var starStroke = isBookmarked ? '#f59e0b' : 'currentColor';
 
+      var deleteActionBtn = isSuperAdmin
+        ? '<button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(' + b.id + ')" title="Delete Bhajan" aria-label="Delete">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
+          '</button>'
+        : '';
+
       var adminActionsTrio = '<div class="admin-actions-trio" onclick="event.stopPropagation();">' +
         '<button type="button" class="admin-action-btn admin-btn-star' + (isBookmarked ? ' active' : '') + '" data-id="' + b.id + '" onclick="event.stopPropagation(); window.toggleSongbookBookmark(' + b.id + ', this)" title="Save in Songbook" aria-label="Bookmark">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + starFill + '" stroke="' + starStroke + '" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' +
@@ -847,9 +864,7 @@
         '<button type="button" class="admin-action-btn admin-btn-edit" onclick="event.stopPropagation(); window.openAdminEditBhajanModal(' + b.id + ')" title="Edit Master Bhajan" aria-label="Edit">' +
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
         '</button>' +
-        '<button type="button" class="admin-action-btn admin-btn-delete" onclick="event.stopPropagation(); window.deleteMasterRow(' + b.id + ')" title="Delete Bhajan" aria-label="Delete">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
-        '</button>' +
+        deleteActionBtn +
       '</div>';
 
       var singerBookmarkBtn = '<button type="button" class="btn-card-bookmark' + (isBookmarked ? ' active' : '') + '" data-id="' + b.id + '" onclick="event.stopPropagation(); window.toggleSongbookBookmark(' + b.id + ', this)" title="' + (isBookmarked ? 'In Songbook' : 'Add to My Songbook') + '" aria-label="Bookmark">' +
@@ -1046,7 +1061,7 @@
     }
 
     // Pre-index catalog for instant sub-millisecond, highly accurate search
-    var searchCatalog = allData.map(function(b) {
+    function buildSearchCatalogEntry(b) {
       var titleWords = getWords(b.title);
       var deityWords = getWords(b.deity);
       var ragaWords = getWords(b.raga);
@@ -1109,7 +1124,9 @@
         tempoLower: (b.tempo || '').toLowerCase().trim(),
         ragaList: ragaList
       };
-    });
+    }
+
+    var searchCatalog = allData.map(buildSearchCatalogEntry);
 
     window.handleBankSearchInput = function(input) {
       if (clearSearchBtn) {
@@ -1584,6 +1601,13 @@
         sel.value = v;
       }
 
+      var modalBadge = document.getElementById('adminEditBhajanBadge');
+      var modalTitle = document.getElementById('adminEditBhajanTitle');
+      var saveBtn = document.getElementById('btnSaveAdminEdit');
+      if (modalBadge) modalBadge.textContent = 'Master Catalog Editor';
+      if (modalTitle) modalTitle.textContent = 'Edit Bhajan';
+      if (saveBtn) saveBtn.textContent = 'Save Changes';
+
       if (idField) idField.value = b.id;
       if (titleField) titleField.value = b.title || '';
       if (deityField) setSelectVal(deityField, b.deity);
@@ -1624,6 +1648,44 @@
       }
     };
 
+    window.openAdminAddBhajanModal = function() {
+      if (!window.IS_SUPERADMIN_MASTER_BANK || !document.getElementById('adminEditBhajanModal')) return;
+
+      var modalBadge = document.getElementById('adminEditBhajanBadge');
+      var modalTitle = document.getElementById('adminEditBhajanTitle');
+      var saveBtn = document.getElementById('btnSaveAdminEdit');
+      if (modalBadge) modalBadge.textContent = 'Super Admin — Add to Catalog';
+      if (modalTitle) modalTitle.textContent = 'Add Bhajan';
+      if (saveBtn) saveBtn.textContent = 'Add Bhajan';
+
+      var fieldIds = [
+        'editBhajanId',
+        'editBhajanTitle',
+        'editBhajanDeity',
+        'editBhajanTempo',
+        'editBhajanRaga',
+        'editBhajanLevel',
+        'editBhajanShrutiMale',
+        'editBhajanShrutiFemale',
+        'editBhajanLanguage',
+        'editBhajanSheet',
+        'editBhajanLyrics'
+      ];
+      fieldIds.forEach(function(fid) {
+        var el = document.getElementById(fid);
+        if (el) {
+          el.value = '';
+          el.disabled = false;
+        }
+      });
+
+      var modal = document.getElementById('adminEditBhajanModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+      }
+    };
+
     window.closeAdminEditBhajanModal = function() {
       var modal = document.getElementById('adminEditBhajanModal');
       if (modal) {
@@ -1635,14 +1697,20 @@
     window.submitAdminEditBhajan = async function(e) {
       e.preventDefault();
       var id = document.getElementById('editBhajanId').value;
-      var saveBtn = document.getElementById('btnSaveAdminEdit');
-      var origText = saveBtn ? saveBtn.textContent : 'Save Changes';
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
+      var isAddMode = !id;
+      if (isAddMode && !window.IS_SUPERADMIN_MASTER_BANK) {
+        alert('Forbidden: Super Admin access required');
+        return;
       }
 
-      var updatedData = {
+      var saveBtn = document.getElementById('btnSaveAdminEdit');
+      var origText = saveBtn ? saveBtn.textContent : (isAddMode ? 'Add Bhajan' : 'Save Changes');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = isAddMode ? 'Adding...' : 'Saving...';
+      }
+
+      var payload = {
         title: document.getElementById('editBhajanTitle').value.trim(),
         deity: document.getElementById('editBhajanDeity').value.trim(),
         tempo: document.getElementById('editBhajanTempo').value.trim(),
@@ -1656,39 +1724,64 @@
       };
 
       var csrf = window.csrfToken || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+      var endpoint = isAddMode ? '/api/add-master-bhajan' : ('/api/admin/update-master-bhajan/' + id);
 
       try {
-        var res = await fetch('/api/admin/update-master-bhajan/' + id, {
+        var res = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-CSRF-Token': csrf
           },
-          body: JSON.stringify(updatedData)
+          body: JSON.stringify(payload)
         });
         var data = await res.json();
         if (data.success) {
-          var b = allData.find(function(x) { return String(x.id) === String(id); });
-          if (b) {
-            Object.assign(b, updatedData);
-            b.wm = getWesternScale(b.shruti);
-            b.wf = getWesternScale(b.shruti_female);
-          }
-          var cEntry = searchCatalog.find(function(x) { return String(x.item.id) === String(id); });
-          if (cEntry) {
-            cEntry.item = b;
-            cEntry.titleWords = normalizeSearch(b.title).split(' ').filter(Boolean);
-            cEntry.titleNorm = cEntry.titleWords.join(' ');
-            cEntry.deityLower = (b.deity || '').toLowerCase().trim();
-            cEntry.deityList = b.deity ? b.deity.split(/[,;&\/]+/).map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean) : [];
-            cEntry.tempoLower = (b.tempo || '').toLowerCase().trim();
-          }
+          if (isAddMode) {
+            if (data.bhajan && data.bhajan.id) {
+              var created = {
+                id: data.bhajan.id,
+                title: data.bhajan.title || payload.title,
+                deity: data.bhajan.deity || payload.deity,
+                tempo: data.bhajan.tempo || payload.tempo,
+                raga: data.bhajan.raga || payload.raga,
+                level: data.bhajan.level || payload.level,
+                shruti: data.bhajan.shruti || payload.shruti,
+                shruti_female: data.bhajan.shruti_female || payload.shruti_female,
+                language: data.bhajan.language || payload.language,
+                sheet_filename: data.bhajan.sheet_filename || payload.sheet_filename || '',
+                lyrics: payload.lyrics,
+                has_lyrics: Boolean(payload.lyrics),
+                wm: getWesternScale(data.bhajan.shruti || payload.shruti),
+                wf: getWesternScale(data.bhajan.shruti_female || payload.shruti_female)
+              };
+              allData.unshift(created);
+              searchCatalog.unshift(buildSearchCatalogEntry(created));
+              window.filterMasterBank(true);
+            } else {
+              window.location.reload();
+              return;
+            }
+            window.closeAdminEditBhajanModal();
+            window.showToast('Master Bhajan added successfully!');
+          } else {
+            var b = allData.find(function(x) { return String(x.id) === String(id); });
+            if (b) {
+              Object.assign(b, payload);
+              b.wm = getWesternScale(b.shruti);
+              b.wf = getWesternScale(b.shruti_female);
+            }
+            var cIdx = searchCatalog.findIndex(function(x) { return String(x.item.id) === String(id); });
+            if (cIdx !== -1 && b) {
+              searchCatalog[cIdx] = buildSearchCatalogEntry(b);
+            }
 
-          window.filterMasterBank(true);
-          window.closeAdminEditBhajanModal();
-          window.showToast('Master Bhajan updated successfully!');
+            window.filterMasterBank(true);
+            window.closeAdminEditBhajanModal();
+            window.showToast('Master Bhajan updated successfully!');
+          }
         } else {
-          alert('Failed to update: ' + (data.error || 'Unknown error'));
+          alert('Failed: ' + (data.error || 'Unknown error'));
         }
       } catch (err) {
         alert('Failed to save changes. Please try again.');
@@ -1701,6 +1794,10 @@
     };
 
     window.deleteMasterRow = async function(id) {
+      if (!window.IS_SUPERADMIN_MASTER_BANK) {
+        alert('Forbidden: Super Admin access required');
+        return;
+      }
       const ok = window.BPSheet
         ? await window.BPSheet.confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?", { isDestructive: true })
         : confirm("Are you sure you want to permanently delete/archive this bhajan from the Master Database?");

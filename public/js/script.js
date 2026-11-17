@@ -1686,7 +1686,10 @@ function saveMasterRow(id) {
           });
           const actionCell = row.querySelector(".action-cell");
           if (actionCell) {
-            actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#4dabf7; border:none; margin-right:4px;" onclick="editMasterRow(${id})">Edit</button><button class="button" style="padding:6px 12px; font-size:12px; background:#e03131; border:none;" onclick="deleteMasterRow(${id})">Del</button>`;
+            const delBtnHtml = window.IS_SUPERADMIN_MASTER_BANK
+              ? `<button class="button" style="padding:6px 12px; font-size:12px; background:#e03131; border:none;" onclick="deleteMasterRow(${id})">Del</button>`
+              : "";
+            actionCell.innerHTML = `<button class="button" style="padding:6px 12px; font-size:12px; background:#4dabf7; border:none; margin-right:4px;" onclick="editMasterRow(${id})">Edit</button>${delBtnHtml}`;
           }
         }
         const westM = document.getElementById(`west-m-${id}`);

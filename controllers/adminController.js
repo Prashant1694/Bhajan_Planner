@@ -30,7 +30,6 @@ const {
   getMissingBhajanTitles,
   invalidateMissingCount
 } = require("../services/helpers");
-const { matchWithIndex } = require("../services/fuzzyMatcher");
 const { getMasterCatalog, normalizeTitleKey } = require("../services/catalogCache");
 const { escapeHtml } = require("../templates");
 const { parseBatchSessions } = require("../scripts/import_sessions");
@@ -968,20 +967,25 @@ exports.showMissingBhajans = async (req, res) => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const pageTitles = rawMissingTitles.slice(startIndex, startIndex + PAGE_SIZE);
 
-    const missingBhajans =
-      pageTitles.length > 0
-        ? pageTitles.map((submittedTitle) => ({
-            submittedTitle,
-            candidates: matchWithIndex(submittedTitle, catalog.fuzzyIndex, 0.45, 4)
-          }))
-        : [];
+    const missingBhajans = pageTitles.map((submittedTitle) => ({
+      submittedTitle
+    }));
+
+    const isSuperAdmin = Boolean(
+      res.locals.isSuperAdmin ||
+        (req.session &&
+          req.session.admin &&
+          String(req.session.admin.role || "").toLowerCase() === "super_admin")
+    );
 
     res.render("admin-missing-bhajans", {
       page: "missing-bhajans",
       pageTitle: "Missing Bhajan Catcher",
+      isSuperAdmin,
       missingBhajans,
       totalMissing,
       missingCount: totalMissing,
+      masterTotalCount: catalog.lightRows.length,
       currentPage,
       totalPages,
       hasPrev: currentPage > 1,
