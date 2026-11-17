@@ -37,14 +37,14 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
   </noscript>
 
-  <!-- Core Shell & Component Stylesheets (v6.5) -->
-  <link rel="stylesheet" href="/css/style.css?v=6.5">
+  <!-- Core Shell & Component Stylesheets (v6.7) -->
+  <link rel="stylesheet" href="/css/style.css?v=6.7">
   <link rel="stylesheet" href="/css/pwa.css?v=6.5">
   <link rel="stylesheet" href="/css/notifications.css?v=6.5">
   <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
   <link rel="stylesheet" href="/css/tanpura.css?v=6.5">
   <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
-  <link rel="stylesheet" href="/css/app-shell.css?v=6.5">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.7">
   <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
     <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.5">
   <% } else if (activeTabKey === 'home') { %>
@@ -573,6 +573,65 @@
         position: relative !important;
         z-index: 100051 !important;
         box-sizing: border-box !important;
+      }
+    }
+
+    @media print {
+      .shell-pane:not(.active-pane),
+      body.shell-body:not(.detail-sheet-open) .shell-detail-sheet,
+      .sacred-orbs-canvas,
+      .prasanthi-border,
+      #shellTopHeader,
+      .shell-top-header,
+      .header-right,
+      #shellThemeToggle,
+      #shellNotifBtn,
+      #desktopNav,
+      .desktop-nav,
+      #shellSidebar,
+      .shell-sidebar,
+      #shellSidebarOverlay,
+      .shell-sidebar-overlay,
+      #mobileBottomCapsule,
+      .mobile-bottom-capsule,
+      #nativeBottomNav,
+      .native-bottom-nav,
+      #appBottomNav,
+      .app-bottom-nav,
+      .shell-bottom-nav,
+      .shell-load-bar,
+      .shell-detail-header,
+      #tanpuraFloatingWidget,
+      #stickyAudioBar,
+      .sticky-audio-bar,
+      #sessionAudioTab,
+      .session-audio-edge-tab,
+      .session-audio-banner,
+      .pwa-install-overlay,
+      .notif-panel,
+      .notif-overlay,
+      .notif-prompt-overlay,
+      #whatsNewOverlay,
+      .floating-theme-toggle {
+        display: none !important;
+      }
+
+      html.shell-root,
+      body.shell-body,
+      .shell-app-layout,
+      .shell-main-column,
+      .shell-workspace-container,
+      .shell-pane.active-pane {
+        display: block !important;
+        position: static !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        contain: none !important;
+        padding-bottom: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
       }
     }
   </style>

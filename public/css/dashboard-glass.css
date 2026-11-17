@@ -1094,3 +1094,18 @@
   }
 }
 
+@media print {
+  .sacred-orbs-canvas,
+  .prasanthi-border,
+  #standaloneHeaderWrap {
+    display: none !important;
+  }
+
+  .glass-panel,
+  .glass-chip {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #ffffff;
+  }
+}
+

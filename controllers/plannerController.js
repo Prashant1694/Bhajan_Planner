@@ -34,6 +34,16 @@ const {
   generateDeityCardsHtml,
   buildSessionOptions
 } = require("../services/plannerService");
+const { generateSessionPlanPdf } = require("../services/sessionPdfService");
+
+function parseValidSessionDate(raw) {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return s;
+}
 
 function renderStatusPage(res, status, { heading, messageHtml, details = null, backHref = "/submit-form", backLabel = "Go Back", variant = "warning" }) {
   return res.status(status).render("submission-status", {
@@ -585,284 +595,326 @@ exports.submitForm = async (req, res) => {
   }
 };
 
+async function buildPlanViewData(rawDateInput) {
+  let sessionDate = parseValidSessionDate(rawDateInput);
+
+  const [{ dates: availableDatesMap, status }, pastSessions, catalog] = await Promise.all([
+    getAvailableDates(),
+    BhajanSubmission.findAll({
+      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("session_date")), "session_date"]],
+      order: [["session_date", "DESC"]],
+      limit: 20,
+      raw: true
+    }),
+    getMasterCatalog()
+  ]);
+
+  const dateOptionsList = [];
+  const seenDates = new Set();
+
+  if (status.isThursdayLiveActive) {
+    seenDates.add(status.todayStr);
+    dateOptionsList.push({
+      date: status.todayStr,
+      label: `${status.todayStr} (Today's Live Session — 7:30 PM to 8:30 PM)`,
+      isCurrent: false
+    });
+  }
+
+  const upcomingThursday = status.openThursday || status.nextThursdayDate;
+  if (upcomingThursday && !seenDates.has(upcomingThursday)) {
+    seenDates.add(upcomingThursday);
+    dateOptionsList.push({
+      date: upcomingThursday,
+      label: `${upcomingThursday} (Upcoming Thursday)`,
+      isCurrent: false
+    });
+  }
+
+  availableDatesMap.forEach((meta, d) => {
+    if (!seenDates.has(d)) {
+      seenDates.add(d);
+      dateOptionsList.push({
+        date: d,
+        label: `${d} (${meta.label}${meta.desc ? " - " + meta.desc : ""})`,
+        isCurrent: false
+      });
+    }
+  });
+
+  pastSessions.forEach((p) => {
+    const d = p.session_date;
+    if (!seenDates.has(d)) {
+      seenDates.add(d);
+      dateOptionsList.push({ date: d, label: `${d} (Past Session)`, isCurrent: false });
+    }
+  });
+
+  if (!sessionDate) {
+    if (status.isThursdayLiveActive) {
+      sessionDate = status.todayStr;
+    } else {
+      const activeAvailable = Array.from(availableDatesMap.keys()).sort();
+      if (activeAvailable.length > 0) {
+        sessionDate = activeAvailable[0];
+      } else if (upcomingThursday) {
+        sessionDate = upcomingThursday;
+      } else if (pastSessions.length > 0) {
+        sessionDate = pastSessions[0].session_date;
+      } else {
+        sessionDate = getLocalDateStr();
+      }
+    }
+  }
+
+  dateOptionsList.forEach((opt) => {
+    opt.isCurrent = opt.date === sessionDate;
+  });
+  if (!seenDates.has(sessionDate)) {
+    dateOptionsList.unshift({ date: sessionDate, label: sessionDate, isCurrent: true });
+  }
+
+  const [results, sessionAudio] = await Promise.all([
+    BhajanSubmission.findAll({ where: { session_date: sessionDate }, raw: true }),
+    SessionAudio.findOne({
+      where: { session_date: sessionDate, is_published: true },
+      include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
+      order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
+    }).catch((audioErr) => {
+      console.warn("Could not load plan session audio:", audioErr.message);
+      return null;
+    })
+  ]);
+
+  const sorted = results.sort((a, b) => {
+    if (a.list_order > 0 || b.list_order > 0) {
+      if (a.list_order === 0) return 1;
+      if (b.list_order === 0) return -1;
+      return a.list_order - b.list_order;
+    }
+    const deityCompare = deityOrderKey(a.deity) - deityOrderKey(b.deity);
+    if (deityCompare !== 0) return deityCompare;
+    const speedCompare =
+      (SPEED_ORDER[(a.speed || "").toLowerCase()] || 1) -
+      (SPEED_ORDER[(b.speed || "").toLowerCase()] || 1);
+    if (speedCompare !== 0) return speedCompare;
+    return (a.singer_name || "")
+      .toLowerCase()
+      .localeCompare((b.singer_name || "").toLowerCase());
+  });
+
+  const timestampMap = new Map();
+  if (sessionAudio && sessionAudio.timestamps) {
+    sessionAudio.timestamps.forEach((t) => {
+      if (t.submission_id) timestampMap.set(`sub_${t.submission_id}`, t);
+      if (t.bhajan_title) timestampMap.set(`title_${normalizeBhajanTitle(t.bhajan_title)}`, t);
+    });
+  }
+
+  const planItems = [];
+  let rowsHtml = "";
+  let timelineCardsHtml = "";
+  const whatsappItems = [];
+
+  if (sorted.length === 0) {
+    rowsHtml =
+      '<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--ink-soft);">No bhajans scheduled for this date yet.</td></tr>';
+    timelineCardsHtml = `<div class="plan-empty-state">
+      <div class="plan-empty-icon">🪔</div>
+      <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:700;">No Bhajans Scheduled Yet</h3>
+      <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 16px 0;">Be the first to submit a bhajan slot for this session!</p>
+      <a href="/submit-form?session_date=${encodeURIComponent(sessionDate)}" class="button" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">Submit Bhajan Slot</a>
+    </div>`;
+  } else {
+    sorted.forEach((item, index) => {
+      const stepNum = index + 1;
+      const lowerTitle = String(item.title || "").trim().toLowerCase();
+      const matchedMaster =
+        catalog.byExactLowerTitle.get(lowerTitle) ||
+        catalog.byNormTitle.get(normalizeTitleKey(item.title));
+      const sheetFilename = matchedMaster ? matchedMaster.sheet_filename : null;
+      const raga = matchedMaster && matchedMaster.raga ? matchedMaster.raga : "";
+      const westernKey = getWesternScale(item.scale);
+      const deityIcon = getDeityIcon(item.deity);
+
+      const itemTimestamp =
+        (item.id && timestampMap.get(`sub_${item.id}`)) ||
+        timestampMap.get(`title_${normalizeBhajanTitle(item.title)}`);
+
+      let audioBtnHtml = "";
+      if (itemTimestamp && sessionAudio && sessionAudio.audio_url) {
+        const m = Math.floor(itemTimestamp.start_seconds / 60);
+        const s = itemTimestamp.start_seconds % 60;
+        const timeFormatted = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        audioBtnHtml = `<button type="button" class="plan-card-action-btn plan-action-audio btn-play-bhajan no-print" data-start="${itemTimestamp.start_seconds}" data-title="${escapeHtml(item.title)}" data-singer="${escapeHtml(item.singer_name)}" data-url="${escapeHtml(sessionAudio.audio_url)}" onclick="window.playSessionAudioBtn && window.playSessionAudioBtn(this)" title="Play bhajan recording at ${timeFormatted}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>${timeFormatted}</span>
+        </button>`;
+      }
+
+      const sheetBtnHtml = sheetFilename
+        ? `<a href="/sheets/${encodeURIComponent(sheetFilename)}" target="_blank" rel="noopener noreferrer" class="plan-card-action-btn plan-action-sheet sheet-link-pill no-print" title="Open official reference sheet music (PDF)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Sheet</span></a>`
+        : "";
+      const lyricsBtnHtml = matchedMaster
+        ? `<button type="button" class="plan-card-action-btn plan-action-lyrics btn-quick-lyrics no-print" onclick="window.openPlanLyrics && window.openPlanLyrics(${matchedMaster.id})" title="Read full lyrics"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>Lyrics</span></button>`
+        : "";
+      const lyricsLinkHtml = matchedMaster
+        ? `<a href="/bhajan/${matchedMaster.id}" style="color:inherit; text-decoration:none;" title="View lyrics & details">${escapeHtml(item.title)}</a>`
+        : escapeHtml(item.title);
+      const ragaCueHtml = raga ? `<div class="plan-raga-cue">Raag: ${escapeHtml(raga)}</div>` : "";
+
+      const nameParts = (item.singer_name || "").trim().split(/\s+/);
+      const initials =
+        nameParts.length > 1
+          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+          : nameParts[0]
+            ? nameParts[0].substring(0, 2).toUpperCase()
+            : "SB";
+
+      const speedStr = (item.speed || "Medium").toLowerCase();
+      let speedIcon = "🎵";
+      if (speedStr.includes("fast")) speedIcon = "⚡";
+      if (speedStr.includes("slow")) speedIcon = "🕊️";
+
+      planItems.push({
+        stepNum,
+        singerName: item.singer_name,
+        partnerName: item.partner_name || "",
+        title: item.title,
+        deity: item.deity,
+        scale: item.scale || "",
+        westernKey,
+        speed: item.speed || "Medium",
+        raga
+      });
+
+      rowsHtml += `
+        <tr>
+          <td data-label="#"><strong>${stepNum}</strong></td>
+          <td data-label="Singer">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="timeline-avatar no-print" style="width:26px; height:26px; font-size:11px;">${initials}</span>
+              <div>
+                <strong>${escapeHtml(item.singer_name)}</strong>
+                ${item.partner_name ? `<br><small class="plan-partner-sub">with ${escapeHtml(item.partner_name)}</small>` : ""}
+              </div>
+            </div>
+          </td>
+          <td data-label="Bhajan">
+            <div>
+              <strong>${lyricsLinkHtml}</strong>
+              ${ragaCueHtml}
+              ${sheetBtnHtml || lyricsBtnHtml || audioBtnHtml ? `<div class="timeline-actions-row table-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
+            </div>
+          </td>
+          <td data-label="Deity">
+            <span class="deity-pill" style="display:inline-flex; align-items:center; gap:5px;">
+              <span class="print-hide-emoji" aria-hidden="true">${deityIcon}</span><span>${escapeHtml(item.deity)}</span>
+            </span>
+          </td>
+          <td data-label="Pitch / Scale">
+            <strong>${escapeHtml(item.scale || "-")}</strong>
+            ${westernKey !== "-" ? `<span class="acc-key-tag">${westernKey}</span>` : ""}
+          </td>
+          <td data-label="Tempo"><span class="speed-pill"><span class="print-hide-emoji" aria-hidden="true">${speedIcon}</span> ${escapeHtml(item.speed)}</span></td>
+        </tr>`;
+
+      timelineCardsHtml += `
+        <div class="timeline-item" id="bhajan-step-${stepNum}">
+          <div class="timeline-spine">
+            <div class="timeline-step-badge">${stepNum}</div>
+            <div class="timeline-line"></div>
+          </div>
+          <div class="timeline-card">
+            <div class="timeline-card-header">
+              <div class="timeline-card-header-left">
+                <span class="deity-pill"><span>${deityIcon}</span><span>${escapeHtml(item.deity)}</span></span>
+                <span class="speed-pill">${speedIcon} ${escapeHtml(item.speed)}</span>
+              </div>
+              <span style="font-size:12px; font-weight:700; color:var(--ink-soft);">#${stepNum}</span>
+            </div>
+            <div>
+              <h3 class="timeline-bhajan-title">${lyricsLinkHtml}</h3>
+              ${ragaCueHtml}
+              ${sheetBtnHtml || lyricsBtnHtml || audioBtnHtml ? `<div class="timeline-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
+            </div>
+            <div class="timeline-singer-row">
+              <span class="timeline-avatar">${initials}</span>
+              <div class="timeline-singer-info">
+                <span class="timeline-singer-name">${escapeHtml(item.singer_name)}</span>
+                ${item.partner_name ? `<span class="timeline-partner-tag">with ${escapeHtml(item.partner_name)}</span>` : ""}
+              </div>
+            </div>
+            <div class="timeline-accompanist-strip">
+              <div class="acc-tile">
+                <span class="acc-tile-icon" aria-hidden="true">🎹</span>
+                <div class="acc-tile-text">
+                  <span class="acc-label">Pitch / Scale</span>
+                  <span class="acc-value">
+                    ${escapeHtml(item.scale || "N/A")}
+                    ${westernKey !== "-" ? `<span class="acc-key-tag">${westernKey}</span>` : ""}
+                  </span>
+                </div>
+              </div>
+              <div class="acc-tile">
+                <span class="acc-tile-icon" aria-hidden="true">🥁</span>
+                <div class="acc-tile-text">
+                  <span class="acc-label">Tempo</span>
+                  <span class="acc-value">${speedIcon} ${escapeHtml(item.speed)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      const scaleStr = `${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""}`;
+      const tempoDisplay = item.speed
+        ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
+        : "Medium";
+      const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
+
+      const waItem = `${index + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${tempoDisplay}`;
+      whatsappItems.push(waItem);
+    });
+  }
+
+  let sessionDateHuman = sessionDate;
+  try {
+    const [y, m, d] = sessionDate.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    sessionDateHuman = dateObj.toLocaleDateString("en-US", {
+      weekday: "long",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  } catch (_) {}
+
+  return {
+    sessionDate,
+    sessionDateHuman,
+    planItems,
+    rowsHtml,
+    timelineCardsHtml,
+    dateOptionsList,
+    sorted,
+    whatsappItems,
+    sessionAudio
+  };
+}
+
 exports.planView = async (req, res) => {
   try {
-    let sessionDate = req.query.session_date;
-
-    const [{ dates: availableDatesMap, status }, pastSessions, catalog] = await Promise.all([
-      getAvailableDates(),
-      BhajanSubmission.findAll({
-        attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("session_date")), "session_date"]],
-        order: [["session_date", "DESC"]],
-        limit: 20,
-        raw: true
-      }),
-      getMasterCatalog()
-    ]);
-
-    const dateOptionsList = [];
-    const seenDates = new Set();
-
-    if (status.isThursdayLiveActive) {
-      seenDates.add(status.todayStr);
-      dateOptionsList.push({
-        date: status.todayStr,
-        label: `${status.todayStr} (Today's Live Session — 7:30 PM to 8:30 PM)`,
-        isCurrent: false
-      });
-    }
-
-    const upcomingThursday = status.openThursday || status.nextThursdayDate;
-    if (upcomingThursday && !seenDates.has(upcomingThursday)) {
-      seenDates.add(upcomingThursday);
-      dateOptionsList.push({
-        date: upcomingThursday,
-        label: `${upcomingThursday} (Upcoming Thursday)`,
-        isCurrent: false
-      });
-    }
-
-    availableDatesMap.forEach((meta, d) => {
-      if (!seenDates.has(d)) {
-        seenDates.add(d);
-        dateOptionsList.push({
-          date: d,
-          label: `${d} (${meta.label}${meta.desc ? " - " + meta.desc : ""})`,
-          isCurrent: false
-        });
-      }
-    });
-
-    pastSessions.forEach((p) => {
-      const d = p.session_date;
-      if (!seenDates.has(d)) {
-        seenDates.add(d);
-        dateOptionsList.push({ date: d, label: `${d} (Past Session)`, isCurrent: false });
-      }
-    });
-
-    if (!sessionDate) {
-      if (status.isThursdayLiveActive) {
-        sessionDate = status.todayStr;
-      } else {
-        const activeAvailable = Array.from(availableDatesMap.keys()).sort();
-        if (activeAvailable.length > 0) {
-          sessionDate = activeAvailable[0];
-        } else if (upcomingThursday) {
-          sessionDate = upcomingThursday;
-        } else if (pastSessions.length > 0) {
-          sessionDate = pastSessions[0].session_date;
-        } else {
-          sessionDate = getLocalDateStr();
-        }
-      }
-    }
-
-    dateOptionsList.forEach((opt) => {
-      opt.isCurrent = opt.date === sessionDate;
-    });
-    if (!seenDates.has(sessionDate)) {
-      dateOptionsList.unshift({ date: sessionDate, label: sessionDate, isCurrent: true });
-    }
-
-    const [results, sessionAudio] = await Promise.all([
-      BhajanSubmission.findAll({ where: { session_date: sessionDate }, raw: true }),
-      SessionAudio.findOne({
-        where: { session_date: sessionDate, is_published: true },
-        include: [{ model: SessionAudioTimestamp, as: "timestamps" }],
-        order: [[{ model: SessionAudioTimestamp, as: "timestamps" }, "start_seconds", "ASC"]]
-      }).catch((audioErr) => {
-        console.warn("Could not load plan session audio:", audioErr.message);
-        return null;
-      })
-    ]);
-
-    const sorted = results.sort((a, b) => {
-      if (a.list_order > 0 || b.list_order > 0) {
-        if (a.list_order === 0) return 1;
-        if (b.list_order === 0) return -1;
-        return a.list_order - b.list_order;
-      }
-      const deityCompare = deityOrderKey(a.deity) - deityOrderKey(b.deity);
-      if (deityCompare !== 0) return deityCompare;
-      const speedCompare =
-        (SPEED_ORDER[(a.speed || "").toLowerCase()] || 1) -
-        (SPEED_ORDER[(b.speed || "").toLowerCase()] || 1);
-      if (speedCompare !== 0) return speedCompare;
-      return (a.singer_name || "")
-        .toLowerCase()
-        .localeCompare((b.singer_name || "").toLowerCase());
-    });
-
-    const timestampMap = new Map();
-    if (sessionAudio && sessionAudio.timestamps) {
-      sessionAudio.timestamps.forEach((t) => {
-        if (t.submission_id) timestampMap.set(`sub_${t.submission_id}`, t);
-        if (t.bhajan_title) timestampMap.set(`title_${normalizeBhajanTitle(t.bhajan_title)}`, t);
-      });
-    }
-
-    let rowsHtml = "";
-    let timelineCardsHtml = "";
-    const whatsappItems = [];
-
-    if (sorted.length === 0) {
-      rowsHtml =
-        '<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--ink-soft);">No bhajans scheduled for this date yet.</td></tr>';
-      timelineCardsHtml = `<div class="plan-empty-state">
-        <div class="plan-empty-icon">🪔</div>
-        <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:700;">No Bhajans Scheduled Yet</h3>
-        <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 16px 0;">Be the first to submit a bhajan slot for this session!</p>
-        <a href="/submit-form?session_date=${encodeURIComponent(sessionDate)}" class="button" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">Submit Bhajan Slot</a>
-      </div>`;
-    } else {
-      sorted.forEach((item, index) => {
-        const stepNum = index + 1;
-        const lowerTitle = String(item.title || "").trim().toLowerCase();
-        const matchedMaster =
-          catalog.byExactLowerTitle.get(lowerTitle) ||
-          catalog.byNormTitle.get(normalizeTitleKey(item.title));
-        const sheetFilename = matchedMaster ? matchedMaster.sheet_filename : null;
-        const westernKey = getWesternScale(item.scale);
-        const deityIcon = getDeityIcon(item.deity);
-
-        const itemTimestamp =
-          (item.id && timestampMap.get(`sub_${item.id}`)) ||
-          timestampMap.get(`title_${normalizeBhajanTitle(item.title)}`);
-
-        let audioBtnHtml = "";
-        if (itemTimestamp && sessionAudio && sessionAudio.audio_url) {
-          const m = Math.floor(itemTimestamp.start_seconds / 60);
-          const s = itemTimestamp.start_seconds % 60;
-          const timeFormatted = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-          audioBtnHtml = `<button type="button" class="plan-card-action-btn plan-action-audio btn-play-bhajan no-print" data-start="${itemTimestamp.start_seconds}" data-title="${escapeHtml(item.title)}" data-singer="${escapeHtml(item.singer_name)}" data-url="${escapeHtml(sessionAudio.audio_url)}" onclick="window.playSessionAudioBtn && window.playSessionAudioBtn(this)" title="Play bhajan recording at ${timeFormatted}">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>${timeFormatted}</span>
-          </button>`;
-        }
-
-        const sheetBtnHtml = sheetFilename
-          ? `<a href="/sheets/${encodeURIComponent(sheetFilename)}" target="_blank" rel="noopener noreferrer" class="plan-card-action-btn plan-action-sheet sheet-link-pill no-print" title="Open official reference sheet music (PDF)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Sheet</span></a>`
-          : "";
-        const lyricsBtnHtml = matchedMaster
-          ? `<button type="button" class="plan-card-action-btn plan-action-lyrics btn-quick-lyrics no-print" onclick="window.openPlanLyrics && window.openPlanLyrics(${matchedMaster.id})" title="Read full lyrics"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg><span>Lyrics</span></button>`
-          : "";
-        const lyricsLinkHtml = matchedMaster
-          ? `<a href="/bhajan/${matchedMaster.id}" style="color:inherit; text-decoration:none;" title="View lyrics & details">${escapeHtml(item.title)}</a>`
-          : escapeHtml(item.title);
-
-        const nameParts = (item.singer_name || "").trim().split(/\s+/);
-        const initials =
-          nameParts.length > 1
-            ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-            : nameParts[0]
-              ? nameParts[0].substring(0, 2).toUpperCase()
-              : "SB";
-
-        const speedStr = (item.speed || "Medium").toLowerCase();
-        let speedIcon = "🎵";
-        if (speedStr.includes("fast")) speedIcon = "⚡";
-        if (speedStr.includes("slow")) speedIcon = "🕊️";
-
-        rowsHtml += `
-          <tr>
-            <td data-label="#"><strong>${stepNum}</strong></td>
-            <td data-label="Singer">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="timeline-avatar no-print" style="width:26px; height:26px; font-size:11px;">${initials}</span>
-                <div>
-                  <strong>${escapeHtml(item.singer_name)}</strong>
-                  ${item.partner_name ? `<br><small style="color:var(--ink-soft); font-weight:500;">&amp; ${escapeHtml(item.partner_name)}</small>` : ""}
-                </div>
-              </div>
-            </td>
-            <td data-label="Bhajan">
-              <div>
-                <strong>${lyricsLinkHtml}</strong>
-                ${sheetBtnHtml || lyricsBtnHtml || audioBtnHtml ? `<div class="timeline-actions-row table-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
-              </div>
-            </td>
-            <td data-label="Deity">
-              <span class="deity-pill" style="display:inline-flex; align-items:center; gap:5px;">
-                <span>${deityIcon}</span><span>${escapeHtml(item.deity)}</span>
-              </span>
-            </td>
-            <td data-label="Pitch / Scale">
-              <strong>${escapeHtml(item.scale || "-")}</strong>
-              ${westernKey !== "-" ? `<span class="acc-key-tag">${westernKey}</span>` : ""}
-            </td>
-            <td data-label="Tempo"><span class="speed-pill">${speedIcon} ${escapeHtml(item.speed)}</span></td>
-          </tr>`;
-
-        timelineCardsHtml += `
-          <div class="timeline-item" id="bhajan-step-${stepNum}">
-            <div class="timeline-spine">
-              <div class="timeline-step-badge">${stepNum}</div>
-              <div class="timeline-line"></div>
-            </div>
-            <div class="timeline-card">
-              <div class="timeline-card-header">
-                <div class="timeline-card-header-left">
-                  <span class="deity-pill"><span>${deityIcon}</span><span>${escapeHtml(item.deity)}</span></span>
-                  <span class="speed-pill">${speedIcon} ${escapeHtml(item.speed)}</span>
-                </div>
-                <span style="font-size:12px; font-weight:700; color:var(--ink-soft);">#${stepNum}</span>
-              </div>
-              <div>
-                <h3 class="timeline-bhajan-title">${lyricsLinkHtml}</h3>
-                ${sheetBtnHtml || lyricsBtnHtml || audioBtnHtml ? `<div class="timeline-actions-row no-print">${sheetBtnHtml}${lyricsBtnHtml}${audioBtnHtml}</div>` : ""}
-              </div>
-              <div class="timeline-singer-row">
-                <span class="timeline-avatar">${initials}</span>
-                <div class="timeline-singer-info">
-                  <span class="timeline-singer-name">${escapeHtml(item.singer_name)}</span>
-                  ${item.partner_name ? `<span class="timeline-partner-tag">with ${escapeHtml(item.partner_name)}</span>` : ""}
-                </div>
-              </div>
-              <div class="timeline-accompanist-strip">
-                <div class="acc-tile">
-                  <span class="acc-tile-icon" aria-hidden="true">🎹</span>
-                  <div class="acc-tile-text">
-                    <span class="acc-label">Pitch / Scale</span>
-                    <span class="acc-value">
-                      ${escapeHtml(item.scale || "N/A")}
-                      ${westernKey !== "-" ? `<span class="acc-key-tag">${westernKey}</span>` : ""}
-                    </span>
-                  </div>
-                </div>
-                <div class="acc-tile">
-                  <span class="acc-tile-icon" aria-hidden="true">🥁</span>
-                  <div class="acc-tile-text">
-                    <span class="acc-label">Tempo</span>
-                    <span class="acc-value">${speedIcon} ${escapeHtml(item.speed)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>`;
-
-        const scaleStr = `${item.scale || "N/A"}${westernKey !== "-" ? ` (${westernKey})` : ""}`;
-        const tempoDisplay = item.speed
-          ? item.speed.charAt(0).toUpperCase() + item.speed.slice(1)
-          : "Medium";
-        const partnerStr = item.partner_name ? ` (with ${item.partner_name})` : "";
-
-        const waItem = `${index + 1}. [${item.deity}] ${item.title}\n   Singer: ${item.singer_name}${partnerStr}\n   Pitch: ${scaleStr} | Tempo: ${tempoDisplay}`;
-        whatsappItems.push(waItem);
-      });
-    }
-
-    let sessionDateHuman = sessionDate;
-    try {
-      const [y, m, d] = sessionDate.split("-").map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      sessionDateHuman = dateObj.toLocaleDateString("en-US", {
-        weekday: "long",
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
-      });
-    } catch (_) {}
+    const {
+      sessionDate,
+      sessionDateHuman,
+      rowsHtml,
+      timelineCardsHtml,
+      dateOptionsList,
+      sorted,
+      whatsappItems,
+      sessionAudio
+    } = await buildPlanViewData(req.query.session_date);
 
     const protocol = req.protocol || "http";
     const host = req.get("host") || "localhost:8000";
@@ -896,6 +948,31 @@ exports.planView = async (req, res) => {
   } catch (error) {
     console.error(`[Req ${req.id || ""}] planView error:`, error);
     res.status(500).send("<h1>Error</h1><p>Failed to load session plan.</p>");
+  }
+};
+
+exports.exportSessionPdf = async (req, res) => {
+  try {
+    const { sessionDate, sessionDateHuman, planItems } = await buildPlanViewData(
+      req.query.session_date
+    );
+    const pdfBuffer = await generateSessionPlanPdf({
+      sessionDate,
+      sessionDateHuman,
+      planItems
+    });
+    const isDownload = req.query.download === "1";
+    const disposition = isDownload ? "attachment" : "inline";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `${disposition}; filename="Bhajan_Plan_${sessionDate}.pdf"`
+    );
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] exportSessionPdf error:`, error);
+    return res.status(500).send("Unable to generate session PDF.");
   }
 };
 

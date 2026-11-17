@@ -124,6 +124,8 @@
       p.startsWith("/forgot-password") ||
       p === "/logout" ||
       p === "/singer/logout" ||
+      p === "/plan-view/pdf" ||
+      /\.(ics|pdf|csv|xlsx|xls|sqlite)$/i.test(p) ||
       p.startsWith("/api/") ||
       p.startsWith("/sheets/") ||
       p.startsWith("/audio/")
