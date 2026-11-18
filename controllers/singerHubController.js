@@ -445,17 +445,48 @@ exports.adminSwitchSinger = async (req, res) => {
       return res.status(403).json({ error: "Unauthorized: Admin access required." });
     }
 
-    const { singer_id, save_permanent } = req.body;
+    const { singer_id, pin, save_permanent } = req.body;
     if (!singer_id) {
       return res.status(400).json({ error: "Singer ID is required." });
     }
 
-    const singer = await Singer.findByPk(singer_id);
+    const cleanPin = String(pin || "").trim();
+    if (!/^\\d{4}$/.test(cleanPin)) {
+      return res.status(400).json({ error: "Enter the selected singer's 4-digit PIN." });
+    }
+
+    // Never let a profile switch mint a PIN-verified session without proving
+    // possession of the target singer's credential.
+    const singer = await Singer.scope("withSecrets").findByPk(singer_id);
     if (!singer) {
+      await bcrypt.compare(cleanPin, DUMMY_BCRYPT_HASH);
       return res.status(404).json({ error: "Singer record not found." });
+    }
+    if (!singer.pin) {
+      await bcrypt.compare(cleanPin, DUMMY_BCRYPT_HASH);
+      return res.status(403).json({ error: "This singer has not set a PIN yet. They must complete Singer Hub PIN setup before switching to this profile." });
     }
 
     const now = Date.now();
+    if (singer.locked_until && new Date(singer.locked_until).getTime() > now) {
+      const mins = Math.ceil((new Date(singer.locked_until).getTime() - now) / 60000);
+      return res.status(429).json({ error: `This singer profile is temporarily locked. Try again in ${mins} minute(s).` });
+    }
+    const pinMatches = await bcrypt.compare(cleanPin, singer.pin);
+    if (!pinMatches) {
+      const nextFailures = (singer.failed_attempts || 0) + 1;
+      if (nextFailures >= MAX_SINGER_PIN_FAILURES) {
+        await singer.update({
+          failed_attempts: nextFailures,
+          locked_until: new Date(Date.now() + SINGER_LOCKOUT_MS)
+        });
+        return res.status(429).json({ error: "Too many incorrect PIN attempts. This singer profile is locked for 15 minutes." });
+      }
+      await singer.update({ failed_attempts: nextFailures });
+      return res.status(403).json({ error: "Incorrect PIN for the selected singer." });
+    }
+
+    await singer.update({ failed_attempts: 0, locked_until: null, last_login_at: new Date() });
     req.session.singer = {
       id: singer.id,
       name: singer.name,
