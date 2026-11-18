@@ -451,7 +451,7 @@ exports.adminSwitchSinger = async (req, res) => {
     }
 
     const cleanPin = String(pin || "").trim();
-    if (!/^\\d{4}$/.test(cleanPin)) {
+    if (!/^\d{4}$/.test(cleanPin)) {
       return res.status(400).json({ error: "Enter the selected singer's 4-digit PIN." });
     }
 
