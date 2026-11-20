@@ -14,7 +14,7 @@
           <div>
             <strong><%= entry.singerName %></strong>
             <% if (entry.partnerName) { %>
-              <br><small style="color:var(--ink-soft); font-weight:500;">w/ <%= entry.partnerName %></small>
+              <br><small class="plan-partner-sub">with <%= entry.partnerName %></small>
             <% } %>
           </div>
         </div>
@@ -57,7 +57,7 @@
       </td>
       <td data-label="Deity">
         <span class="deity-pill" style="display:inline-flex; align-items:center; gap:5px;">
-          <span><%= entry.deityIcon %></span><span><%= entry.deity %></span>
+          <span class="print-hide-emoji" aria-hidden="true"><%= entry.deityIcon %></span><span><%= entry.deity %></span>
         </span>
       </td>
       <td data-label="Pitch / Scale">
@@ -66,7 +66,7 @@
           <span class="acc-key-tag"><%= entry.westernKey %></span>
         <% } %>
       </td>
-      <td data-label="Tempo"><span class="speed-pill"><%= entry.speedIcon %> <%= entry.speed %></span></td>
+      <td data-label="Tempo"><span class="speed-pill"><span class="print-hide-emoji" aria-hidden="true"><%= entry.speedIcon %></span> <%= entry.speed %></span></td>
     </tr>
   <% }) %>
 <% } %>

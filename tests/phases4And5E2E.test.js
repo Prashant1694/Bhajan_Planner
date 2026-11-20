@@ -203,6 +203,14 @@ test("FEAT-03: Singer Thursday availability toggle surfaces Traveling & Cooldown
   const hubGet = await singerAgent.get("/my-hub");
   assert.strictEqual(hubGet.status, 200);
   assert.ok(hubGet.text.includes("Upcoming Thursday Availability"));
+  assert.ok(
+    !hubGet.text.includes("var csrfToken = &#34;"),
+    "Singer Hub inline script must not HTML-escape csrfToken JSON"
+  );
+  assert.ok(
+    hubGet.text.includes('var csrfToken = "'),
+    "Singer Hub inline script must emit valid JS string literal for csrfToken"
+  );
   const hubCsrf = extractCsrf(hubGet.text);
 
   const targetDate = "2026-11-26";
@@ -276,6 +284,8 @@ test("FEAT-05, DEBT-03 & DEBT-04: Offline SW caching, CSS @layer & !important ra
   assert.ok(sw.includes('"/plan-view"'));
   assert.ok(sw.includes('"/api/master-bhajans/catalog.json"'));
   assert.ok(sw.includes("isOfflineDevotionalEndpoint"));
+  assert.ok(sw.includes("isOfflineDevotionalPage"));
+  assert.ok(!sw.includes('"/api/singer/songbook"'), "Private per-singer songbook must not be cached in SW");
 
   const styleCss = fs.readFileSync(path.join(__dirname, "../public/css/style.css"), "utf8");
   const adminCss = fs.readFileSync(path.join(__dirname, "../public/css/admin.css"), "utf8");

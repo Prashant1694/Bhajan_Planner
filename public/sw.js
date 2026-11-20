@@ -18,32 +18,30 @@ const APP_ICON_512 = IS_DEVELOPMENT_PWA
 const APP_ICON_MASKABLE = IS_DEVELOPMENT_PWA
   ? "/images/icons/dev/icon-maskable-512x512.png"
   : "/images/icons/icon-maskable-512x512.png";
-const CACHE_VERSION = "v6.13";
+const CACHE_VERSION = "v6.14";
 const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
   "/offline.html",
-  "/plan-view",
-  "/master-bank",
   "/api/master-bhajans/catalog.json",
   "/css/native.css?v=6.7",
   "/css/diwali.css?v=7.0",
-  "/css/style.css?v=6.7",
-  "/css/app-shell.css?v=6.7",
+  "/css/style.css?v=6.8",
+  "/css/app-shell.css?v=6.8",
   "/css/dashboard-glass.css?v=6.5",
   "/css/loading.css?v=6.5",
-  "/css/pwa.css?v=6.5",
-  "/css/notifications.css?v=6.5",
+  "/css/pwa.css?v=6.6",
+  "/css/notifications.css?v=6.6",
   "/css/bulletin.css?v=6.5",
-  "/css/tanpura.css?v=6.5",
+  "/css/tanpura.css?v=6.6",
   "/css/session-audio.css?v=6.5",
   "/js/native-ui.js?v=6.5",
   "/js/haptics.js?v=6.5",
-  "/js/app-shell-router.js?v=6.5",
+  "/js/app-shell-router.js?v=6.6",
   "/js/script.js?v=6.6",
   "/js/loading.js?v=6.5",
-  "/js/pwa.js?v=6.5",
-  "/js/notifications.js?v=6.5",
+  "/js/pwa.js?v=6.6",
+  "/js/notifications.js?v=6.6",
   "/js/diwali.js?v=7.2.1",
   "/js/tanpura.js?v=6.5",
   "/js/session-audio-player.js?v=6.5",
@@ -136,13 +134,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3B. Offline-Ready Devotional Read Endpoints (Catalog, Songbook, Lyrics, Live Plan): stale-while-revalidate
+  // 3B. Offline-Ready Public Devotional Read JSON Endpoints (Catalog & Lyrics): stale-while-revalidate
   const isOfflineDevotionalEndpoint =
     url.pathname === "/api/master-bhajans/catalog.json" ||
-    url.pathname === "/api/singer/songbook" ||
-    /^\/api\/bhajan\/\d+\/lyrics$/.test(url.pathname) ||
-    url.pathname === "/plan-view" ||
-    url.pathname === "/master-bank";
+    /^\/api\/bhajan\/\d+\/lyrics$/.test(url.pathname);
 
   if (isOfflineDevotionalEndpoint && request.headers.get("X-App-Shell") !== "1") {
     event.respondWith(
@@ -163,11 +158,50 @@ self.addEventListener("fetch", (event) => {
         }
         const netResp = await networkPromise;
         if (netResp) return netResp;
-        if (request.mode === "navigate") {
-          const fallback = await cache.match("/offline.html");
-          if (fallback) return fallback;
-        }
         return new Response("", { status: 503, statusText: "Offline" });
+      })
+    );
+    return;
+  }
+
+  // 3C. Offline-Ready Devotional Pages (/plan-view, /master-bank): network-first with safe unauthenticated fallback
+  const isOfflineDevotionalPage =
+    url.pathname === "/plan-view" || url.pathname === "/master-bank";
+
+  if (isOfflineDevotionalPage && request.headers.get("X-App-Shell") !== "1") {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        try {
+          const response = await fetch(request);
+          if (response && response.ok && response.status === 200) {
+            const inspectClone = response.clone();
+            const cacheClone = response.clone();
+            event.waitUntil(
+              inspectClone
+                .text()
+                .then((html) => {
+                  if (
+                    !html.includes("hasAdmin: true") &&
+                    !html.includes("hasSinger: true") &&
+                    !html.includes("IS_ADMIN_MASTER_BANK = true")
+                  ) {
+                    return cache.put(request, cacheClone);
+                  }
+                  return null;
+                })
+                .catch(() => {})
+            );
+          }
+          return response;
+        } catch (_) {
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          if (request.mode === "navigate") {
+            const fallback = await cache.match("/offline.html");
+            if (fallback) return fallback;
+          }
+          return new Response("", { status: 503, statusText: "Offline" });
+        }
       })
     );
     return;
@@ -241,13 +275,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 7. APIs & other GETs: network-first
+  // 7. APIs & other GETs: network-first (never serve cached private/admin responses)
+  const isPrivatePath =
+    url.pathname.startsWith("/api/singer/") ||
+    url.pathname.startsWith("/api/admin/") ||
+    url.pathname === "/admin" ||
+    url.pathname.startsWith("/admin/");
+
   event.respondWith(
     fetch(request).catch(async () => {
-      try {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-      } catch (_) {}
+      if (!isPrivatePath) {
+        try {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+        } catch (_) {}
+      }
       return new Response("", { status: 408, statusText: "Network timeout or offline" });
     })
   );

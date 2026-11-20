@@ -62,6 +62,10 @@ test("Diwali request helper loads before inline editor actions and is cache-bust
   for (const view of [sequenceEditor, dashboard, entry, importView]) {
     assert.match(view, /\/js\/diwali\.js\?v=7\.2\.1/);
   }
-  assert.match(serviceWorker, /CACHE_VERSION = "v6\.13"/);
+  const cacheMatch = serviceWorker.match(/CACHE_VERSION = "v(\d+)\.(\d+)"/);
+  assert.ok(cacheMatch, "Service Worker must define semantic CACHE_VERSION");
+  const major = Number(cacheMatch[1]);
+  const minor = Number(cacheMatch[2]);
+  assert.ok(major > 6 || (major === 6 && minor >= 13), "CACHE_VERSION must be >= v6.13");
   assert.match(serviceWorker, /\/js\/diwali\.js\?v=7\.2\.1/);
 });

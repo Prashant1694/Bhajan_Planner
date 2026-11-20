@@ -11,6 +11,7 @@
 *.backup
 *.dump
 database_backup/
+backups/
 
 # ============================================================
 # ENVIRONMENT & SECRETS — credentials, API keys, VAPID keys
@@ -74,6 +75,12 @@ desktop.ini
 .agents/
 .playwright/
 test-results/
+.aider*
+
+# ============================================================
+# QA / AUDIT ARTIFACTS (keep one-off reports & screenshots untracked)
+# ============================================================
+audit/
 
 # ============================================================
 # BUILD, CACHES & TEMPORARY

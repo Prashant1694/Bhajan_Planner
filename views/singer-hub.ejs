@@ -192,7 +192,7 @@
     </section>
     <script>
       (function () {
-        var csrfToken = <%= JSON.stringify(typeof csrfToken !== 'undefined' ? csrfToken : '') %>;
+        var csrfToken = <%- typeof safeJson === 'function' ? safeJson(typeof csrfToken !== 'undefined' ? csrfToken : '') : JSON.stringify(typeof csrfToken !== 'undefined' ? csrfToken : '') %>;
         window.toggleThursdayAvailability = async function (btn) {
           if (!btn || btn.disabled) return;
           var dateStr = btn.getAttribute('data-date');

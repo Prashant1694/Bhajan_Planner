@@ -148,6 +148,10 @@ test("View Plan tab exposes PDF export button and isolates inactive app-shell pa
   assert.ok(planRes.text.includes("/plan-view/pdf?session_date=2026-11-19"));
   assert.ok(planRes.text.includes('id="planDownloadPdfBtn"'));
   assert.ok(planRes.text.includes("print-accompanist-cue"));
+  assert.ok(planRes.text.includes('class="plan-partner-sub"'));
+  assert.ok(planRes.text.includes("with Thulasi"));
+  assert.ok(!planRes.text.includes("w/ Thulasi"));
+  assert.ok(planRes.text.includes('class="print-hide-emoji"'));
   assert.ok(!planRes.text.includes('table.style.setProperty("display", "none", "important")'));
 
   const routerSrc = fs.readFileSync(

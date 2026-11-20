@@ -11010,10 +11010,6 @@ body.modal-open #appBottomNav {
     margin-left: auto;
   }
 
-  .letterhead-logo-right {
-    margin-left: auto !important;
-  }
-
   .letterhead-center-text {
     flex: 1 1 auto;
     text-align: center;
