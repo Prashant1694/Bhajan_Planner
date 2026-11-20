@@ -27,6 +27,25 @@ function escapeHtml(unsafe) {
 }
 
 /**
+ * Decodes HTML entities (including multi-encoded entities) back to plain text.
+ */
+function decodeHtmlEntities(str) {
+  if (str === null || str === undefined) return "";
+  let result = String(str);
+  for (let i = 0; i < 5; i++) {
+    const next = result
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+    if (next === result) break;
+    result = next;
+  }
+  return result;
+}
+
+/**
  * Safely stringifies JSON for embedding in inline <script> tags,
  * escaping '<' as '\u003c' to prevent script breakout attacks.
  */
@@ -70,6 +89,7 @@ const DUMMY_BCRYPT_HASH = "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZd
 module.exports = {
   safeRedirect,
   escapeHtml,
+  decodeHtmlEntities,
   safeJsonStringify,
   validatePasswordPolicy,
   DUMMY_BCRYPT_HASH

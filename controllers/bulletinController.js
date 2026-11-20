@@ -119,11 +119,12 @@ exports.adminCreateBulletin = async (req, res) => {
   try {
     const { title, content, category, status, is_pinned, expires_at, send_notification } = req.body;
     const adminId = req.session.adminUserId || null;
+    const cleanTitle = String(title || "").trim();
 
     const publishedAt = status === "published" ? new Date() : null;
 
     const bulletin = await Bulletin.create({
-      title: sanitizeHtml(title),
+      title: cleanTitle,
       content,
       category: category || "announcement",
       status: status || "draft",
@@ -137,7 +138,7 @@ exports.adminCreateBulletin = async (req, res) => {
     if (send_notification === "on" && status === "published") {
       await notificationService.createAndBroadcast({
         type: "bulletin_published",
-        title: "📢 " + sanitizeHtml(title),
+        title: "📢 " + cleanTitle,
         body: (content || "").substring(0, 150) + (content && content.length > 150 ? "..." : ""),
         link: `/bulletins/${bulletin.id}`,
         eventKey: `bulletin_published:${bulletin.id}`
@@ -174,13 +175,14 @@ exports.adminUpdateBulletin = async (req, res) => {
     if (!bulletin) return res.status(404).send("Bulletin not found");
 
     const { title, content, category, status, is_pinned, expires_at, send_notification } = req.body;
+    const cleanTitle = String(title || "").trim();
 
     const wasPublished = bulletin.status === "published";
     const nowPublished = status === "published";
     const publishedAt = !wasPublished && nowPublished ? new Date() : bulletin.published_at;
 
     await bulletin.update({
-      title: sanitizeHtml(title),
+      title: cleanTitle,
       content,
       category: category || bulletin.category,
       status: status || bulletin.status,
@@ -193,7 +195,7 @@ exports.adminUpdateBulletin = async (req, res) => {
     if (send_notification === "on" && !wasPublished && nowPublished) {
       await notificationService.createAndBroadcast({
         type: "bulletin_published",
-        title: "📢 " + sanitizeHtml(title),
+        title: "📢 " + cleanTitle,
         body: (content || "").substring(0, 150) + (content && content.length > 150 ? "..." : ""),
         link: `/bulletins/${bulletin.id}`,
         eventKey: `bulletin_published:${bulletin.id}`

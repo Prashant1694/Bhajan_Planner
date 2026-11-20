@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 const sequelize = require("../config/database");
+const { decodeHtmlEntities } = require("./securityHelpers");
 
 const AdminUser = require("../models/AdminUser");
 const BhajanSubmission = require("../models/BhajanSubmission");
@@ -490,6 +491,64 @@ async function ensureDatabaseIndexes() {
   }
 }
 
+async function repairEscapedBulletinTitles() {
+  try {
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS _app_meta (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT
+      )
+    `);
+
+    const [metaRows] = await sequelize.query(
+      "SELECT value FROM _app_meta WHERE key = 'bulletin_title_entity_cleanup_v1' LIMIT 1"
+    );
+    if (metaRows && metaRows[0] && metaRows[0].value === "1") {
+      return;
+    }
+
+    const entityWhereClause =
+      "(title LIKE '%&#039;%' OR title LIKE '%&#39;%' OR title LIKE '%&amp;%' OR title LIKE '%&quot;%' OR title LIKE '%&lt;%' OR title LIKE '%&gt;%')";
+
+    await sequelize.transaction(async (t) => {
+      const [bulletinRows] = await sequelize.query(
+        `SELECT id, title FROM bulletins WHERE ${entityWhereClause}`,
+        { transaction: t }
+      );
+      for (const row of bulletinRows) {
+        const decoded = decodeHtmlEntities(row.title);
+        if (decoded !== row.title) {
+          await sequelize.query("UPDATE bulletins SET title = :title WHERE id = :id", {
+            replacements: { title: decoded, id: row.id },
+            transaction: t
+          });
+        }
+      }
+
+      const [notificationRows] = await sequelize.query(
+        `SELECT id, title FROM notifications WHERE type = 'bulletin_published' AND ${entityWhereClause}`,
+        { transaction: t }
+      );
+      for (const row of notificationRows) {
+        const decoded = decodeHtmlEntities(row.title);
+        if (decoded !== row.title) {
+          await sequelize.query("UPDATE notifications SET title = :title WHERE id = :id", {
+            replacements: { title: decoded, id: row.id },
+            transaction: t
+          });
+        }
+      }
+
+      await sequelize.query(
+        "INSERT INTO _app_meta (key, value) VALUES ('bulletin_title_entity_cleanup_v1', '1') ON CONFLICT(key) DO UPDATE SET value = '1'",
+        { transaction: t }
+      );
+    });
+  } catch (error) {
+    console.error("Error repairing escaped bulletin titles:", error);
+  }
+}
+
 async function initializeDatabase() {
   try {
     await sequelize.sync();
@@ -508,6 +567,7 @@ async function initializeDatabase() {
     await syncMasterBhajans();
     await initDeityRules();
     await normalizeDeityNames();
+    await repairEscapedBulletinTitles();
 
     if (process.env.NODE_ENV !== "test") {
       const { startSessionScheduler } = require("./sessionScheduler");
@@ -525,5 +585,6 @@ async function initializeDatabase() {
 }
 
 module.exports = {
-  initializeDatabase
+  initializeDatabase,
+  repairEscapedBulletinTitles
 };

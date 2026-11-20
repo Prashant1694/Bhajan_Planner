@@ -50,6 +50,7 @@ const {
   sanitizeInputs
 } = require("./middleware/security");
 const { doubleCsrfProtection, generateToken } = require("./middleware/csrfProtection");
+const { escapeHtml } = require("./services/securityHelpers");
 const { initializeDatabase } = require("./services/databaseInitializer");
 const { getMasterCatalog, getSingersCatalog } = require("./services/catalogCache");
 
@@ -438,11 +439,11 @@ app.use((req, res, next) => {
 
       let finalFragment = fragmentHtml;
       if (!finalFragment.includes("shell-fragment-root")) {
-        const pageTitle = opts.pageTitle || res.locals.pageTitle || "Bhajan Planner";
-        const pageCSS = opts.pageCSS || res.locals.pageCSS || "";
-        const pageJS = opts.pageJS || res.locals.pageJS || "";
-        const pageId = opts.page || res.locals.page || "";
-        const csrfToken = res.locals.csrfToken || "";
+        const pageTitle = escapeHtml(opts.pageTitle || res.locals.pageTitle || "Bhajan Planner");
+        const pageCSS = escapeHtml(opts.pageCSS || res.locals.pageCSS || "");
+        const pageJS = escapeHtml(opts.pageJS || res.locals.pageJS || "");
+        const pageId = escapeHtml(opts.page || res.locals.page || "");
+        const csrfToken = escapeHtml(res.locals.csrfToken || "");
         finalFragment = `<div class="shell-fragment-root" data-page-title="${pageTitle}" data-page-css="${pageCSS}" data-page-js="${pageJS}" data-page-id="${pageId}" data-csrf-token="${csrfToken}">${finalFragment}</div>`;
       }
 
