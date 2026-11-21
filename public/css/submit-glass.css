@@ -997,8 +997,23 @@ body.embed-page {
 }
 
 /* --- Registered Bhajan Sequence Section --- */
+.zen-submit-stage,
+.zen-submit-container,
+#scheduler,
 .submitted-bhajans-card {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#scheduler {
+  width: 100%;
+}
+
+.submitted-bhajans-card {
+  width: 100%;
   padding: 28px 26px;
+  overflow: hidden;
 }
 
 .submitted-header {
@@ -1015,7 +1030,8 @@ body.embed-page {
   align-items: center;
   gap: 8px;
 }
-[data-theme="dark"] .submitted-title {
+[data-theme="dark"] .submitted-title,
+.dark .submitted-title {
   color: #ffffff;
 }
 
@@ -1025,110 +1041,173 @@ body.embed-page {
   color: #57534e;
   margin: 0;
 }
-[data-theme="dark"] .submitted-subtitle {
+[data-theme="dark"] .submitted-subtitle,
+.dark .submitted-subtitle {
   color: #a8a29e;
 }
 
-.table-glass-container {
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.55);
-  display: block !important;
-  width: 100% !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-[data-theme="dark"] .table-glass-container {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+@media screen {
+  .submitted-bhajans-card .table-glass-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    scrollbar-width: thin;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+  [data-theme="dark"] .submitted-bhajans-card .table-glass-container,
+  .dark .submitted-bhajans-card .table-glass-container {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .submitted-bhajans-card .table-glass-container table {
+    display: table !important;
+    width: 100% !important;
+    min-width: 560px !important;
+    border-collapse: collapse !important;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  .submitted-bhajans-card .table-glass-container thead {
+    display: table-header-group !important;
+    position: static !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container thead tr {
+    display: table-row !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    clip: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container tbody {
+    display: table-row-group !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container th {
+    display: table-cell !important;
+    position: static !important;
+    padding: 13px 16px !important;
+    background: rgba(0, 0, 0, 0.035);
+    font-weight: 700;
+    color: #78716c;
+    border-bottom: 1.5px solid rgba(0, 0, 0, 0.08) !important;
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left !important;
+    vertical-align: middle;
+    white-space: nowrap !important;
+  }
+  [data-theme="dark"] .submitted-bhajans-card .table-glass-container th,
+  .dark .submitted-bhajans-card .table-glass-container th {
+    background: rgba(255, 255, 255, 0.05);
+    color: #a8a29e;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container td {
+    display: table-cell !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 13px 16px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    color: #1c1917;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: left !important;
+    vertical-align: middle;
+    white-space: nowrap !important;
+  }
+  [data-theme="dark"] .submitted-bhajans-card .table-glass-container td,
+  .dark .submitted-bhajans-card .table-glass-container td {
+    border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+    color: #f5f5f4;
+  }
+
+  .submitted-bhajans-card .table-glass-container th:first-child,
+  .submitted-bhajans-card .table-glass-container td:first-child {
+    text-align: center !important;
+    width: 42px !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container td:first-child {
+    font-weight: 700 !important;
+    color: #d97706 !important;
+    font-size: 14px !important;
+  }
+  [data-theme="dark"] .submitted-bhajans-card .table-glass-container td:first-child,
+  .dark .submitted-bhajans-card .table-glass-container td:first-child {
+    color: #fbbf24 !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container td::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container tr:last-child td {
+    border-bottom: none !important;
+  }
+
+  .submitted-bhajans-card .table-glass-container tr:hover td {
+    background: rgba(245, 158, 11, 0.05);
+  }
 }
 
-.table-glass-container table {
-  width: 100% !important;
-  min-width: 560px !important;
-  border-collapse: collapse !important;
-  font-size: 14px;
-  text-align: left;
-  display: table !important;
-}
+@media screen and (max-width: 768px) {
+  .submitted-bhajans-card {
+    padding: 16px 12px !important;
+  }
 
-.table-glass-container thead {
-  display: table-header-group !important;
-  position: static !important;
-}
+  .submitted-bhajans-card .table-glass-container table {
+    min-width: 520px !important;
+  }
 
-.table-glass-container thead tr {
-  display: table-row !important;
-  position: static !important;
-  width: auto !important;
-  height: auto !important;
-  clip: auto !important;
-  margin: 0 !important;
-  overflow: visible !important;
-}
+  .submitted-bhajans-card .table-glass-container th {
+    padding: 10px 10px !important;
+    font-size: 11px !important;
+  }
 
-.table-glass-container tbody {
-  display: table-row-group !important;
-}
+  .submitted-bhajans-card .table-glass-container td {
+    padding: 10px 10px !important;
+    font-size: 13px !important;
+  }
 
-.table-glass-container tr {
-  display: table-row !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
+  .submitted-bhajans-card .table-glass-container td:first-child {
+    width: 36px !important;
+    font-size: 13px !important;
+  }
 
-.table-glass-container th {
-  display: table-cell !important;
-  padding: 13px 16px !important;
-  background: rgba(0, 0, 0, 0.035);
-  font-weight: 700 !important;
-  color: #78716c;
-  border-bottom: 1.5px solid rgba(0, 0, 0, 0.08) !important;
-  font-size: 12.5px !important;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap !important;
-}
-[data-theme="dark"] .table-glass-container th {
-  background: rgba(255, 255, 255, 0.05);
-  color: #a8a29e;
-  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.table-glass-container td {
-  display: table-cell !important;
-  padding: 13px 16px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-  color: #1c1917;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  line-height: 1.45;
-  white-space: nowrap !important;
-}
-[data-theme="dark"] .table-glass-container td {
-  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
-  color: #f5f5f4;
-}
-
-.table-glass-container td:first-child {
-  font-weight: 700 !important;
-  color: #d97706 !important;
-  text-align: center !important;
-  width: 40px !important;
-}
-
-.table-glass-container td:before {
-  display: none !important;
-}
-
-.table-glass-container tr:last-child td {
-  border-bottom: none !important;
-}
-
-.table-glass-container tr:hover td {
-  background: rgba(245, 158, 11, 0.05);
+  .submitted-bhajans-card .table-glass-container .deity-pill {
+    font-size: 11px;
+    padding: 3px 9px;
+  }
 }
 
 .submitted-empty-state {
@@ -1382,9 +1461,6 @@ body.embed-page {
   }
 
   /* Registered Bhajan Sequence */
-  .submitted-bhajans-card {
-    padding: 16px 12px !important;
-  }
   .submitted-title {
     font-size: 20px !important;
   }
@@ -1392,181 +1468,5 @@ body.embed-page {
     font-size: 14px !important;
     line-height: 1.5 !important;
     margin-bottom: 14px !important;
-  }
-
-  /* Table styling */
-  .table-glass-container {
-    border-radius: 14px !important;
-  }
-  .table-glass-container table {
-    min-width: 560px !important;
-  }
-  .table-glass-container th {
-    font-size: 13px !important;
-    padding: 12px 14px !important;
-  }
-  .table-glass-container td {
-    font-size: 14px !important;
-    padding: 12px 14px !important;
-  }
-}
-
-
-
-
-/* Registered Bhajan Sequence: keep horizontal table scrolling inside its card.
-   Flex items default to min-width:auto, allowing the table's intrinsic width
-   to stretch the card/page instead of scrolling within the table viewport. */
-.zen-submit-stage,
-.zen-submit-container,
-#scheduler,
-.submitted-bhajans-card {
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-#scheduler {
-  width: 100%;
-}
-
-.submitted-bhajans-card {
-  width: 100%;
-  overflow: hidden;
-}
-
-.submitted-bhajans-card .table-glass-container {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x pan-y;
-  scrollbar-width: thin;
-}
-
-.submitted-bhajans-card .table-glass-container table {
-  width: 100%;
-  min-width: 560px;
-  max-width: none;
-  table-layout: auto;
-}
-
-@media (max-width: 680px) {
-  .submitted-bhajans-card {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
-
-  .submitted-bhajans-card .table-glass-container {
-    width: 100%;
-    max-width: 100%;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .submitted-bhajans-card .table-glass-container th,
-  .submitted-bhajans-card .table-glass-container td {
-    white-space: nowrap !important;
-  }
-}
-
-
-/* Final mobile override for Mark > Registered Bhajan Sequence.
-   The global mobile stylesheet switches this table to stacked cards, while
-   the glass stylesheet previously forced table-cell sizing/min-width back on.
-   Keep desktop as a table; render each mobile submission as a compact card. */
-@media (max-width: 680px) {
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card .table-glass-container {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card table,
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card tbody {
-    display: block !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    table-layout: fixed !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card thead {
-    display: none !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card tr {
-    display: block !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    margin: 0 0 12px !important;
-    padding: 12px 14px !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.72) !important;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card td {
-    display: flex !important;
-    align-items: flex-start !important;
-    justify-content: space-between !important;
-    gap: 12px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-    padding: 7px 0 !important;
-    border: 0 !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-    text-align: right !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    color: #1c1917 !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card td:last-child {
-    border-bottom: 0 !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card td::before {
-    content: attr(data-label) !important;
-    display: block !important;
-    flex: 0 0 34% !important;
-    width: 34% !important;
-    min-width: 0 !important;
-    position: static !important;
-    text-align: left !important;
-    font-size: 10px !important;
-    line-height: 1.4 !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.04em !important;
-    color: #78716c !important;
-  }
-
-  .zen-submit-stage .zen-submit-container #scheduler .submitted-bhajans-card td > * {
-    min-width: 0 !important;
-    max-width: 66% !important;
-    overflow-wrap: anywhere !important;
-    white-space: normal !important;
   }
 }

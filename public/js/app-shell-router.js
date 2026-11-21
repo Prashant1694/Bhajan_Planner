@@ -12,7 +12,7 @@
     window.history.scrollRestoration = "manual";
   }
 
-  const ASSET_VERSION = "6.5";
+  const ASSET_VERSION = "6.10";
   const TAB_KEYS = ["home", "bank", "singer", "plan", "hub"];
   const TAB_DEFAULTS = {
     home: "/",

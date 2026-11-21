@@ -18,7 +18,7 @@ const APP_ICON_512 = IS_DEVELOPMENT_PWA
 const APP_ICON_MASKABLE = IS_DEVELOPMENT_PWA
   ? "/images/icons/dev/icon-maskable-512x512.png"
   : "/images/icons/icon-maskable-512x512.png";
-const CACHE_VERSION = "v6.14";
+const CACHE_VERSION = "v6.16";
 const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -26,7 +26,7 @@ const PRECACHE_URLS = [
   "/api/master-bhajans/catalog.json",
   "/css/native.css?v=6.7",
   "/css/diwali.css?v=7.0",
-  "/css/style.css?v=6.8",
+  "/css/style.css?v=6.10",
   "/css/app-shell.css?v=6.8",
   "/css/dashboard-glass.css?v=6.5",
   "/css/loading.css?v=6.5",
@@ -37,7 +37,7 @@ const PRECACHE_URLS = [
   "/css/session-audio.css?v=6.5",
   "/js/native-ui.js?v=6.5",
   "/js/haptics.js?v=6.5",
-  "/js/app-shell-router.js?v=6.6",
+  "/js/app-shell-router.js?v=6.8",
   "/js/script.js?v=6.6",
   "/js/loading.js?v=6.5",
   "/js/pwa.js?v=6.6",
@@ -230,7 +230,7 @@ self.addEventListener("fetch", (event) => {
   // 5. CSS & Scripts: Network-first with cache fallback (instant style & logic updates)
   if (request.destination === "style" || request.destination === "script") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-cache" })
         .then((response) => {
           if (response.ok && response.status === 200) {
             const clone = response.clone();

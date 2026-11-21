@@ -2132,51 +2132,27 @@ tr[data-deity="hanuman"] .deity-pill {
     display: none !important;
   }
 
-  /* Submitted Bhajans Card stacks cleanly via [data-label] on mobile */
-  .submitted-bhajans-card .table-glass-container {
-    overflow-x: visible !important;
+  /* Submitted Bhajans Card keeps a horizontally scrollable table contained inside its card */
+  .submitted-bhajans-card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
   }
-  .submitted-bhajans-card table,
-  .submitted-bhajans-card tbody {
+  .submitted-bhajans-card .table-glass-container {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
   }
-  .submitted-bhajans-card thead {
-    display: none !important;
-  }
-  .submitted-bhajans-card tr {
-    display: block !important;
-    background: var(--surface) !important;
-    border-radius: var(--radius-lg) !important;
-    box-shadow: var(--shadow-sm) !important;
-    margin-bottom: 12px !important;
-    padding: 14px 16px !important;
-    border: 1px solid var(--border) !important;
-  }
-  .submitted-bhajans-card td {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    gap: 12px !important;
-    padding: 6px 0 !important;
-    border: none !important;
-    border-bottom: 1px dashed var(--border-soft) !important;
-    text-align: right !important;
-  }
-  .submitted-bhajans-card td:last-child {
-    border-bottom: none !important;
-  }
-  .submitted-bhajans-card td::before {
-    content: attr(data-label) !important;
-    position: static !important;
-    width: auto !important;
-    flex-shrink: 0 !important;
-    font-weight: 700 !important;
-    color: var(--muted) !important;
-    font-size: 11px !important;
-    text-transform: uppercase !important;
-    text-align: left !important;
-    display: inline-block !important;
+  .submitted-bhajans-card td[data-label="#"] {
+    margin: 0 !important;
+    font-size: 13px !important;
+    border-bottom: 1px solid var(--border-soft) !important;
   }
 
   tr {
