@@ -13,18 +13,38 @@
   const appDisplayName = isDevPwa ? "Bhajan Planner DEV" : "Bhajan Planner";
   const serviceWorkerUrl = isDevPwa ? "/sw.js?variant=dev" : "/sw.js";
 
+  let swRegistrationPromise = null;
+
   function registerServiceWorker() {
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register(serviceWorkerUrl, { updateViaCache: "none" })
-          .then((reg) => {
-            setInterval(() => reg.update(), 60 * 60 * 1000);
-          })
-          .catch((err) => console.error("[PWA] SW registration failed:", err));
-      });
+    if (!("serviceWorker" in navigator)) return Promise.resolve(null);
+    if (!swRegistrationPromise) {
+      swRegistrationPromise = navigator.serviceWorker
+        .register(serviceWorkerUrl, { updateViaCache: "none" })
+        .then((reg) => {
+          setInterval(() => reg.update(), 60 * 60 * 1000);
+          return reg;
+        })
+        .catch((err) => {
+          console.error("[PWA] SW registration failed:", err);
+          return null;
+        });
     }
+    return swRegistrationPromise;
   }
+
+  window.BPWaitForServiceWorker = function (timeoutMs) {
+    if (!("serviceWorker" in navigator)) {
+      return Promise.reject(new Error("Service Worker not supported"));
+    }
+    registerServiceWorker();
+    const waitMs = typeof timeoutMs === "number" && timeoutMs > 0 ? timeoutMs : 8000;
+    return Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Service Worker ready timed out")), waitMs)
+      )
+    ]);
+  };
 
   // ── Guard: don't show install banner if already installed as standalone ──
   if (

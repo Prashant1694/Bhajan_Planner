@@ -41,6 +41,276 @@
   const deviceId = getDeviceId();
   window.BP_DEVICE_ID = deviceId;
 
+  // ── Web Push helpers (preserves transient user activation & avoids stale key errors) ──
+  let cachedVapidPublicKey = null;
+  let vapidPrefetchPromise = null;
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  function arraysEqual(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  function getVapidPublicKey() {
+    if (cachedVapidPublicKey) return Promise.resolve(cachedVapidPublicKey);
+    if (!vapidPrefetchPromise) {
+      vapidPrefetchPromise = fetch("/api/notifications/vapid-key")
+        .then((r) => (r.ok ? r.json() : { publicKey: "" }))
+        .then((data) => {
+          cachedVapidPublicKey = data && data.publicKey ? String(data.publicKey).trim() : "";
+          return cachedVapidPublicKey;
+        })
+        .catch(() => "");
+    }
+    return vapidPrefetchPromise;
+  }
+
+  // Prefetch VAPID key immediately so click handlers don't burn user activation awaiting network
+  getVapidPublicKey();
+
+  function getPushSupportInfo() {
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isStandalone =
+      Boolean(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true;
+    const isLocalhost =
+      location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "[::1]";
+    const hasApis =
+      "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+    const permission = "Notification" in window ? Notification.permission : "unsupported";
+    return {
+      supported: hasApis && (window.isSecureContext || isLocalhost),
+      hasApis,
+      isSecureContext: Boolean(window.isSecureContext || isLocalhost),
+      isIOS,
+      isStandalone,
+      needsIosInstall: isIOS && !isStandalone,
+      permission
+    };
+  }
+
+  async function subscribeDevice(options) {
+    const opts = options || {};
+    const requestPermission = opts.requestPermission !== false;
+    const info = getPushSupportInfo();
+
+    if (!info.isSecureContext) {
+      return {
+        ok: false,
+        reason: "insecure_context",
+        message: "Device push notifications require HTTPS."
+      };
+    }
+    if (info.needsIosInstall) {
+      return {
+        ok: false,
+        reason: "ios_install_required",
+        message: "On iPhone/iPad, tap Share -> Add to Home Screen, then open the installed app to enable notification bar alerts."
+      };
+    }
+    if (!info.hasApis) {
+      return {
+        ok: false,
+        reason: "unsupported",
+        message: "This browser does not support Web Push notifications."
+      };
+    }
+
+    // Request permission synchronously before any network await so mobile browsers preserve user gesture
+    let perm = Notification.permission;
+    if (requestPermission && perm === "default") {
+      try {
+        perm = await Notification.requestPermission();
+      } catch (_) {
+        perm = Notification.permission;
+      }
+    }
+
+    if (perm === "denied") {
+      return {
+        ok: false,
+        reason: "permission_denied",
+        message: "Notifications are blocked in your browser/site settings. Allow notifications for this site and retry."
+      };
+    }
+    if (perm !== "granted") {
+      return {
+        ok: false,
+        reason: "permission_dismissed",
+        message: "Notification permission was not granted."
+      };
+    }
+
+    const publicKey = await getVapidPublicKey();
+    if (!publicKey) {
+      return {
+        ok: false,
+        reason: "vapid_missing",
+        message: "Push notifications are not configured on the server (missing VAPID keys)."
+      };
+    }
+
+    let reg;
+    try {
+      reg = window.BPWaitForServiceWorker
+        ? await window.BPWaitForServiceWorker(8000)
+        : await navigator.serviceWorker.ready;
+    } catch (swErr) {
+      return {
+        ok: false,
+        reason: "sw_unavailable",
+        message: "Service worker is not ready yet. Please reload the page and try again.",
+        error: swErr
+      };
+    }
+
+    const targetKeyBytes = urlBase64ToUint8Array(publicKey);
+
+    try {
+      const existingSub = await reg.pushManager.getSubscription();
+      if (existingSub) {
+        const existingKeyBuf = existingSub.options && existingSub.options.applicationServerKey;
+        const existingBytes = existingKeyBuf ? new Uint8Array(existingKeyBuf) : null;
+        if (existingBytes && arraysEqual(existingBytes, targetKeyBytes)) {
+          return { ok: true, subscription: existingSub.toJSON() };
+        }
+        await existingSub.unsubscribe().catch(() => {});
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: targetKeyBytes
+      });
+      return { ok: true, subscription: sub.toJSON() };
+    } catch (subErr) {
+      if (subErr && subErr.name === "InvalidStateError") {
+        try {
+          const staleSub = await reg.pushManager.getSubscription();
+          if (staleSub) await staleSub.unsubscribe();
+          const retrySub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: targetKeyBytes
+          });
+          return { ok: true, subscription: retrySub.toJSON() };
+        } catch (retryErr) {
+          return {
+            ok: false,
+            reason: "subscribe_failed",
+            message: retryErr.message || "Could not create browser push subscription."
+          };
+        }
+      }
+      return {
+        ok: false,
+        reason: "subscribe_failed",
+        message: subErr && subErr.message ? subErr.message : "Could not subscribe to push notifications."
+      };
+    }
+  }
+
+  async function syncPushSubscriptionToServer(subscription) {
+    const res = await fetch("/api/notifications/subscribe", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": getCsrfToken()
+      },
+      body: JSON.stringify({
+        device_id: deviceId,
+        subscription: subscription || null
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success && subscription && subscription.endpoint) {
+      try {
+        localStorage.setItem("bp_last_push_endpoint", subscription.endpoint);
+      } catch (_) {}
+    }
+    return { ok: res.ok && Boolean(data.success), status: res.status, data };
+  }
+
+  async function enableNativePushOneTap() {
+    const subRes = await subscribeDevice({ requestPermission: true });
+    if (!subRes.ok) return subRes;
+    const syncRes = await syncPushSubscriptionToServer(subRes.subscription);
+    if (!syncRes.ok) {
+      return {
+        ok: false,
+        reason: syncRes.status === 401 ? "auth_required" : "sync_failed",
+        message: (syncRes.data && syncRes.data.error) || "Could not save push subscription to server."
+      };
+    }
+    return { ok: true, subscription: subRes.subscription, data: syncRes.data };
+  }
+
+  async function autoSyncIfGranted() {
+    const info = getPushSupportInfo();
+    if (!info.supported || info.permission !== "granted") return;
+    try {
+      const statusRes = await fetch(
+        `/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`,
+        { credentials: "same-origin" }
+      );
+      if (!statusRes.ok) return;
+      const status = await statusRes.json();
+      if (!status.vapidConfigured || (!status.subscribed && !status.hasSessionSinger)) return;
+
+      const reg = window.BPWaitForServiceWorker
+        ? await window.BPWaitForServiceWorker(8000)
+        : await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      const lastEndpoint = localStorage.getItem("bp_last_push_endpoint") || "";
+
+      if (!status.hasNativePush || !existing || existing.endpoint !== lastEndpoint) {
+        const subRes = await subscribeDevice({ requestPermission: false });
+        if (subRes.ok && subRes.subscription) {
+          await syncPushSubscriptionToServer(subRes.subscription);
+        }
+      }
+    } catch (_) {}
+  }
+
+  window.BPPush = {
+    getDeviceId,
+    getVapidPublicKey,
+    getSupportInfo: getPushSupportInfo,
+    subscribeDevice,
+    syncToServer: syncPushSubscriptionToServer,
+    enableNativePushOneTap,
+    autoSyncIfGranted
+  };
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (!event.data) return;
+      if (event.data.type === "BP_PUSH_RECEIVED") {
+        if (typeof updateUnreadCount === "function") updateUnreadCount();
+        if (panel && panel.classList.contains("open") && typeof loadNotifications === "function") {
+          loadNotifications();
+        }
+      } else if (event.data.type === "BP_PUSH_SUBSCRIPTION_CHANGED" && event.data.subscription) {
+        syncPushSubscriptionToServer(event.data.subscription).catch(() => {});
+      }
+    });
+  }
+
   // ── DOM elements (supports both App Shell header bell and standalone floating bell) ──
   const bellButtons = [
     document.getElementById("shellNotifBtn"),
@@ -231,12 +501,112 @@
       .catch(() => {});
   };
 
+  const pushBanner = document.getElementById("notifPushBanner");
+  const pushBannerText = document.getElementById("notifPushBannerText");
+  const pushBannerBtn = document.getElementById("notifPushBannerBtn");
+
+  async function refreshPushBanner() {
+    if (!pushBanner || !pushBannerText || !pushBannerBtn) return;
+    const info = getPushSupportInfo();
+    if (!info.isSecureContext) {
+      pushBanner.classList.remove("show");
+      return;
+    }
+    if (info.needsIosInstall) {
+      pushBannerText.textContent = "Install app (Share -> Add to Home Screen) for bar notifications";
+      pushBannerBtn.textContent = "Guide";
+      pushBannerBtn.disabled = false;
+      pushBannerBtn.onclick = () => {
+        closePanel();
+        if (window.AppShell && typeof window.AppShell.navigate === "function") {
+          window.AppShell.navigate("/notification-settings");
+        } else {
+          window.location.href = "/notification-settings";
+        }
+      };
+      pushBanner.classList.add("show");
+      return;
+    }
+    if (!info.hasApis) {
+      pushBanner.classList.remove("show");
+      return;
+    }
+    if (info.permission === "denied") {
+      pushBannerText.textContent = "Notifications blocked in browser settings";
+      pushBannerBtn.textContent = "Settings";
+      pushBannerBtn.disabled = false;
+      pushBannerBtn.onclick = () => {
+        closePanel();
+        if (window.AppShell && typeof window.AppShell.navigate === "function") {
+          window.AppShell.navigate("/notification-settings");
+        } else {
+          window.location.href = "/notification-settings";
+        }
+      };
+      pushBanner.classList.add("show");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`,
+        { credentials: "same-origin" }
+      );
+      const status = await res.json();
+      if (!status.vapidConfigured) {
+        pushBanner.classList.remove("show");
+        return;
+      }
+      const needsNativePush = !status.hasNativePush || info.permission !== "granted";
+      if (!needsNativePush) {
+        pushBanner.classList.remove("show");
+        return;
+      }
+
+      if (status.subscribed || status.hasSessionSinger) {
+        pushBannerText.textContent = "Receive alerts in your notification bar like WhatsApp";
+        pushBannerBtn.textContent = "Enable";
+        pushBannerBtn.disabled = false;
+        pushBannerBtn.onclick = async () => {
+          pushBannerBtn.disabled = true;
+          pushBannerBtn.textContent = "Enabling...";
+          const out = await enableNativePushOneTap();
+          if (out.ok) {
+            pushBannerText.textContent = "Notification bar alerts active!";
+            pushBannerBtn.textContent = "Active";
+            setTimeout(() => pushBanner.classList.remove("show"), 1600);
+          } else {
+            pushBannerBtn.disabled = false;
+            pushBannerBtn.textContent = "Retry";
+            pushBannerText.textContent = out.message || "Could not enable bar notifications";
+          }
+        };
+      } else {
+        pushBannerText.textContent = "Set up notification bar alerts for bhajans & updates";
+        pushBannerBtn.textContent = "Set Up";
+        pushBannerBtn.disabled = false;
+        pushBannerBtn.onclick = () => {
+          closePanel();
+          if (window.AppShell && typeof window.AppShell.navigate === "function") {
+            window.AppShell.navigate("/notification-settings");
+          } else {
+            window.location.href = "/notification-settings";
+          }
+        };
+      }
+      pushBanner.classList.add("show");
+    } catch (_) {
+      pushBanner.classList.remove("show");
+    }
+  }
+
   // ── Panel open/close ─────────────────────────────────────
   function openPanel() {
     panel.classList.add("open");
     overlay.classList.add("show");
     markAllAsReadSilently();
     loadNotifications();
+    refreshPushBanner();
   }
 
   function closePanel() {
@@ -325,7 +695,7 @@
     fetch(`/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.subscribed) {
+        if (data && data.subscribed && data.hasNativePush) {
           localStorage.setItem(PROMPT_KEY, "enabled");
           return;
         }
@@ -435,31 +805,22 @@
       enableBtn.disabled = true;
       enableBtn.textContent = "Verifying PIN...";
 
+      // Request OS notification permission immediately inside click gesture BEFORE any network awaits
       let subscription = null;
-      if ("Notification" in window && "serviceWorker" in navigator && "PushManager" in window) {
-        try {
-          const keyRes = await fetch("/api/notifications/vapid-key");
-          const { publicKey } = await keyRes.json();
-          if (publicKey) {
-            const perm = await Notification.requestPermission();
-            if (perm === "granted") {
-              const reg = await navigator.serviceWorker.ready;
-              const sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
-              });
-              subscription = sub.toJSON();
-            }
-          }
-        } catch (e) {
-          console.warn("[Push] Browser push setup note:", e);
+      try {
+        const pushRes = await subscribeDevice({ requestPermission: true });
+        if (pushRes && pushRes.ok && pushRes.subscription) {
+          subscription = pushRes.subscription;
         }
+      } catch (e) {
+        console.warn("[Push] Browser push setup note:", e);
       }
 
       try {
         // Step 1: Authenticate / create first-login PIN via Singer Hub login API
         const loginRes = await fetch("/api/singer/login", {
           method: "POST",
+          credentials: "same-origin",
           headers: {
             "Content-Type": "application/json",
             "X-CSRF-Token": getCsrfToken()
@@ -496,20 +857,9 @@
         }
 
         // Step 2: Register push / in-app subscription for the now-authenticated singer session
-        const res = await fetch("/api/notifications/subscribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": getCsrfToken()
-          },
-          body: JSON.stringify({
-            device_id: deviceId,
-            subscription: subscription
-          })
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
+        const subResult = await syncPushSubscriptionToServer(subscription);
+        const data = subResult.data || {};
+        if (subResult.ok) {
           localStorage.setItem(PROMPT_KEY, "enabled");
           promptOverlay.classList.remove("show");
           setTimeout(() => (promptOverlay.style.display = "none"), 300);
@@ -534,16 +884,7 @@
     });
   }
 
-  function urlBase64ToUint8Array(base64String) {
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; i++) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  }
-
+  window.addEventListener("bp:whatsnew-dismissed", initFirstVisitPrompt);
   initFirstVisitPrompt();
+  autoSyncIfGranted();
 })();

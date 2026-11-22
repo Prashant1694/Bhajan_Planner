@@ -71,6 +71,7 @@
 </div>
 
 <script>
+(function () {
 const CAT_LABELS = {
   lyrics: 'Lyrics',
   scale: 'Scale / Pitch',
@@ -264,6 +265,8 @@ async function lookupTicket(e) {
   }
 }
 
+window.lookupTicket = lookupTicket;
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -279,4 +282,5 @@ if (document.readyState === 'loading') {
 } else {
   loadMyReports();
 }
+})();
 </script>

@@ -58,11 +58,11 @@
   <!-- Core Shell & Component Stylesheets (v6.10) -->
   <link rel="stylesheet" href="/css/style.css?v=6.10">
   <link rel="stylesheet" href="/css/pwa.css?v=6.6">
-  <link rel="stylesheet" href="/css/notifications.css?v=6.6">
+  <link rel="stylesheet" href="/css/notifications.css?v=6.7">
   <link rel="stylesheet" href="/css/bulletin.css?v=6.5">
   <link rel="stylesheet" href="/css/tanpura.css?v=6.6">
   <link rel="stylesheet" href="/css/session-audio.css?v=6.5">
-  <link rel="stylesheet" href="/css/app-shell.css?v=6.8">
+  <link rel="stylesheet" href="/css/app-shell.css?v=6.9">
   <% if (typeof initialPageCss !== 'undefined' && initialPageCss) { %>
     <link rel="stylesheet" href="/css/<%= initialPageCss %>?v=6.10">
   <% } else if (activeTabKey === 'home') { %>
@@ -1087,7 +1087,7 @@
   </div>
 
   <!-- Global Persistent Tanpura Shruti Drone (Never interrupted across tab switches) -->
-  <%- include('partials/tanpura-widget') %>
+  <%- include('partials/tanpura-widget', { isShell: true }) %>
 
   <!-- Unified Notification Panel & One-Time First-Visit Prompt -->
   <%- include('partials/notification-bell') %>
@@ -1141,13 +1141,13 @@
 
   <!-- Global Persistent Engines (v6.6) -->
   <script src="/js/haptics.js?v=6.5"></script>
-  <script src="/js/tanpura.js?v=6.5"></script>
+  <script src="/js/tanpura.js?v=6.6"></script>
   <script src="/js/session-audio-player.js?v=6.5"></script>
   <script src="/js/script.js?v=6.6"></script>
   <script src="/js/native-ui.js?v=6.5"></script>
-  <script src="/js/pwa.js?v=6.6"></script>
-  <script src="/js/notifications.js?v=6.6"></script>
-  <script src="/js/app-shell-router.js?v=6.8"></script>
+  <script src="/js/pwa.js?v=6.7"></script>
+  <script src="/js/notifications.js?v=6.7"></script>
+  <script src="/js/app-shell-router.js?v=6.9"></script>
 </body>
 
 </html>

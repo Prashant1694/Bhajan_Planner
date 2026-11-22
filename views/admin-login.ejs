@@ -93,6 +93,7 @@ async function handleGoogleCredential(response) {
   try {
     const result = await fetch('/auth/google', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
         'x-csrf-token': '<%= typeof csrfToken !== "undefined" ? csrfToken : "" %>'
@@ -104,6 +105,13 @@ async function handleGoogleCredential(response) {
       errorEl.textContent = data.error || 'Google login failed.';
       return;
     }
+    try {
+      localStorage.setItem('bp_is_admin', 'true');
+      if (data.admin) {
+        if (data.admin.displayName) localStorage.setItem('bp_admin_name', data.admin.displayName);
+        if (data.admin.role) localStorage.setItem('bp_admin_role', data.admin.role);
+      }
+    } catch (_) {}
     if (window.top && window.top !== window) {
       window.top.location.href = data.redirect || '/admin';
     } else {

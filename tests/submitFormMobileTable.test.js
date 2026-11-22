@@ -124,15 +124,15 @@ test("Cache busting: asset versions synchronized and sw.js revalidates CSS/JS fe
 
   assert.ok(appShell.includes('/css/style.css?v=6.10"'));
   assert.ok(appShell.includes("/css/<%= initialPageCss %>?v=6.10"));
-  assert.ok(appShell.includes('/js/app-shell-router.js?v=6.8"'));
+  assert.ok(appShell.includes('/js/app-shell-router.js?v=6.9"'));
 
   assert.ok(mainLayout.includes('/css/style.css?v=6.10"'));
   assert.ok(mainLayout.includes("/css/<%= pageCSS %>?v=6.10"));
 
   assert.ok(routerJs.includes('const ASSET_VERSION = "6.10";'));
 
-  assert.ok(swJs.includes('const CACHE_VERSION = "v6.16";'));
+  assert.ok(swJs.includes('const CACHE_VERSION = "v6.17";'));
   assert.ok(swJs.includes('"/css/style.css?v=6.10"'));
-  assert.ok(swJs.includes('"/js/app-shell-router.js?v=6.8"'));
+  assert.ok(swJs.includes('"/js/app-shell-router.js?v=6.9"'));
   assert.ok(swJs.includes('fetch(request, { cache: "no-cache" })'));
 });

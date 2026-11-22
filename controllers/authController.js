@@ -9,7 +9,7 @@ const {
   validatePasswordPolicy
 } = require("../services/securityHelpers");
 const { destroyAdminSessions } = require("../services/sessionManager");
-const { invalidateAdminCache } = require("../middleware/auth");
+const { invalidateAdminCache, ADMIN_IDLE_MAX_MS } = require("../middleware/auth");
 
 const googleClient = new OAuth2Client();
 
@@ -90,6 +90,10 @@ async function createAdminSession(req, admin) {
         console.error("Session presence upgrade error:", err.message);
       }
 
+      if (req.session.cookie) {
+        req.session.cookie.maxAge = ADMIN_IDLE_MAX_MS;
+      }
+
       req.session.save((saveErr) => {
         if (saveErr) return reject(saveErr);
         resolve();
@@ -140,18 +144,7 @@ exports.login = async (req, res) => {
 
     await createAdminSession(req, admin);
 
-    req.session.save((error) => {
-      if (error) {
-        console.error("Session save failed:", error);
-        return res.status(500).render("admin-login", {
-          error: "Login failed. Please try again.",
-          username,
-          googleClientId: getPublicGoogleClientId(req),
-          showLoader: false
-        });
-      }
-
-      res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Logging in...</title></head><body>
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Logging in...</title></head><body>
       <script>
         try {
           localStorage.setItem('bp_is_admin', 'true');
@@ -164,7 +157,6 @@ exports.login = async (req, res) => {
           window.location.href = '/admin';
         }
       </script></body></html>`);
-    });
   } catch (error) {
     console.error("Admin login failed:", error);
     res.status(500).render("admin-login", {
@@ -261,19 +253,13 @@ exports.googleLogin = async (req, res) => {
 
     await createAdminSession(req, admin);
 
-    req.session.save((error) => {
-      if (error) {
-        console.error("Google session save failed:", error);
-        return res.status(500).json({
-          success: false,
-          error: "Login failed. Please try again."
-        });
+    return res.json({
+      success: true,
+      redirect: "/admin",
+      admin: {
+        displayName: admin.display_name || admin.username,
+        role: admin.role || "admin"
       }
-
-      res.json({
-        success: true,
-        redirect: "/admin"
-      });
     });
   } catch (error) {
     console.error("Google login failed:", error);

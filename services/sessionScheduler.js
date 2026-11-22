@@ -28,6 +28,9 @@ function startSessionScheduler() {
   schedulerTimer = setInterval(() => {
     runSchedulerCheck().catch((err) => console.error("[Scheduler] Periodic check failed:", err));
   }, CHECK_INTERVAL_MS);
+  if (schedulerTimer && typeof schedulerTimer.unref === "function") {
+    schedulerTimer.unref();
+  }
 }
 
 // ── Stop the scheduler ───────────────────────────────────────

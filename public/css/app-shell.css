@@ -1605,7 +1605,7 @@ html, body {
    ========================================================================== */
 
 /* Hide Tanpura floating widget inside App Shell unless on music route or actively playing */
-body.shell-body .tanpura-floating-widget:not(.visible) {
+body.shell-body .tanpura-floating-widget:not(.visible):not(.is-playing) {
   display: none !important;
 }
 

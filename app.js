@@ -29,14 +29,18 @@ const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const sequelize = require("./config/database");
 const logger = require("./services/logger");
 
+const SESSION_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
 const sessionStore = new SequelizeStore({
   db: sequelize,
   tableName: "Sessions",
   checkExpirationInterval: 15 * 60 * 1000, // Prune expired sessions every 15 min
-  expiration: 90 * 24 * 60 * 60 * 1000 // 90 days persistent devotee session duration
+  expiration: SESSION_MAX_AGE_MS // 90 days persistent devotee & admin session duration
 });
 
-sessionStore.sync();
+const sessionStoreReady = sessionStore.sync().catch((err) => {
+  logger.error({ err }, "Session store sync failed");
+});
 if (
   sessionStore._expirationInterval &&
   typeof sessionStore._expirationInterval.unref === "function"
@@ -229,6 +233,7 @@ app.use(
   session({
     secret: process.env.SESSION_SECRET || "bhajan-planner-session-secret-gandhinagar-2026",
     store: sessionStore,
+    proxy: true,
     resave: false,
     saveUninitialized: false,
     rolling: true,
@@ -236,7 +241,7 @@ app.use(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 90 * 24 * 60 * 60 * 1000 // 90-day persistent session
+      maxAge: SESSION_MAX_AGE_MS // 90-day persistent session
     }
   })
 );
@@ -415,6 +420,8 @@ app.use((req, res, next) => {
 
     const mergedLocals = Object.assign({}, res.locals, opts);
     mergedLocals.layout = "layouts/fragment";
+    mergedLocals.isShellFragment = true;
+    mergedLocals._embed = true;
 
     req.app.render(view, mergedLocals, (err, fragmentHtml) => {
       if (err) {
@@ -546,10 +553,24 @@ app.use((error, req, res, next) => {
 let serverInstance = null;
 let isShuttingDown = false;
 
+async function closeDatabaseCleanly() {
+  try {
+    await sequelize.query("PRAGMA wal_checkpoint(TRUNCATE);");
+  } catch (chkErr) {
+    logger.warn({ err: chkErr }, "WAL checkpoint warning during shutdown");
+  }
+  await sequelize.close();
+}
+
 async function gracefulShutdown(signal) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   logger.info({ signal }, `Received ${signal}. Initiating graceful shutdown...`);
+
+  try {
+    const { stopSessionScheduler } = require("./services/sessionScheduler");
+    stopSessionScheduler();
+  } catch (_) {}
 
   try {
     const { flushActivityBuffer } = require("./middleware/activityTracker");
@@ -565,10 +586,21 @@ async function gracefulShutdown(signal) {
   if (forceExitTimer.unref) forceExitTimer.unref();
 
   if (serverInstance) {
+    if (typeof serverInstance.closeIdleConnections === "function") {
+      serverInstance.closeIdleConnections();
+    }
+    const drainTimer = setTimeout(() => {
+      if (serverInstance && typeof serverInstance.closeAllConnections === "function") {
+        serverInstance.closeAllConnections();
+      }
+    }, 5000);
+    if (drainTimer.unref) drainTimer.unref();
+
     serverInstance.close(async () => {
-      logger.info("HTTP server closed. Closing database connection pool...");
+      clearTimeout(drainTimer);
+      logger.info("HTTP server closed. Checkpointing & closing database connection pool...");
       try {
-        await sequelize.close();
+        await closeDatabaseCleanly();
         logger.info("Database pool closed. Shutdown complete.");
         process.exit(0);
       } catch (dbErr) {
@@ -577,6 +609,9 @@ async function gracefulShutdown(signal) {
       }
     });
   } else {
+    try {
+      await closeDatabaseCleanly();
+    } catch (_) {}
     process.exit(0);
   }
 }
@@ -600,6 +635,7 @@ process.on("uncaughtException", (error) => {
 async function startServer() {
   try {
     await initializeDatabase();
+    await sessionStoreReady;
     // Warm in-memory catalog caches right after DB init so first request is 0ms
     await Promise.allSettled([getMasterCatalog(), getSingersCatalog()]);
 
@@ -622,4 +658,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer, gracefulShutdown };
+module.exports = { app, startServer, gracefulShutdown, sessionStore };

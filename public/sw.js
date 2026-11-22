@@ -18,7 +18,7 @@ const APP_ICON_512 = IS_DEVELOPMENT_PWA
 const APP_ICON_MASKABLE = IS_DEVELOPMENT_PWA
   ? "/images/icons/dev/icon-maskable-512x512.png"
   : "/images/icons/icon-maskable-512x512.png";
-const CACHE_VERSION = "v6.16";
+const CACHE_VERSION = "v6.17";
 const CACHE_NAME = `bhajan-planner-${IS_DEVELOPMENT_PWA ? "dev-" : ""}${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -27,23 +27,23 @@ const PRECACHE_URLS = [
   "/css/native.css?v=6.7",
   "/css/diwali.css?v=7.0",
   "/css/style.css?v=6.10",
-  "/css/app-shell.css?v=6.8",
+  "/css/app-shell.css?v=6.9",
   "/css/dashboard-glass.css?v=6.5",
   "/css/loading.css?v=6.5",
   "/css/pwa.css?v=6.6",
-  "/css/notifications.css?v=6.6",
+  "/css/notifications.css?v=6.7",
   "/css/bulletin.css?v=6.5",
   "/css/tanpura.css?v=6.6",
   "/css/session-audio.css?v=6.5",
   "/js/native-ui.js?v=6.5",
   "/js/haptics.js?v=6.5",
-  "/js/app-shell-router.js?v=6.8",
+  "/js/app-shell-router.js?v=6.9",
   "/js/script.js?v=6.6",
   "/js/loading.js?v=6.5",
-  "/js/pwa.js?v=6.6",
-  "/js/notifications.js?v=6.6",
+  "/js/pwa.js?v=6.7",
+  "/js/notifications.js?v=6.7",
   "/js/diwali.js?v=7.2.1",
-  "/js/tanpura.js?v=6.5",
+  "/js/tanpura.js?v=6.6",
   "/js/session-audio-player.js?v=6.5",
   "/images/logo_birthday.png",
   "/images/logo.png",
@@ -304,15 +304,31 @@ self.addEventListener("message", (event) => {
   }
 });
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 self.addEventListener("push", (event) => {
   let data = { title: "Bhajan Planner", body: "You have a new notification", url: "/" };
 
-  try {
-    if (event.data) {
-      data = event.data.json();
+  if (event.data) {
+    try {
+      data = Object.assign(data, event.data.json());
+    } catch (_) {
+      try {
+        const textBody = event.data.text();
+        if (textBody) data.body = textBody;
+      } catch (e) {
+        console.warn("[SW] Push data parse error:", e);
+      }
     }
-  } catch (e) {
-    console.warn("[SW] Push data parse error:", e);
   }
 
   const options = {
@@ -321,27 +337,85 @@ self.addEventListener("push", (event) => {
     badge: data.badge || APP_ICON,
     data: { url: data.url || "/" },
     vibrate: [200, 100, 200],
-    tag: data.tag || "bhajan-planner-notification",
-    renotify: true
+    tag: data.tag || `bhajan-planner-${Date.now()}`,
+    renotify: true,
+    silent: false,
+    timestamp: data.timestamp || Date.now()
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "Bhajan Planner", options));
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title || "Bhajan Planner", options),
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clientList) => {
+          for (const client of clientList) {
+            client.postMessage({
+              type: "BP_PUSH_RECEIVED",
+              title: data.title || "Bhajan Planner",
+              body: data.body || "",
+              url: data.url || "/"
+            });
+          }
+        })
+        .catch(() => {})
+    ])
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const rawUrl = event.notification.data?.url || "/";
+  const targetUrl = new URL(rawUrl, self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
-          client.focus();
-          client.postMessage({ type: "BP_NAVIGATE", url });
-          return;
+          return client.focus().then((focused) => {
+            (focused || client).postMessage({ type: "BP_NAVIGATE", url: rawUrl });
+          });
         }
       }
-      return clients.openWindow(url);
+      return self.clients.openWindow(targetUrl);
     })
+  );
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        let appServerKey = event.oldSubscription?.options?.applicationServerKey || null;
+        if (!appServerKey) {
+          const res = await fetch("/api/notifications/vapid-key");
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.publicKey) {
+              appServerKey = urlBase64ToUint8Array(data.publicKey);
+            }
+          }
+        }
+        if (!appServerKey) return;
+
+        const newSubscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: appServerKey
+        });
+
+        const clientList = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true
+        });
+        for (const client of clientList) {
+          client.postMessage({
+            type: "BP_PUSH_SUBSCRIPTION_CHANGED",
+            subscription: newSubscription.toJSON()
+          });
+        }
+      } catch (err) {
+        console.warn("[SW] pushsubscriptionchange renewal note:", err);
+      }
+    })()
   );
 });

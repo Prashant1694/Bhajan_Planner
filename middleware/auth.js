@@ -2,15 +2,24 @@ const AdminUser = require("../models/AdminUser");
 
 const adminCache = new Map(); // adminId -> { user, cachedAt }
 const ADMIN_CACHE_TTL_MS = 60 * 1000; // 60-second in-memory cache
-const ADMIN_IDLE_MAX_MS = 12 * 60 * 60 * 1000; // 12-hour rolling idle timeout
+const DEFAULT_ADMIN_SESSION_DAYS = 90;
+const parsedAdminDays = Number(process.env.ADMIN_SESSION_MAX_DAYS);
+const ADMIN_SESSION_DAYS =
+  Number.isFinite(parsedAdminDays) && parsedAdminDays > 0
+    ? parsedAdminDays
+    : DEFAULT_ADMIN_SESSION_DAYS;
+const ADMIN_IDLE_MAX_MS = ADMIN_SESSION_DAYS * 24 * 60 * 60 * 1000; // 90-day rolling validity
 const ADMIN_SESSION_WRITE_THROTTLE_MS = 5 * 60 * 1000; // Throttle DB session writes to once per 5 min
 
 async function getValidatedAdmin(req) {
-  if (!req.session || !req.session.adminUserId) return null;
-  const adminId = Number(req.session.adminUserId);
+  const rawAdminId = req.session && (req.session.adminUserId || req.session.admin?.id);
+  if (!rawAdminId) return null;
+  const adminId = Number(rawAdminId);
+  if (!Number.isFinite(adminId) || adminId <= 0) return null;
+  req.session.adminUserId = adminId;
   const now = Date.now();
 
-  // 1. Check 12-hour idle timeout
+  // 1. Check 90-day rolling session validity
   if (req.session.adminLastActive && now - req.session.adminLastActive > ADMIN_IDLE_MAX_MS) {
     delete req.session.adminUserId;
     delete req.session.admin;
@@ -25,11 +34,23 @@ async function getValidatedAdmin(req) {
   if (cached && now - cached.cachedAt < ADMIN_CACHE_TTL_MS) {
     adminRecord = cached.user;
   } else {
-    adminRecord = await AdminUser.findByPk(adminId);
-    if (adminRecord) {
-      adminCache.set(adminId, { user: adminRecord, cachedAt: now });
-    } else {
-      adminCache.delete(adminId);
+    try {
+      adminRecord = await AdminUser.findByPk(adminId);
+      if (adminRecord) {
+        adminCache.set(adminId, { user: adminRecord, cachedAt: now });
+      } else {
+        adminCache.delete(adminId);
+      }
+    } catch (dbErr) {
+      const isTransientLock =
+        dbErr &&
+        (dbErr.name === "SequelizeTimeoutError" ||
+          /SQLITE_BUSY|SQLITE_LOCKED/i.test(dbErr.message || ""));
+      if (isTransientLock && req.session.admin && req.session.admin.id && req.session.admin.role) {
+        console.warn("[Auth] Transient DB lock while validating admin session; preserving cached session:", dbErr.message);
+        return { ...req.session.admin, is_active: true };
+      }
+      throw dbErr;
     }
   }
 
@@ -64,6 +85,12 @@ async function getValidatedAdmin(req) {
       role: adminRecord.role,
       singer_id: adminRecord.singer_id
     };
+    if (
+      req.session.cookie &&
+      (!req.session.cookie.originalMaxAge || req.session.cookie.originalMaxAge < ADMIN_IDLE_MAX_MS)
+    ) {
+      req.session.cookie.maxAge = ADMIN_IDLE_MAX_MS;
+    }
   }
 
   return adminRecord;
@@ -192,5 +219,6 @@ module.exports = {
   requireSuperAdmin,
   requireApiSuperAdmin,
   invalidateAdminCache,
-  getValidatedAdmin
+  getValidatedAdmin,
+  ADMIN_IDLE_MAX_MS
 };

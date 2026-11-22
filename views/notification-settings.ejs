@@ -20,8 +20,16 @@
     <!-- Current Status -->
     <div id="notifStatusSection" style="display:none;">
       <div class="notif-status-card" id="notifStatusCard">
-        <div class="notif-status-label">Status</div>
+        <div class="notif-status-label">Account Status</div>
         <div class="notif-status-value" id="notifStatusText">Checking...</div>
+        <div id="nativePushStatusBox" class="notif-native-status" style="display:none;"></div>
+        <button type="button" id="notifEnableNativeBtn" class="notif-btn-enable" style="display:none; margin-top:10px;">
+          Enable Device Bar Notifications
+        </button>
+        <button type="button" id="notifTestNativeBtn" class="notif-btn-secondary" style="display:none;">
+          Send Test Bar Notification
+        </button>
+        <div id="nativePushActionMsg" style="display:none; font-size:12.5px; margin-top:8px; font-weight:600;"></div>
       </div>
     </div>
 
@@ -195,6 +203,90 @@
   const statusSection = document.getElementById('notifStatusSection');
   const statusCard = document.getElementById('notifStatusCard');
   const statusText = document.getElementById('notifStatusText');
+  const nativeStatusBox = document.getElementById('nativePushStatusBox');
+  const enableNativeBtn = document.getElementById('notifEnableNativeBtn');
+  const testNativeBtn = document.getElementById('notifTestNativeBtn');
+  const nativeActionMsg = document.getElementById('nativePushActionMsg');
+
+  function getSettingsCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return window.csrfToken || (meta ? meta.getAttribute('content') : '') || '';
+  }
+
+  function showNativeActionMsg(text, isError) {
+    if (!nativeActionMsg) return;
+    nativeActionMsg.textContent = text;
+    nativeActionMsg.style.color = isError ? '#dc2626' : '#059669';
+    nativeActionMsg.style.display = 'block';
+  }
+
+  function renderNativePushState(data) {
+    if (!nativeStatusBox || !enableNativeBtn || !testNativeBtn) return;
+    const support = window.BPPush && typeof window.BPPush.getSupportInfo === 'function'
+      ? window.BPPush.getSupportInfo()
+      : {
+          supported: 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window,
+          isSecureContext: window.isSecureContext,
+          needsIosInstall: false,
+          permission: 'Notification' in window ? Notification.permission : 'unsupported'
+        };
+
+    nativeStatusBox.className = 'notif-native-status';
+    enableNativeBtn.style.display = 'none';
+    testNativeBtn.style.display = 'none';
+
+    if (!data.vapidConfigured) {
+      nativeStatusBox.classList.add('warning');
+      nativeStatusBox.textContent = 'Device Bar Push: Server VAPID keys are not configured yet (in-app notifications still work).';
+      nativeStatusBox.style.display = 'block';
+      return;
+    }
+
+    if (support.needsIosInstall) {
+      nativeStatusBox.classList.add('warning');
+      nativeStatusBox.textContent = 'iPhone/iPad: Tap Share -> Add to Home Screen, then open the installed app to receive notification bar alerts.';
+      nativeStatusBox.style.display = 'block';
+      return;
+    }
+
+    if (!support.isSecureContext) {
+      nativeStatusBox.classList.add('warning');
+      nativeStatusBox.textContent = 'Device Bar Push requires HTTPS.';
+      nativeStatusBox.style.display = 'block';
+      return;
+    }
+
+    if (!support.supported) {
+      nativeStatusBox.classList.add('warning');
+      nativeStatusBox.textContent = 'This browser does not support Web Push notifications.';
+      nativeStatusBox.style.display = 'block';
+      return;
+    }
+
+    if (support.permission === 'denied') {
+      nativeStatusBox.classList.add('warning');
+      nativeStatusBox.textContent = 'Notification permission is blocked in your browser/device site settings. Allow notifications for this site and tap Reload.';
+      nativeStatusBox.style.display = 'block';
+      return;
+    }
+
+    if (data.hasNativePush && support.permission === 'granted') {
+      nativeStatusBox.classList.add('active');
+      nativeStatusBox.textContent = 'Device Bar Push: Active — notifications will appear in your phone/desktop notification bar even in background.';
+      nativeStatusBox.style.display = 'block';
+      testNativeBtn.style.display = 'block';
+      return;
+    }
+
+    nativeStatusBox.classList.add('warning');
+    nativeStatusBox.textContent = data.subscribed
+      ? 'Device Bar Push: In-App Only — tap below to activate WhatsApp-style notification bar alerts on this device.'
+      : 'Device Bar Push: Ready — select your name and PIN below to enable notification bar alerts.';
+    nativeStatusBox.style.display = 'block';
+    if (data.subscribed || data.hasSessionSinger) {
+      enableNativeBtn.style.display = 'block';
+    }
+  }
 
   const settingsPinSection = document.getElementById('settingsPinSection');
   const settingsPinInput = document.getElementById('settingsPinInput');
@@ -243,25 +335,79 @@
 
   // Check current subscription status
   function checkStatus() {
-    fetch(`/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`)
+    fetch(`/api/notifications/subscription-status?device_id=${encodeURIComponent(deviceId)}`, {
+      credentials: 'same-origin'
+    })
       .then(r => r.json())
       .then(data => {
+        statusSection.style.display = 'block';
         if (data.subscribed) {
-          statusSection.style.display = 'block';
           statusCard.classList.remove('disabled');
           statusText.textContent = `Notifications enabled as "${data.singer_name}"`;
           enableSection.style.display = 'none';
           manageSection.style.display = 'block';
           singerChangeSelect.value = data.singer_id;
         } else {
-          statusSection.style.display = 'block';
           statusCard.classList.add('disabled');
           statusText.textContent = 'Notifications are not enabled';
           enableSection.style.display = 'block';
           manageSection.style.display = 'none';
         }
+        renderNativePushState(data);
       })
       .catch(() => {});
+  }
+
+  if (enableNativeBtn) {
+    enableNativeBtn.addEventListener('click', async () => {
+      if (!window.BPPush || typeof window.BPPush.enableNativePushOneTap !== 'function') {
+        showNativeActionMsg('Push helper is not loaded yet. Please refresh the page.', true);
+        return;
+      }
+      enableNativeBtn.disabled = true;
+      enableNativeBtn.textContent = 'Activating Bar Notifications...';
+      if (nativeActionMsg) nativeActionMsg.style.display = 'none';
+      const out = await window.BPPush.enableNativePushOneTap();
+      enableNativeBtn.disabled = false;
+      enableNativeBtn.textContent = 'Enable Device Bar Notifications';
+      if (out.ok) {
+        showNativeActionMsg('Device notification bar alerts are now active!', false);
+        checkStatus();
+      } else {
+        showNativeActionMsg(out.message || 'Could not enable bar notifications.', true);
+        checkStatus();
+      }
+    });
+  }
+
+  if (testNativeBtn) {
+    testNativeBtn.addEventListener('click', async () => {
+      testNativeBtn.disabled = true;
+      testNativeBtn.textContent = 'Sending Test Push...';
+      if (nativeActionMsg) nativeActionMsg.style.display = 'none';
+      try {
+        const res = await fetch('/api/notifications/test-device', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getSettingsCsrfToken()
+          },
+          body: JSON.stringify({ device_id: deviceId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showNativeActionMsg('Test push sent! Check your device notification bar.', false);
+        } else {
+          showNativeActionMsg(data.error || 'Could not send test bar notification.', true);
+        }
+      } catch (err) {
+        showNativeActionMsg('Network error sending test notification.', true);
+      } finally {
+        testNativeBtn.disabled = false;
+        testNativeBtn.textContent = 'Send Test Bar Notification';
+      }
+    });
   }
 
   // Check PIN status on singer select change
@@ -334,18 +480,26 @@
     changeBtn.disabled = !singerChangeSelect.value || settingsChangePinInput.value.length !== 4;
   });
 
-  // Subscribe with PIN (first authenticates / creates PIN via /api/singer/login)
+  // Subscribe with PIN (requests OS notification permission synchronously inside click gesture first)
   async function subscribePush(singerId, pin, errorEl) {
     try {
       let subscription = null;
+      let pushNote = null;
 
-      if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
+      if (window.BPPush && typeof window.BPPush.subscribeDevice === 'function') {
+        const pushRes = await window.BPPush.subscribeDevice({ requestPermission: true });
+        if (pushRes && pushRes.ok && pushRes.subscription) {
+          subscription = pushRes.subscription;
+        } else if (pushRes && pushRes.message && pushRes.reason !== 'vapid_missing') {
+          pushNote = pushRes.message;
+        }
+      } else if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
         try {
-          const keyRes = await fetch('/api/notifications/vapid-key');
-          const { publicKey } = await keyRes.json();
-          if (publicKey) {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const keyRes = await fetch('/api/notifications/vapid-key');
+            const { publicKey } = await keyRes.json();
+            if (publicKey) {
               const reg = await navigator.serviceWorker.ready;
               const sub = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -359,9 +513,15 @@
         }
       }
 
+      const csrfToken = getSettingsCsrfToken();
+
       const loginRes = await fetch('/api/singer/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
         body: JSON.stringify({
           singer_id: parseInt(singerId, 10),
           pin: pin,
@@ -386,7 +546,11 @@
 
       const res = await fetch('/api/notifications/subscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
         body: JSON.stringify({
           device_id: deviceId,
           subscription: subscription
@@ -395,6 +559,11 @@
 
       const data = await res.json();
       if (res.ok && data.success) {
+        if (pushNote && !data.hasNativePush) {
+          showNativeActionMsg(pushNote, true);
+        } else if (data.hasNativePush) {
+          showNativeActionMsg('Notifications and device notification bar alerts are enabled!', false);
+        }
         return true;
       } else {
         const msg = data.error || 'Failed to enable notifications';
@@ -458,7 +627,11 @@
       }
       await fetch('/api/notifications/unsubscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getSettingsCsrfToken()
+        },
         body: JSON.stringify({ device_id: deviceId })
       });
       checkStatus();

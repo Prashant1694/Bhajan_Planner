@@ -15,6 +15,10 @@
     style="padding:9px 16px; font-size:13px;">
     Send Quick Test
   </button>
+  <% const isVapidActive = typeof vapidConfigured !== 'undefined' ? vapidConfigured : false; %>
+  <span class="admin-bulletin-status <%= isVapidActive ? 'published' : 'draft' %>" style="font-size:12px;">
+    <%= isVapidActive ? 'Web Push Active' : 'VAPID Keys Not Configured' %>
+  </span>
 </div>
 
 <!-- Custom Notification Form Card (Collapsible) -->
@@ -100,7 +104,14 @@
 
 <!-- Subscriptions -->
 <div style="margin-bottom:32px;">
-  <h3 style="margin:0 0 12px; font-size:16px;">Push Subscriptions (<%= subscriptions.length %>)</h3>
+  <% const nativeCount = typeof nativePushCount !== 'undefined' ? nativePushCount : 0; %>
+  <% const inAppCount = typeof inAppOnlyCount !== 'undefined' ? inAppOnlyCount : 0; %>
+  <h3 style="margin:0 0 12px; font-size:16px;">
+    Push Subscriptions (<%= subscriptions.length %>)
+    <span style="font-size:12px; font-weight:500; color:#888; margin-left:6px;">
+      (<%= nativeCount %> Native Push, <%= inAppCount %> In-App Only)
+    </span>
+  </h3>
   <% if (subscriptions.length> 0) { %>
     <div style="overflow-x:auto;">
       <table class="admin-bulletin-table" data-mobile-cards>
@@ -108,18 +119,25 @@
           <tr>
             <th>Singer</th>
             <th>Device ID</th>
+            <th>Channel</th>
             <th>Status</th>
             <th>Registered</th>
           </tr>
         </thead>
         <tbody>
           <% subscriptions.forEach(function(s) { %>
+            <% const isNative = Boolean(s.endpoint && !String(s.endpoint).startsWith('in_app_') && s.p256dh && s.auth); %>
             <tr>
               <td><strong>
                   <%= singerMap[s.singer_id] || 'Unknown' %>
                 </strong></td>
               <td style="font-size:11px; color:#888; font-family:monospace;">
                 <%= s.device_id.substring(0, 16) %>...
+              </td>
+              <td>
+                <span class="admin-bulletin-status <%= isNative ? 'published' : 'draft' %>">
+                  <%= isNative ? 'Native Push' : 'In-App Only' %>
+                </span>
               </td>
               <td>
                 <span class="admin-bulletin-status <%= s.enabled ? 'published' : 'draft' %>">
@@ -266,7 +284,7 @@
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          alert('Test notification sent!');
+          alert(data.message || 'Test notification sent!');
           location.reload();
         } else {
           alert('Failed: ' + (data.error || 'Unknown error'));

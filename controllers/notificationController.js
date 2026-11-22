@@ -98,42 +98,79 @@ exports.getSingerPinStatus = async (req, res) => {
 };
 
 // ── API: Subscribe to push notifications ─────────────────────
-// Stop verifying PINs here: requires an existing authenticated singer session
+// Requires an active singer session for initial registration, or an existing
+// device subscription when upgrading/refreshing Web Push keys.
 exports.subscribe = async (req, res) => {
   try {
     const { device_id, subscription } = req.body;
-
-    if (!req.session?.singer || !req.session.singer.id) {
-      return res.status(401).json({
-        error:
-          "Active singer session required to register for notifications. Please sign in via Singer Hub."
-      });
-    }
 
     if (!device_id) {
       return res.status(400).json({ error: "Missing required device_id" });
     }
 
-    const singer_id = req.session.singer.id;
+    const { Sequelize } = require("sequelize");
+    const incomingEndpoint =
+      subscription && typeof subscription.endpoint === "string" ? subscription.endpoint.trim() : "";
+    const incomingP256dh =
+      subscription && subscription.keys && typeof subscription.keys.p256dh === "string"
+        ? subscription.keys.p256dh
+        : "";
+    const incomingAuth =
+      subscription && subscription.keys && typeof subscription.keys.auth === "string"
+        ? subscription.keys.auth
+        : "";
+    const hasValidPushKeys = Boolean(
+      incomingEndpoint && !incomingEndpoint.startsWith("in_app_") && incomingP256dh && incomingAuth
+    );
+
+    const lookupOr = [{ device_id }];
+    if (hasValidPushKeys) {
+      lookupOr.unshift({ endpoint: incomingEndpoint });
+    }
+
+    const existing = await PushSubscription.findOne({
+      where: {
+        [Sequelize.Op.or]: lookupOr
+      }
+    });
+
+    let singer_id = req.session?.singer?.id || null;
+    if (!singer_id) {
+      if (existing && existing.device_id === device_id && hasValidPushKeys) {
+        singer_id = existing.singer_id;
+      } else {
+        return res.status(401).json({
+          error:
+            "Active singer session required to register for notifications. Please sign in via Singer Hub."
+        });
+      }
+    }
+
     const singer = await Singer.findByPk(singer_id);
     if (!singer) {
       return res.status(404).json({ error: "Singer not found" });
     }
 
-    const { Sequelize } = require("sequelize");
-    const endpoint = subscription?.endpoint || `in_app_${device_id}`;
-    const p256dh = subscription?.keys?.p256dh || "";
-    const auth = subscription?.keys?.auth || "";
+    const preserveExistingNativePush =
+      !hasValidPushKeys && existing && notificationService.isNativePushSubscription(existing);
 
-    // Check if subscription for this device or endpoint already exists
-    const existing = await PushSubscription.findOne({
-      where: {
-        [Sequelize.Op.or]: [{ endpoint }, { device_id }]
-      }
-    });
+    const endpoint = preserveExistingNativePush
+      ? existing.endpoint
+      : hasValidPushKeys
+        ? incomingEndpoint
+        : `in_app_${device_id}`;
+    const p256dh = preserveExistingNativePush
+      ? existing.p256dh
+      : hasValidPushKeys
+        ? incomingP256dh
+        : "";
+    const auth = preserveExistingNativePush
+      ? existing.auth
+      : hasValidPushKeys
+        ? incomingAuth
+        : "";
 
     if (existing) {
-      // Update the existing subscription
       await existing.update({
         singer_id,
         device_id,
@@ -142,10 +179,14 @@ exports.subscribe = async (req, res) => {
         auth,
         enabled: true
       });
-      return res.json({ success: true, updated: true, singer_name: singer.name });
+      return res.json({
+        success: true,
+        updated: true,
+        singer_name: singer.name,
+        hasNativePush: notificationService.isNativePushSubscription({ endpoint, p256dh, auth })
+      });
     }
 
-    // Create new subscription
     await PushSubscription.create({
       singer_id,
       device_id,
@@ -155,7 +196,12 @@ exports.subscribe = async (req, res) => {
       enabled: true
     });
 
-    res.json({ success: true, created: true, singer_name: singer.name });
+    res.json({
+      success: true,
+      created: true,
+      singer_name: singer.name,
+      hasNativePush: notificationService.isNativePushSubscription({ endpoint, p256dh, auth })
+    });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Subscribe error:`, error);
     res.status(500).json({ error: "Failed to register notification subscription." });
@@ -180,15 +226,34 @@ exports.unsubscribe = async (req, res) => {
 exports.subscriptionStatus = async (req, res) => {
   try {
     const deviceId = req.query.device_id;
-    if (!deviceId) return res.json({ subscribed: false });
+    const vapidConfigured = notificationService.isVapidConfigured();
+    const hasSessionSinger = Boolean(req.session?.singer?.id);
+    if (!deviceId) {
+      return res.json({
+        subscribed: false,
+        hasNativePush: false,
+        vapidConfigured,
+        hasSessionSinger
+      });
+    }
 
     const sub = await PushSubscription.findOne({ where: { device_id: deviceId } });
-    if (!sub) return res.json({ subscribed: false });
+    if (!sub) {
+      return res.json({
+        subscribed: false,
+        hasNativePush: false,
+        vapidConfigured,
+        hasSessionSinger
+      });
+    }
 
     const singer = await Singer.findByPk(sub.singer_id);
     res.json({
       subscribed: true,
       enabled: sub.enabled,
+      hasNativePush: notificationService.isNativePushSubscription(sub),
+      vapidConfigured,
+      hasSessionSinger,
       singer_id: sub.singer_id,
       singer_name: singer ? singer.name : "Unknown"
     });
@@ -203,6 +268,52 @@ exports.getVapidKey = (req, res) => {
   res.json({ publicKey: notificationService.VAPID_PUBLIC_KEY });
 };
 
+// ── API: Send a native push test strictly to calling device ──
+exports.sendTestToDevice = async (req, res) => {
+  try {
+    const deviceId = req.body?.device_id;
+    if (!deviceId) {
+      return res.status(400).json({ success: false, error: "Missing required device_id." });
+    }
+
+    const sub = await PushSubscription.findOne({ where: { device_id: deviceId } });
+    const hasAuth = Boolean(req.session?.singer?.id || req.session?.admin);
+    if (!hasAuth && (!sub || !notificationService.isNativePushSubscription(sub))) {
+      return res.status(401).json({
+        success: false,
+        error: "Please enable notifications on this device first."
+      });
+    }
+
+    const result = await notificationService.sendPushToDevice(deviceId, {
+      id: Date.now(),
+      type: "test",
+      title: "Bhajan Planner",
+      body: "Native notification bar alerts are active on this device!",
+      link: "/notification-settings",
+      event_key: `device_test:${Date.now()}`
+    });
+
+    if (result.status === "sent") {
+      return res.json({
+        success: true,
+        status: result.status,
+        vapidConfigured: result.vapidConfigured
+      });
+    }
+
+    return res.status(result.status === "vapid_unconfigured" ? 503 : 400).json({
+      success: false,
+      status: result.status,
+      vapidConfigured: result.vapidConfigured,
+      error: result.error || "Could not deliver native push notification to this device."
+    });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] sendTestToDevice error:`, error);
+    res.status(500).json({ success: false, error: "Failed to send device test notification." });
+  }
+};
+
 // ── Admin: Notification overview ─────────────────────────────
 exports.adminNotifications = async (req, res) => {
   try {
@@ -210,6 +321,11 @@ exports.adminNotifications = async (req, res) => {
     const subscriptions = await PushSubscription.findAll({
       order: [["created_at", "DESC"]]
     });
+
+    const nativePushCount = subscriptions.filter((s) =>
+      notificationService.isNativePushSubscription(s)
+    ).length;
+    const inAppOnlyCount = subscriptions.length - nativePushCount;
 
     // Get all singers for dropdown and for singerMap
     const allSingers = await Singer.findAll({
@@ -227,6 +343,9 @@ exports.adminNotifications = async (req, res) => {
       subscriptions,
       singerMap,
       allSingers,
+      vapidConfigured: notificationService.isVapidConfigured(),
+      nativePushCount,
+      inAppOnlyCount,
       page: "notifications",
       pageTitle: "Notifications"
     });
@@ -276,10 +395,21 @@ exports.sendCustomNotification = async (req, res) => {
       });
     }
 
+    const ps = result.pushSummary || {};
+    let msg = "Custom notification saved in-app!";
+    if (!notificationService.isVapidConfigured()) {
+      msg = "Notification saved in-app, but Web Push VAPID keys are not configured on the server.";
+    } else if (ps.sent > 0) {
+      msg = `Notification sent! Delivered native bar push to ${ps.sent} device(s)${ps.inAppOnly ? ` (${ps.inAppOnly} in-app only)` : ""}.`;
+    } else {
+      msg = `Notification saved in-app, but 0 native Web Push devices are registered yet${ps.inAppOnly ? ` (${ps.inAppOnly} in-app only)` : ""}.`;
+    }
+
     res.json({
       success: true,
       created: result.created,
-      message: "Custom notification sent successfully!"
+      pushSummary: ps,
+      message: msg
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] sendCustomNotification error:`, error);
@@ -298,7 +428,16 @@ exports.sendTestNotification = async (req, res) => {
       link: "/",
       eventKey
     });
-    res.json({ success: true, created: result.created });
+    const ps = result.pushSummary || {};
+    let message = "Test notification sent!";
+    if (!notificationService.isVapidConfigured()) {
+      message = "Test saved in-app, but Web Push VAPID keys are not configured on the server.";
+    } else if (ps.sent > 0) {
+      message = `Test notification sent! Delivered native push to ${ps.sent} device(s).`;
+    } else {
+      message = `Test saved in-app, but 0 native Web Push devices are subscribed yet${ps.inAppOnly ? ` (${ps.inAppOnly} in-app only)` : ""}.`;
+    }
+    res.json({ success: true, created: result.created, pushSummary: ps, message });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] sendTestNotification error:`, error);
     res.status(500).json({ error: "Failed to send test notification." });

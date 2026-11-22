@@ -35,11 +35,14 @@ const sequelize = new Sequelize({
           if (err2) return done(err2);
           conn.run("PRAGMA foreign_keys = ON;", (err3) => {
             if (err3) return done(err3);
-            conn.run("PRAGMA synchronous = NORMAL;", (err4) => {
+            conn.run("PRAGMA synchronous = FULL;", (err4) => {
               if (err4) return done(err4);
-              conn.run("PRAGMA cache_size = -20000;", (err5) => {
-                if (err5) return done(err5);
-                conn.run("PRAGMA temp_store = MEMORY;", done);
+              conn.run("PRAGMA wal_autocheckpoint = 100;", (err4b) => {
+                if (err4b) return done(err4b);
+                conn.run("PRAGMA cache_size = -20000;", (err5) => {
+                  if (err5) return done(err5);
+                  conn.run("PRAGMA temp_store = MEMORY;", done);
+                });
               });
             });
           });

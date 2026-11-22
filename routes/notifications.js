@@ -17,6 +17,7 @@ router.post("/api/notifications/unsubscribe", notificationController.unsubscribe
 router.get("/api/notifications/subscription-status", notificationController.subscriptionStatus);
 router.get("/api/notifications/singer-pin-status", notificationController.getSingerPinStatus);
 router.get("/api/notifications/vapid-key", notificationController.getVapidKey);
+router.post("/api/notifications/test-device", notificationController.sendTestToDevice);
 
 // ── Admin routes ─────────────────────────────────────────────
 router.get("/admin/notifications", requireLogin, notificationController.adminNotifications);

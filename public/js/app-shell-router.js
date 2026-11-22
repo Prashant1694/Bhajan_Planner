@@ -462,7 +462,19 @@
       : paneState[activeTab]?.url || TAB_DEFAULTS[activeTab];
     const pathname = extractPathname(effectiveUrl).toLowerCase();
 
-    const tanpuraWidget = document.getElementById("tanpuraFloatingWidget");
+    // Remove any duplicate Tanpura widget inadvertently rendered inside a pane or detail sheet
+    const allWidgets = document.querySelectorAll("#tanpuraFloatingWidget");
+    if (allWidgets.length > 1) {
+      allWidgets.forEach((el) => {
+        if (el.closest(".shell-pane, #shellDetailBody")) {
+          el.remove();
+        }
+      });
+    }
+
+    const tanpuraWidget =
+      document.querySelector("body > #tanpuraFloatingWidget") ||
+      document.getElementById("tanpuraFloatingWidget");
     if (tanpuraWidget) {
       const isPlaying = Boolean(
         window.BhajanTanpura &&
@@ -742,6 +754,8 @@
     });
 
     fragmentRoot.querySelectorAll('link[rel="preconnect"]').forEach((link) => link.remove());
+    // Strip any duplicate Tanpura widget from fragment HTML (shell maintains the global singleton)
+    fragmentRoot.querySelectorAll("#tanpuraFloatingWidget").forEach((el) => el.remove());
 
     if (cssPromises.length > 0) {
       await Promise.all(cssPromises);
@@ -752,38 +766,7 @@
     // Swap container HTML
     container.innerHTML = fragmentRoot.innerHTML;
 
-    // Execute scripts inside newly mounted container
-    const scripts = Array.from(container.querySelectorAll("script"));
-    for (const oldScript of scripts) {
-      const type = (oldScript.getAttribute("type") || "").trim().toLowerCase();
-      // Preserve JSON data payloads untouched
-      if (type === "application/json" || type === "application/ld+json") {
-        continue;
-      }
-
-      const src = oldScript.getAttribute("src");
-      if (src) {
-        oldScript.remove();
-        await ensureExternalScript(src);
-        continue;
-      }
-
-      if (oldScript.getAttribute("data-mounted") === "true") {
-        continue;
-      }
-
-      const executableScript = document.createElement("script");
-      Array.from(oldScript.attributes).forEach((attr) => {
-        executableScript.setAttribute(attr.name, attr.value);
-      });
-      executableScript.setAttribute("data-mounted", "true");
-      executableScript.textContent = oldScript.textContent;
-      oldScript.parentNode.replaceChild(executableScript, oldScript);
-    }
-
-    if (pageJs) {
-      await ensureExternalScript(pageJs);
-    }
+    await executeContainerScripts(container, pageJs);
 
     // Run idempotent page enhancements
     if (typeof window.initPageEnhancements === "function") {
@@ -820,6 +803,41 @@
       resolvedUrl: cleanResolvedUrl,
       pageTitle
     };
+  }
+
+  async function executeContainerScripts(container, pageJs) {
+    if (!container) return;
+    const scripts = Array.from(container.querySelectorAll("script"));
+    for (const oldScript of scripts) {
+      const type = (oldScript.getAttribute("type") || "").trim().toLowerCase();
+      // Preserve JSON data payloads untouched
+      if (type === "application/json" || type === "application/ld+json") {
+        continue;
+      }
+
+      const src = oldScript.getAttribute("src");
+      if (src) {
+        oldScript.remove();
+        await ensureExternalScript(src);
+        continue;
+      }
+
+      if (oldScript.getAttribute("data-mounted") === "true") {
+        continue;
+      }
+
+      const executableScript = document.createElement("script");
+      Array.from(oldScript.attributes).forEach((attr) => {
+        executableScript.setAttribute(attr.name, attr.value);
+      });
+      executableScript.setAttribute("data-mounted", "true");
+      executableScript.textContent = oldScript.textContent;
+      oldScript.parentNode.replaceChild(executableScript, oldScript);
+    }
+
+    if (pageJs) {
+      await ensureExternalScript(pageJs);
+    }
   }
 
   // ── Pane Activation & Detail Sheet Controls ──────────────────────────────
@@ -880,6 +898,7 @@
     currentDetailUrl = null;
     currentDetailTitle = "";
     syncNavIndicators(activeTab);
+    syncContextualWidgets();
   }
 
   function renderDetailSkeleton() {
@@ -947,6 +966,7 @@
       body.innerHTML = cached.html;
       if (cached.pageCss) ensureStylesheet(cached.pageCss);
       if (cached.csrfToken) setCsrfToken(cached.csrfToken);
+      await executeContainerScripts(body, cached.pageJs);
 
       currentDetailUrl = cached.resolvedUrl || normUrl;
       currentDetailTitle = cached.pageTitle || "Details";
@@ -1102,6 +1122,7 @@
     activeTab = tabKey;
     setActivePaneDom(tabKey);
     syncNavIndicators(tabKey);
+    syncContextualWidgets();
 
     const desiredUrl = normalizeInternalUrl(
       targetUrl || paneState[tabKey].url || TAB_DEFAULTS[tabKey]
@@ -1214,6 +1235,7 @@
         const doc = parser.parseFromString(html, "text/html");
         const fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
         if (!fragmentRoot) return;
+        fragmentRoot.querySelectorAll("#tanpuraFloatingWidget").forEach((el) => el.remove());
 
         const pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
         const pageCss = fragmentRoot.getAttribute("data-page-css") || "";
@@ -1233,6 +1255,9 @@
         if (detailOpen && currentDetailUrl && stripHash(currentDetailUrl) === reqKey) {
           body.innerHTML = fragmentRoot.innerHTML;
           if (pageCss) ensureStylesheet(pageCss);
+          if (csrfToken) setCsrfToken(csrfToken);
+          await executeContainerScripts(body, pageJs);
+          syncContextualWidgets();
           if (typeof window.initPageEnhancements === "function") {
             try { window.initPageEnhancements(body); } catch (_) {}
           }
@@ -1269,6 +1294,7 @@
         const doc = parser.parseFromString(html, "text/html");
         const fragmentRoot = doc.querySelector(".shell-fragment-root") || doc.body;
         if (!fragmentRoot) return;
+        fragmentRoot.querySelectorAll("#tanpuraFloatingWidget").forEach((el) => el.remove());
 
         const pageTitle = fragmentRoot.getAttribute("data-page-title") || doc.title || "Bhajan Planner";
         const pageCss = fragmentRoot.getAttribute("data-page-css") || "";

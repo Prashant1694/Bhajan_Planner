@@ -7,6 +7,15 @@
 (function () {
   "use strict";
 
+  if (window.BhajanTanpura && window.BhajanTanpura.__initialized) {
+    if (typeof window.BhajanTanpura.syncUi === "function") {
+      window.BhajanTanpura.syncUi();
+    }
+    return;
+  }
+
+  var PREFS_STORAGE_KEY = "bp_tanpura_prefs";
+
   var WESTERN_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
   var NOTE_TO_SHRUTI = {
@@ -77,6 +86,7 @@
 
   var bufferCache = new Map();
   var loadingPromises = new Map();
+  var transitionSeq = 0;
 
   var state = {
     isPlaying: false,
@@ -87,6 +97,61 @@
     transitionSec: 1.3,
     volume: 0.7
   };
+
+  function restorePrefs() {
+    try {
+      var raw = localStorage.getItem(PREFS_STORAGE_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.pitchNote && NOTE_TO_SHRUTI[String(parsed.pitchNote).toUpperCase()]) {
+          state.pitchNote = SHRUTI_TO_NOTE[NOTE_TO_SHRUTI[String(parsed.pitchNote).toUpperCase()]];
+          state.pitchNum = NOTE_TO_SHRUTI[state.pitchNote];
+        }
+        if (parsed.firstString === "Pa" || parsed.firstString === "Ma") {
+          state.firstString = parsed.firstString;
+        }
+        if (typeof parsed.volume === "number" && !isNaN(parsed.volume)) {
+          state.volume = Math.max(0, Math.min(1, parsed.volume));
+        }
+        if (typeof parsed.transitionSpeedLevel === "number" && TRANSITION_LEVELS[parsed.transitionSpeedLevel]) {
+          state.transitionSpeedLevel = parsed.transitionSpeedLevel;
+          state.transitionSec = TRANSITION_LEVELS[parsed.transitionSpeedLevel].duration;
+        }
+      }
+    } catch (_) {}
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(
+        PREFS_STORAGE_KEY,
+        JSON.stringify({
+          pitchNote: state.pitchNote,
+          firstString: state.firstString,
+          volume: state.volume,
+          transitionSpeedLevel: state.transitionSpeedLevel
+        })
+      );
+    } catch (_) {}
+  }
+
+  restorePrefs();
+
+  function getPrimaryWidget() {
+    var allWidgets = document.querySelectorAll("#tanpuraFloatingWidget");
+    if (allWidgets.length > 1) {
+      allWidgets.forEach(function (el) {
+        if (el.closest(".shell-pane, #shellDetailBody")) {
+          el.remove();
+        }
+      });
+    }
+    return (
+      document.querySelector("body > #tanpuraFloatingWidget") ||
+      document.getElementById("tanpuraFloatingWidget")
+    );
+  }
 
   function getAudioContext() {
     if (!audioCtx && AudioContextClass) {
@@ -290,6 +355,7 @@
   }
 
   async function transitionToSample(newFilename) {
+    var seq = ++transitionSeq;
     var ctx = getAudioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") {
@@ -299,7 +365,7 @@
     }
     try {
       var buffer = await loadSample(newFilename);
-      if (!state.isPlaying) return;
+      if (!state.isPlaying || seq !== transitionSeq) return;
 
       var now = ctx.currentTime;
       var fadeDuration = state.transitionSec || 1.3;
@@ -373,12 +439,16 @@
     }
     state.isPlaying = true;
     updateWidgetUiState();
+    if (window.AppShell && typeof window.AppShell.syncContextualWidgets === "function") {
+      window.AppShell.syncContextualWidgets();
+    }
     var filename = getSampleFilename(state.pitchNote, state.firstString);
     await transitionToSample(filename);
     updateWidgetUiState();
   }
 
   function stopTanpura() {
+    transitionSeq += 1;
     state.isPlaying = false;
     stopActiveSource();
     updateWidgetUiState();
@@ -406,6 +476,7 @@
       state.firstString = optFirstString;
     }
 
+    savePrefs();
     updateWidgetUiDetails();
 
     if (state.isPlaying && changed) {
@@ -418,6 +489,7 @@
     if (s !== "Pa" && s !== "Ma") return;
     if (state.firstString === s) return;
     state.firstString = s;
+    savePrefs();
     updateWidgetUiDetails();
     if (state.isPlaying) {
       var filename = getSampleFilename(state.pitchNote, state.firstString);
@@ -430,9 +502,12 @@
     state.transitionSpeedLevel = val;
     var cfg = TRANSITION_LEVELS[val] || TRANSITION_LEVELS[3];
     state.transitionSec = cfg.duration;
+    savePrefs();
 
     var lbl = document.getElementById("tanpuraTransitionSpeedLabel");
     if (lbl) lbl.textContent = cfg.name;
+    var range = document.getElementById("tanpuraTransitionRange");
+    if (range && String(range.value) !== String(val)) range.value = String(val);
   }
 
   function updateWidgetUiDetails() {
@@ -443,6 +518,9 @@
 
     var curNoteEl = document.getElementById("tanpuraNoteKeyBadge");
     if (curNoteEl) curNoteEl.textContent = state.pitchNote;
+
+    var volRange = document.getElementById("tanpuraVolumeRange");
+    if (volRange) volRange.value = String(state.volume);
 
     document.querySelectorAll(".tanpura-pitch-btn").forEach(function (btn) {
       var p = btn.getAttribute("data-pitch");
@@ -470,9 +548,12 @@
   }
 
   function updateWidgetUiState() {
-    var widget = document.getElementById("tanpuraFloatingWidget");
+    var widget = getPrimaryWidget();
     if (widget) {
       widget.classList.toggle("is-playing", state.isPlaying);
+      if (state.isPlaying) {
+        widget.classList.add("visible");
+      }
     }
 
     var playIcon = document.getElementById("tanpuraPlayIcon");
@@ -499,6 +580,7 @@
   }
 
   window.BhajanTanpura = {
+    __initialized: true,
     start: startTanpura,
     stop: stopTanpura,
     toggle: toggleTanpura,
@@ -511,6 +593,7 @@
     },
     setVolume: function (v) {
       state.volume = Math.max(0, Math.min(1, v));
+      savePrefs();
       if (masterGain && audioCtx) {
         masterGain.gain.setValueAtTime(state.volume, audioCtx.currentTime);
       }
@@ -521,7 +604,7 @@
     var parsed = parsePitchString(pitchStr);
     setPitch(parsed.note, optFirstString);
 
-    var widget = document.getElementById("tanpuraFloatingWidget");
+    var widget = getPrimaryWidget();
     if (widget) {
       widget.classList.add("visible");
     }

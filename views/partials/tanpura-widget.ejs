@@ -139,10 +139,13 @@
 
   // --- Movable & Edge-Snapping Widget Controller ---
   (function () {
-    var widget = document.getElementById('tanpuraFloatingWidget');
-    var pill = document.getElementById('tanpuraMiniPill');
-    var playBtn = document.getElementById('tanpuraPlayPauseBtn');
-    if (!widget || !pill) return;
+    var widget = document.querySelector('body > #tanpuraFloatingWidget') || document.getElementById('tanpuraFloatingWidget');
+    if (!widget || widget.dataset.tanpuraBound === '1') return;
+    widget.dataset.tanpuraBound = '1';
+
+    var pill = widget.querySelector('#tanpuraMiniPill') || document.getElementById('tanpuraMiniPill');
+    var playBtn = widget.querySelector('#tanpuraPlayPauseBtn') || document.getElementById('tanpuraPlayPauseBtn');
+    if (!pill) return;
 
     var isPointerDown = false;
     var isDragging = false;
@@ -153,6 +156,23 @@
     var movedDist = 0;
     var touchedPlayBtn = false;
     var lastPlayToggle = 0;
+
+    function clampTanpuraTop(rawTop) {
+      var minTop = 68;
+      var bottomClearance = window.innerWidth <= 1024 ? 132 : 80;
+      var maxTop = Math.max(minTop, window.innerHeight - bottomClearance);
+      return Math.max(minTop, Math.min(maxTop, rawTop));
+    }
+
+    function clampTanpuraPosition() {
+      if (widget.style.top && widget.style.top !== 'auto') {
+        var parsedTop = parseFloat(widget.style.top);
+        if (!isNaN(parsedTop)) {
+          widget.style.top = clampTanpuraTop(parsedTop) + 'px';
+        }
+      }
+      updateTanpuraOpenDirection();
+    }
 
     // Restore saved position from localStorage
     try {
@@ -171,8 +191,7 @@
           widget.style.left = 'auto';
         }
         if (typeof parsed.top === 'number') {
-          var maxTop = window.innerHeight - 80;
-          widget.style.top = Math.max(40, Math.min(maxTop, parsed.top)) + 'px';
+          widget.style.top = clampTanpuraTop(parsed.top) + 'px';
           widget.style.bottom = 'auto';
         }
       } else {
@@ -181,7 +200,7 @@
     } catch (_) {
       widget.classList.add('dock-right');
     }
-    updateTanpuraOpenDirection();
+    clampTanpuraPosition();
 
     // Prevent default click on playBtn since tap gesture is handled in pointerup
     if (playBtn) {
@@ -244,7 +263,7 @@
         var rect = widget.getBoundingClientRect();
         var centerPoint = rect.left + rect.width / 2;
         var snapToLeft = centerPoint < (window.innerWidth / 2);
-        var finalTop = Math.max(40, Math.min(window.innerHeight - 80, rect.top));
+        var finalTop = clampTanpuraTop(rect.top);
 
         if (snapToLeft) {
           widget.classList.add('dock-left');
@@ -301,6 +320,7 @@
       }
     });
 
-    window.addEventListener('resize', updateTanpuraOpenDirection);
+    window.addEventListener('resize', clampTanpuraPosition);
+    window.addEventListener('orientationchange', clampTanpuraPosition);
   })();
 </script>
