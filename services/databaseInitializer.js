@@ -120,30 +120,25 @@ async function syncMasterBhajans() {
       "SELECT value FROM _app_meta WHERE key = 'master_bhajans_sha256' LIMIT 1"
     );
     const storedHash = metaRows && metaRows[0] ? metaRows[0].value : null;
-    const currentActiveCount = await MasterBhajan.count({ where: { is_active: true } });
+    const seedIds = data.map((item) => item.id);
+    const activeSeedCount = await MasterBhajan.count({
+      where: {
+        id: { [require("sequelize").Op.in]: seedIds },
+        is_active: true
+      }
+    });
 
-    if (storedHash === contentHash && currentActiveCount === data.length) {
+    // Only the rows owned by the bundled seed file determine whether a sync is
+    // needed. Super-admin-created rows are database-owned records and must not
+    // be counted as seed rows or archived during a deployment.
+    if (storedHash === contentHash && activeSeedCount === data.length) {
       return;
     }
 
-    const { Op } = require("sequelize");
-    const validIds = new Set(data.map((item) => item.id));
-
-    // 1. Deactivate all non-Prashanti Mandir bhajans
-    const [deactivated] = await MasterBhajan.update(
-      { is_active: false },
-      {
-        where: {
-          id: { [Op.notIn]: Array.from(validIds) },
-          is_active: true
-        }
-      }
-    );
-    if (deactivated > 0) {
-      console.log(`📦 Archived ${deactivated} non-Prashanti Mandir bhajans.`);
-    }
-
-    // 2. Batch-upsert authoritative 1,024 Prashanti Mandir bhajans in safe parameter chunks
+    // Never deactivate rows outside the bundled seed set. Those rows may have
+    // been created by a super admin and are authoritative database records.
+    // The upsert below only inserts/updates the known seed IDs.
+    // Batch-upsert authoritative Prashanti Mandir seed rows in safe chunks
     const preparedRows = data.map((item) => {
       let deityClean = item.deity;
       if (deityClean) {
@@ -597,5 +592,6 @@ async function initializeDatabase() {
 
 module.exports = {
   initializeDatabase,
-  repairEscapedBulletinTitles
+  repairEscapedBulletinTitles,
+  syncMasterBhajans
 };
