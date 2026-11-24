@@ -20,6 +20,7 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1155.0",
+    "@breezystack/lamejs": "^1.2.7",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.2",
     "connect-session-sequelize": "^8.0.6",
@@ -40,7 +41,8 @@
     "pino-pretty": "^13.2.0",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "ws": "^8.23.0"
   },
   "devDependencies": {
     "eslint": "^9.39.5",

@@ -63,9 +63,18 @@ const { getMasterCatalog, getSingersCatalog } = require("./services/catalogCache
 // ============================================================
 
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 5000;
 
-app.use(compression());
+app.use(
+  compression({
+    filter: (req, res) => {
+      if (req.path === "/api/live-stream/audio" || req.path === "/api/live-stream/events") {
+        return false;
+      }
+      return compression.filter(req, res);
+    }
+  })
+);
 
 // Healthcheck endpoint for Railway and deployment monitoring
 app.get("/healthz", async (req, res) => {
@@ -127,7 +136,7 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
         scriptSrcAttr: ["'unsafe-inline'"],
-        connectSrc: ["'self'", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+        connectSrc: ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://oauth2.googleapis.com"],
         frameSrc: ["'self'", "https://accounts.google.com"],
         workerSrc: ["'self'"],
         manifestSrc: ["'self'"],
@@ -144,7 +153,14 @@ app.use(
 );
 
 app.use((req, res, next) => {
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  const isLiveStudio =
+    req.path === "/admin/live-stream" || req.path.startsWith("/admin/live-stream/");
+  res.setHeader(
+    "Permissions-Policy",
+    isLiveStudio
+      ? "camera=(), microphone=(self), geolocation=(), payment=()"
+      : "camera=(), microphone=(), geolocation=(), payment=()"
+  );
   next();
 });
 
@@ -339,6 +355,7 @@ const bulletinRoutes = require("./routes/bulletin");
 const diwaliRoutes = require("./routes/diwali");
 const reportsRoutes = require("./routes/reports");
 const singerHubRoutes = require("./routes/singerHub");
+const liveStreamRoutes = require("./routes/liveStream");
 
 // Native Single-DOM App Shell mapping for top-level browser navigation & refresh
 const SHELL_TAB_MAP = {
@@ -490,6 +507,7 @@ app.use("/", bulletinRoutes);
 app.use("/", diwaliRoutes);
 app.use("/", reportsRoutes);
 app.use("/", singerHubRoutes);
+app.use("/", liveStreamRoutes);
 
 // 404 Not Found Handler
 app.use((req, res, next) => {
@@ -573,6 +591,11 @@ async function gracefulShutdown(signal) {
   } catch (_) {}
 
   try {
+    const { shutdownLiveStream } = require("./services/liveStreamService");
+    shutdownLiveStream();
+  } catch (_) {}
+
+  try {
     const { flushActivityBuffer } = require("./middleware/activityTracker");
     await flushActivityBuffer();
   } catch (err) {
@@ -641,6 +664,8 @@ async function startServer() {
 
     return new Promise((resolve, reject) => {
       serverInstance = app.listen(PORT, () => {
+        const { attachLiveStreamWebSocket } = require("./services/liveStreamService");
+        attachLiveStreamWebSocket(serverInstance);
         logger.info(`🕉️ Sai Ram! Bhajan Scheduler running on port ${PORT}`);
         console.log(`🕉️ Sai Ram! Bhajan Scheduler is running on http://localhost:${PORT}`);
         resolve(serverInstance);

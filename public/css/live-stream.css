@@ -1,0 +1,222 @@
+/* ==========================================================================
+   PERSISTENT DEVOTEE LIVE STREAM HEADER PILL & STICKY AUDIO BAR
+   ========================================================================== */
+
+.shell-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.14), rgba(217, 119, 6, 0.14));
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.shell-live-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
+}
+
+.shell-live-pill.is-playing {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #ffffff;
+  border-color: #b91c1c;
+}
+
+[data-theme="dark"] .shell-live-pill {
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.22);
+}
+
+[data-theme="dark"] .shell-live-pill.is-playing {
+  color: #ffffff;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+}
+
+.shell-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: bpLiveDotPulse 1.4s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.shell-live-pill.is-playing .shell-live-dot {
+  background: #ffffff;
+}
+
+@keyframes bpLiveDotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+
+/* Sticky Bottom Live Stream Bar */
+.sticky-live-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translate(-50%, 130%);
+  width: calc(100% - 28px);
+  max-width: 780px;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: 16px;
+  padding: 10px 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  z-index: 950;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, visibility 0.22s ease;
+}
+
+.sticky-live-bar.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+[data-theme="dark"] .sticky-live-bar {
+  background: rgba(24, 21, 18, 0.96);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+
+@media (max-width: 1024px) {
+  .sticky-live-bar {
+    bottom: 84px;
+  }
+}
+
+.live-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.live-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.live-bar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.live-bar-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.live-bar-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #1c1917);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-bar-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted, #78716c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.live-play-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.35);
+}
+
+.live-lyrics-btn {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .live-lyrics-btn {
+  color: #fbbf24;
+}
+
+.live-vol-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 520px) {
+  .live-vol-wrap {
+    display: none;
+  }
+}
+
+.live-vol-range {
+  width: 68px;
+  accent-color: #dc2626;
+}
+
+.live-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #e5e0d8);
+  background: transparent;
+  color: var(--muted, #78716c);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}

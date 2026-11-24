@@ -423,6 +423,9 @@
     },
 
     playAt: function (seconds, optTitle, optSinger, optAudioUrl) {
+      if (window.LiveStreamPlayer && typeof window.LiveStreamPlayer.stop === "function") {
+        try { window.LiveStreamPlayer.stop(); } catch (_) {}
+      }
       ensurePlayerBarDom();
       var audio = getOrCreateAudio();
 
@@ -522,6 +525,9 @@
       document.body.classList.add("has-sticky-audio-bar");
 
       if (audio.paused) {
+        if (window.LiveStreamPlayer && typeof window.LiveStreamPlayer.stop === "function") {
+          try { window.LiveStreamPlayer.stop(); } catch (_) {}
+        }
         var p = audio.play();
         if (p && p.catch) {
           p.catch(function (e) {

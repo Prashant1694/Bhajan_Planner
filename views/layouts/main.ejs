@@ -75,6 +75,10 @@
     <link rel="stylesheet" href="/css/<%= pageCSS %>?v=6.10">
   <% } %>
 
+  <% if (!isEmbed && !isAuthAdmin) { %>
+    <link rel="stylesheet" href="/css/live-stream.css?v=1.0">
+  <% } %>
+
   <!-- Native Polish Layer (Loaded Last) -->
   <link rel="stylesheet" href="/css/native.css?v=6.7">
 
@@ -295,6 +299,9 @@
   <% if (!isEmbed) { %>
     <script src="/js/pwa.js?v=6.7"></script>
     <script src="/js/notifications.js?v=6.7"></script>
+    <% if (!isAuthAdmin) { %>
+      <script src="/js/live-stream-player.js?v=1.0"></script>
+    <% } %>
   <% } %>
   <script>
     (function () {

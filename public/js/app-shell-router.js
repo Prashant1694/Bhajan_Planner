@@ -37,6 +37,7 @@
     "notifications.js",
     "tanpura.js",
     "session-audio-player.js",
+    "live-stream-player.js",
     "loading.js",
     "app-shell-router.js"
   ]);

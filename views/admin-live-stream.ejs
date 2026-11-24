@@ -1,0 +1,404 @@
+<%
+  const studioJsonFn = typeof safeJson === "function"
+    ? safeJson
+    : function (v) {
+        return JSON.stringify(v)
+          .replace(/</g, "\\u003c")
+          .replace(/>/g, "\\u003e")
+          .replace(/&/g, "\\u0026")
+          .replace(/\u2028/g, "\\u2028")
+          .replace(/\u2029/g, "\\u2029");
+      };
+%>
+
+<div class="ls-studio-wrap">
+  <!-- Studio Header & Live Telemetry -->
+  <div class="ls-top-hero">
+    <div class="ls-hero-title-group">
+      <div class="ls-status-orb" id="lsStatusOrb"></div>
+      <div>
+        <h1 class="ls-hero-title">Live Stream Broadcast Studio</h1>
+        <p class="ls-hero-sub" id="lsStatusText">Offline — Ready to Connect Interface</p>
+      </div>
+    </div>
+
+    <div class="ls-telemetry-strip">
+      <span class="ls-stat-chip" id="lsHwInfoPill">Interface: Idle</span>
+      <span class="ls-stat-chip live-active">
+        Listeners: <strong id="lsListenerCount"><%= streamState.listenerCount || 0 %></strong>
+      </span>
+      <span class="ls-stat-chip" id="lsElapsedTime">00:00</span>
+      <span class="ls-stat-chip" id="lsBytesSent">0.00 MB sent</span>
+    </div>
+  </div>
+
+  <div class="ls-warning-banner" id="lsStudioNotice" style="display:none;"></div>
+
+  <div class="ls-warning-banner" id="lsMonoWarning" style="display:none;">
+    <strong>Notice:</strong> Windows gave Chrome only <strong>1 mono channel</strong> for the selected audio device. To keep Instruments (Ch 1) and Vocals (Ch 2) digitally separated while recording in Adobe Audition CC, set Windows Sound Recording Format to <strong>2 channel, 24-bit, 48000 Hz</strong> and disable Exclusive Mode.
+  </div>
+
+  <!-- Collapsible Hardware Setup Guide -->
+  <details class="ls-setup-details">
+    <summary>
+      <span>Behringer 2-Channel + Adobe Audition CC Setup Guide (Record Dry Tracks + Stream Simultaneously)</span>
+      <span class="ls-badge-pill">Mode A Guide</span>
+    </summary>
+    <div class="ls-setup-body">
+      <div class="ls-setup-step">
+        <strong>1. Windows Sound Settings (One-Time)</strong>
+        Open <code>mmsys.cpl</code> &rarr; Recording &rarr; Behringer USB Audio &rarr; Properties &rarr; Advanced: pick <strong>2 channel, 24-bit, 48000 Hz</strong> and uncheck <em>"Allow applications to take exclusive control"</em>.
+      </div>
+      <div class="ls-setup-step">
+        <strong>2. Adobe Audition CC Multitrack</strong>
+        Preferences &rarr; Audio Hardware &rarr; Device Class: switch from ASIO to <strong>WASAPI</strong>. Arm Track 1 on Mono Input 1 (Instruments) and Track 2 on Mono Input 2 (Vocals) so both dry channels record independently.
+      </div>
+      <div class="ls-setup-step">
+        <strong>3. Earphone Monitoring</strong>
+        Plug earphones into your laptop headphone jack or interface monitor out. Click <strong>Start Audio Soundcheck</strong>, turn <strong>Earphone Monitor: ON</strong>, and tune EQ/Reverb/Vocals live without feedback!
+      </div>
+    </div>
+  </details>
+
+  <div class="ls-main-grid">
+    <!-- LEFT COLUMN: AUDIO INPUT + 2-BUS MIXER + EFFECTS RACK -->
+    <div>
+      <!-- 1. Input Routing & Presets -->
+      <div class="ls-card">
+        <div class="ls-card-header">
+          <h2 class="ls-card-title">
+            1. Audio Interface &amp; Preset Rack
+            <span class="ls-badge-pill">48 kHz Float DSP</span>
+          </h2>
+          <div class="ls-btn-row">
+            <button type="button" class="ls-btn" id="lsRefreshDevicesBtn">Detect / Refresh Devices</button>
+            <button type="button" class="ls-btn ls-btn-primary" id="lsSoundcheckBtn">Start Audio Soundcheck</button>
+          </div>
+        </div>
+
+        <div class="ls-form-row">
+          <div class="ls-field">
+            <label for="lsAudioInputSelect">Audio Interface / Line Input</label>
+            <select class="ls-select" id="lsAudioInputSelect"></select>
+          </div>
+          <div class="ls-field">
+            <label for="lsInputMode">Routing Mode</label>
+            <select class="ls-select" id="lsInputMode">
+              <option value="split">Mode A: 2-Channel Split (Ch 1 Instruments / Ch 2 Vocals)</option>
+              <option value="stereo">Mode B: Stereo Master Pass-Through (Pre-mixed)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ls-form-row">
+          <div class="ls-field">
+            <label for="lsPresetSelect">EQ &amp; Effects Preset</label>
+            <select class="ls-select" id="lsPresetSelect"></select>
+          </div>
+          <div class="ls-field" style="justify-content:flex-end;">
+            <label>&nbsp;</label>
+            <div class="ls-btn-row">
+              <button type="button" class="ls-btn" id="lsSwapBtn" title="Swap Ch 1 and Ch 2 inputs">Swap Ch1 &harr; Ch2</button>
+              <button type="button" class="ls-btn" id="lsSavePresetBtn">Save Preset</button>
+              <button type="button" class="ls-btn" id="lsDeletePresetBtn" disabled>Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Audio File Test Source (Test EQ, Earphone Monitor & 320kbps Stream without Hall Gear) -->
+        <div class="ls-channel-strip" style="margin-bottom:12px;">
+          <div class="ls-channel-head" style="margin-bottom:8px;">
+            <div>
+              <div class="ls-channel-name">Test With Local Audio File (No Interface Needed)</div>
+              <div class="ls-channel-tag" id="lsTestFileStatus">No test file selected</div>
+            </div>
+            <label class="ls-checkbox-line">
+              <input type="checkbox" id="lsTestFileLoopCheck" checked>
+              Loop
+            </label>
+          </div>
+          <div class="ls-btn-row">
+            <input type="file" id="lsTestFileInput" accept="audio/*" class="ls-input" style="flex:1;min-width:210px;padding:6px 10px;">
+            <button type="button" class="ls-btn ls-btn-primary" id="lsUseTestFileBtn" disabled>Play Test File in Studio</button>
+            <button type="button" class="ls-btn" id="lsTestFilePauseBtn" style="display:none;">Pause File</button>
+          </div>
+        </div>
+
+        <!-- Earphone Monitor Bar -->
+        <div class="ls-monitor-box">
+          <button type="button" class="ls-btn" id="lsMonitorToggleBtn">Earphone Monitor: OFF</button>
+          <div style="display:flex;align-items:center;gap:8px;min-width:170px;">
+            <span class="ls-slider-label">Earphone Vol</span>
+            <input type="range" class="ls-range" id="lsMonitorVol" min="0" max="100" value="80">
+            <span class="ls-slider-val" id="lsMonitorVolVal">80%</span>
+          </div>
+          <div class="ls-field" style="flex:1;min-width:200px;">
+            <select class="ls-select" id="lsMonitorOutputSelect" aria-label="Earphone Output Device"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Dual-Bus Channels (Instruments & Vocals) -->
+      <div class="ls-card">
+        <div class="ls-card-header">
+          <h2 class="ls-card-title">2. Dual-Bus Channel Strips (Mode A)</h2>
+          <span class="ls-channel-tag">Auto-centered in stereo master mix</span>
+        </div>
+
+        <div class="ls-channels-grid" id="lsChannelsGrid">
+          <!-- CH 1: INSTRUMENTS -->
+          <div class="ls-channel-strip">
+            <div class="ls-channel-head">
+              <div>
+                <div class="ls-channel-name">Channel 1 &middot; Instruments</div>
+                <div class="ls-channel-tag">Harmonium, Tabla, Manjira bus</div>
+              </div>
+              <span class="ls-clip-pill" id="lsInstClip">CLIP</span>
+            </div>
+            <div class="ls-meter-bar-bg">
+              <div class="ls-meter-fill" id="lsInstMeterFill"></div>
+            </div>
+            <div class="ls-btn-row" style="margin-bottom:10px;">
+              <button type="button" class="ls-btn" id="lsInstMuteBtn">Mute</button>
+              <button type="button" class="ls-btn" id="lsInstSoloBtn">Solo (Earphones)</button>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Input Gain</span>
+              <input type="range" class="ls-range" id="lsInstGain" min="0" max="200" value="100">
+              <span class="ls-slider-val" id="lsInstGainVal">100%</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Low Cut HPF</span>
+              <input type="range" class="ls-range" id="lsInstHpf" min="20" max="200" value="45">
+              <span class="ls-slider-val" id="lsInstHpfVal">45 Hz</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Low (90 Hz)</span>
+              <input type="range" class="ls-range" id="lsInstLow" min="-12" max="12" step="0.5" value="1.5">
+              <span class="ls-slider-val" id="lsInstLowVal">1.5 dB</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Mid (450 Hz)</span>
+              <input type="range" class="ls-range" id="lsInstMid" min="-12" max="12" step="0.5" value="0">
+              <span class="ls-slider-val" id="lsInstMidVal">0 dB</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">High (4.5 kHz)</span>
+              <input type="range" class="ls-range" id="lsInstHigh" min="-12" max="12" step="0.5" value="-1">
+              <span class="ls-slider-val" id="lsInstHighVal">-1 dB</span>
+            </div>
+          </div>
+
+          <!-- CH 2: VOCALS -->
+          <div class="ls-channel-strip">
+            <div class="ls-channel-head">
+              <div>
+                <div class="ls-channel-name">Channel 2 &middot; Vocals</div>
+                <div class="ls-channel-tag">Lead &amp; chorus singers bus</div>
+              </div>
+              <span class="ls-clip-pill" id="lsVocalClip">CLIP</span>
+            </div>
+            <div class="ls-meter-bar-bg">
+              <div class="ls-meter-fill" id="lsVocalMeterFill"></div>
+            </div>
+            <div class="ls-btn-row" style="margin-bottom:10px;">
+              <button type="button" class="ls-btn" id="lsVocalMuteBtn">Mute</button>
+              <button type="button" class="ls-btn" id="lsVocalSoloBtn">Solo (Earphones)</button>
+              <button type="button" class="ls-btn is-toggled" id="lsVocalCompBtn">Vocal Comp: ON</button>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Vocal Gain</span>
+              <input type="range" class="ls-range" id="lsVocalGain" min="0" max="200" value="112">
+              <span class="ls-slider-val" id="lsVocalGainVal">112%</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Low Cut HPF</span>
+              <input type="range" class="ls-range" id="lsVocalHpf" min="20" max="240" value="85">
+              <span class="ls-slider-val" id="lsVocalHpfVal">85 Hz</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Warmth (220Hz)</span>
+              <input type="range" class="ls-range" id="lsVocalLow" min="-12" max="12" step="0.5" value="0.5">
+              <span class="ls-slider-val" id="lsVocalLowVal">0.5 dB</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Clarity (3.2k)</span>
+              <input type="range" class="ls-range" id="lsVocalMid" min="-12" max="12" step="0.5" value="2.5">
+              <span class="ls-slider-val" id="lsVocalMidVal">2.5 dB</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Air (9 kHz)</span>
+              <input type="range" class="ls-range" id="lsVocalHigh" min="-12" max="12" step="0.5" value="1.5">
+              <span class="ls-slider-val" id="lsVocalHighVal">1.5 dB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mandir Hall Reverb -->
+        <div class="ls-channel-strip">
+          <div class="ls-channel-head">
+            <div class="ls-channel-name">Mandir Hall Reverb &amp; Ambience</div>
+            <span class="ls-channel-tag">Smooth stereo room blend</span>
+          </div>
+          <div class="ls-form-row" style="margin-bottom:0;">
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Reverb Mix</span>
+              <input type="range" class="ls-range" id="lsReverbWet" min="0" max="45" step="1" value="14">
+              <span class="ls-slider-val" id="lsReverbWetVal">14%</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Hall Decay</span>
+              <input type="range" class="ls-range" id="lsReverbDecay" min="0.5" max="2.6" step="0.1" value="1.4">
+              <span class="ls-slider-val" id="lsReverbDecayVal">1.4s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 5-Band Master EQ & Safety Limiter -->
+      <div class="ls-card">
+        <div class="ls-card-header">
+          <h2 class="ls-card-title">3. Master 5-Band EQ &amp; Limiter</h2>
+          <div class="ls-btn-row">
+            <span class="ls-clip-pill" id="lsMasterClip">MASTER CLIP</span>
+            <button type="button" class="ls-btn" id="lsMasterBypassBtn">EQ Active</button>
+            <button type="button" class="ls-btn is-toggled" id="lsLimiterBtn">Limiter: ON (-1.5dB)</button>
+          </div>
+        </div>
+
+        <div class="ls-meter-bar-bg">
+          <div class="ls-meter-fill" id="lsMasterMeterFill"></div>
+        </div>
+
+        <div class="ls-eq-bands-grid">
+          <div class="ls-eq-band-box">
+            <div class="ls-eq-freq">80 Hz</div>
+            <div class="ls-eq-db" id="lsMaster80Val">0.5 dB</div>
+            <input type="range" class="ls-range" id="lsMaster80" min="-12" max="12" step="0.5" value="0.5">
+          </div>
+          <div class="ls-eq-band-box">
+            <div class="ls-eq-freq">250 Hz</div>
+            <div class="ls-eq-db" id="lsMaster250Val">-1.5 dB</div>
+            <input type="range" class="ls-range" id="lsMaster250" min="-12" max="12" step="0.5" value="-1.5">
+          </div>
+          <div class="ls-eq-band-box">
+            <div class="ls-eq-freq">1 kHz</div>
+            <div class="ls-eq-db" id="lsMaster1kVal">0 dB</div>
+            <input type="range" class="ls-range" id="lsMaster1k" min="-12" max="12" step="0.5" value="0">
+          </div>
+          <div class="ls-eq-band-box">
+            <div class="ls-eq-freq">3.5 kHz</div>
+            <div class="ls-eq-db" id="lsMaster3k5Val">1.5 dB</div>
+            <input type="range" class="ls-range" id="lsMaster3k5" min="-12" max="12" step="0.5" value="1.5">
+          </div>
+          <div class="ls-eq-band-box">
+            <div class="ls-eq-freq">10 kHz</div>
+            <div class="ls-eq-db" id="lsMaster10kVal">1 dB</div>
+            <input type="range" class="ls-range" id="lsMaster10k" min="-12" max="12" step="0.5" value="1">
+          </div>
+        </div>
+
+        <div class="ls-slider-row" style="margin-top:10px;margin-bottom:0;">
+          <span class="ls-slider-label">Master Out</span>
+          <input type="range" class="ls-range" id="lsMasterGain" min="0" max="160" value="100">
+          <span class="ls-slider-val" id="lsMasterGainVal">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: GO LIVE CONTROLS + NOW SINGING SYNC -->
+    <div>
+      <div class="ls-card">
+        <div class="ls-card-header">
+          <h2 class="ls-card-title">4. Stream Broadcast Control</h2>
+          <span class="ls-badge-pill">Up to 320 kbps MP3</span>
+        </div>
+
+        <div class="ls-field" style="margin-bottom:10px;">
+          <label for="lsStreamTitle">Stream Session Title</label>
+          <input type="text" class="ls-input" id="lsStreamTitle" value="Thursday Evening Bhajan Satsang" maxlength="120">
+        </div>
+
+        <div class="ls-form-row">
+          <div class="ls-field">
+            <label for="lsBitrateSelect">Audio Stream Quality</label>
+            <select class="ls-select" id="lsBitrateSelect">
+              <option value="320" selected>320 kbps Stereo (Studio HQ)</option>
+              <option value="256">256 kbps Stereo (High)</option>
+              <option value="192">192 kbps Stereo (Balanced)</option>
+              <option value="128">128 kbps Stereo (Low Wi-Fi)</option>
+            </select>
+          </div>
+          <div class="ls-field">
+            <label for="lsAccessModeSelect">Who Can Listen</label>
+            <select class="ls-select" id="lsAccessModeSelect">
+              <option value="public" selected>Public (All App Visitors)</option>
+              <option value="singers_only">Signed-In Singers Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0 16px;">
+          <label class="ls-checkbox-line">
+            <input type="checkbox" id="lsNotifyDevoteesCheck" checked>
+            Send Native Push Notification to Devotees on Go Live
+          </label>
+          <label class="ls-checkbox-line">
+            <input type="checkbox" id="lsBackupRecordCheck" checked>
+            Save 320 kbps Master MP3 Backup in Browser (Download after stream)
+          </label>
+        </div>
+
+        <div class="ls-btn-row">
+          <button type="button" class="ls-btn ls-btn-go-live" id="lsGoLiveBtn">Go Live Now</button>
+          <button type="button" class="ls-btn ls-btn-stop" id="lsStopBtn" disabled>End Stream</button>
+          <button type="button" class="ls-btn" id="lsBroadcastMuteBtn">Mute Broadcast</button>
+        </div>
+
+        <div class="ls-backup-box" id="lsBackupBox" style="display:none;">
+          <div>
+            <strong>Master Mix Backup Ready</strong>
+            <div class="ls-hero-sub" id="lsBackupSizeText"></div>
+          </div>
+          <a class="ls-btn ls-btn-primary" id="lsBackupDownloadLink" href="#" download="bhajan-live.mp3" style="text-decoration:none;">
+            Download MP3
+          </a>
+        </div>
+      </div>
+
+      <!-- Now Singing Live Sync -->
+      <div class="ls-card">
+        <div class="ls-card-header">
+          <h2 class="ls-card-title">5. "Now Singing" Live Sync</h2>
+          <button type="button" class="ls-btn" id="lsClearNowSingingBtn">Clear</button>
+        </div>
+
+        <div class="ls-form-row" style="align-items:end;">
+          <div class="ls-field">
+            <label for="lsSessionDateInput">Session Date</label>
+            <input type="date" class="ls-input" id="lsSessionDateInput" value="<%= sessionDate %>">
+          </div>
+          <div class="ls-field">
+            <button type="button" class="ls-btn" id="lsLoadDateBhajansBtn">Load Session Bhajans</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px;font-size:12.5px;color:var(--muted,#78716c);">
+          Active on Listeners' Player: <strong id="lsNowSingingCurrent" style="color:var(--ink,#1c1917);"><%= streamState.nowSinging ? (streamState.nowSinging.title + (streamState.nowSinging.singerName ? ' — ' + streamState.nowSinging.singerName : '')) : 'None selected' %></strong>
+        </div>
+
+        <div class="ls-bhajan-list" id="lsBhajanPickerList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.__LIVE_STUDIO_BOOT__ = {
+    sessionDate: <%- studioJsonFn(sessionDate) %>,
+    bhajans: <%- studioJsonFn(scheduledBhajans) %>,
+    presets: <%- studioJsonFn(presets) %>,
+    streamState: <%- studioJsonFn(streamState) %>
+  };
+</script>
+<script src="/js/live-stream-studio.js?v=1.0"></script>

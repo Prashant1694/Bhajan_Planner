@@ -24,6 +24,8 @@ const SessionPermission = require("../models/SessionPermission");
 const SessionMeta = require("../models/SessionMeta");
 const SessionAudio = require("../models/SessionAudio");
 const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
+const LiveStream = require("../models/LiveStream");
+const LiveStreamPreset = require("../models/LiveStreamPreset");
 
 async function initializeSuperAdmin() {
   const superAdminCount = await AdminUser.count({
@@ -552,6 +554,10 @@ async function repairEscapedBulletinTitles() {
 async function initializeDatabase() {
   try {
     await sequelize.sync();
+    await LiveStream.update(
+      { status: "offline", ended_at: new Date(), updated_at: new Date() },
+      { where: { status: "live" } }
+    );
     await ensureAdminUserColumns();
     await ensureSingerGenderColumn();
     await ensureSingerPinColumn();

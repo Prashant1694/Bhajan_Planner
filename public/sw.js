@@ -101,6 +101,9 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin !== self.location.origin) return;
 
+  // Never intercept infinite live audio stream or SSE endpoints
+  if (url.pathname.startsWith("/api/live-stream/")) return;
+
   // 2. App Shell Fragment Requests (X-App-Shell: 1): network-first, clean 503 on offline
   if (request.headers.get("X-App-Shell") === "1") {
     event.respondWith(
