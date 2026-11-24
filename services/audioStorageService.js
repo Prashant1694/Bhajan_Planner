@@ -4,11 +4,25 @@
  * and timestamp formatting for Mandir session recordings.
  */
 
-const { S3Client, ListObjectsV2Command, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  S3Client,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand
+} = require("@aws-sdk/client-s3");
 
 let s3ClientInstance = null;
+let testS3Override = null;
+
+function __setS3ClientForTest(mockClient) {
+  testS3Override = mockClient || null;
+}
 
 function getS3Client() {
+  if (testS3Override) return testS3Override;
   if (s3ClientInstance) return s3ClientInstance;
 
   const accountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
@@ -175,10 +189,184 @@ function parseTimestampToSeconds(input) {
   return 0;
 }
 
+function sanitizeR2StorageKey(rawKey, fallbackDate) {
+  const safeDate =
+    fallbackDate && /^\d{4}-\d{2}-\d{2}$/.test(String(fallbackDate).trim())
+      ? String(fallbackDate).trim()
+      : new Date().toISOString().slice(0, 10);
+  const raw = String(rawKey || "").trim().replace(/\\/g, "/");
+  if (!raw || raw.includes("..")) {
+    return `recordings/${safeDate}-session.mp3`;
+  }
+  const cleaned = raw
+    .replace(/^\/+/, "")
+    .replace(/\/+/g, "/")
+    .replace(/[^a-zA-Z0-9._/-]/g, "-");
+  return cleaned || `recordings/${safeDate}-session.mp3`;
+}
+
+function formatR2Error(err) {
+  const msg = String(err && err.message ? err.message : "Cloudflare R2 upload error");
+  const code = err && (err.name || err.Code || err.code);
+  const httpStatus = err && err.$metadata && err.$metadata.httpStatusCode;
+  if (
+    httpStatus === 403 ||
+    /AccessDenied|Forbidden|Unauthorized/i.test(`${code} ${msg}`)
+  ) {
+    return new Error(
+      `Cloudflare R2 permission denied (${code || 403}). Ensure your R2 API token has Object Read & Write permissions for bucket "${process.env.CLOUDFLARE_R2_BUCKET_NAME || "your bucket"}".`
+    );
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
+function requireConfiguredR2() {
+  const client = getS3Client();
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+  if (!client || !bucket) {
+    throw new Error(
+      "Cloudflare R2 is not configured. Set CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY, and CLOUDFLARE_R2_BUCKET_NAME."
+    );
+  }
+  return { client, bucket };
+}
+
+async function putSingleObject({ key, contentType = "audio/mpeg", body }) {
+  const { client, bucket } = requireConfiguredR2();
+  const cleanKey = sanitizeR2StorageKey(key);
+  try {
+    const res = await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: cleanKey,
+        Body: body,
+        ContentType: contentType
+      })
+    );
+    return {
+      key: cleanKey,
+      publicUrl: getPublicUrlForKey(cleanKey),
+      etag: res && res.ETag ? res.ETag : ""
+    };
+  } catch (err) {
+    throw formatR2Error(err);
+  }
+}
+
+async function initMultipartUpload({ key, contentType = "audio/mpeg" }) {
+  const { client, bucket } = requireConfiguredR2();
+  const cleanKey = sanitizeR2StorageKey(key);
+  try {
+    const res = await client.send(
+      new CreateMultipartUploadCommand({
+        Bucket: bucket,
+        Key: cleanKey,
+        ContentType: contentType
+      })
+    );
+    return {
+      uploadId: res.UploadId,
+      key: cleanKey,
+      bucket
+    };
+  } catch (err) {
+    throw formatR2Error(err);
+  }
+}
+
+async function uploadMultipartPart({ key, uploadId, partNumber, body }) {
+  const { client, bucket } = requireConfiguredR2();
+  const cleanKey = sanitizeR2StorageKey(key);
+  const partNum = Number(partNumber);
+  if (!uploadId || !Number.isFinite(partNum) || partNum < 1) {
+    throw new Error("Valid uploadId and positive partNumber are required.");
+  }
+  try {
+    const res = await client.send(
+      new UploadPartCommand({
+        Bucket: bucket,
+        Key: cleanKey,
+        UploadId: uploadId,
+        PartNumber: partNum,
+        Body: body
+      })
+    );
+    return {
+      partNumber: partNum,
+      etag: res && res.ETag ? res.ETag : ""
+    };
+  } catch (err) {
+    throw formatR2Error(err);
+  }
+}
+
+async function completeMultipartUpload({ key, uploadId, parts }) {
+  const { client, bucket } = requireConfiguredR2();
+  const cleanKey = sanitizeR2StorageKey(key);
+  if (!uploadId || !Array.isArray(parts) || parts.length === 0) {
+    throw new Error("uploadId and uploaded parts array are required to complete upload.");
+  }
+  const normalizedParts = parts
+    .map((p) => ({
+      PartNumber: Number(p.PartNumber != null ? p.PartNumber : p.partNumber),
+      ETag: String(p.ETag || p.etag || "").trim()
+    }))
+    .filter((p) => Number.isFinite(p.PartNumber) && p.PartNumber > 0 && p.ETag)
+    .sort((a, b) => a.PartNumber - b.PartNumber);
+
+  if (normalizedParts.length === 0) {
+    throw new Error("No valid part ETags received to complete upload.");
+  }
+
+  try {
+    const res = await client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: cleanKey,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: normalizedParts }
+      })
+    );
+    return {
+      key: cleanKey,
+      publicUrl: getPublicUrlForKey(cleanKey),
+      etag: res && res.ETag ? res.ETag : ""
+    };
+  } catch (err) {
+    throw formatR2Error(err);
+  }
+}
+
+async function abortMultipartUpload({ key, uploadId }) {
+  const { client, bucket } = requireConfiguredR2();
+  const cleanKey = sanitizeR2StorageKey(key);
+  if (!uploadId) return false;
+  try {
+    await client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: bucket,
+        Key: cleanKey,
+        UploadId: uploadId
+      })
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   isCloudflareConfigured,
   getPublicUrlForKey,
+  sanitizeR2StorageKey,
+  formatR2Error,
   listR2AudioFiles,
+  putSingleObject,
+  initMultipartUpload,
+  uploadMultipartPart,
+  completeMultipartUpload,
+  abortMultipartUpload,
   formatSecondsToTimestamp,
-  parseTimestampToSeconds
+  parseTimestampToSeconds,
+  __setS3ClientForTest
 };

@@ -170,7 +170,12 @@ app.use(express.json({ limit: "100kb" }));
 app.use(sanitizeInputs);
 app.use(blockCrossSiteWrites);
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/activity/")) return next();
+  if (
+    req.path.startsWith("/api/activity/") ||
+    req.path === "/api/admin/live-stream/r2/upload-part"
+  ) {
+    return next();
+  }
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return generalWriteLimit(req, res, next);
   }

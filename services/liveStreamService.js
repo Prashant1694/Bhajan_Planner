@@ -18,9 +18,9 @@ const DEFAULT_PRESETS = [
       mode: "split",
       swapChannels: false,
       inst: { gain: 100, mute: false, hpf: 45, low: 1.5, mid: 0, high: -1.0 },
-      vocal: { gain: 112, mute: false, hpf: 85, low: 0.5, mid: 2.5, high: 1.5, comp: true },
+      vocal: { gain: 112, mute: false, hpf: 85, low: 0.5, mid: 2.5, deesser: 2.5, high: 1.5, comp: true },
       reverb: { wet: 14, decay: 1.4 },
-      master: { b80: 0.5, b250: -1.5, b1k: 0, b3k5: 1.5, b10k: 1.0, limiter: true, gain: 100, bypass: false }
+      master: { b80: 0.5, b250: -1.5, b1k: 0, b3k5: 1.5, b10k: 1.0, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
   {
@@ -32,9 +32,9 @@ const DEFAULT_PRESETS = [
       mode: "split",
       swapChannels: false,
       inst: { gain: 105, mute: false, hpf: 40, low: 2.0, mid: 0.5, high: -1.5 },
-      vocal: { gain: 110, mute: false, hpf: 80, low: 1.5, mid: 1.5, high: 0.5, comp: true },
+      vocal: { gain: 110, mute: false, hpf: 80, low: 1.5, mid: 1.5, deesser: 2.5, high: 0.5, comp: true },
       reverb: { wet: 24, decay: 1.8 },
-      master: { b80: 1.0, b250: -1.0, b1k: 0, b3k5: 1.0, b10k: 0.5, limiter: true, gain: 100, bypass: false }
+      master: { b80: 1.0, b250: -1.0, b1k: 0, b3k5: 1.0, b10k: 0.5, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
   {
@@ -46,9 +46,9 @@ const DEFAULT_PRESETS = [
       mode: "split",
       swapChannels: false,
       inst: { gain: 85, mute: false, hpf: 60, low: 0, mid: -2.0, high: -1.5 },
-      vocal: { gain: 120, mute: false, hpf: 95, low: -1.0, mid: 4.0, high: 2.5, comp: true },
+      vocal: { gain: 120, mute: false, hpf: 95, low: -1.0, mid: 4.0, deesser: 3.5, high: 2.5, comp: true },
       reverb: { wet: 12, decay: 1.2 },
-      master: { b80: -0.5, b250: -2.5, b1k: 0.5, b3k5: 2.5, b10k: 1.5, limiter: true, gain: 100, bypass: false }
+      master: { b80: -0.5, b250: -2.5, b1k: 0.5, b3k5: 2.5, b10k: 1.5, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
   {
@@ -60,9 +60,9 @@ const DEFAULT_PRESETS = [
       mode: "split",
       swapChannels: false,
       inst: { gain: 108, mute: false, hpf: 38, low: 3.0, mid: 1.0, high: 2.0 },
-      vocal: { gain: 110, mute: false, hpf: 85, low: 0, mid: 2.0, high: 2.0, comp: true },
+      vocal: { gain: 110, mute: false, hpf: 85, low: 0, mid: 2.0, deesser: 2.5, high: 2.0, comp: true },
       reverb: { wet: 10, decay: 1.1 },
-      master: { b80: 1.5, b250: -2.0, b1k: 0, b3k5: 2.0, b10k: 2.5, limiter: true, gain: 100, bypass: false }
+      master: { b80: 1.5, b250: -2.0, b1k: 0, b3k5: 2.0, b10k: 2.5, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
   {
@@ -74,9 +74,9 @@ const DEFAULT_PRESETS = [
       mode: "split",
       swapChannels: false,
       inst: { gain: 100, mute: false, hpf: 20, low: 0, mid: 0, high: 0 },
-      vocal: { gain: 100, mute: false, hpf: 20, low: 0, mid: 0, high: 0, comp: false },
+      vocal: { gain: 100, mute: false, hpf: 20, low: 0, mid: 0, deesser: 0, high: 0, comp: false },
       reverb: { wet: 0, decay: 1.2 },
-      master: { b80: 0, b250: 0, b1k: 0, b3k5: 0, b10k: 0, limiter: true, gain: 100, bypass: true }
+      master: { b80: 0, b250: 0, b1k: 0, b3k5: 0, b10k: 0, glueComp: false, limiter: true, gain: 100, bypass: true }
     }
   }
 ];

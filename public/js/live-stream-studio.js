@@ -67,6 +67,12 @@
   let backupDownloadUrl = null;
   let eventSource = null;
 
+  // Milestone 1: Multitrack SSD Recording, Auto-Timestamps & Cloudflare R2 Publish
+  let capturedTimestamps = [];
+  let lastRecordedResult = null;
+  let customPublishFile = null;
+  let recStatsTimer = null;
+
   // DSP Nodes
   let nodes = null;
   let monitorAudioEl = null;
@@ -126,12 +132,12 @@
     const c = activeConfig;
     const isSplit = c.mode !== "stereo";
 
-    // Channel swap matrix
+    // Channel swap matrix (always route Ch1/Ch2 inputs so dry recorder captures both stems in Mode A and Mode B)
+    rampParam(nodes.ch1FromL.gain, c.swapChannels ? 0 : 1);
+    rampParam(nodes.ch1FromR.gain, c.swapChannels ? 1 : 0);
+    rampParam(nodes.ch2FromL.gain, c.swapChannels ? 1 : 0);
+    rampParam(nodes.ch2FromR.gain, c.swapChannels ? 0 : 1);
     if (isSplit) {
-      rampParam(nodes.ch1FromL.gain, c.swapChannels ? 0 : 1);
-      rampParam(nodes.ch1FromR.gain, c.swapChannels ? 1 : 0);
-      rampParam(nodes.ch2FromL.gain, c.swapChannels ? 1 : 0);
-      rampParam(nodes.ch2FromR.gain, c.swapChannels ? 0 : 1);
       rampParam(nodes.splitMasterGate.gain, 1);
       rampParam(nodes.stereoPassGain.gain, 0);
     } else {
@@ -153,6 +159,9 @@
     rampParam(nodes.vocalHpf.frequency, Math.max(20, c.vocal.hpf || 20));
     rampParam(nodes.vocalEqLow.gain, c.vocal.low || 0);
     rampParam(nodes.vocalEqMid.gain, c.vocal.mid || 0);
+    if (nodes.vocalDeesser) {
+      rampParam(nodes.vocalDeesser.gain, -Math.max(0, Number(c.vocal.deesser) || 0));
+    }
     rampParam(nodes.vocalEqHigh.gain, c.vocal.high || 0);
 
     if (c.vocal.comp) {
@@ -174,6 +183,17 @@
     rampParam(nodes.m1k.gain, bypass ? 0 : c.master.b1k || 0);
     rampParam(nodes.m3k5.gain, bypass ? 0 : c.master.b3k5 || 0);
     rampParam(nodes.m10k.gain, bypass ? 0 : c.master.b10k || 0);
+
+    // Master Bus Glue Compressor
+    if (nodes.glueComp) {
+      if (c.master.glueComp !== false) {
+        rampParam(nodes.glueComp.threshold, -14);
+        rampParam(nodes.glueComp.ratio, 2.2);
+      } else {
+        rampParam(nodes.glueComp.threshold, 0);
+        rampParam(nodes.glueComp.ratio, 1);
+      }
+    }
 
     // Limiter
     if (c.master.limiter !== false) {
@@ -218,6 +238,7 @@
       setter(val);
       if (lbl) lbl.textContent = `${val}${suffix}`;
       applyConfigToGraph();
+      drawEqAndSpectrum();
     };
   }
 
@@ -239,6 +260,13 @@
     if (eqBypassBtn) {
       eqBypassBtn.classList.toggle("is-toggled", Boolean(c.master.bypass));
       eqBypassBtn.textContent = c.master.bypass ? "EQ Bypassed" : "EQ Active";
+    }
+
+    const glueBtn = $("lsGlueCompBtn");
+    if (glueBtn) {
+      const glueOn = c.master.glueComp !== false;
+      glueBtn.classList.toggle("is-toggled", glueOn);
+      glueBtn.textContent = glueOn ? "Glue Comp: ON" : "Glue Comp: OFF";
     }
 
     const limBtn = $("lsLimiterBtn");
@@ -264,6 +292,17 @@
     bindVal("lsVocalLow", "lsVocalLowVal", " dB", () => c.vocal.low, (v) => (c.vocal.low = v));
     bindVal("lsVocalMid", "lsVocalMidVal", " dB", () => c.vocal.mid, (v) => (c.vocal.mid = v));
     bindVal("lsVocalHigh", "lsVocalHighVal", " dB", () => c.vocal.high, (v) => (c.vocal.high = v));
+    bindVal(
+      "lsVocalDeesser",
+      "lsVocalDeesserVal",
+      " dB",
+      () => (c.vocal.deesser !== undefined ? c.vocal.deesser : 2.5),
+      (v) => (c.vocal.deesser = v)
+    );
+    if ($("lsVocalDeesserVal")) {
+      const dsVal = Number($("lsVocalDeesser")?.value || 0);
+      $("lsVocalDeesserVal").textContent = dsVal > 0 ? `-${dsVal} dB` : "0 dB";
+    }
 
     bindVal("lsReverbWet", "lsReverbWetVal", "%", () => c.reverb.wet, (v) => (c.reverb.wet = v));
     bindVal(
@@ -291,6 +330,7 @@
       splitGrid.style.opacity = c.mode === "stereo" ? "0.45" : "1";
     }
     applyConfigToGraph();
+    drawEqAndSpectrum();
   }
 
   function renderPresetOptions(selectedId) {
@@ -388,6 +428,127 @@
     }
   }
 
+  function updateGrBar(compNode, barId, valId) {
+    const bar = $(barId);
+    const val = $(valId);
+    if (!compNode || !bar || !val) return;
+    const grDb = Math.min(0, Number(compNode.reduction) || 0);
+    const pct = Math.max(0, Math.min(100, (Math.abs(grDb) / 18) * 100));
+    bar.style.width = `${pct.toFixed(1)}%`;
+    val.textContent = `${grDb.toFixed(1)} dB`;
+  }
+
+  function drawEqAndSpectrum() {
+    const canvas = $("lsEqSpectrumCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const w = canvas.width || 560;
+    const h = canvas.height || 118;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#171411";
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle dB horizontal grid (+12, 0, -12 dB)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    [0.18, 0.5, 0.82].forEach((ratio) => {
+      const y = Math.round(h * ratio) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    });
+
+    const minF = 20;
+    const maxF = 18000;
+    const logRange = Math.log10(maxF / minF);
+    const freqToX = (f) => (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * w;
+
+    // Frequency octave gridlines & labels
+    ctx.fillStyle = "rgba(214, 211, 209, 0.5)";
+    ctx.font = "600 9.5px Inter, system-ui, sans-serif";
+    [100, 1000, 10000].forEach((f) => {
+      const x = Math.round(freqToX(f)) + 0.5;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 4);
+    });
+
+    // Live FFT spectrum from masterAnalyser when engine is running
+    if (nodes && nodes.masterAnalyser && audioCtx) {
+      const analyser = nodes.masterAnalyser;
+      const binCount = analyser.frequencyBinCount;
+      const freqBins = new Uint8Array(binCount);
+      analyser.getByteFrequencyData(freqBins);
+      const nyquist = (audioCtx.sampleRate || 48000) / 2;
+
+      ctx.fillStyle = "rgba(245, 158, 11, 0.28)";
+      const bars = 64;
+      for (let b = 0; b < bars; b += 1) {
+        const f0 = minF * Math.pow(maxF / minF, b / bars);
+        const f1 = minF * Math.pow(maxF / minF, (b + 1) / bars);
+        const idx0 = Math.max(0, Math.floor((f0 / nyquist) * binCount));
+        const idx1 = Math.min(binCount - 1, Math.max(idx0, Math.floor((f1 / nyquist) * binCount)));
+        let maxVal = 0;
+        for (let k = idx0; k <= idx1; k += 1) {
+          if (freqBins[k] > maxVal) maxVal = freqBins[k];
+        }
+        const barH = (maxVal / 255) * (h - 14);
+        const x0 = (b / bars) * w;
+        const bw = Math.max(2, w / bars - 2);
+        ctx.fillRect(x0, h - barH, bw, barH);
+      }
+    }
+
+    // Visual Parametric 5-Band EQ Curve with FabFilter-style area fill
+    if (window.LiveStreamDsp && typeof window.LiveStreamDsp.computeEqCurvePoints === "function") {
+      const pts = window.LiveStreamDsp.computeEqCurvePoints(activeConfig.master);
+      const isBypassed = Boolean(activeConfig.master && activeConfig.master.bypass);
+      const xy = pts.map((pt) => {
+        const x = freqToX(pt.freq);
+        const clampedDb = Math.max(-15, Math.min(15, pt.db));
+        const y = h * 0.5 - (clampedDb / 15) * (h * 0.38);
+        return { x, y };
+      });
+
+      if (xy.length > 0 && !isBypassed) {
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, "rgba(251, 191, 36, 0.24)");
+        grad.addColorStop(0.5, "rgba(245, 158, 11, 0.08)");
+        grad.addColorStop(1, "rgba(245, 158, 11, 0.01)");
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(xy[0].x, h * 0.5);
+        xy.forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(xy[xy.length - 1].x, h * 0.5);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      xy.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      if (isBypassed) {
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "#78716c";
+      } else {
+        ctx.strokeStyle = "#fbbf24";
+      }
+      ctx.lineWidth = 2.1;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function updateMetersLoop() {
     if (!nodes || !audioCtx) return;
 
@@ -411,6 +572,9 @@
     measurePeak(nodes.instAnalyser, $("lsInstMeterFill"), $("lsInstClip"));
     measurePeak(nodes.vocalAnalyser, $("lsVocalMeterFill"), $("lsVocalClip"));
     measurePeak(nodes.masterAnalyser, $("lsMasterMeterFill"), $("lsMasterClip"));
+    updateGrBar(nodes.vocalComp, "lsVocalGrBar", "lsVocalGrVal");
+    updateGrBar(nodes.limiter, "lsLimiterGrBar", "lsLimiterGrVal");
+    drawEqAndSpectrum();
 
     meterRaf = window.requestAnimationFrame(updateMetersLoop);
   }
@@ -491,7 +655,7 @@
       await audioCtx.resume();
     }
 
-    await audioCtx.audioWorklet.addModule("/js/live-stream-worklet.js?v=1.0");
+    await audioCtx.audioWorklet.addModule("/js/live-stream-worklet.js?v=2.0");
 
     const source =
       mode === "file"
@@ -554,6 +718,10 @@
     vocalEqMid.type = "peaking";
     vocalEqMid.frequency.value = 3200;
     vocalEqMid.Q.value = 1.1;
+    const vocalDeesser = audioCtx.createBiquadFilter();
+    vocalDeesser.type = "peaking";
+    vocalDeesser.frequency.value = 6500;
+    vocalDeesser.Q.value = 3.2;
     const vocalEqHigh = audioCtx.createBiquadFilter();
     vocalEqHigh.type = "highshelf";
     vocalEqHigh.frequency.value = 9000;
@@ -571,6 +739,7 @@
       .connect(vocalHpf)
       .connect(vocalEqLow)
       .connect(vocalEqMid)
+      .connect(vocalDeesser)
       .connect(vocalEqHigh)
       .connect(vocalComp)
       .connect(vocalAnalyser)
@@ -615,6 +784,11 @@
     m10k.type = "highshelf";
     m10k.frequency.value = 10000;
 
+    const glueComp = audioCtx.createDynamicsCompressor();
+    glueComp.knee.value = 12;
+    glueComp.attack.value = 0.02;
+    glueComp.release.value = 0.25;
+
     const limiter = audioCtx.createDynamicsCompressor();
     limiter.knee.value = 0;
     limiter.attack.value = 0.001;
@@ -629,8 +803,22 @@
     stereoPassGain.connect(m80);
     convolver.connect(m80);
 
-    m80.connect(m250).connect(m1k).connect(m3k5).connect(m10k).connect(limiter).connect(masterOutGain);
+    m80.connect(m250).connect(m1k).connect(m3k5).connect(m10k).connect(glueComp).connect(limiter).connect(masterOutGain);
     masterOutGain.connect(broadcastMuteGain).connect(masterAnalyser);
+
+    let dryWorkletNode = null;
+    try {
+      dryWorkletNode = new AudioWorkletNode(audioCtx, "bp-dry-capture", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "discrete"
+      });
+    } catch (_) {
+      dryWorkletNode = null;
+    }
 
     workletNode = new AudioWorkletNode(audioCtx, "bp-pcm-capture", {
       numberOfInputs: 1,
@@ -640,6 +828,33 @@
     const silentSink = audioCtx.createGain();
     silentSink.gain.value = 0;
     masterAnalyser.connect(workletNode).connect(silentSink).connect(audioCtx.destination);
+
+    let dryFallbackNode = null;
+    const dryPreMerger = audioCtx.createChannelMerger(2);
+    ch1FromL.connect(dryPreMerger, 0, 0);
+    ch1FromR.connect(dryPreMerger, 0, 0);
+    ch2FromL.connect(dryPreMerger, 0, 1);
+    ch2FromR.connect(dryPreMerger, 0, 1);
+
+    if (dryWorkletNode) {
+      dryPreMerger.connect(dryWorkletNode).connect(silentSink);
+    } else if (typeof audioCtx.createScriptProcessor === "function") {
+      try {
+        dryFallbackNode = audioCtx.createScriptProcessor(2048, 2, 2);
+        dryPreMerger.connect(dryFallbackNode).connect(silentSink);
+        dryFallbackNode.onaudioprocess = function (ev) {
+          if (window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording()) {
+            const c1 = new Float32Array(ev.inputBuffer.getChannelData(0));
+            const c2 = new Float32Array(
+              ev.inputBuffer.numberOfChannels > 1 ? ev.inputBuffer.getChannelData(1) : c1
+            );
+            window.LiveStudioRecorder.pushDryPcm(c1, c2);
+          }
+        };
+      } catch (_) {
+        dryFallbackNode = null;
+      }
+    }
 
     // Earphone monitor routing (supports PFL Solo & setSinkId)
     const monitorDest = audioCtx.createMediaStreamDestination();
@@ -691,6 +906,7 @@
       vocalHpf,
       vocalEqLow,
       vocalEqMid,
+      vocalDeesser,
       vocalEqHigh,
       vocalComp,
       vocalAnalyser,
@@ -704,6 +920,7 @@
       m1k,
       m3k5,
       m10k,
+      glueComp,
       limiter,
       masterOutGain,
       broadcastMuteGain,
@@ -711,16 +928,40 @@
       monitorDest,
       monMasterGain,
       monInstPflGain,
-      monVocalPflGain
+      monVocalPflGain,
+      dryWorkletNode,
+      dryFallbackNode
     };
+
+    if (dryWorkletNode) {
+      dryWorkletNode.port.onmessage = function (ev) {
+        const msg = ev.data;
+        if (
+          msg &&
+          msg.type === "dry-pcm" &&
+          window.LiveStudioRecorder &&
+          window.LiveStudioRecorder.isRecording()
+        ) {
+          window.LiveStudioRecorder.pushDryPcm(msg.ch1, msg.ch2);
+        }
+      };
+    }
 
     workletNode.port.onmessage = function (ev) {
       const msg = ev.data;
-      if (msg && msg.type === "pcm" && encoderWorker && isLive) {
-        encoderWorker.postMessage(
-          { type: "encode", left: msg.left, right: msg.right },
-          [msg.left.buffer, msg.right.buffer]
-        );
+      if (msg && msg.type === "pcm") {
+        if (
+          window.LiveStudioRecorder &&
+          window.LiveStudioRecorder.isRecording()
+        ) {
+          window.LiveStudioRecorder.pushMasterPcm(msg.left, msg.right);
+        }
+        if (encoderWorker && isLive) {
+          encoderWorker.postMessage(
+            { type: "encode", left: msg.left, right: msg.right },
+            [msg.left.buffer, msg.right.buffer]
+          );
+        }
       }
     };
 
@@ -739,6 +980,18 @@
       try {
         monitorAudioEl.pause();
         monitorAudioEl.srcObject = null;
+      } catch (_) {}
+    }
+    if (nodes && nodes.dryWorkletNode) {
+      try {
+        nodes.dryWorkletNode.port.onmessage = null;
+        nodes.dryWorkletNode.disconnect();
+      } catch (_) {}
+    }
+    if (nodes && nodes.dryFallbackNode) {
+      try {
+        nodes.dryFallbackNode.onaudioprocess = null;
+        nodes.dryFallbackNode.disconnect();
       } catch (_) {}
     }
     if (workletNode) {
@@ -1043,11 +1296,161 @@
     });
   }
 
-  async function setNowSingingItem(bhajan) {
-    if (!isLive) {
-      showStudioMessage("Start Go Live first before updating Now Singing.", true);
+  function getTsStorageKey() {
+    const d = ($("lsSessionDateInput")?.value || boot.sessionDate || "latest").trim();
+    return `bp_studio_timestamps_${d}`;
+  }
+
+  function saveTimestampsToLocal() {
+    try {
+      window.localStorage.setItem(getTsStorageKey(), JSON.stringify(capturedTimestamps));
+    } catch (_) {}
+  }
+
+  function loadTimestampsFromLocal() {
+    try {
+      const raw = window.localStorage.getItem(getTsStorageKey());
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        capturedTimestamps = parsed;
+      }
+    } catch (_) {}
+  }
+
+  function formatTsMmSs(sec) {
+    if (window.LiveStreamWavUtils && typeof window.LiveStreamWavUtils.formatSecondsMMSS === "function") {
+      return window.LiveStreamWavUtils.formatSecondsMMSS(sec);
+    }
+    const total = Math.max(0, Math.floor(Number(sec) || 0));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  function parseTsInputToSeconds(str) {
+    const clean = String(str || "").trim();
+    if (/^\d+$/.test(clean)) return Math.max(0, parseInt(clean, 10));
+    const parts = clean.split(":").map((p) => parseInt(p, 10) || 0);
+    if (parts.length === 3) return Math.max(0, parts[0] * 3600 + parts[1] * 60 + parts[2]);
+    if (parts.length === 2) return Math.max(0, parts[0] * 60 + parts[1]);
+    return 0;
+  }
+
+  function renderTimestampsEditor() {
+    const listEl = $("lsTimestampsList");
+    const countEl = $("lsTsCount");
+    if (countEl) countEl.textContent = String(capturedTimestamps.length);
+    if (!listEl) return;
+    listEl.innerHTML = "";
+
+    if (capturedTimestamps.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "ls-hero-sub";
+      empty.textContent = 'Click "Set Live" during recording (or "+ Add Timestamp") to capture bhajan markers.';
+      listEl.appendChild(empty);
       return;
     }
+
+    capturedTimestamps.forEach((item, idx) => {
+      const row = document.createElement("div");
+      row.className = "ls-ts-row";
+
+      const timeInput = document.createElement("input");
+      timeInput.type = "text";
+      timeInput.className = "ls-ts-time-input";
+      timeInput.value = formatTsMmSs(item.start_seconds);
+      timeInput.onchange = function () {
+        item.start_seconds = parseTsInputToSeconds(this.value);
+        this.value = formatTsMmSs(item.start_seconds);
+        saveTimestampsToLocal();
+      };
+
+      const info = document.createElement("div");
+      info.className = "ls-bhajan-meta";
+      const tDiv = document.createElement("div");
+      tDiv.className = "ls-bhajan-title";
+      tDiv.textContent = item.bhajan_title;
+      const sDiv = document.createElement("div");
+      sDiv.className = "ls-bhajan-singer";
+      sDiv.textContent = item.singer_name || "Samiti Singer";
+      info.appendChild(tDiv);
+      info.appendChild(sDiv);
+
+      const nudgeGroup = document.createElement("div");
+      nudgeGroup.className = "ls-ts-nudge-group";
+      [-5, -1, 1, 5].forEach((delta) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "ls-btn-mini";
+        b.textContent = delta > 0 ? `+${delta}s` : `${delta}s`;
+        b.onclick = () => {
+          item.start_seconds = Math.max(0, Number(item.start_seconds || 0) + delta);
+          timeInput.value = formatTsMmSs(item.start_seconds);
+          saveTimestampsToLocal();
+        };
+        nudgeGroup.appendChild(b);
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "ls-btn-mini";
+      delBtn.textContent = "×";
+      delBtn.title = "Remove timestamp";
+      delBtn.onclick = () => {
+        capturedTimestamps.splice(idx, 1);
+        saveTimestampsToLocal();
+        renderTimestampsEditor();
+      };
+      nudgeGroup.appendChild(delBtn);
+
+      row.appendChild(timeInput);
+      row.appendChild(info);
+      row.appendChild(nudgeGroup);
+      listEl.appendChild(row);
+    });
+  }
+
+  async function setNowSingingItem(bhajan) {
+    const isRec = Boolean(window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording());
+    if (!isLive && !isRec) {
+      showStudioMessage("Start Recording or Go Live first before marking Now Singing.", true);
+      return;
+    }
+
+    if (bhajan && isRec) {
+      const stats = window.LiveStudioRecorder.getStats();
+      const preRolledSec = Math.max(0, (stats.elapsedSeconds || 0) - 2);
+      const last = capturedTimestamps[capturedTimestamps.length - 1];
+      const alreadyJustMarked =
+        last &&
+        Number(last.submission_id) === Number(bhajan.id) &&
+        Math.abs(last.start_seconds - preRolledSec) <= 3;
+
+      if (!alreadyJustMarked) {
+        capturedTimestamps.push({
+          submission_id: bhajan.id,
+          bhajan_title: bhajan.title,
+          singer_name: bhajan.singer_name || "Samiti Singer",
+          deity: bhajan.deity || "",
+          start_seconds: preRolledSec
+        });
+        saveTimestampsToLocal();
+        renderTimestampsEditor();
+      }
+    }
+
+    if (!isLive) {
+      renderBhajanPickerList(bhajan ? bhajan.id : null);
+      const curLabel = $("lsNowSingingCurrent");
+      if (curLabel) {
+        curLabel.textContent = bhajan
+          ? `${bhajan.title} — ${bhajan.singer_name || ""} (Timestamp saved)`
+          : "None selected";
+      }
+      return;
+    }
+
     try {
       const payload = bhajan
         ? {
@@ -1250,6 +1653,13 @@
       };
     }
 
+    if ($("lsGlueCompBtn")) {
+      $("lsGlueCompBtn").onclick = function () {
+        activeConfig.master.glueComp = activeConfig.master.glueComp === false;
+        syncUiFromConfig();
+      };
+    }
+
     if ($("lsLimiterBtn")) {
       $("lsLimiterBtn").onclick = function () {
         activeConfig.master.limiter = activeConfig.master.limiter === false;
@@ -1372,6 +1782,12 @@
     if ($("lsLoadDateBhajansBtn")) {
       $("lsLoadDateBhajansBtn").onclick = async () => {
         const d = $("lsSessionDateInput")?.value || "";
+        if ($("lsR2KeyInput") && d) {
+          $("lsR2KeyInput").value = `recordings/${d}-session.mp3`;
+        }
+        if ($("lsR2TitleInput") && d) {
+          $("lsR2TitleInput").value = `Bhajan Session – ${d}`;
+        }
         const res = await fetch(`/api/admin/live-stream/bhajans?date=${encodeURIComponent(d)}`, {
           credentials: "same-origin"
         });
@@ -1382,6 +1798,314 @@
         }
       };
     }
+
+    function updateRecorderUi() {
+      const rec = window.LiveStudioRecorder;
+      const recording = Boolean(rec && rec.isRecording());
+      const pill = $("lsRecStatusPill");
+      const statsEl = $("lsRecStatsText");
+      if (pill) pill.style.display = recording ? "inline-flex" : "none";
+      if (recording && statsEl) {
+        const st = rec.getStats();
+        const mb = (st.totalBytes / (1024 * 1024)).toFixed(1);
+        statsEl.textContent = `REC ${formatTsMmSs(st.elapsedSeconds)} · ${mb} MB`;
+      }
+      if ($("lsStartRecOnlyBtn")) $("lsStartRecOnlyBtn").disabled = recording;
+      if ($("lsRecordAndLiveBtn")) $("lsRecordAndLiveBtn").disabled = recording || isLive;
+      if ($("lsStopRecBtn")) $("lsStopRecBtn").disabled = !recording;
+    }
+
+    async function startRecordingWorkflow(alsoGoLive) {
+      if (!window.LiveStudioRecorder) {
+        showStudioMessage("Recorder module failed to load. Please hard refresh.", true);
+        return;
+      }
+      try {
+        await initAudioEngine();
+        const dlList = $("lsFallbackDownloadsList");
+        if (dlList) dlList.innerHTML = "";
+        const d = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+        await window.LiveStudioRecorder.startRecording({
+          sessionDate: d,
+          bitDepth: Number($("lsDryBitDepthSelect")?.value || 24),
+          publishBitrateKbps: Number($("lsPublishBitrateSelect")?.value || 112),
+          sampleRate: (audioCtx && audioCtx.sampleRate) || 48000,
+          recordDryCh1: Boolean($("lsRecDryCh1Check")?.checked),
+          recordDryCh2: Boolean($("lsRecDryCh2Check")?.checked),
+          recordMasterMp3: Boolean($("lsRecMasterCheck")?.checked)
+        });
+        clearInterval(recStatsTimer);
+        recStatsTimer = setInterval(updateRecorderUi, 500);
+        updateRecorderUi();
+
+        if (alsoGoLive) {
+          await goLive();
+        } else {
+          showStudioMessage("Lossless multitrack SSD recording started!", false);
+        }
+      } catch (err) {
+        updateRecorderUi();
+        showStudioMessage("Failed to start recording: " + err.message, true);
+      }
+    }
+
+    async function stopRecordingWorkflow() {
+      if (!window.LiveStudioRecorder || !window.LiveStudioRecorder.isRecording()) return;
+      try {
+        clearInterval(recStatsTimer);
+        if (nodes && nodes.dryWorkletNode && nodes.dryWorkletNode.port) {
+          try {
+            nodes.dryWorkletNode.port.postMessage({ type: "flush" });
+          } catch (_) {}
+          await new Promise((r) => setTimeout(r, 60));
+        }
+        const res = await window.LiveStudioRecorder.stopRecording(capturedTimestamps);
+        updateRecorderUi();
+        if (!res) return;
+
+        lastRecordedResult = res;
+        if (res.masterFile) {
+          customPublishFile = null;
+          if ($("lsR2SourceLabel")) {
+            $("lsR2SourceLabel").textContent = `Ready to publish: ${res.masterFile.name} (${(res.masterFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
+        }
+        if ($("lsDawAutoLoadRecBtn")) {
+          $("lsDawAutoLoadRecBtn").disabled = !(res.dryCh1File || res.dryCh2File || res.masterFile);
+        }
+
+        const dlList = $("lsFallbackDownloadsList");
+        if (dlList) {
+          dlList.innerHTML = "";
+          if (res.dryCh1File || res.dryCh2File || res.masterFile) {
+            const openDawBtn = document.createElement("button");
+            openDawBtn.type = "button";
+            openDawBtn.className = "ls-btn ls-btn-primary";
+            openDawBtn.textContent = "Edit in Post-Production DAW →";
+            openDawBtn.onclick = () => {
+              if (window.LiveStudioDaw) window.LiveStudioDaw.openFromRecording(res);
+            };
+            dlList.appendChild(openDawBtn);
+          }
+          if (Array.isArray(res.fallbackDownloads)) {
+            res.fallbackDownloads.forEach((item) => {
+              const a = document.createElement("a");
+              a.className = "ls-btn ls-btn-mini";
+              a.href = URL.createObjectURL(item.blob);
+              a.download = item.filename;
+              a.style.textDecoration = "none";
+              a.textContent = `Download ${item.label}`;
+              dlList.appendChild(a);
+            });
+          }
+        }
+
+        showStudioMessage(
+          res.savedToFolder
+            ? `Saved dry stems + master MP3 directly to folder "${res.savedToFolder}". Ready to upload to Cloudflare R2!`
+            : "Recording finalized! You can download stems or upload the Master MP3 to Cloudflare R2 below.",
+          false
+        );
+      } catch (err) {
+        updateRecorderUi();
+        showStudioMessage("Error stopping recording: " + err.message, true);
+      }
+    }
+
+    if ($("lsPickSsdFolderBtn")) {
+      $("lsPickSsdFolderBtn").onclick = async () => {
+        if (!window.LiveStudioRecorder) return;
+        try {
+          const picked = await window.LiveStudioRecorder.pickDirectory();
+          if (picked.fallbackOnly) {
+            showStudioMessage(
+              "Folder streaming requires Chrome/Edge on desktop. Fallback downloads remain active.",
+              true
+            );
+            return;
+          }
+          if ($("lsRecFolderLabel")) {
+            $("lsRecFolderLabel").textContent = `SSD Folder Ready: ${picked.name}`;
+          }
+          showStudioMessage(`Selected SSD folder "${picked.name}" for lossless WAV + MP3 capture.`, false);
+        } catch (err) {
+          if (err && err.name !== "AbortError") {
+            showStudioMessage("Could not open folder: " + err.message, true);
+          }
+        }
+      };
+    }
+
+    if ($("lsStartRecOnlyBtn")) {
+      $("lsStartRecOnlyBtn").onclick = () => startRecordingWorkflow(false);
+    }
+    if ($("lsRecordAndLiveBtn")) {
+      $("lsRecordAndLiveBtn").onclick = () => startRecordingWorkflow(true);
+    }
+    if ($("lsStopRecBtn")) {
+      $("lsStopRecBtn").onclick = stopRecordingWorkflow;
+    }
+
+    if ($("lsR2CustomFileInput")) {
+      $("lsR2CustomFileInput").onchange = function () {
+        const file = this.files && this.files[0] ? this.files[0] : null;
+        customPublishFile = file;
+        if (file) {
+          if ($("lsR2SourceLabel")) {
+            $("lsR2SourceLabel").textContent = `Selected MP3: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
+        }
+      };
+    }
+
+    if ($("lsAddManualTsBtn")) {
+      $("lsAddManualTsBtn").onclick = () => {
+        const title = window.prompt("Bhajan Title for timestamp marker:", "");
+        if (!title || !title.trim()) return;
+        const singer = window.prompt("Singer Name:", "Samiti Singer") || "Samiti Singer";
+        const defaultSec =
+          window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording()
+            ? window.LiveStudioRecorder.getStats().elapsedSeconds
+            : 0;
+        const timeStr = window.prompt("Start Timestamp (MM:SS):", formatTsMmSs(defaultSec));
+        if (timeStr === null) return;
+        capturedTimestamps.push({
+          submission_id: null,
+          bhajan_title: title.trim(),
+          singer_name: singer.trim(),
+          deity: "",
+          start_seconds: parseTsInputToSeconds(timeStr)
+        });
+        saveTimestampsToLocal();
+        renderTimestampsEditor();
+      };
+    }
+
+    if ($("lsExportAuditionCsvBtn")) {
+      $("lsExportAuditionCsvBtn").onclick = () => {
+        if (!window.LiveStreamWavUtils) return;
+        const csv = window.LiveStreamWavUtils.formatAuditionMarkersCsv(capturedTimestamps);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${$("lsSessionDateInput")?.value || "session"}_Audition_Markers.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+    }
+
+    if ($("lsPublishR2Btn")) {
+      $("lsPublishR2Btn").onclick = async function () {
+        const fileToUpload = customPublishFile || (lastRecordedResult && lastRecordedResult.masterFile);
+        if (!fileToUpload) {
+          showStudioMessage("Record a session or select an MP3 file to upload first.", true);
+          return;
+        }
+
+        const btn = this;
+        btn.disabled = true;
+        const progressWrap = $("lsR2ProgressWrap");
+        const progressFill = $("lsR2ProgressFill");
+        const statusText = $("lsR2StatusText");
+        if (progressWrap) progressWrap.style.display = "block";
+        if (progressFill) progressFill.style.width = "2%";
+
+        let durationSec =
+          !customPublishFile && lastRecordedResult ? lastRecordedResult.durationSeconds : 0;
+        if (!durationSec) {
+          durationSec = await new Promise((resolve) => {
+            const tempAudio = document.createElement("audio");
+            const objUrl = URL.createObjectURL(fileToUpload);
+            tempAudio.preload = "metadata";
+            tempAudio.onloadedmetadata = () => {
+              const dur = Math.round(tempAudio.duration || 0);
+              URL.revokeObjectURL(objUrl);
+              resolve(dur);
+            };
+            tempAudio.onerror = () => {
+              URL.revokeObjectURL(objUrl);
+              resolve(0);
+            };
+            tempAudio.src = objUrl;
+          });
+        }
+
+        try {
+          const pubResult = await window.LiveStudioRecorder.uploadFileToR2AndPublish({
+            file: fileToUpload,
+            sessionDate: ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim(),
+            title: ($("lsR2TitleInput")?.value || "Bhajan Session").trim(),
+            storageKey: ($("lsR2KeyInput")?.value || "").trim(),
+            durationSeconds: durationSec,
+            timestamps: capturedTimestamps,
+            isPublished: true,
+            notifyDevotees: Boolean($("lsR2NotifyDevoteesCheck")?.checked),
+            csrfToken,
+            onProgress: (info) => {
+              if (progressFill) progressFill.style.width = `${info.pct || 0}%`;
+              if (statusText) statusText.textContent = info.message || "";
+            }
+          });
+          showStudioMessage(
+            `Published "${pubResult.audio.title}" to Cloudflare R2 with ${pubResult.timestampCount} bhajan timestamps!`,
+            false
+          );
+        } catch (err) {
+          if (statusText) statusText.textContent = err.message;
+          showStudioMessage("Cloudflare R2 Publish failed: " + err.message, true);
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    }
+
+    window.LiveStudioBridge = {
+      getTimestamps: () => capturedTimestamps.slice(),
+      setTimestamps: (nextList) => {
+        capturedTimestamps = Array.isArray(nextList) ? nextList.slice() : [];
+        saveTimestampsToLocal();
+        renderTimestampsEditor();
+      },
+      setReadyPublishFile: (file, durationSec) => {
+        customPublishFile = file;
+        if (!lastRecordedResult) lastRecordedResult = {};
+        if (durationSec) lastRecordedResult.durationSeconds = durationSec;
+        if (file) {
+          if ($("lsR2SourceLabel")) {
+            $("lsR2SourceLabel").textContent = `Edited Mix Ready: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
+        }
+      },
+      getActiveFxConfig: () => JSON.parse(JSON.stringify(activeConfig)),
+      getSessionDate: () => ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim(),
+      getBhajans: () => bhajansList.slice()
+    };
+
+    if ($("lsDawAutoLoadRecBtn")) {
+      $("lsDawAutoLoadRecBtn").onclick = () => {
+        if (lastRecordedResult && window.LiveStudioDaw) {
+          window.LiveStudioDaw.openFromRecording(lastRecordedResult);
+        }
+      };
+    }
+
+    drawEqAndSpectrum();
+    loadTimestampsFromLocal();
+    renderTimestampsEditor();
+    updateRecorderUi();
+
+    window.addEventListener("beforeunload", (ev) => {
+      if (isLive || (window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording())) {
+        ev.preventDefault();
+        ev.returnValue = "";
+      }
+    });
 
     // Subscribe to server SSE so listener count stays live even before WS ping
     if (typeof EventSource === "function") {

@@ -1,6 +1,10 @@
 const BhajanSubmission = require("../models/BhajanSubmission");
 const MasterBhajan = require("../models/MasterBhajan");
 const LiveStreamPreset = require("../models/LiveStreamPreset");
+const SessionAudio = require("../models/SessionAudio");
+const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
+const ActivityLog = require("../models/ActivityLog");
+const audioStorageService = require("../services/audioStorageService");
 const liveStreamService = require("../services/liveStreamService");
 const notificationService = require("../services/notificationService");
 const { getLocalDateStr } = require("../services/helpers");
@@ -84,7 +88,12 @@ exports.showStudio = async (req, res) => {
       sessionDate,
       scheduledBhajans: bhajans,
       presets: [...liveStreamService.DEFAULT_PRESETS, ...customPresets],
-      streamState: liveStreamService.getPublicState()
+      streamState: liveStreamService.getPublicState(),
+      r2Status: {
+        configured: audioStorageService.isCloudflareConfigured(),
+        bucketName: process.env.CLOUDFLARE_R2_BUCKET_NAME || "",
+        publicUrlConfigured: Boolean(process.env.CLOUDFLARE_R2_PUBLIC_URL)
+      }
     });
   } catch (error) {
     console.error("Failed to render Live Stream Studio:", error);
@@ -374,4 +383,275 @@ exports.streamAudio = (req, res) => {
   }
 
   liveStreamService.addAudioListener(req, res);
+};
+
+exports.getR2Status = (req, res) => {
+  res.json({
+    configured: audioStorageService.isCloudflareConfigured(),
+    bucketName: process.env.CLOUDFLARE_R2_BUCKET_NAME || "",
+    publicUrlConfigured: Boolean(process.env.CLOUDFLARE_R2_PUBLIC_URL)
+  });
+};
+
+exports.r2InitUpload = async (req, res) => {
+  try {
+    if (!audioStorageService.isCloudflareConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: "Cloudflare R2 credentials are not configured in environment."
+      });
+    }
+
+    const { key, session_date, content_type, single_part } = req.body || {};
+    const cleanKey = audioStorageService.sanitizeR2StorageKey(key, session_date);
+    const contentType = String(content_type || "audio/mpeg").trim() || "audio/mpeg";
+
+    if (single_part === true || single_part === "true") {
+      return res.json({
+        success: true,
+        mode: "single",
+        key: cleanKey
+      });
+    }
+
+    const init = await audioStorageService.initMultipartUpload({
+      key: cleanKey,
+      contentType
+    });
+
+    return res.json({
+      success: true,
+      mode: "multipart",
+      uploadId: init.uploadId,
+      key: init.key
+    });
+  } catch (err) {
+    console.error("r2InitUpload error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to initialize Cloudflare R2 upload."
+    });
+  }
+};
+
+exports.r2UploadPart = async (req, res) => {
+  try {
+    const mode = String(req.query.mode || "multipart").trim();
+    const rawKey = req.query.key;
+    const cleanKey = audioStorageService.sanitizeR2StorageKey(rawKey);
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || "");
+
+    if (!body || body.length === 0) {
+      return res.status(400).json({ success: false, error: "Empty audio chunk body." });
+    }
+
+    if (mode === "single") {
+      const putRes = await audioStorageService.putSingleObject({
+        key: cleanKey,
+        contentType: "audio/mpeg",
+        body
+      });
+      return res.json({
+        success: true,
+        mode: "single",
+        key: putRes.key,
+        publicUrl: putRes.publicUrl,
+        etag: putRes.etag
+      });
+    }
+
+    const uploadId = String(req.query.uploadId || "").trim();
+    const partNumber = Number(req.query.partNumber);
+    const partRes = await audioStorageService.uploadMultipartPart({
+      key: cleanKey,
+      uploadId,
+      partNumber,
+      body
+    });
+
+    return res.json({
+      success: true,
+      mode: "multipart",
+      key: cleanKey,
+      partNumber: partRes.partNumber,
+      etag: partRes.etag
+    });
+  } catch (err) {
+    console.error("r2UploadPart error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to upload audio chunk to Cloudflare R2."
+    });
+  }
+};
+
+exports.r2CompleteUpload = async (req, res) => {
+  try {
+    const { key, uploadId, parts } = req.body || {};
+    const cleanKey = audioStorageService.sanitizeR2StorageKey(key);
+    const completed = await audioStorageService.completeMultipartUpload({
+      key: cleanKey,
+      uploadId,
+      parts
+    });
+    return res.json({
+      success: true,
+      key: completed.key,
+      publicUrl: completed.publicUrl,
+      etag: completed.etag
+    });
+  } catch (err) {
+    console.error("r2CompleteUpload error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to complete Cloudflare R2 upload."
+    });
+  }
+};
+
+exports.r2AbortUpload = async (req, res) => {
+  try {
+    const { key, uploadId } = req.body || {};
+    const cleanKey = audioStorageService.sanitizeR2StorageKey(key);
+    await audioStorageService.abortMultipartUpload({ key: cleanKey, uploadId });
+    return res.json({ success: true });
+  } catch {
+    return res.json({ success: true });
+  }
+};
+
+exports.r2PublishSession = async (req, res) => {
+  try {
+    const {
+      session_date,
+      title,
+      storage_key,
+      audio_url,
+      duration_seconds,
+      file_size_bytes,
+      is_published,
+      notify_devotees,
+      timestamps
+    } = req.body || {};
+
+    const cleanDate = session_date ? String(session_date).trim() : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      return res.status(400).json({ success: false, error: "Valid session_date (YYYY-MM-DD) is required." });
+    }
+
+    const cleanKey = storage_key ? audioStorageService.sanitizeR2StorageKey(storage_key, cleanDate) : null;
+    const resolvedUrl =
+      (audio_url && String(audio_url).trim()) ||
+      (cleanKey ? audioStorageService.getPublicUrlForKey(cleanKey) : "");
+
+    if (!resolvedUrl) {
+      return res.status(400).json({ success: false, error: "audio_url or storage_key is required." });
+    }
+
+    const cleanTitle =
+      (title && String(title).trim().slice(0, 140)) || `Session Recording – ${cleanDate}`;
+    const cleanDuration = Math.max(0, parseInt(duration_seconds, 10) || 0);
+    const cleanSize = file_size_bytes != null ? Math.max(0, parseInt(file_size_bytes, 10) || 0) : null;
+    const publishedFlag = typeof is_published === "boolean" ? is_published : true;
+
+    const [audio, created] = await SessionAudio.findOrCreate({
+      where: { session_date: cleanDate },
+      defaults: {
+        session_date: cleanDate,
+        title: cleanTitle,
+        audio_url: resolvedUrl,
+        storage_key: cleanKey,
+        duration_seconds: cleanDuration,
+        file_size_bytes: cleanSize,
+        is_published: publishedFlag
+      }
+    });
+
+    if (!created) {
+      audio.title = cleanTitle;
+      audio.audio_url = resolvedUrl;
+      audio.storage_key = cleanKey;
+      if (cleanDuration > 0) audio.duration_seconds = cleanDuration;
+      if (cleanSize != null && cleanSize > 0) audio.file_size_bytes = cleanSize;
+      audio.is_published = publishedFlag;
+      await audio.save();
+    }
+
+    let createdTimestamps = [];
+    if (Array.isArray(timestamps)) {
+      await SessionAudioTimestamp.destroy({ where: { session_audio_id: audio.id } });
+      const rows = [];
+      for (let i = 0; i < timestamps.length; i++) {
+        const t = timestamps[i];
+        if (!t || !t.bhajan_title) continue;
+        const startSec = audioStorageService.parseTimestampToSeconds(
+          t.start_timestamp != null ? t.start_timestamp : t.start_seconds
+        );
+        rows.push({
+          session_audio_id: audio.id,
+          submission_id: t.submission_id ? parseInt(t.submission_id, 10) : null,
+          bhajan_title: String(t.bhajan_title).trim().slice(0, 140),
+          singer_name: String(t.singer_name || "Samiti Singer").trim().slice(0, 100),
+          deity: t.deity ? String(t.deity).trim().slice(0, 60) : null,
+          start_seconds: startSec,
+          end_seconds: null,
+          order_index: typeof t.order_index === "number" ? t.order_index : i
+        });
+      }
+      rows.sort((a, b) => a.start_seconds - b.start_seconds);
+      if (rows.length > 0) {
+        createdTimestamps = await SessionAudioTimestamp.bulkCreate(rows);
+      }
+    }
+
+    try {
+      await ActivityLog.create({
+        action: "LIVE_STUDIO_PUBLISH_AUDIO",
+        details: `Published Cloudflare R2 audio for ${cleanDate} ("${cleanTitle}") with ${createdTimestamps.length} timestamps`,
+        session_id: cleanDate,
+        ip_address: req.ip || "127.0.0.1"
+      });
+    } catch {
+      // ignore activity log failure
+    }
+
+    let pushSummary = null;
+    if (publishedFlag && (notify_devotees === true || notify_devotees === "true")) {
+      try {
+        const pushRes = await notificationService.createAndBroadcast({
+          type: "session_audio_published",
+          title: "Devotional Session Audio Available",
+          body: `The recorded audio for ${cleanDate} (${cleanTitle}) is now available in Live Plan & Archives.`,
+          link: `/plan-view?session_date=${cleanDate}`,
+          eventKey: `session_audio_${cleanDate}_${Date.now()}`,
+          metadata: { session_date: cleanDate, audio_id: audio.id, title: audio.title }
+        });
+        pushSummary = pushRes.pushSummary || null;
+      } catch (pushErr) {
+        console.warn("Session audio push failed (audio still published):", pushErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      audio: {
+        id: audio.id,
+        session_date: audio.session_date,
+        title: audio.title,
+        audio_url: audio.audio_url,
+        storage_key: audio.storage_key,
+        duration_seconds: audio.duration_seconds,
+        file_size_bytes: audio.file_size_bytes,
+        is_published: audio.is_published
+      },
+      timestampCount: createdTimestamps.length,
+      pushSummary
+    });
+  } catch (err) {
+    console.error("r2PublishSession error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to publish session recording."
+    });
+  }
 };
