@@ -6,6 +6,7 @@ const { setupTestDb } = require("./setup");
 
 let app;
 let MasterBhajan;
+let syncMasterBhajans;
 
 function invokeApp(method, url, { headers = {}, body = null, cookies = [] } = {}) {
   return new Promise((resolve, reject) => {
@@ -114,6 +115,7 @@ test("Master Bank permissions enforce super_admin for add/delete while preservin
   await setupTestDb();
   ({ app } = require("../app"));
   MasterBhajan = require("../models/MasterBhajan");
+  syncMasterBhajans = require("../services/databaseInitializer").syncMasterBhajans;
 
   const regularAuth = await loginAs("regular_admin", "AdminPass#12345");
   const superAuth = await loginAs(
@@ -209,6 +211,13 @@ test("Master Bank permissions enforce super_admin for add/delete while preservin
     assert.ok(addJson.bhajan && addJson.bhajan.id, "Created bhajan returned in response");
 
     const createdId = addJson.bhajan.id;
+
+    // Simulate the bundled master-catalog synchronization that runs on every
+    // application startup/redeployment. User-created rows must remain active.
+    await syncMasterBhajans();
+    const afterStartupSync = await MasterBhajan.findByPk(createdId);
+    assert.ok(afterStartupSync, "Super-admin bhajan must survive startup catalog sync");
+    assert.equal(afterStartupSync.is_active, true, "Startup sync must not archive user-created bhajans");
 
     const editRes = await invokeApp("POST", `/api/admin/update-master-bhajan/${createdId}`, {
       cookies: superAuth.cookies,
