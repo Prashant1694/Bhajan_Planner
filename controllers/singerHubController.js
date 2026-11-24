@@ -308,6 +308,21 @@ exports.showHubPage = async (req, res) => {
 
     const allSingers = isAdmin ? singersCatalog.rows : [];
 
+    const parsedMyReports = myReports.map((r) => {
+      const plain = typeof r.toJSON === "function" ? r.toJSON() : { ...r };
+      if (typeof plain.categories === "string") {
+        try {
+          const parsed = JSON.parse(plain.categories);
+          plain.categories = Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+          plain.categories = [];
+        }
+      } else if (!Array.isArray(plain.categories)) {
+        plain.categories = [];
+      }
+      return plain;
+    });
+
     // Attach published audio timestamps if present
     try {
       const pastSubIds = pastSubmissions.map((s) => s.id).filter(Boolean);
@@ -401,9 +416,9 @@ exports.showHubPage = async (req, res) => {
       pastHistory: pastSubmissions,
       songbook: myBookmarks,
       bookmarks: myBookmarks,
-      reports: myReports,
-      myReports,
-      myReportsCount: myReports.length,
+      reports: parsedMyReports,
+      myReports: parsedMyReports,
+      myReportsCount: parsedMyReports.length,
       deitySummary,
       upcomingThursdays,
       unavailableDates,

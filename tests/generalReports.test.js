@@ -288,3 +288,47 @@ test("Shell UI: sticky deity filter cannot overlap detail sheet and header repor
     "Header report button must render immediately before dark/light theme toggle"
   );
 });
+
+test("Singer Hub & key routes: /singer/hub renders general reports safely without r.categories.forEach TypeError", async () => {
+  const singerAgent = request.agent(app);
+  const loginPage = await singerAgent.get("/singer/login");
+  assert.strictEqual(loginPage.status, 200);
+  const loginCsrf = extractCsrf(loginPage.text);
+
+  const loginRes = await singerAgent
+    .post("/api/singer/login")
+    .set("X-CSRF-Token", loginCsrf)
+    .send({
+      singer_id: 1,
+      pin: "1234",
+      redirect: "/singer/hub"
+    });
+  assert.strictEqual(loginRes.status, 200);
+
+  const reportCsrf = extractCsrf((await singerAgent.get("/my-reports")).text);
+  const submitRes = await singerAgent
+    .post("/api/reports/submit")
+    .set("X-CSRF-Token", reportCsrf)
+    .send({
+      report_type: "general",
+      subject: "Hub Test Missing Bhajan & Bug",
+      categories: ["missing_bhajan", "app_bug"],
+      description: "Testing Singer Hub rendering of general categories."
+    });
+  assert.strictEqual(submitRes.status, 201);
+
+  const hubRes = await singerAgent.get("/singer/hub");
+  assert.strictEqual(hubRes.status, 200);
+  assert.ok(hubRes.text.includes(submitRes.body.ticket_code));
+  assert.ok(hubRes.text.includes("Hub Test Missing Bhajan &amp; Bug") || hubRes.text.includes("Hub Test Missing Bhajan & Bug"));
+  assert.ok(hubRes.text.includes("Missing Bhajan"));
+  assert.ok(hubRes.text.includes("App Bug"));
+  assert.ok(hubRes.text.includes("General / App"));
+
+  const [homeRes, bankRes] = await Promise.all([
+    singerAgent.get("/"),
+    singerAgent.get("/master-bank")
+  ]);
+  assert.strictEqual(homeRes.status, 200);
+  assert.strictEqual(bankRes.status, 200);
+});

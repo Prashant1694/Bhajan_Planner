@@ -515,8 +515,21 @@
             const catMap = {
               lyrics: 'Lyrics', scale: 'Scale', raga: 'Raga',
               deity: 'Deity', tempo: 'Tempo', sheet: 'Sheet',
-              spelling: 'Typo', other: 'Other'
+              spelling: 'Typo', other: 'Other',
+              missing_bhajan: 'Missing Bhajan', app_bug: 'App Bug',
+              suggestion: 'Suggestion', session_audio: 'Schedule / Audio',
+              account_notif: 'Login / Notifications', general_other: 'General Feedback'
             };
+            let reportCats = [];
+            if (Array.isArray(r.categories)) {
+              reportCats = r.categories;
+            } else if (typeof r.categories === 'string') {
+              try {
+                const parsedCats = JSON.parse(r.categories);
+                if (Array.isArray(parsedCats)) reportCats = parsedCats;
+              } catch (_) {}
+            }
+            const isGeneralType = r.report_type === 'general';
           %>
           <div class="hub-card" style="padding: 16px;">
             
@@ -525,6 +538,9 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
                   <span style="background: #292524; color: #fef3c7; font-family: monospace; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px;">
                     <%= r.ticket_code %>
+                  </span>
+                  <span style="background: <%= isGeneralType ? 'rgba(125, 47, 69, 0.12)' : 'rgba(217, 119, 6, 0.12)' %>; color: <%= isGeneralType ? '#9f1239' : '#b45309' %>; border: 1px solid <%= isGeneralType ? 'rgba(159, 18, 57, 0.25)' : 'rgba(180, 83, 9, 0.25)' %>; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase;">
+                    <%= isGeneralType ? 'General / App' : 'Songbook' %>
                   </span>
                   <span style="background: <%= statusBg %>; color: <%= statusColor %>; border: 1px solid <%= statusBorder %>; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 9999px; text-transform: uppercase;">
                     <%= statusLabel %>
@@ -553,9 +569,9 @@
             </div>
 
             <!-- Categories tags -->
-            <% if (r.categories && r.categories.length > 0) { %>
+            <% if (reportCats.length > 0) { %>
               <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
-                <% r.categories.forEach(function(cat) { %>
+                <% reportCats.forEach(function(cat) { %>
                   <span style="background: var(--border-soft); border: 1px solid var(--border); font-size: 11px; padding: 2px 8px; border-radius: 4px; color: var(--ink-soft); font-weight: 600;">
                     <%= catMap[cat] || cat %>
                   </span>
@@ -602,11 +618,16 @@
         </div>
         <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 6px 0;">No Reports Submitted Yet</h3>
         <p style="font-size: 13.5px; color: var(--muted); margin: 0 0 16px 0;">
-          Notice incorrect lyrics, shruti, or sheet notation? Use the "Report" button on any bhajan page to notify coordinators.
+          Notice a missing bhajan, app bug, or bhajan issue? Submit a report anytime from the header or below.
         </p>
-        <a href="/master-bank" class="btn btn-primary hub-btn-block-mobile" style="text-decoration: none; padding: 8px 18px; font-size: 13px; border-radius: 6px;">
-          Explore Master Bhajan Bank
-        </a>
+        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+          <a href="/my-reports?new=1&amp;from=/singer-hub" class="btn btn-primary hub-btn-block-mobile" style="text-decoration: none; padding: 8px 18px; font-size: 13px; border-radius: 6px;">
+            + Submit Report / Feedback
+          </a>
+          <a href="/master-bank" class="btn btn-secondary hub-btn-block-mobile" style="text-decoration: none; padding: 8px 18px; font-size: 13px; border-radius: 6px;">
+            Explore Master Bhajan Bank
+          </a>
+        </div>
       </div>
     <% } %>
   </div>
