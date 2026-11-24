@@ -15,6 +15,56 @@ function generateTicketCode() {
   return code;
 }
 
+const BHAJAN_CATEGORY_MAP = {
+  lyrics: "Lyrics incorrect or missing lines",
+  scale: "Harmonium scale / pitch incorrect",
+  raga: "Raga name inaccurate",
+  deity: "Deity categorization inaccurate",
+  tempo: "Tempo incorrect",
+  sheet: "Music sheet notation error",
+  spelling: "Title or lyrics spelling typo",
+  other: "General correction"
+};
+
+const GENERAL_CATEGORY_LABELS = {
+  missing_bhajan: "Missing Bhajan Request",
+  app_bug: "App Bug Report",
+  suggestion: "Feature Suggestion",
+  session_audio: "Schedule / Audio Issue",
+  account_notif: "Login / Notifications Issue",
+  general_other: "General Feedback"
+};
+
+const CATEGORY_ALIASES = {
+  bug: "app_bug",
+  missing: "missing_bhajan",
+  feedback: "general_other"
+};
+
+const ALL_CATEGORY_DESCRIPTIONS = {
+  ...BHAJAN_CATEGORY_MAP,
+  ...GENERAL_CATEGORY_LABELS
+};
+
+function normalizeCategories(rawCategories) {
+  const arr = Array.isArray(rawCategories) ? rawCategories : rawCategories ? [rawCategories] : [];
+  const seen = new Set();
+  const normalized = [];
+  for (const raw of arr) {
+    const cleaned = String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "");
+    if (!cleaned) continue;
+    const mapped = CATEGORY_ALIASES[cleaned] || cleaned;
+    if (Object.prototype.hasOwnProperty.call(ALL_CATEGORY_DESCRIPTIONS, mapped) && !seen.has(mapped)) {
+      seen.add(mapped);
+      normalized.push(mapped);
+    }
+  }
+  return normalized;
+}
+
 // -------------------------------------------------------------
 // USER ENDPOINTS
 // -------------------------------------------------------------
@@ -22,6 +72,8 @@ function generateTicketCode() {
 exports.submitReport = async (req, res) => {
   try {
     const {
+      report_type,
+      subject,
       master_id,
       bhajan_title,
       categories,
@@ -29,43 +81,17 @@ exports.submitReport = async (req, res) => {
       suggested_correction,
       reporter_name,
       reporter_contact,
-      visitor_id
+      visitor_id,
+      page_context
     } = req.body;
 
-    const cleanTitle = (bhajan_title || "")
-      .toString()
-      .replace(/<[^>]*>/g, "")
-      .trim()
-      .slice(0, 200);
-    if (!cleanTitle) {
-      return res.status(400).json({ error: "Bhajan title is required." });
-    }
+    let normalizedCategories = normalizeCategories(categories);
+    const safeDesc = (description || "").toString().trim().slice(0, 2000);
 
-    const hasCategories = Array.isArray(categories) ? categories.length > 0 : Boolean(categories);
-    const hasDesc = Boolean(description && description.trim());
-
-    if (!hasCategories && !hasDesc) {
+    if (normalizedCategories.length === 0 && !safeDesc) {
       return res
         .status(400)
-        .json({ error: "Please select at least one issue category or provide details." });
-    }
-
-    const catMap = {
-      lyrics: "Lyrics incorrect or missing lines",
-      scale: "Harmonium scale / pitch incorrect",
-      raga: "Raga name inaccurate",
-      deity: "Deity categorization inaccurate",
-      tempo: "Tempo incorrect",
-      sheet: "Music sheet notation error",
-      spelling: "Title or lyrics spelling typo",
-      other: "General correction"
-    };
-
-    let effectiveDescription = hasDesc ? description.trim() : "";
-    if (!effectiveDescription) {
-      const catList = Array.isArray(categories) ? categories : [categories];
-      const labels = catList.map((c) => catMap[c] || c);
-      effectiveDescription = "Issue reported in: " + labels.join(", ");
+        .json({ error: "Please select at least one category or provide details." });
     }
 
     let mid = null;
@@ -73,6 +99,38 @@ exports.submitReport = async (req, res) => {
       const catalog = await getMasterCatalog();
       const mb = catalog.fullById.get(parseInt(master_id, 10));
       if (mb) mid = mb.id;
+    }
+
+    const hasGeneralCat = normalizedCategories.some((c) =>
+      Object.prototype.hasOwnProperty.call(GENERAL_CATEGORY_LABELS, c)
+    );
+    const hasSubjectInput = Boolean(subject !== undefined && String(subject).trim());
+    const explicitGeneral = String(report_type || "").trim().toLowerCase() === "general";
+    const resolvedType =
+      explicitGeneral || (!mid && (hasGeneralCat || hasSubjectInput)) ? "general" : "bhajan";
+
+    if (normalizedCategories.length === 0) {
+      normalizedCategories = [resolvedType === "general" ? "general_other" : "other"];
+    }
+
+    const rawTitleInput = hasSubjectInput ? subject : bhajan_title;
+    let cleanTitle = (rawTitleInput || "")
+      .toString()
+      .replace(/<[^>]*>/g, "")
+      .trim()
+      .slice(0, 200);
+
+    if (!cleanTitle) {
+      cleanTitle =
+        resolvedType === "general"
+          ? GENERAL_CATEGORY_LABELS[normalizedCategories[0]] || "General Feedback"
+          : "Unknown Bhajan";
+    }
+
+    let effectiveDescription = safeDesc;
+    if (!effectiveDescription) {
+      const labels = normalizedCategories.map((c) => ALL_CATEGORY_DESCRIPTIONS[c] || c);
+      effectiveDescription = "Issue reported in: " + labels.join(", ");
     }
 
     let code = generateTicketCode();
@@ -101,24 +159,30 @@ exports.submitReport = async (req, res) => {
       }
     }
 
-    const catJson = JSON.stringify(
-      Array.isArray(categories) ? categories : categories ? [categories] : []
-    );
+    const cleanPageContext =
+      (page_context || "")
+        .toString()
+        .replace(/<[^>]*>/g, "")
+        .trim()
+        .slice(0, 200) || null;
 
+    const catJson = JSON.stringify(normalizedCategories);
     const resolvedVisitor = visitor_id || resolveVisitorId(req, res) || null;
 
     const report = await BhajanReport.create({
       ticket_code: code,
       master_id: mid,
       singer_id: effectiveSingerId,
+      report_type: resolvedType,
       bhajan_title: cleanTitle,
       categories: catJson,
       description: effectiveDescription,
       suggested_correction: suggested_correction
-        ? suggested_correction.trim().slice(0, 1000)
+        ? suggested_correction.toString().trim().slice(0, 2000)
         : null,
+      page_context: cleanPageContext,
       reporter_name: effectiveReporterName,
-      reporter_contact: reporter_contact ? reporter_contact.trim().slice(0, 100) : null,
+      reporter_contact: reporter_contact ? reporter_contact.toString().trim().slice(0, 100) : null,
       visitor_id: resolvedVisitor,
       status: "pending"
     });
@@ -129,21 +193,34 @@ exports.submitReport = async (req, res) => {
         user_type: req.session?.admin ? "admin" : req.session?.singer ? "singer" : "guest",
         username: effectiveReporterName || "Anonymous Devotee",
         action: "REPORT_SUBMITTED",
-        details: `Report ${code} filed for "${cleanTitle}"`,
+        details: `[${resolvedType === "general" ? "General" : "Bhajan"}] Report ${code} filed for "${cleanTitle}"`,
         ip_address: req.ip || req.socket?.remoteAddress || "127.0.0.1",
         user_agent: req.headers["user-agent"] || "",
         created_at: new Date()
       });
     } catch (_) {}
 
-    res.json({
+    res.status(201).json({
       success: true,
       ticket_code: code,
       report_id: report.id,
-      message: "Report submitted successfully. Thank you for helping keep our Bhajan Bank accurate!"
+      report_type: resolvedType,
+      ticket: {
+        id: report.id,
+        ticket_code: code,
+        report_type: resolvedType,
+        bhajan_title: cleanTitle,
+        categories: normalizedCategories,
+        page_context: cleanPageContext,
+        status: report.status
+      },
+      message:
+        resolvedType === "general"
+          ? "Feedback submitted successfully. Our coordinators will review it soon!"
+          : "Report submitted successfully. Thank you for helping keep our Bhajan Bank accurate!"
     });
   } catch (error) {
-    console.error(`[Req ${req.id || ""}] Error submitting bhajan report:`, error);
+    console.error(`[Req ${req.id || ""}] Error submitting report:`, error);
     res.status(500).json({ error: "Failed to submit report. Please try again later." });
   }
 };
@@ -241,10 +318,22 @@ exports.markTicketSeen = async (req, res) => {
 
 exports.showMyReportsPage = async (req, res) => {
   try {
+    const rawCat = normalizeCategories(req.query.cat);
+    const prefillCategory = rawCat.length > 0 ? rawCat[0] : "";
+    const openNew = req.query.new === "1" || req.query.compose === "1";
+    const fromPage = (req.query.from || "")
+      .toString()
+      .replace(/<[^>]*>/g, "")
+      .trim()
+      .slice(0, 200);
+
     res.render("user-reports", {
       page: "my-reports",
-      pageTitle: "My Reported Issues | Bhajan Planner",
-      currentAdmin: req.session.admin || null
+      pageTitle: "Reports & Feedback | Bhajan Planner",
+      currentAdmin: req.session.admin || null,
+      prefillCategory,
+      openNew,
+      fromPage
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Error loading user reports page:`, error);
@@ -258,15 +347,22 @@ exports.showMyReportsPage = async (req, res) => {
 
 exports.showAdminReports = async (req, res) => {
   try {
-    const { status, category, search } = req.query;
+    const { status, category, search, type } = req.query;
     const where = {};
+    const selectedType = ["bhajan", "general"].includes(type) ? type : "";
+
+    if (selectedType) {
+      where.report_type = selectedType;
+    }
 
     if (status && ["pending", "under_review", "resolved", "closed"].includes(status)) {
       where.status = status;
     }
 
-    if (category) {
-      where.categories = { [Op.like]: `%"${category}"%` };
+    const normalizedCatFilter = normalizeCategories(category);
+    const safeCategory = normalizedCatFilter.length > 0 ? normalizedCatFilter[0] : "";
+    if (safeCategory) {
+      where.categories = { [Op.like]: `%"${safeCategory}"%` };
     }
 
     if (search && search.trim()) {
@@ -279,8 +375,8 @@ exports.showAdminReports = async (req, res) => {
       ];
     }
 
-    // Parallelize filtered report fetch + single GROUP BY status count query
-    const [reports, statusGroups] = await Promise.all([
+    // Parallelize filtered report fetch + status & type count queries
+    const [reports, statusGroups, typeGroups] = await Promise.all([
       BhajanReport.findAll({
         where,
         order: [["created_at", "DESC"]],
@@ -289,6 +385,11 @@ exports.showAdminReports = async (req, res) => {
       BhajanReport.findAll({
         attributes: ["status", [Sequelize.fn("COUNT", Sequelize.col("id")), "cnt"]],
         group: ["status"],
+        raw: true
+      }),
+      BhajanReport.findAll({
+        attributes: ["report_type", [Sequelize.fn("COUNT", Sequelize.col("id")), "cnt"]],
+        group: ["report_type"],
         raw: true
       })
     ]);
@@ -309,7 +410,9 @@ exports.showAdminReports = async (req, res) => {
       pending: 0,
       under_review: 0,
       resolved: 0,
-      closed: 0
+      closed: 0,
+      bhajan: 0,
+      general: 0
     };
     statusGroups.forEach((g) => {
       const n = parseInt(g.cnt, 10) || 0;
@@ -319,14 +422,20 @@ exports.showAdminReports = async (req, res) => {
         counts[g.status] = n;
       }
     });
+    typeGroups.forEach((g) => {
+      const n = parseInt(g.cnt, 10) || 0;
+      const t = g.report_type === "general" ? "general" : "bhajan";
+      counts[t] += n;
+    });
 
     res.render("admin-reports", {
       page: "reports",
-      pageTitle: "Bhajan Issue Reports | Admin",
+      pageTitle: "Reports & Devotee Feedback | Admin",
       reports: parsedReports,
       counts,
       selectedStatus: status || "",
-      selectedCategory: category || "",
+      selectedCategory: safeCategory || "",
+      selectedType,
       searchQuery: search || "",
       currentAdmin: req.session.admin
     });
@@ -369,13 +478,17 @@ exports.updateReport = async (req, res) => {
     if (report.singer_id) {
       try {
         const notificationService = require("../services/notificationService");
+        const statusLabel = (status || report.status).replace("_", " ");
+        const isGeneral = report.report_type === "general";
         const notifTitle =
           status === "resolved"
-            ? `✅ Ticket Resolved: ${report.bhajan_title}`
+            ? `✅ ${isGeneral ? "Report" : "Ticket"} Resolved: ${report.bhajan_title}`
             : `💬 Coordinator Update: ${report.ticket_code}`;
         const notifBody = admin_response
           ? `${adminName} replied: "${admin_response.slice(0, 100)}${admin_response.length > 100 ? "..." : ""}"`
-          : `Your correction ticket for "${report.bhajan_title}" status is now ${(status || report.status).replace("_", " ")}.`;
+          : isGeneral
+            ? `Your report (${report.ticket_code}) for "${report.bhajan_title}" is now ${statusLabel}.`
+            : `Your correction ticket for "${report.bhajan_title}" status is now ${statusLabel}.`;
 
         await notificationService.createPersonalized({
           type: "report_update",

@@ -444,6 +444,17 @@ async function ensureNotificationTables() {
         "CREATE INDEX IF NOT EXISTS idx_bhajan_reports_singer_id ON bhajan_reports(singer_id)"
       );
     }
+    if (repCols && !repCols.some((col) => col.name === "report_type")) {
+      await sequelize.query(
+        "ALTER TABLE bhajan_reports ADD COLUMN report_type TEXT NOT NULL DEFAULT 'bhajan'"
+      );
+    }
+    if (repCols && !repCols.some((col) => col.name === "page_context")) {
+      await sequelize.query("ALTER TABLE bhajan_reports ADD COLUMN page_context TEXT");
+    }
+    await sequelize.query(
+      "CREATE INDEX IF NOT EXISTS idx_bhajan_reports_type ON bhajan_reports(report_type)"
+    );
 
     console.log("✅ Notification, bulletin, report & singer bookmark tables ready.");
   } catch (err) {

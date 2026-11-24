@@ -156,6 +156,10 @@
               </button>
             </div>
 
+            <a href="/my-reports?new=1&amp;cat=missing_bhajan&amp;from=/master-bank" class="glass-btn-sm" title="Request a missing bhajan or report an issue" style="text-decoration:none;">
+              Missing Bhajan?
+            </a>
+
             <% if (isAdmin) { %>
               <div class="bank-glass-admin-tools" aria-label="Admin catalog tools">
                 <% if (isSuperAdmin) { %>
@@ -435,6 +439,9 @@
             </div>
             <h3 class="catalog-empty-title">No Bhajans Found</h3>
             <p class="catalog-empty-desc">No master bhajans matched the current filters.</p>
+            <a href="/my-reports?new=1&amp;cat=missing_bhajan&amp;from=/master-bank" class="glass-btn-sm" style="margin-top: 12px; display: inline-flex; text-decoration: none;">
+              + Request Missing Bhajan
+            </a>
           </div>
         <% } %>
       </div>

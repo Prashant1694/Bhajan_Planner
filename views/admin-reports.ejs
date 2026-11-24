@@ -4,9 +4,9 @@
     <div class="admin-reports-header-content">
       <div class="admin-reports-title-group">
         <span class="admin-reports-badge">Devotee Care &amp; Feedback</span>
-        <h1 class="admin-reports-title">Bhajan Issue &amp; Correction Reports</h1>
+        <h1 class="admin-reports-title">Reports &amp; Devotee Feedback</h1>
         <p class="admin-reports-subtitle">
-          Review devotee-submitted feedback, verify lyrics or pitch corrections, and communicate ticket resolutions.
+          Review devotee feedback, missing bhajan requests, app bug reports, and bhajan corrections, and communicate resolutions.
         </p>
       </div>
       <div class="admin-reports-header-actions">
@@ -33,7 +33,7 @@
         <span class="kpi-pill kpi-pill-all">All</span>
       </div>
       <div class="kpi-card-number"><%= totalCount %></div>
-      <div class="kpi-card-meta">Lifetime submissions</div>
+      <div class="kpi-card-meta"><%= counts.bhajan || 0 %> Songbook &bull; <%= counts.general || 0 %> General</div>
     </a>
 
     <!-- Card 2: Needs Review -->
@@ -93,6 +93,15 @@
       </div>
 
       <div class="reports-filter-group">
+        <!-- Type Filter Dropdown -->
+        <div class="reports-select-wrap">
+          <select name="type" onchange="this.form.submit()" class="reports-select" aria-label="Filter by report type">
+            <option value="">All Types (<%= totalCount %>)</option>
+            <option value="general" <%= (typeof selectedType !== 'undefined' && selectedType === 'general') ? 'selected' : '' %>>General / App &amp; Missing (<%= counts.general || 0 %>)</option>
+            <option value="bhajan" <%= (typeof selectedType !== 'undefined' && selectedType === 'bhajan') ? 'selected' : '' %>>Songbook Bhajan (<%= counts.bhajan || 0 %>)</option>
+          </select>
+        </div>
+
         <!-- Status Filter Dropdown -->
         <div class="reports-select-wrap">
           <select name="status" onchange="this.form.submit()" class="reports-select" aria-label="Filter by status">
@@ -108,14 +117,24 @@
         <div class="reports-select-wrap">
           <select name="category" onchange="this.form.submit()" class="reports-select" aria-label="Filter by category">
             <option value="">All Categories</option>
-            <option value="lyrics" <%= selectedCategory === 'lyrics' ? 'selected' : '' %>>Lyrics</option>
-            <option value="scale" <%= selectedCategory === 'scale' ? 'selected' : '' %>>Scale / Pitch</option>
-            <option value="raga" <%= selectedCategory === 'raga' ? 'selected' : '' %>>Raga</option>
-            <option value="deity" <%= selectedCategory === 'deity' ? 'selected' : '' %>>Deity</option>
-            <option value="tempo" <%= selectedCategory === 'tempo' ? 'selected' : '' %>>Tempo</option>
-            <option value="sheet" <%= selectedCategory === 'sheet' ? 'selected' : '' %>>Music Sheet</option>
-            <option value="spelling" <%= selectedCategory === 'spelling' ? 'selected' : '' %>>Spelling / Title</option>
-            <option value="other" <%= selectedCategory === 'other' ? 'selected' : '' %>>Other</option>
+            <optgroup label="General &amp; App">
+              <option value="missing_bhajan" <%= selectedCategory === 'missing_bhajan' ? 'selected' : '' %>>Missing Bhajan</option>
+              <option value="app_bug" <%= selectedCategory === 'app_bug' ? 'selected' : '' %>>App Bug / Error</option>
+              <option value="suggestion" <%= selectedCategory === 'suggestion' ? 'selected' : '' %>>Feature Suggestion</option>
+              <option value="session_audio" <%= selectedCategory === 'session_audio' ? 'selected' : '' %>>Schedule / Audio Issue</option>
+              <option value="account_notif" <%= selectedCategory === 'account_notif' ? 'selected' : '' %>>Login / Notifications</option>
+              <option value="general_other" <%= selectedCategory === 'general_other' ? 'selected' : '' %>>General Feedback</option>
+            </optgroup>
+            <optgroup label="Songbook Bhajan">
+              <option value="lyrics" <%= selectedCategory === 'lyrics' ? 'selected' : '' %>>Lyrics</option>
+              <option value="scale" <%= selectedCategory === 'scale' ? 'selected' : '' %>>Scale / Pitch</option>
+              <option value="raga" <%= selectedCategory === 'raga' ? 'selected' : '' %>>Raga</option>
+              <option value="deity" <%= selectedCategory === 'deity' ? 'selected' : '' %>>Deity</option>
+              <option value="tempo" <%= selectedCategory === 'tempo' ? 'selected' : '' %>>Tempo</option>
+              <option value="sheet" <%= selectedCategory === 'sheet' ? 'selected' : '' %>>Music Sheet</option>
+              <option value="spelling" <%= selectedCategory === 'spelling' ? 'selected' : '' %>>Spelling / Title</option>
+              <option value="other" <%= selectedCategory === 'other' ? 'selected' : '' %>>Other</option>
+            </optgroup>
           </select>
         </div>
 
@@ -123,7 +142,7 @@
           <span>Search</span>
         </button>
 
-        <% if (selectedStatus || selectedCategory || searchQuery) { %>
+        <% if (selectedStatus || selectedCategory || (typeof selectedType !== 'undefined' && selectedType) || searchQuery) { %>
           <a href="/admin/reports" class="reports-btn-clear" title="Reset all filters">
             <span>Clear</span>
           </a>
@@ -141,7 +160,7 @@
           <thead>
             <tr>
               <th style="width: 130px;">Ticket #</th>
-              <th style="width: 220px;">Bhajan Title</th>
+              <th style="width: 230px;">Subject / Bhajan</th>
               <th style="width: 150px;">Categories</th>
               <th>Issue Details</th>
               <th style="width: 170px;">Reporter</th>
@@ -165,6 +184,7 @@
                   statusLabel = "Closed";
                 }
 
+                const isGeneralType = r.report_type === 'general';
                 const catLabels = {
                   lyrics: 'Lyrics',
                   scale: 'Scale',
@@ -173,7 +193,13 @@
                   tempo: 'Tempo',
                   sheet: 'Sheet',
                   spelling: 'Typo',
-                  other: 'Other'
+                  other: 'Other',
+                  missing_bhajan: 'Missing Bhajan',
+                  app_bug: 'App Bug',
+                  suggestion: 'Suggestion',
+                  session_audio: 'Schedule / Audio',
+                  account_notif: 'Login / Notif',
+                  general_other: 'General Feedback'
                 };
               %>
               <tr id="report-row-<%= r.id %>" class="reports-tr">
@@ -185,6 +211,11 @@
                 </td>
 
                 <td>
+                  <div style="margin-bottom: 4px;">
+                    <span class="rep-type-pill <%= isGeneralType ? 'rep-type-general' : 'rep-type-bhajan' %>">
+                      <%= isGeneralType ? 'General' : 'Songbook' %>
+                    </span>
+                  </div>
                   <% if (r.master_id) { %>
                     <a href="/bhajan/<%= r.master_id %>" target="_blank" class="reports-bhajan-link" title="Open live bhajan page">
                       <span><%= r.bhajan_title %></span>
@@ -270,6 +301,7 @@
               statusLabel = "Closed";
             }
 
+            const isGeneralType = r.report_type === 'general';
             const catLabels = {
               lyrics: 'Lyrics',
               scale: 'Scale',
@@ -278,12 +310,23 @@
               tempo: 'Tempo',
               sheet: 'Sheet',
               spelling: 'Typo',
-              other: 'Other'
+              other: 'Other',
+              missing_bhajan: 'Missing Bhajan',
+              app_bug: 'App Bug',
+              suggestion: 'Suggestion',
+              session_audio: 'Schedule / Audio',
+              account_notif: 'Login / Notif',
+              general_other: 'General Feedback'
             };
           %>
           <div class="report-mobile-card" id="mobile-report-card-<%= r.id %>">
             <div class="report-mobile-card-top">
-              <div class="reports-ticket-code"><%= r.ticket_code %></div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="reports-ticket-code"><%= r.ticket_code %></span>
+                <span class="rep-type-pill <%= isGeneralType ? 'rep-type-general' : 'rep-type-bhajan' %>">
+                  <%= isGeneralType ? 'General' : 'Songbook' %>
+                </span>
+              </div>
               <span class="rep-status-badge <%= badgeClass %>"><%= statusLabel %></span>
             </div>
 
@@ -351,13 +394,13 @@
         </div>
         <h3 class="reports-empty-title">No Reports Found</h3>
         <p class="reports-empty-desc">
-          <% if (selectedStatus || selectedCategory || searchQuery) { %>
+          <% if (selectedStatus || selectedCategory || (typeof selectedType !== 'undefined' && selectedType) || searchQuery) { %>
             There are no reports matching the selected filters.
           <% } else { %>
-            All bhajan feedback tickets have been cleared! Great job keeping the bhajan bank pristine.
+            All devotee feedback and bhajan correction tickets have been cleared!
           <% } %>
         </p>
-        <% if (selectedStatus || selectedCategory || searchQuery) { %>
+        <% if (selectedStatus || selectedCategory || (typeof selectedType !== 'undefined' && selectedType) || searchQuery) { %>
           <a href="/admin/reports" class="reports-btn-submit" style="text-decoration:none; display:inline-flex; align-items:center; margin-top: 10px;">
             <span>Clear Filters</span>
           </a>
@@ -375,8 +418,9 @@
     <!-- Modal Header -->
     <div class="reports-modal-header">
       <div>
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <span class="reports-ticket-code" id="modalTicketCode">REP-0000</span>
+          <span id="modalTypeBadge" class="rep-type-pill rep-type-bhajan">Songbook</span>
           <span id="modalStatusBadge" class="rep-status-badge rep-badge-pending">Pending</span>
         </div>
         <h2 class="reports-modal-title" id="modalBhajanTitle">Bhajan Title</h2>
@@ -399,6 +443,9 @@
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <strong style="font-size: 11.5px; color: var(--ink-soft);">Issue Types:</strong>
           <div id="modalCategoriesList" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+        </div>
+        <div id="modalPageContextWrap" style="display: none; margin-top: 6px; font-size: 11.5px; color: var(--muted);">
+          <strong>Submitted From:</strong> <code id="modalPageContext"></code>
         </div>
       </div>
 
@@ -461,6 +508,9 @@
             <button type="button" class="reports-chip-btn" onclick="applyQuickReply('scale')">Scale / Pitch Updated</button>
             <button type="button" class="reports-chip-btn" onclick="applyQuickReply('accurate')">Verified Accurate</button>
             <button type="button" class="reports-chip-btn" onclick="applyQuickReply('sheet')">Sheet Music Updated</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('missing_bhajan')">Missing Bhajan Added</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('app_bug')">Bug Fixed</button>
+            <button type="button" class="reports-chip-btn" onclick="applyQuickReply('suggestion')">Suggestion Noted</button>
           </div>
         </div>
 
@@ -1213,6 +1263,25 @@
   gap: 10px;
   padding-top: 10px;
 }
+.rep-type-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.rep-type-general {
+  background: rgba(125, 47, 69, 0.12);
+  color: #9f1239;
+  border: 1px solid rgba(159, 18, 57, 0.25);
+}
+.rep-type-bhajan {
+  background: rgba(217, 138, 43, 0.14);
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.25);
+}
 </style>
 
 <script>
@@ -1227,6 +1296,24 @@ function openReportModal(report) {
   document.getElementById('modalReporterContact').innerText = report.reporter_contact || 'No contact provided';
   document.getElementById('modalCreatedAt').innerText = new Date(report.created_at).toLocaleString();
   document.getElementById('modalDescription').innerText = report.description || '-';
+
+  const typeBadge = document.getElementById('modalTypeBadge');
+  if (typeBadge) {
+    const isGeneral = report.report_type === 'general';
+    typeBadge.className = 'rep-type-pill ' + (isGeneral ? 'rep-type-general' : 'rep-type-bhajan');
+    typeBadge.innerText = isGeneral ? 'General / App' : 'Songbook';
+  }
+
+  const pageWrap = document.getElementById('modalPageContextWrap');
+  const pageEl = document.getElementById('modalPageContext');
+  if (pageWrap && pageEl) {
+    if (report.page_context) {
+      pageEl.innerText = report.page_context;
+      pageWrap.style.display = 'block';
+    } else {
+      pageWrap.style.display = 'none';
+    }
+  }
 
   if (report.suggested_correction) {
     document.getElementById('modalSuggestedCorrection').innerText = report.suggested_correction;
@@ -1254,7 +1341,13 @@ function openReportModal(report) {
     tempo: 'Tempo',
     sheet: 'Sheet',
     spelling: 'Typo',
-    other: 'Other'
+    other: 'Other',
+    missing_bhajan: 'Missing Bhajan',
+    app_bug: 'App Bug',
+    suggestion: 'Suggestion',
+    session_audio: 'Schedule / Audio',
+    account_notif: 'Login / Notif',
+    general_other: 'General Feedback'
   };
   (report.categories || []).forEach(cat => {
     const span = document.createElement('span');
@@ -1307,6 +1400,15 @@ function applyQuickReply(type) {
   } else if (type === 'sheet') {
     resp.value = 'Sai Ram! We have re-uploaded the official sheet music PDF with correct notation.';
     statusSel.value = 'resolved';
+  } else if (type === 'missing_bhajan') {
+    resp.value = 'Sai Ram! Thank you for letting us know. We have added this bhajan to the Master Bhajan Bank.';
+    statusSel.value = 'resolved';
+  } else if (type === 'app_bug') {
+    resp.value = 'Sai Ram! Thank you for reporting this issue. Our team has fixed the bug and deployed the update.';
+    statusSel.value = 'resolved';
+  } else if (type === 'suggestion') {
+    resp.value = 'Sai Ram! Thank you for the thoughtful suggestion. We have noted it for our upcoming Bhajan Planner updates.';
+    statusSel.value = 'under_review';
   }
 }
 
@@ -1322,9 +1424,14 @@ async function submitReportUpdate(e) {
     saveBtn.disabled = true;
     saveBtn.innerText = 'Saving...';
 
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
     const res = await fetch('/admin/reports/' + id + '/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ status, admin_response, admin_notes })
     });
 

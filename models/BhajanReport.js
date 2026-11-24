@@ -22,6 +22,12 @@ const BhajanReport = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true
     },
+    report_type: {
+      type: DataTypes.STRING(30),
+      allowNull: false,
+      defaultValue: "bhajan"
+      // "bhajan" | "general"
+    },
     bhajan_title: {
       type: DataTypes.STRING(255),
       allowNull: false
@@ -30,7 +36,7 @@ const BhajanReport = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
       defaultValue: "[]"
-      // Stored as JSON array: ["lyrics", "scale", "raga", "deity", "tempo", "sheet", "spelling", "other"]
+      // Stored as JSON array: bhajan categories or general categories
     },
     description: {
       type: DataTypes.TEXT,
@@ -38,6 +44,10 @@ const BhajanReport = sequelize.define(
     },
     suggested_correction: {
       type: DataTypes.TEXT,
+      allowNull: true
+    },
+    page_context: {
+      type: DataTypes.STRING(200),
       allowNull: true
     },
     reporter_name: {
