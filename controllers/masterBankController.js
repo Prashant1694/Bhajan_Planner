@@ -179,6 +179,31 @@ exports.updateMasterBhajan = async (req, res) => {
   }
 };
 
+exports.restoreMasterBhajan = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ success: false, error: "Invalid bhajan ID." });
+    }
+
+    const [updatedCount] = await MasterBhajan.update(
+      { is_active: true },
+      { where: { id, is_active: false } }
+    );
+    if (!updatedCount) {
+      const existing = await MasterBhajan.findByPk(id);
+      if (!existing) return res.status(404).json({ success: false, error: "Bhajan not found." });
+      return res.status(409).json({ success: false, error: "Bhajan is already active." });
+    }
+
+    invalidateMasterCache();
+    invalidateMissingCount();
+    return res.json({ success: true, message: "Bhajan restored to active catalog." });
+  } catch (error) {
+    console.error(`[Req ${req.id || ""}] restoreMasterBhajan error:`, error);
+    return res.status(500).json({ success: false, error: "Failed to restore bhajan." });
+  }
+};
 exports.deleteMasterBhajan = async (req, res) => {
   try {
     // Soft-delete / archive to preserve historical foreign references
@@ -308,7 +333,8 @@ exports.showArchivedMasterBank = async (req, res) => {
       pageNum,
       totalPages,
       query: q,
-      isAdmin
+      isAdmin,
+      isSuperAdmin: Boolean(req.session && req.session.admin && req.session.admin.role === "super_admin")
     });
   } catch (error) {
     console.error(`[Req ${req.id || ""}] Error loading archived bhajans:`, error);
