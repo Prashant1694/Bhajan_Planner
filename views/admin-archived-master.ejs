@@ -49,12 +49,13 @@
             <th>Historical References</th>
             <th>Tempo</th>
             <th>Scale</th>
+            <% if (isSuperAdmin) { %><th>Actions</th><% } %>
           </tr>
         </thead>
         <tbody>
           <% if (bhajans.length > 0) { %>
             <% bhajans.forEach(b => { %>
-              <tr class="archived-row">
+              <tr class="archived-row" data-bhajan-id="<%= b.id %>">
                 <td data-label="ID" class="adm-archived-id"><%= b.id %></td>
                 <td data-label="Title" class="adm-archived-title"><%= b.title %></td>
                 <td data-label="Deity"><span class="deity-pill"><%= b.deity || '-' %></span></td>
@@ -70,10 +71,13 @@
                 </td>
                 <td data-label="Tempo"><%= b.tempo || '-' %></td>
                 <td data-label="Scale"><%= b.shruti || '-' %></td>
+                <% if (isSuperAdmin) { %>
+                  <td data-label="Actions"><button type="button" class="button secondary restore-bhajan-btn" data-id="<%= b.id %>" data-title="<%= b.title %>">Restore</button></td>
+                <% } %>
               </tr>
             <% }) %>
           <% } else { %>
-            <tr><td colspan="7" class="adm-empty-cell">No archived bhajans found.</td></tr>
+            <tr><td colspan="<%= isSuperAdmin ? 8 : 7 %>" class="adm-empty-cell">No archived bhajans found.</td></tr>
           <% } %>
         </tbody>
       </table>
@@ -107,4 +111,32 @@ function filterArchivedTable() {
     row.style.display = (!query || text.includes(query)) ? '' : 'none';
   });
 }
+document.querySelectorAll(".restore-bhajan-btn").forEach(button => {
+  button.addEventListener("click", async () => {
+    const id = button.dataset.id;
+    const title = button.dataset.title || "this bhajan";
+    if (!confirm("Restore “" + title + "” to the active bhajan catalog?")) return;
+    button.disabled = true;
+    button.textContent = "Restoring...";
+    try {
+      const response = await fetch("/api/admin/restore-master-bhajan/" + encodeURIComponent(id), {
+        method: "POST",
+        headers: { "Accept": "application/json" }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.error || "Restore failed.");
+      button.closest("tr")?.remove();
+      const remaining = document.querySelectorAll("#archivedTable tbody tr.archived-row").length;
+      if (!remaining) {
+        const tbody = document.querySelector("#archivedTable tbody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="adm-empty-cell">No archived bhajans found.</td></tr>';
+      }
+      alert(result.message || "Bhajan restored successfully.");
+    } catch (error) {
+      alert(error.message || "Unable to restore bhajan.");
+      button.disabled = false;
+      button.textContent = "Restore";
+    }
+  });
+});
 </script>
