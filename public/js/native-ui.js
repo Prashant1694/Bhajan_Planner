@@ -488,6 +488,31 @@
 
 
   // ── 5. Form & Button [data-confirm] Interceptor ────────────────────────────
+  function syncFormCsrfBeforeSubmit(form) {
+    if (!form || !form.querySelector) return;
+    var method = String(form.getAttribute("method") || form.method || "GET").toUpperCase();
+    if (["POST", "PUT", "PATCH", "DELETE"].indexOf(method) === -1) return;
+    var rawAction = form.getAttribute("action");
+    if (rawAction) {
+      try {
+        if (new URL(rawAction, window.location.origin).origin !== window.location.origin) return;
+      } catch (_) {
+        return;
+      }
+    }
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    var token = (meta && meta.getAttribute("content")) || window.csrfToken || "";
+    if (!token) return;
+    var input = form.querySelector('input[name="_csrf"]');
+    if (!input) {
+      input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "_csrf";
+      form.appendChild(input);
+    }
+    input.value = token;
+  }
+
   document.addEventListener("submit", function (e) {
     var form = e.target;
     if (!form || !form.getAttribute) return;
@@ -502,6 +527,7 @@
       }).then(function (ok) {
         if (ok) {
           form._bpConfirmed = true;
+          syncFormCsrfBeforeSubmit(form);
           form.submit();
         }
       });

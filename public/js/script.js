@@ -28,6 +28,41 @@ function getGlobalCsrfToken() {
 
 // Universal CSRF header injection for non-GET fetch requests and form submissions
 (function () {
+  function ensureFormCsrfToken(form) {
+    if (!form || form.tagName !== "FORM") return;
+    const method = String(form.getAttribute("method") || form.method || "GET").toUpperCase();
+    if (["POST", "PUT", "PATCH", "DELETE"].indexOf(method) === -1) return;
+
+    const rawAction = form.getAttribute("action");
+    if (rawAction) {
+      try {
+        if (new URL(rawAction, window.location.origin).origin !== window.location.origin) return;
+      } catch (_) {
+        return;
+      }
+    }
+
+    const token = getGlobalCsrfToken();
+    if (!token) return;
+
+    let input = form.querySelector('input[name="_csrf"]');
+    if (!input) {
+      input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "_csrf";
+      form.appendChild(input);
+    }
+    input.value = token;
+  }
+
+  if (typeof HTMLFormElement !== "undefined" && HTMLFormElement.prototype) {
+    const originalFormSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+      ensureFormCsrfToken(this);
+      return originalFormSubmit.apply(this, arguments);
+    };
+  }
+
   const originalFetch = window.fetch;
   window.fetch = function (url, options) {
     const opts = Object.assign({}, options || {});
@@ -67,14 +102,7 @@ function getGlobalCsrfToken() {
       }
       form.dataset.submitting = "true";
 
-      const token = getGlobalCsrfToken();
-      if (token && !form.querySelector('input[name="_csrf"]')) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "_csrf";
-        input.value = token;
-        form.appendChild(input);
-      }
+      ensureFormCsrfToken(form);
 
       const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
       if (submitBtn) {
