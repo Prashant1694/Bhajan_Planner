@@ -17,6 +17,11 @@ router.post(
   requireApiSuperAdmin,
   masterBankController.deleteMasterBhajan
 );
+router.post(
+  "/api/admin/restore-master-bhajan/:id",
+  requireApiSuperAdmin,
+  masterBankController.restoreMasterBhajan
+);
 router.post("/api/admin/reconcile-bhajan", requireApiLogin, masterBankController.reconcileBhajan);
 router.get(
   "/api/admin/master-bhajans/search",
