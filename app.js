@@ -136,7 +136,7 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
         scriptSrcAttr: ["'unsafe-inline'"],
-        connectSrc: ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+        connectSrc: ["'self'", "ws:", "wss:", "http://127.0.0.1:*", "https://*.r2.cloudflarestorage.com", "https://accounts.google.com", "https://oauth2.googleapis.com"],
         frameSrc: ["'self'", "https://accounts.google.com"],
         workerSrc: ["'self'"],
         manifestSrc: ["'self'"],
@@ -165,6 +165,7 @@ app.use((req, res, next) => {
 });
 
 // Reject oversized payloads before they can consume server resources
+app.use("/api/admin/live-stream/projects", express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 100 }));
 app.use(express.json({ limit: "100kb" }));
 app.use(sanitizeInputs);

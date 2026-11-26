@@ -11,6 +11,7 @@
     <div class="card add-singer-card" style="margin-bottom:24px;">
       <h3 style="margin-bottom:14px; font-size:16px; display:flex; align-items:center; gap:8px;">Add New Singer</h3>
       <form action="/api/admin/add-singer" method="POST" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
         <input type="text" name="name" required class="filter-input" placeholder="e.g., Rahul S." style="max-width:300px;">
         <select name="gender" required class="filter-input" style="max-width:150px;">
           <option value="">Gender</option>
@@ -42,6 +43,7 @@
                   <% if (s.pin) { %>
                     <span class="badge-pin badge-pin-protected">Protected</span>
                     <form action="/api/admin/reset-singer-pin/<%= s.id %>" method="POST" style="margin:0; display:inline; margin-left:6px;" data-confirm="Reset the 4-digit PIN for <%= s.name.replace(/"/g, '&quot;') %>? The singer will be able to set a new PIN on their next visit.">
+                      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                       <button type="submit" class="btn-pin-reset" title="Reset PIN">Reset</button>
                     </form>
                   <% } else { %>
@@ -50,11 +52,13 @@
                 </td>
                 <td style="text-align:right;">
                   <form action="/api/admin/edit-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" id="edit-form-<%= s.id %>">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                     <input type="hidden" name="name" id="edit-input-<%= s.id %>" value="<%= s.name %>">
                     <input type="hidden" name="gender" id="edit-gender-<%= s.id %>" value="<%= s.gender || '' %>">
                     <button type="button" class="btn-table-action btn-table-edit" onclick="editSinger(<%= s.id %>, '<%= s.name.replace(/'/g, "\\'") %>')">Edit</button>
                   </form>
                   <form action="/api/admin/delete-singer/<%= s.id %>" method="POST" style="margin:0; display:inline;" data-confirm="Delete this singer from the dictionary?">
+                    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
                     <button type="submit" class="btn-table-action btn-table-delete">Delete</button>
                   </form>
                 </td>

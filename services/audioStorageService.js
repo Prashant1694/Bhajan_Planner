@@ -4,6 +4,7 @@
  * and timestamp formatting for Mandir session recordings.
  */
 
+const crypto = require("crypto");
 const {
   S3Client,
   ListObjectsV2Command,
@@ -165,28 +166,93 @@ function formatSecondsToTimestamp(sec) {
  */
 function parseTimestampToSeconds(input) {
   if (input == null) return 0;
-  if (typeof input === "number") return Math.max(0, Math.floor(input));
+  if (typeof input === "number") {
+    return Number.isFinite(input) ? Math.max(0, Math.floor(input)) : 0;
+  }
 
   const str = String(input).trim();
   if (!str) return 0;
 
-  // Pure integer seconds
-  if (/^\d+$/.test(str)) {
-    return parseInt(str, 10);
+  // Pure integer or decimal seconds (e.g. "125" or "125.75")
+  if (/^\d+(?:\.\d+)?$/.test(str)) {
+    const val = parseFloat(str);
+    return Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
   }
 
-  // Split by colons: HH:MM:SS or MM:SS
-  const parts = str.split(":").map((p) => parseInt(p, 10) || 0);
-  if (parts.length === 3) {
-    const [hh, mm, ss] = parts;
-    return hh * 3600 + mm * 60 + ss;
+  // Split by colons: HH:MM:SS(.ms) or MM:SS(.ms)
+  const rawParts = str.split(":");
+  if (rawParts.length === 3) {
+    const hh = Math.max(0, parseFloat(rawParts[0]) || 0);
+    const mm = Math.max(0, parseFloat(rawParts[1]) || 0);
+    const ss = Math.max(0, parseFloat(rawParts[2]) || 0);
+    return Math.max(0, Math.floor(hh * 3600 + mm * 60 + ss));
   }
-  if (parts.length === 2) {
-    const [mm, ss] = parts;
-    return mm * 60 + ss;
+  if (rawParts.length === 2) {
+    const mm = Math.max(0, parseFloat(rawParts[0]) || 0);
+    const ss = Math.max(0, parseFloat(rawParts[1]) || 0);
+    return Math.max(0, Math.floor(mm * 60 + ss));
   }
 
   return 0;
+}
+
+function validateSessionManifest(manifest) {
+  const errors = [];
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    return { valid: false, errors: ["Manifest must be a JSON object."] };
+  }
+
+  const sessionDate = manifest.session_date || manifest.sessionDate;
+  if (sessionDate != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(sessionDate).trim())) {
+    errors.push("session_date must use YYYY-MM-DD format.");
+  }
+
+  const projectUid = manifest.project_uid || manifest.projectUid;
+  if (projectUid != null) {
+    const uidStr = String(projectUid).trim();
+    if (!uidStr || uidStr.length > 96) {
+      errors.push("project_uid must be between 1 and 96 characters.");
+    }
+  }
+
+  const sr = manifest.sample_rate ?? manifest.sampleRate;
+  if (sr != null) {
+    const numSr = Number(sr);
+    if (!Number.isFinite(numSr) || numSr < 8000 || numSr > 384000) {
+      errors.push("sample_rate must be between 8000 and 384000 Hz.");
+    }
+  }
+
+  const bd = manifest.bit_depth ?? manifest.bitDepth;
+  if (bd != null && ![16, 24, 32].includes(Number(bd))) {
+    errors.push("bit_depth must be 16, 24, or 32.");
+  }
+
+  const duration = manifest.duration_seconds ?? manifest.durationSeconds;
+  if (duration != null && (!Number.isFinite(Number(duration)) || Number(duration) < 0)) {
+    errors.push("duration_seconds must be a non-negative number.");
+  }
+
+  const markers = Array.isArray(manifest.timestamps)
+    ? manifest.timestamps
+    : Array.isArray(manifest.markers)
+      ? manifest.markers
+      : null;
+  if (markers) {
+    for (let i = 0; i < markers.length; i++) {
+      const m = markers[i];
+      if (!m || typeof m !== "object") {
+        errors.push(`Marker at index ${i} must be an object.`);
+        continue;
+      }
+      const startVal = m.start_seconds ?? m.startSeconds ?? m.timeSeconds ?? m.time;
+      if (startVal != null && (!Number.isFinite(Number(startVal)) && typeof startVal !== "string")) {
+        errors.push(`Marker at index ${i} has invalid start time.`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 
 function sanitizeR2StorageKey(rawKey, fallbackDate) {
@@ -355,10 +421,123 @@ async function abortMultipartUpload({ key, uploadId }) {
   }
 }
 
+function hmacSha256(key, data) {
+  return crypto.createHmac("sha256", key).update(data, "utf8").digest();
+}
+
+function encodeRfc3986(str) {
+  return encodeURIComponent(String(str)).replace(/[!'()*]/g, (c) =>
+    "%" + c.charCodeAt(0).toString(16).toUpperCase()
+  );
+}
+
+/**
+ * Generates an AWS Signature V4 presigned URL for direct browser -> Cloudflare R2 PUT uploads,
+ * avoiding proxying audio payloads through Railway while keeping secret keys strictly server-side.
+ */
+function createPresignedR2Url({
+  method = "PUT",
+  key,
+  queryParams = {},
+  expiresIn = 3600
+} = {}) {
+  const accountId = (process.env.CLOUDFLARE_R2_ACCOUNT_ID || "").trim();
+  const accessKeyId = (process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "").trim();
+  const secretAccessKey = (process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "").trim();
+  const bucket = (process.env.CLOUDFLARE_R2_BUCKET_NAME || "").trim();
+
+  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) {
+    throw new Error(
+      "Cloudflare R2 is not configured. Set CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY, and CLOUDFLARE_R2_BUCKET_NAME."
+    );
+  }
+
+  const cleanKey = sanitizeR2StorageKey(key);
+  const safeExpires = Math.max(60, Math.min(86400, Math.floor(Number(expiresIn) || 3600)));
+  const httpMethod = String(method || "PUT").toUpperCase();
+  const host = `${accountId}.r2.cloudflarestorage.com`;
+  const region = "auto";
+  const service = "s3";
+
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+
+  const allQuery = Object.assign({}, queryParams || {}, {
+    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+    "X-Amz-Credential": `${accessKeyId}/${credentialScope}`,
+    "X-Amz-Date": amzDate,
+    "X-Amz-Expires": String(safeExpires),
+    "X-Amz-SignedHeaders": "host"
+  });
+
+  const canonicalQuery = Object.keys(allQuery)
+    .filter((k) => allQuery[k] !== undefined && allQuery[k] !== null && allQuery[k] !== "")
+    .sort()
+    .map((k) => `${encodeRfc3986(k)}=${encodeRfc3986(allQuery[k])}`)
+    .join("&");
+
+  const encodedPath = cleanKey
+    .split("/")
+    .map((seg) => encodeRfc3986(seg))
+    .join("/");
+  const canonicalUri = `/${encodeRfc3986(bucket)}/${encodedPath}`;
+  const canonicalHeaders = `host:${host}\n`;
+  const canonicalRequest = [
+    httpMethod,
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    "host",
+    "UNSIGNED-PAYLOAD"
+  ].join("\n");
+
+  const canonicalHash = crypto.createHash("sha256").update(canonicalRequest, "utf8").digest("hex");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    canonicalHash
+  ].join("\n");
+
+  const kDate = hmacSha256(`AWS4${secretAccessKey}`, dateStamp);
+  const kRegion = hmacSha256(kDate, region);
+  const kService = hmacSha256(kRegion, service);
+  const kSigning = hmacSha256(kService, "aws4_request");
+  const signature = crypto.createHmac("sha256", kSigning).update(stringToSign, "utf8").digest("hex");
+
+  return {
+    url: `https://${host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`,
+    method: httpMethod,
+    key: cleanKey,
+    bucket,
+    publicUrl: getPublicUrlForKey(cleanKey),
+    expiresIn: safeExpires
+  };
+}
+
+function buildSessionObjectKey({ sessionDate, sessionId, artifactType = "final-master.mp3" } = {}) {
+  const safeDate =
+    sessionDate && /^\d{4}-\d{2}-\d{2}$/.test(String(sessionDate).trim())
+      ? String(sessionDate).trim()
+      : new Date().toISOString().slice(0, 10);
+  const safeSession = String(sessionId || `session-${safeDate}`)
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .slice(0, 64) || `session-${safeDate}`;
+  const safeArtifact = String(artifactType || "final-master.mp3")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-") || "final-master.mp3";
+  return sanitizeR2StorageKey(`recordings/${safeDate}/${safeSession}/${safeArtifact}`, safeDate);
+}
+
 module.exports = {
   isCloudflareConfigured,
   getPublicUrlForKey,
   sanitizeR2StorageKey,
+  buildSessionObjectKey,
+  createPresignedR2Url,
   formatR2Error,
   listR2AudioFiles,
   putSingleObject,
@@ -368,5 +547,6 @@ module.exports = {
   abortMultipartUpload,
   formatSecondsToTimestamp,
   parseTimestampToSeconds,
+  validateSessionManifest,
   __setS3ClientForTest
 };

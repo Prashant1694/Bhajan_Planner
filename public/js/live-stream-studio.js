@@ -39,11 +39,126 @@
       }
     };
 
-  let activeConfig = JSON.parse(JSON.stringify(defaultConfig));
+  function normalizeStudioConfig(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const inst = src.inst || {};
+    const vocal = src.vocal || {};
+    const rev = src.reverb || {};
+    const mst = src.master || {};
+    return {
+      mode: src.mode === "stereo" ? "stereo" : "split",
+      swapChannels: Boolean(src.swapChannels),
+      inst: {
+        gain: inst.gain ?? 100,
+        trimDb: inst.trimDb ?? 0,
+        polarity: Boolean(inst.polarity),
+        pan: inst.pan ?? 0,
+        mute: Boolean(inst.mute),
+        eqBypass: Boolean(inst.eqBypass),
+        hpf: inst.hpf ?? 45,
+        hpfSlope: Number(inst.hpfSlope) === 24 ? 24 : 12,
+        lpf: inst.lpf ?? 20000,
+        low: inst.low ?? 1.5,
+        mid: inst.mid ?? 0,
+        midFreq: inst.midFreq ?? 450,
+        midQ: inst.midQ ?? 1.0,
+        high: inst.high ?? -1.0,
+        comp: Boolean(inst.comp),
+        compThreshDb: inst.compThreshDb ?? -16,
+        compRatio: inst.compRatio ?? 2.5,
+        compAttackMs: inst.compAttackMs ?? 14,
+        compReleaseMs: inst.compReleaseMs ?? 180,
+        compMakeupDb: inst.compMakeupDb ?? 0.5,
+        compPeakMode: Boolean(inst.compPeakMode),
+        gate: Boolean(inst.gate),
+        gateThreshDb: inst.gateThreshDb ?? -54,
+        gateRangeDb: inst.gateRangeDb ?? -12,
+        gateHoldMs: inst.gateHoldMs ?? 140,
+        reverbSend: inst.reverbSend ?? 65,
+        preFaderSend: Boolean(inst.preFaderSend)
+      },
+      vocal: {
+        gain: vocal.gain ?? 112,
+        trimDb: vocal.trimDb ?? 0,
+        polarity: Boolean(vocal.polarity),
+        pan: vocal.pan ?? 0,
+        mute: Boolean(vocal.mute),
+        eqBypass: Boolean(vocal.eqBypass),
+        hpf: vocal.hpf ?? 85,
+        hpfSlope: Number(vocal.hpfSlope) === 24 ? 24 : 12,
+        lpf: vocal.lpf ?? 20000,
+        low: vocal.low ?? 0.5,
+        mid: vocal.mid ?? 2.5,
+        midFreq: vocal.midFreq ?? 3200,
+        midQ: vocal.midQ ?? 1.1,
+        high: vocal.high ?? 1.5,
+        deesser: vocal.deesser ?? 2.5,
+        deessFreq: vocal.deessFreq ?? 6500,
+        deessQ: vocal.deessQ ?? 3.2,
+        deessThreshDb: vocal.deessThreshDb ?? -26,
+        deessWideband: Boolean(vocal.deessWideband),
+        comp: vocal.comp !== false,
+        compThreshDb: vocal.compThreshDb ?? -18,
+        compRatio: vocal.compRatio ?? 3.5,
+        compAttackMs: vocal.compAttackMs ?? 8,
+        compReleaseMs: vocal.compReleaseMs ?? 160,
+        compMakeupDb: vocal.compMakeupDb ?? 1.5,
+        compPeakMode: Boolean(vocal.compPeakMode),
+        gate: Boolean(vocal.gate),
+        gateThreshDb: vocal.gateThreshDb ?? -50,
+        gateRangeDb: vocal.gateRangeDb ?? -14,
+        gateHoldMs: vocal.gateHoldMs ?? 90,
+        reverbSend: vocal.reverbSend ?? 100,
+        preFaderSend: Boolean(vocal.preFaderSend)
+      },
+      reverb: {
+        preset: rev.preset || "medium_prayer_hall",
+        wet: rev.wet ?? 14,
+        decay: rev.decay ?? 1.4,
+        preDelayMs: rev.preDelayMs ?? 20,
+        toneHz: rev.toneHz ?? 7600,
+        roomSize: rev.roomSize ?? 62,
+        stereoWidth: rev.stereoWidth ?? 110
+      },
+      master: {
+        b80: mst.b80 ?? 0.5,
+        b250: mst.b250 ?? -1.5,
+        b1k: mst.b1k ?? 0,
+        b3k5: mst.b3k5 ?? 1.5,
+        b10k: mst.b10k ?? 1.0,
+        glueComp: mst.glueComp !== false,
+        limiter: mst.limiter !== false,
+        gain: mst.gain ?? 100,
+        bypass: Boolean(mst.bypass)
+      }
+    };
+  }
+
+  let activeConfig = normalizeStudioConfig(defaultConfig);
   let soloChannel = null; // null | "inst" | "vocal"
   let broadcastMuted = false;
   let monitorEnabled = false;
   let monitorVolume = 0.8;
+  let soundcheckSession = null;
+  let activeHardwareCaptureFormat = null;
+  let asioSocket = null;
+  let asioXruns = 0;
+
+  let customReverbIrBuffer = null;
+  let customReverbIrName = "";
+  const activeChSubTabs = { vocal: "eq", inst: "eq" };
+  let vocalDspMeters = { gateGainDb: 0, deesserGrDb: 0, compGrDb: 0, limiterGrDb: 0 };
+  let instDspMeters = { gateGainDb: 0, deesserGrDb: 0, compGrDb: 0, limiterGrDb: 0 };
+  let masterDspMeters = { limiterGrDb: 0 };
+  const masterTelem = {
+    peakL: 0,
+    peakR: 0,
+    rmsL: 0,
+    rmsR: 0,
+    truePeak: 0,
+    shortTermLufs: -Infinity,
+    kwRing: []
+  };
 
   // Web Audio & Worker instances
   let activeSourceMode = "device"; // "device" | "file"
@@ -81,6 +196,68 @@
     return document.getElementById(id);
   }
 
+  let activeProcTab = "vocal";
+
+  function colorWithAlpha(col, alpha) {
+    const s = String(col || "").trim();
+    if (s.startsWith("#")) {
+      const hex = s.slice(1);
+      const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+      if (full.length === 6) {
+        const r = parseInt(full.slice(0, 2), 16);
+        const g = parseInt(full.slice(2, 4), 16);
+        const b = parseInt(full.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+    }
+    const rgbMatch = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (rgbMatch) {
+      return `rgba(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}, ${alpha})`;
+    }
+    return `rgba(129, 69, 217, ${alpha})`;
+  }
+
+  function getStudioPalette() {
+    const host = document.querySelector(".ls-studio-wrap") || document.documentElement;
+    const cs = window.getComputedStyle(host);
+    const v = (name, fb) => (cs.getPropertyValue(name) || "").trim() || fb;
+    const rootDark =
+      document.documentElement.getAttribute("data-theme") === "dark" ||
+      document.documentElement.classList.contains("dark") ||
+      Boolean(document.body && (document.body.getAttribute("data-theme") === "dark" || document.body.classList.contains("dark")));
+    return {
+      isDark: rootDark,
+      panel: v("--studio-panel", "#ffffff"),
+      border: v("--studio-border", "#dde2ea"),
+      canvasBg: v("--studio-canvas-bg", "#0b0d13"),
+      grid: v("--studio-grid", "rgba(255, 255, 255, 0.06)"),
+      gridZero: v("--studio-grid-zero", "rgba(255, 255, 255, 0.18)"),
+      text: v("--studio-text", "#f0f2f7"),
+      textSecondary: v("--studio-text-secondary", "#9ba4b8"),
+      textMuted: v("--studio-text-muted", "#677185"),
+      accent: v("--studio-accent", "#a855f7"),
+      accentSecondary: v("--studio-accent-secondary", "#529bff"),
+      warn: v("--studio-warn", "#f59e0b"),
+      danger: v("--studio-danger", "#f05252"),
+      success: v("--studio-success", "#22c55e")
+    };
+  }
+
+  function prepareHiDpiCanvas(canvas, fallbackW, fallbackH) {
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const cssW = Math.max(120, Math.round(canvas.clientWidth || fallbackW || 420));
+    const cssH = Math.max(64, Math.round(canvas.clientHeight || fallbackH || 120));
+    const targetW = Math.round(cssW * dpr);
+    const targetH = Math.round(cssH * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: cssW, h: cssH };
+  }
+
   function apiHeaders(extra) {
     return Object.assign(
       {
@@ -101,13 +278,32 @@
     }
     box.style.display = "block";
     box.textContent = text;
-    box.style.borderColor = isError ? "#dc2626" : "rgba(217, 119, 6, 0.4)";
-    box.style.color = isError ? "#dc2626" : "var(--ink, #1c1917)";
+    box.style.borderColor = isError ? "var(--studio-danger)" : "var(--studio-accent-border)";
+    box.style.color = isError ? "var(--studio-danger)" : "var(--studio-text)";
+  }
+
+  function dbToLinearGain(db) {
+    const n = Number(db) || 0;
+    return Math.pow(10, Math.max(-24, Math.min(24, n)) / 20);
   }
 
   function buildImpulseResponse(ctx, seconds) {
+    if (customReverbIrBuffer && customReverbIrBuffer.sampleRate === (ctx && ctx.sampleRate)) {
+      return customReverbIrBuffer;
+    }
+    if (window.LiveStreamDsp && typeof window.LiveStreamDsp.buildHallImpulseResponse === "function") {
+      const rev = activeConfig.reverb || {};
+      return window.LiveStreamDsp.buildHallImpulseResponse(ctx, {
+        decay: seconds,
+        preDelayMs: rev.preDelayMs !== undefined ? Number(rev.preDelayMs) : 20,
+        preset: rev.preset || "medium_prayer_hall",
+        toneHz: rev.toneHz !== undefined ? Number(rev.toneHz) : 7600,
+        roomSize: rev.roomSize !== undefined ? Number(rev.roomSize) : 62,
+        stereoWidth: rev.stereoWidth !== undefined ? Number(rev.stereoWidth) : 110
+      });
+    }
     const rate = ctx.sampleRate || 48000;
-    const len = Math.max(rate * 0.3, Math.floor(rate * Math.min(3.0, Math.max(0.4, seconds))));
+    const len = Math.max(rate * 0.3, Math.floor(rate * Math.min(3.5, Math.max(0.4, seconds))));
     const impulse = ctx.createBuffer(2, len, rate);
     for (let ch = 0; ch < 2; ch++) {
       const data = impulse.getChannelData(ch);
@@ -132,7 +328,8 @@
     const c = activeConfig;
     const isSplit = c.mode !== "stereo";
 
-    // Channel swap matrix (always route Ch1/Ch2 inputs so dry recorder captures both stems in Mode A and Mode B)
+    // Channel routing matrix: default Physical In 1 -> Ch1 Vocals, Physical In 2 -> Ch2 Instruments
+    // Dry capture ALWAYS taps ch1From/ch2From strictly upstream of Trim, EQ, Dynamics & Faders
     rampParam(nodes.ch1FromL.gain, c.swapChannels ? 0 : 1);
     rampParam(nodes.ch1FromR.gain, c.swapChannels ? 1 : 0);
     rampParam(nodes.ch2FromL.gain, c.swapChannels ? 1 : 0);
@@ -145,36 +342,153 @@
       rampParam(nodes.stereoPassGain.gain, 1);
     }
 
-    // Channel 1 (Instruments)
-    rampParam(nodes.instGain.gain, (c.inst.gain || 0) / 100);
-    rampParam(nodes.instMuteGain.gain, c.inst.mute ? 0 : 1);
-    rampParam(nodes.instHpf.frequency, Math.max(20, c.inst.hpf || 20));
-    rampParam(nodes.instEqLow.gain, c.inst.low || 0);
-    rampParam(nodes.instEqMid.gain, c.inst.mid || 0);
-    rampParam(nodes.instEqHigh.gain, c.inst.high || 0);
-
-    // Channel 2 (Vocals)
-    rampParam(nodes.vocalGain.gain, (c.vocal.gain || 0) / 100);
-    rampParam(nodes.vocalMuteGain.gain, c.vocal.mute ? 0 : 1);
-    rampParam(nodes.vocalHpf.frequency, Math.max(20, c.vocal.hpf || 20));
-    rampParam(nodes.vocalEqLow.gain, c.vocal.low || 0);
-    rampParam(nodes.vocalEqMid.gain, c.vocal.mid || 0);
-    if (nodes.vocalDeesser) {
-      rampParam(nodes.vocalDeesser.gain, -Math.max(0, Number(c.vocal.deesser) || 0));
+    // Channel 2 (Instruments): Trim -> HPF1/HPF2 -> LPF -> 3-Band EQ -> ProDSP -> Fader -> Mute -> Sends -> Pan
+    const inst = c.inst;
+    if (nodes.instTrimGain) {
+      const instSign = inst.polarity ? -1 : 1;
+      rampParam(nodes.instTrimGain.gain, instSign * dbToLinearGain(inst.trimDb || 0));
     }
-    rampParam(nodes.vocalEqHigh.gain, c.vocal.high || 0);
+    const instHpfHz = inst.eqBypass ? 10 : Math.max(20, Number(inst.hpf) || 45);
+    rampParam(nodes.instHpf.frequency, instHpfHz);
+    if (nodes.instHpf2) {
+      rampParam(nodes.instHpf2.frequency, !inst.eqBypass && Number(inst.hpfSlope) === 24 ? instHpfHz : 10);
+    }
+    if (nodes.instLpf) {
+      rampParam(nodes.instLpf.frequency, inst.eqBypass ? 22000 : Math.max(1500, Number(inst.lpf) || 20000));
+    }
+    rampParam(nodes.instEqLow.gain, inst.eqBypass ? 0 : (inst.low || 0));
+    rampParam(nodes.instEqMid.frequency, Math.max(150, Math.min(6000, Number(inst.midFreq) || 450)));
+    rampParam(nodes.instEqMid.Q, Math.max(0.3, Math.min(8, Number(inst.midQ) || 1.0)));
+    rampParam(nodes.instEqMid.gain, inst.eqBypass ? 0 : (inst.mid || 0));
+    rampParam(nodes.instEqHigh.gain, inst.eqBypass ? 0 : (inst.high || 0));
 
-    if (c.vocal.comp) {
-      rampParam(nodes.vocalComp.threshold, -18);
-      rampParam(nodes.vocalComp.ratio, 3.5);
+    if (nodes.instProDspNode && nodes.instProDspNode.port) {
+      nodes.instProDspNode.port.postMessage({
+        type: "params",
+        params: {
+          polarityInvert: false,
+          trimDb: 0,
+          gateEnabled: Boolean(inst.gate),
+          gateThresholdDb: Number(inst.gateThreshDb ?? -54),
+          gateRangeDb: Number(inst.gateRangeDb ?? -12),
+          gateHoldMs: Number(inst.gateHoldMs ?? 140),
+          gateScHpfHz: 50,
+          deessEnabled: false,
+          compEnabled: Boolean(inst.comp),
+          compThresholdDb: Number(inst.compThreshDb ?? -16),
+          compRatio: Number(inst.compRatio ?? 2.5),
+          compAttackMs: Number(inst.compAttackMs ?? 14),
+          compReleaseMs: Number(inst.compReleaseMs ?? 180),
+          compMakeupDb: Number(inst.compMakeupDb ?? 0.5),
+          compPeakMode: Boolean(inst.compPeakMode),
+          compScHpfHz: 45,
+          limEnabled: false
+        }
+      });
+    }
+    if (nodes.instComp) {
+      if (!nodes.instProDspNode && inst.comp) {
+        rampParam(nodes.instComp.threshold, Number(inst.compThreshDb ?? -16));
+        rampParam(nodes.instComp.ratio, Number(inst.compRatio ?? 2.5));
+      } else {
+        rampParam(nodes.instComp.threshold, 0);
+        rampParam(nodes.instComp.ratio, 1);
+      }
+    }
+    rampParam(nodes.instGain.gain, (inst.gain ?? 100) / 100);
+    rampParam(nodes.instMuteGain.gain, inst.mute ? 0 : 1);
+    const instRevLvl = Math.max(0, Math.min(1.5, Number(inst.reverbSend ?? 65) / 100));
+    if (nodes.instPreRevSendGain) {
+      rampParam(nodes.instPreRevSendGain.gain, isSplit && inst.preFaderSend && !inst.mute ? instRevLvl : 0);
+    }
+    if (nodes.instPostRevSendGain) {
+      rampParam(nodes.instPostRevSendGain.gain, isSplit && !inst.preFaderSend ? instRevLvl : 0);
+    }
+    if (nodes.instPanner && nodes.instPanner.pan) {
+      rampParam(nodes.instPanner.pan, Math.max(-1, Math.min(1, (inst.pan || 0) / 100)));
+    }
+
+    // Channel 1 (Vocals): Trim -> HPF1/HPF2 -> LPF -> 3-Band EQ -> ProDSP -> Fader -> Mute -> Sends -> Pan
+    const vocal = c.vocal;
+    if (nodes.vocalTrimGain) {
+      const vocalSign = vocal.polarity ? -1 : 1;
+      rampParam(nodes.vocalTrimGain.gain, vocalSign * dbToLinearGain(vocal.trimDb || 0));
+    }
+    const vocalHpfHz = vocal.eqBypass ? 10 : Math.max(20, Number(vocal.hpf) || 85);
+    rampParam(nodes.vocalHpf.frequency, vocalHpfHz);
+    if (nodes.vocalHpf2) {
+      rampParam(nodes.vocalHpf2.frequency, !vocal.eqBypass && Number(vocal.hpfSlope) === 24 ? vocalHpfHz : 10);
+    }
+    if (nodes.vocalLpf) {
+      rampParam(nodes.vocalLpf.frequency, vocal.eqBypass ? 22000 : Math.max(1500, Number(vocal.lpf) || 20000));
+    }
+    rampParam(nodes.vocalEqLow.gain, vocal.eqBypass ? 0 : (vocal.low || 0));
+    rampParam(nodes.vocalEqMid.frequency, Math.max(200, Math.min(8000, Number(vocal.midFreq) || 3200)));
+    rampParam(nodes.vocalEqMid.Q, Math.max(0.3, Math.min(8, Number(vocal.midQ) || 1.1)));
+    rampParam(nodes.vocalEqMid.gain, vocal.eqBypass ? 0 : (vocal.mid || 0));
+    const deessAmount = Math.max(0, Number(vocal.deesser) || 0);
+    if (nodes.vocalDeesser) {
+      rampParam(nodes.vocalDeesser.frequency, Math.max(3500, Math.min(11000, Number(vocal.deessFreq) || 6500)));
+      rampParam(nodes.vocalDeesser.Q, Number(vocal.deessQ) || 3.2);
+      rampParam(nodes.vocalDeesser.gain, nodes.vocalProDspNode ? 0 : -deessAmount * 0.4);
+    }
+    if (nodes.vocalProDspNode && nodes.vocalProDspNode.port) {
+      nodes.vocalProDspNode.port.postMessage({
+        type: "params",
+        params: {
+          polarityInvert: false,
+          trimDb: 0,
+          gateEnabled: Boolean(vocal.gate),
+          gateThresholdDb: Number(vocal.gateThreshDb ?? -50),
+          gateRangeDb: Number(vocal.gateRangeDb ?? -14),
+          gateHoldMs: Number(vocal.gateHoldMs ?? 90),
+          gateScHpfHz: 80,
+          deessEnabled: deessAmount > 0.05,
+          deessFreqHz: Number(vocal.deessFreq) || 6500,
+          deessQ: Number(vocal.deessQ) || 3.2,
+          deessThresholdDb: Number(vocal.deessThreshDb ?? -26),
+          deessReductionDb: deessAmount,
+          deessWideband: Boolean(vocal.deessWideband),
+          compEnabled: vocal.comp !== false,
+          compThresholdDb: Number(vocal.compThreshDb ?? -18),
+          compRatio: Number(vocal.compRatio ?? 3.5),
+          compAttackMs: Number(vocal.compAttackMs ?? 8),
+          compReleaseMs: Number(vocal.compReleaseMs ?? 160),
+          compMakeupDb: Number(vocal.compMakeupDb ?? 1.5),
+          compPeakMode: Boolean(vocal.compPeakMode),
+          compScHpfHz: 80,
+          limEnabled: false
+        }
+      });
+    }
+    rampParam(nodes.vocalEqHigh.gain, vocal.eqBypass ? 0 : (vocal.high || 0));
+
+    if (!nodes.vocalProDspNode && vocal.comp !== false) {
+      rampParam(nodes.vocalComp.threshold, Number(vocal.compThreshDb ?? -18));
+      rampParam(nodes.vocalComp.ratio, Number(vocal.compRatio ?? 3.5));
     } else {
       rampParam(nodes.vocalComp.threshold, 0);
       rampParam(nodes.vocalComp.ratio, 1);
     }
+    rampParam(nodes.vocalGain.gain, (vocal.gain ?? 112) / 100);
+    rampParam(nodes.vocalMuteGain.gain, vocal.mute ? 0 : 1);
+    const vocalRevLvl = Math.max(0, Math.min(1.5, Number(vocal.reverbSend ?? 100) / 100));
+    if (nodes.vocalPreRevSendGain) {
+      rampParam(nodes.vocalPreRevSendGain.gain, isSplit && vocal.preFaderSend && !vocal.mute ? vocalRevLvl : 0);
+    }
+    if (nodes.vocalPostRevSendGain) {
+      rampParam(nodes.vocalPostRevSendGain.gain, isSplit && !vocal.preFaderSend ? vocalRevLvl : 0);
+    }
+    if (nodes.vocalPanner && nodes.vocalPanner.pan) {
+      rampParam(nodes.vocalPanner.pan, Math.max(-1, Math.min(1, (vocal.pan || 0) / 100)));
+    }
 
-    // Reverb send
-    const wetAmount = isSplit ? (c.reverb.wet || 0) / 100 : (c.reverb.wet || 0) / 160;
-    rampParam(nodes.reverbSendGain.gain, wetAmount);
+    // Reverb send & return
+    rampParam(nodes.reverbSendGain.gain, isSplit ? 0 : 0.65);
+    const revReturnAmt = Math.max(0, Math.min(1, (Number(c.reverb.wet) || 0) / 100));
+    if (nodes.reverbReturnGain) {
+      rampParam(nodes.reverbReturnGain.gain, revReturnAmt);
+    }
 
     // 5-Band Master EQ
     const bypass = Boolean(c.master.bypass);
@@ -195,19 +509,35 @@
       }
     }
 
-    // Limiter
-    if (c.master.limiter !== false) {
-      rampParam(nodes.limiter.threshold, -1.5);
+    // Master Lookahead True-Peak Limiter (-1.0 dBTP default)
+    const limOn = c.master.limiter !== false;
+    if (nodes.masterProDspNode && nodes.masterProDspNode.port) {
+      nodes.masterProDspNode.port.postMessage({
+        type: "params",
+        params: {
+          gateEnabled: false,
+          deessEnabled: false,
+          compEnabled: false,
+          limEnabled: limOn,
+          limCeilingDb: -1.0,
+          limLookaheadMs: 1.5,
+          limReleaseMs: 80
+        }
+      });
+      rampParam(nodes.limiter.threshold, 0);
+      rampParam(nodes.limiter.ratio, 1);
+    } else if (limOn) {
+      rampParam(nodes.limiter.threshold, -1.0);
       rampParam(nodes.limiter.ratio, 20);
     } else {
       rampParam(nodes.limiter.threshold, 0);
       rampParam(nodes.limiter.ratio, 1);
     }
 
-    rampParam(nodes.masterOutGain.gain, (c.master.gain || 100) / 100);
+    rampParam(nodes.masterOutGain.gain, (c.master.gain ?? 100) / 100);
     rampParam(nodes.broadcastMuteGain.gain, broadcastMuted ? 0 : 1);
 
-    // Earphone Monitor & PFL Solo routing
+    // Earphone Monitor & True Pre-Fader Listen (PFL) Solo routing
     if (!monitorEnabled) {
       rampParam(nodes.monMasterGain.gain, 0);
       rampParam(nodes.monInstPflGain.gain, 0);
@@ -227,22 +557,55 @@
     }
   }
 
-  function bindVal(sliderId, labelId, suffix, getter, setter) {
+  function bindVal(sliderId, labelId, suffix, getter, setter, formatFn) {
     const el = $(sliderId);
     const lbl = $(labelId);
     if (!el) return;
+    const fmt = formatFn || ((v) => `${v}${suffix}`);
     el.value = String(getter());
-    if (lbl) lbl.textContent = `${getter()}${suffix}`;
+    if (lbl) lbl.textContent = fmt(getter());
     el.oninput = function () {
       const val = Number(el.value);
       setter(val);
-      if (lbl) lbl.textContent = `${val}${suffix}`;
+      if (lbl) lbl.textContent = fmt(val);
       applyConfigToGraph();
       drawEqAndSpectrum();
+      drawChannelProcCanvas();
     };
   }
 
+  function formatPanLabel(v) {
+    const n = Math.round(Number(v) || 0);
+    if (n === 0) return "C";
+    return n < 0 ? `L${Math.abs(n)}` : `R${n}`;
+  }
+
+  function formatTrimLabel(v) {
+    const n = Number(v) || 0;
+    return `${n >= 0 ? "+" : ""}${n.toFixed(1)} dB`;
+  }
+
+  function formatFaderDbLabel(pct) {
+    const g = Number(pct) / 100;
+    if (!(g > 0.001)) return "-∞ dB";
+    const db = 20 * Math.log10(g);
+    const rounded = Math.abs(db) < 0.05 ? 0 : db;
+    return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)} dB`;
+  }
+
+  function formatHzShort(hz) {
+    const f = Number(hz) || 0;
+    return f >= 1000 ? `${(f / 1000).toFixed(f % 1000 === 0 ? 0 : 1)}k Hz` : `${Math.round(f)} Hz`;
+  }
+
+  function rebuildHallConvolverBuffer() {
+    if (nodes && audioCtx && nodes.convolver) {
+      nodes.convolver.buffer = buildImpulseResponse(audioCtx, activeConfig.reverb.decay || 1.4);
+    }
+  }
+
   function syncUiFromConfig() {
+    activeConfig = normalizeStudioConfig(activeConfig);
     const c = activeConfig;
     const modeSelect = $("lsInputMode");
     if (modeSelect) modeSelect.value = c.mode === "stereo" ? "stereo" : "split";
@@ -253,7 +616,27 @@
     const compBtn = $("lsVocalCompBtn");
     if (compBtn) {
       compBtn.classList.toggle("is-toggled", Boolean(c.vocal.comp));
-      compBtn.textContent = c.vocal.comp ? "Vocal Comp: ON" : "Vocal Comp: OFF";
+      compBtn.textContent = c.vocal.comp ? "Comp: ON" : "Comp: OFF";
+    }
+
+    const instCompBtn = $("lsInstCompBtn");
+    if (instCompBtn) {
+      instCompBtn.classList.toggle("is-toggled", Boolean(c.inst.comp));
+      instCompBtn.textContent = c.inst.comp ? "Comp: ON" : "Comp: OFF";
+    }
+
+    if ($("lsVocalGateBtn")) $("lsVocalGateBtn").classList.toggle("is-toggled", Boolean(c.vocal.gate));
+    if ($("lsInstGateBtn")) $("lsInstGateBtn").classList.toggle("is-toggled", Boolean(c.inst.gate));
+    if ($("lsVocalPolarityBtn")) $("lsVocalPolarityBtn").classList.toggle("is-toggled", Boolean(c.vocal.polarity));
+    if ($("lsInstPolarityBtn")) $("lsInstPolarityBtn").classList.toggle("is-toggled", Boolean(c.inst.polarity));
+
+    if ($("lsVocalEqBypassBtn")) {
+      $("lsVocalEqBypassBtn").classList.toggle("is-toggled", Boolean(c.vocal.eqBypass));
+      $("lsVocalEqBypassBtn").textContent = c.vocal.eqBypass ? "EQ Bypassed" : "EQ Active";
+    }
+    if ($("lsInstEqBypassBtn")) {
+      $("lsInstEqBypassBtn").classList.toggle("is-toggled", Boolean(c.inst.eqBypass));
+      $("lsInstEqBypassBtn").textContent = c.inst.eqBypass ? "EQ Bypassed" : "EQ Active";
     }
 
     const eqBypassBtn = $("lsMasterBypassBtn");
@@ -273,7 +656,7 @@
     if (limBtn) {
       const limOn = c.master.limiter !== false;
       limBtn.classList.toggle("is-toggled", limOn);
-      limBtn.textContent = limOn ? "Limiter: ON (-1.5dB)" : "Limiter: OFF";
+      limBtn.textContent = limOn ? "Limiter: ON (-1.0 dBTP)" : "Limiter: OFF";
     }
 
     const instMuteBtn = $("lsInstMuteBtn");
@@ -281,41 +664,134 @@
     const vocalMuteBtn = $("lsVocalMuteBtn");
     if (vocalMuteBtn) vocalMuteBtn.classList.toggle("is-muted-active", Boolean(c.vocal.mute));
 
-    bindVal("lsInstGain", "lsInstGainVal", "%", () => c.inst.gain, (v) => (c.inst.gain = v));
+    // Instruments Channel Bindings
+    bindVal("lsInstGain", "lsInstGainVal", "", () => c.inst.gain, (v) => (c.inst.gain = v), formatFaderDbLabel);
+    bindVal("lsInstTrim", "lsInstTrimVal", " dB", () => c.inst.trimDb, (v) => (c.inst.trimDb = v), formatTrimLabel);
+    bindVal("lsInstPan", "lsInstPanVal", "", () => c.inst.pan, (v) => (c.inst.pan = v), formatPanLabel);
     bindVal("lsInstHpf", "lsInstHpfVal", " Hz", () => c.inst.hpf, (v) => (c.inst.hpf = v));
+    bindVal("lsInstLpf", "lsInstLpfVal", "", () => c.inst.lpf, (v) => (c.inst.lpf = v), formatHzShort);
     bindVal("lsInstLow", "lsInstLowVal", " dB", () => c.inst.low, (v) => (c.inst.low = v));
     bindVal("lsInstMid", "lsInstMidVal", " dB", () => c.inst.mid, (v) => (c.inst.mid = v));
     bindVal("lsInstHigh", "lsInstHighVal", " dB", () => c.inst.high, (v) => (c.inst.high = v));
+    const updateInstMidLbl = () => {
+      if ($("lsInstMidFreqVal")) {
+        const f = Number(c.inst.midFreq) || 450;
+        const fStr = f >= 1000 ? `${(f / 1000).toFixed(1)}k` : `${Math.round(f)}`;
+        $("lsInstMidFreqVal").textContent = `${fStr} Q${Number(c.inst.midQ || 1.0).toFixed(1)}`;
+      }
+    };
+    bindVal("lsInstMidFreq", null, "", () => c.inst.midFreq, (v) => { c.inst.midFreq = v; updateInstMidLbl(); });
+    bindVal("lsInstMidQ", null, "", () => c.inst.midQ, (v) => { c.inst.midQ = v; updateInstMidLbl(); });
+    updateInstMidLbl();
+    if ($("lsInstHpfSlope")) {
+      $("lsInstHpfSlope").value = String(c.inst.hpfSlope === 24 ? 24 : 12);
+    }
+    bindVal("lsInstCompThresh", "lsInstCompThreshVal", " dB", () => c.inst.compThreshDb, (v) => (c.inst.compThreshDb = v));
+    bindVal("lsInstCompRatio", "lsInstCompRatioVal", ":1", () => c.inst.compRatio, (v) => (c.inst.compRatio = v));
+    const updateInstCompTimesLbl = () => {
+      if ($("lsInstCompTimesVal")) $("lsInstCompTimesVal").textContent = `${Math.round(c.inst.compAttackMs)} / ${Math.round(c.inst.compReleaseMs)}`;
+    };
+    bindVal("lsInstCompAttack", null, "", () => c.inst.compAttackMs, (v) => { c.inst.compAttackMs = v; updateInstCompTimesLbl(); });
+    bindVal("lsInstCompRelease", null, "", () => c.inst.compReleaseMs, (v) => { c.inst.compReleaseMs = v; updateInstCompTimesLbl(); });
+    updateInstCompTimesLbl();
+    bindVal("lsInstCompMakeup", "lsInstCompMakeupVal", " dB", () => c.inst.compMakeupDb, (v) => (c.inst.compMakeupDb = v), formatTrimLabel);
+    if ($("lsInstCompMode")) $("lsInstCompMode").value = c.inst.compPeakMode ? "peak" : "rms";
+    bindVal("lsInstGateThresh", "lsInstGateThreshVal", " dB", () => c.inst.gateThreshDb, (v) => (c.inst.gateThreshDb = v));
+    bindVal("lsInstGateRange", null, "", () => c.inst.gateRangeDb, (v) => (c.inst.gateRangeDb = v));
+    bindVal("lsInstGateHold", null, "", () => c.inst.gateHoldMs, (v) => (c.inst.gateHoldMs = v));
+    bindVal("lsInstRevSend", "lsInstRevSendVal", "%", () => c.inst.reverbSend, (v) => (c.inst.reverbSend = v));
+    if ($("lsInstSendMode")) $("lsInstSendMode").value = c.inst.preFaderSend ? "pre" : "post";
+    if ($("lsInstSendModeVal")) $("lsInstSendModeVal").textContent = c.inst.preFaderSend ? "PRE" : "POST";
 
-    bindVal("lsVocalGain", "lsVocalGainVal", "%", () => c.vocal.gain, (v) => (c.vocal.gain = v));
+    // Vocals Channel Bindings
+    bindVal("lsVocalGain", "lsVocalGainVal", "", () => c.vocal.gain, (v) => (c.vocal.gain = v), formatFaderDbLabel);
+    bindVal("lsVocalTrim", "lsVocalTrimVal", " dB", () => c.vocal.trimDb, (v) => (c.vocal.trimDb = v), formatTrimLabel);
+    bindVal("lsVocalPan", "lsVocalPanVal", "", () => c.vocal.pan, (v) => (c.vocal.pan = v), formatPanLabel);
     bindVal("lsVocalHpf", "lsVocalHpfVal", " Hz", () => c.vocal.hpf, (v) => (c.vocal.hpf = v));
+    bindVal("lsVocalLpf", "lsVocalLpfVal", "", () => c.vocal.lpf, (v) => (c.vocal.lpf = v), formatHzShort);
     bindVal("lsVocalLow", "lsVocalLowVal", " dB", () => c.vocal.low, (v) => (c.vocal.low = v));
     bindVal("lsVocalMid", "lsVocalMidVal", " dB", () => c.vocal.mid, (v) => (c.vocal.mid = v));
     bindVal("lsVocalHigh", "lsVocalHighVal", " dB", () => c.vocal.high, (v) => (c.vocal.high = v));
+    const updateVocalMidLbl = () => {
+      if ($("lsVocalMidFreqVal")) {
+        const f = Number(c.vocal.midFreq) || 3200;
+        const fStr = f >= 1000 ? `${(f / 1000).toFixed(1)}k` : `${Math.round(f)}`;
+        $("lsVocalMidFreqVal").textContent = `${fStr} Q${Number(c.vocal.midQ || 1.1).toFixed(1)}`;
+      }
+    };
+    bindVal("lsVocalMidFreq", null, "", () => c.vocal.midFreq, (v) => { c.vocal.midFreq = v; updateVocalMidLbl(); });
+    bindVal("lsVocalMidQ", null, "", () => c.vocal.midQ, (v) => { c.vocal.midQ = v; updateVocalMidLbl(); });
+    updateVocalMidLbl();
+    if ($("lsVocalHpfSlope")) {
+      $("lsVocalHpfSlope").value = String(c.vocal.hpfSlope === 24 ? 24 : 12);
+    }
     bindVal(
       "lsVocalDeesser",
       "lsVocalDeesserVal",
       " dB",
-      () => (c.vocal.deesser !== undefined ? c.vocal.deesser : 2.5),
-      (v) => (c.vocal.deesser = v)
+      () => c.vocal.deesser,
+      (v) => (c.vocal.deesser = v),
+      (v) => (Number(v) > 0 ? `-${Number(v)} dB` : "0 dB")
     );
-    if ($("lsVocalDeesserVal")) {
-      const dsVal = Number($("lsVocalDeesser")?.value || 0);
-      $("lsVocalDeesserVal").textContent = dsVal > 0 ? `-${dsVal} dB` : "0 dB";
-    }
+    bindVal("lsVocalDeessFreq", "lsVocalDeessFreqVal", "", () => c.vocal.deessFreq, (v) => (c.vocal.deessFreq = v), formatHzShort);
+    bindVal("lsVocalDeessThresh", "lsVocalDeessThreshVal", " dB", () => c.vocal.deessThreshDb, (v) => (c.vocal.deessThreshDb = v));
+    if ($("lsVocalDeessMode")) $("lsVocalDeessMode").value = c.vocal.deessWideband ? "wide" : "split";
+    bindVal("lsVocalCompThresh", "lsVocalCompThreshVal", " dB", () => c.vocal.compThreshDb, (v) => (c.vocal.compThreshDb = v));
+    bindVal("lsVocalCompRatio", "lsVocalCompRatioVal", ":1", () => c.vocal.compRatio, (v) => (c.vocal.compRatio = v));
+    const updateVocalCompTimesLbl = () => {
+      if ($("lsVocalCompTimesVal")) $("lsVocalCompTimesVal").textContent = `${Math.round(c.vocal.compAttackMs)} / ${Math.round(c.vocal.compReleaseMs)}`;
+    };
+    bindVal("lsVocalCompAttack", null, "", () => c.vocal.compAttackMs, (v) => { c.vocal.compAttackMs = v; updateVocalCompTimesLbl(); });
+    bindVal("lsVocalCompRelease", null, "", () => c.vocal.compReleaseMs, (v) => { c.vocal.compReleaseMs = v; updateVocalCompTimesLbl(); });
+    updateVocalCompTimesLbl();
+    bindVal("lsVocalCompMakeup", "lsVocalCompMakeupVal", " dB", () => c.vocal.compMakeupDb, (v) => (c.vocal.compMakeupDb = v), formatTrimLabel);
+    if ($("lsVocalCompMode")) $("lsVocalCompMode").value = c.vocal.compPeakMode ? "peak" : "rms";
+    bindVal("lsVocalGateThresh", "lsVocalGateThreshVal", " dB", () => c.vocal.gateThreshDb, (v) => (c.vocal.gateThreshDb = v));
+    bindVal("lsVocalGateRange", null, "", () => c.vocal.gateRangeDb, (v) => (c.vocal.gateRangeDb = v));
+    bindVal("lsVocalGateHold", null, "", () => c.vocal.gateHoldMs, (v) => (c.vocal.gateHoldMs = v));
+    bindVal("lsVocalRevSend", "lsVocalRevSendVal", "%", () => c.vocal.reverbSend, (v) => (c.vocal.reverbSend = v));
+    if ($("lsVocalSendMode")) $("lsVocalSendMode").value = c.vocal.preFaderSend ? "pre" : "post";
+    if ($("lsVocalSendModeVal")) $("lsVocalSendModeVal").textContent = c.vocal.preFaderSend ? "PRE" : "POST";
 
+    // Hall Reverb Bindings
+    const revPresetSel = $("lsReverbPresetSelect");
+    if (revPresetSel) revPresetSel.value = c.reverb.preset || "medium_prayer_hall";
     bindVal("lsReverbWet", "lsReverbWetVal", "%", () => c.reverb.wet, (v) => (c.reverb.wet = v));
+    bindVal(
+      "lsReverbPreDelay",
+      "lsReverbPreDelayVal",
+      " ms",
+      () => c.reverb.preDelayMs,
+      (v) => { c.reverb.preDelayMs = v; rebuildHallConvolverBuffer(); }
+    );
     bindVal(
       "lsReverbDecay",
       "lsReverbDecayVal",
       "s",
       () => c.reverb.decay,
-      (v) => {
-        c.reverb.decay = v;
-        if (nodes && audioCtx && nodes.convolver) {
-          nodes.convolver.buffer = buildImpulseResponse(audioCtx, v);
-        }
-      }
+      (v) => { c.reverb.decay = v; rebuildHallConvolverBuffer(); }
+    );
+    bindVal(
+      "lsReverbTone",
+      "lsReverbToneVal",
+      "",
+      () => c.reverb.toneHz,
+      (v) => { c.reverb.toneHz = v; rebuildHallConvolverBuffer(); },
+      formatHzShort
+    );
+    bindVal(
+      "lsReverbRoomSize",
+      "lsReverbRoomSizeVal",
+      "%",
+      () => c.reverb.roomSize,
+      (v) => { c.reverb.roomSize = v; rebuildHallConvolverBuffer(); }
+    );
+    bindVal(
+      "lsReverbWidth",
+      "lsReverbWidthVal",
+      "%",
+      () => c.reverb.stereoWidth,
+      (v) => { c.reverb.stereoWidth = v; rebuildHallConvolverBuffer(); }
     );
 
     bindVal("lsMaster80", "lsMaster80Val", " dB", () => c.master.b80, (v) => (c.master.b80 = v));
@@ -329,8 +805,15 @@
     if (splitGrid) {
       splitGrid.style.opacity = c.mode === "stereo" ? "0.45" : "1";
     }
+    const ioTag = $("lsIoSummaryTag");
+    if (ioTag) {
+      const baseMode = c.mode === "stereo" ? "Mode B · Stereo Pass" : "Mode A · 2-Ch Split";
+      ioTag.textContent = c.swapChannels ? `${baseMode} · Swapped 1↔2` : baseMode;
+    }
+    if (typeof syncRotaryVisuals === "function") syncRotaryVisuals();
     applyConfigToGraph();
     drawEqAndSpectrum();
+    drawChannelProcCanvas();
   }
 
   function renderPresetOptions(selectedId) {
@@ -441,41 +924,48 @@
   function drawEqAndSpectrum() {
     const canvas = $("lsEqSpectrumCanvas");
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const w = canvas.width || 560;
-    const h = canvas.height || 118;
+    const pal = getStudioPalette();
+    const { ctx, w, h } = prepareHiDpiCanvas(canvas, 720, 164);
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#171411";
+    ctx.fillStyle = pal.canvasBg;
     ctx.fillRect(0, 0, w, h);
-
-    // Subtle dB horizontal grid (+12, 0, -12 dB)
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1;
-    [0.18, 0.5, 0.82].forEach((ratio) => {
-      const y = Math.round(h * ratio) + 0.5;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    });
 
     const minF = 20;
     const maxF = 18000;
     const logRange = Math.log10(maxF / minF);
     const freqToX = (f) => (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * w;
 
+    // Horizontal dB gridlines (+12, +6, 0, -6, -12 dB)
+    ctx.font = "600 9.5px ui-monospace, SFMono-Regular, Menlo, monospace";
+    [
+      { db: 12, label: "+12" },
+      { db: 6, label: "+6" },
+      { db: 0, label: "0 dB" },
+      { db: -6, label: "-6" },
+      { db: -12, label: "-12" }
+    ].forEach((row) => {
+      const y = Math.round(h * 0.5 - (row.db / 15) * (h * 0.38)) + 0.5;
+      ctx.strokeStyle = row.db === 0 ? pal.gridZero : pal.grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.fillStyle = row.db === 0 ? pal.textSecondary : pal.textMuted;
+      ctx.fillText(row.label, 5, y - 3);
+    });
+
     // Frequency octave gridlines & labels
-    ctx.fillStyle = "rgba(214, 211, 209, 0.5)";
-    ctx.font = "600 9.5px Inter, system-ui, sans-serif";
-    [100, 1000, 10000].forEach((f) => {
+    [50, 100, 250, 500, 1000, 2000, 5000, 10000].forEach((f) => {
       const x = Math.round(freqToX(f)) + 0.5;
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+      ctx.strokeStyle = pal.grid;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, h);
       ctx.stroke();
-      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 4);
+      ctx.fillStyle = pal.textMuted;
+      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 5);
     });
 
     // Live FFT spectrum from masterAnalyser when engine is running
@@ -486,8 +976,12 @@
       analyser.getByteFrequencyData(freqBins);
       const nyquist = (audioCtx.sampleRate || 48000) / 2;
 
-      ctx.fillStyle = "rgba(245, 158, 11, 0.28)";
-      const bars = 64;
+      const rtaGrad = ctx.createLinearGradient(0, h, 0, 12);
+      rtaGrad.addColorStop(0, colorWithAlpha(pal.accentSecondary, 0.16));
+      rtaGrad.addColorStop(0.65, colorWithAlpha(pal.accentSecondary, 0.32));
+      rtaGrad.addColorStop(1, colorWithAlpha(pal.accent, 0.48));
+      ctx.fillStyle = rtaGrad;
+      const bars = 72;
       for (let b = 0; b < bars; b += 1) {
         const f0 = minF * Math.pow(maxF / minF, b / bars);
         const f1 = minF * Math.pow(maxF / minF, (b + 1) / bars);
@@ -497,14 +991,14 @@
         for (let k = idx0; k <= idx1; k += 1) {
           if (freqBins[k] > maxVal) maxVal = freqBins[k];
         }
-        const barH = (maxVal / 255) * (h - 14);
+        const barH = (maxVal / 255) * (h - 18);
         const x0 = (b / bars) * w;
         const bw = Math.max(2, w / bars - 2);
         ctx.fillRect(x0, h - barH, bw, barH);
       }
     }
 
-    // Visual Parametric 5-Band EQ Curve with FabFilter-style area fill
+    // Parametric 5-Band EQ Curve + Band Nodes
     if (window.LiveStreamDsp && typeof window.LiveStreamDsp.computeEqCurvePoints === "function") {
       const pts = window.LiveStreamDsp.computeEqCurvePoints(activeConfig.master);
       const isBypassed = Boolean(activeConfig.master && activeConfig.master.bypass);
@@ -517,9 +1011,9 @@
 
       if (xy.length > 0 && !isBypassed) {
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, "rgba(251, 191, 36, 0.24)");
-        grad.addColorStop(0.5, "rgba(245, 158, 11, 0.08)");
-        grad.addColorStop(1, "rgba(245, 158, 11, 0.01)");
+        grad.addColorStop(0, colorWithAlpha(pal.accent, 0.3));
+        grad.addColorStop(0.55, colorWithAlpha(pal.accent, 0.1));
+        grad.addColorStop(1, colorWithAlpha(pal.accent, 0.01));
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(xy[0].x, h * 0.5);
@@ -539,52 +1033,497 @@
       });
       if (isBypassed) {
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = "#78716c";
+        ctx.strokeStyle = pal.textMuted;
       } else {
-        ctx.strokeStyle = "#fbbf24";
+        ctx.strokeStyle = pal.accent;
+        ctx.shadowColor = colorWithAlpha(pal.accent, 0.38);
+        ctx.shadowBlur = 7;
       }
-      ctx.lineWidth = 2.1;
+      ctx.lineWidth = 2.2;
       ctx.stroke();
       ctx.restore();
+
+      const m = activeConfig.master || {};
+      [
+        { freq: 80, val: isBypassed ? 0 : Number(m.b80) || 0 },
+        { freq: 250, val: isBypassed ? 0 : Number(m.b250) || 0 },
+        { freq: 1000, val: isBypassed ? 0 : Number(m.b1k) || 0 },
+        { freq: 3500, val: isBypassed ? 0 : Number(m.b3k5) || 0 },
+        { freq: 10000, val: isBypassed ? 0 : Number(m.b10k) || 0 }
+      ].forEach((b) => {
+        const x = freqToX(b.freq);
+        const y = h * 0.5 - (Math.max(-15, Math.min(15, b.val)) / 15) * (h * 0.38);
+        ctx.beginPath();
+        ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = isBypassed ? pal.textMuted : pal.accent;
+        ctx.fill();
+        ctx.strokeStyle = pal.canvasBg;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
     }
+  }
+
+  function drawChannelProcCanvas() {
+    const canvas = $("lsChannelProcCanvas");
+    if (!canvas) return;
+    const pal = getStudioPalette();
+    const { ctx, w, h } = prepareHiDpiCanvas(canvas, 420, 116);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = pal.canvasBg;
+    ctx.fillRect(0, 0, w, h);
+
+    if (activeProcTab === "reverb") {
+      const rev = activeConfig.reverb || { wet: 14, decay: 1.4 };
+      const wetNorm = Math.max(0, Math.min(1, Number(rev.wet || 0) / 100));
+      const decay = Math.max(0.4, Math.min(3.5, Number(rev.decay || 1.4)));
+      const preDelaySec = Math.max(0, Number(rev.preDelayMs || 0)) / 1000;
+      const maxSec = 3.2;
+
+      ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+      [0.5, 1.0, 1.5, 2.0, 2.5, 3.0].forEach((sec) => {
+        const x = Math.round((sec / maxSec) * w) + 0.5;
+        ctx.strokeStyle = pal.grid;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+        ctx.fillStyle = pal.textMuted;
+        ctx.fillText(`${sec}s`, x + 3, h - 5);
+      });
+
+      ctx.strokeStyle = pal.gridZero;
+      ctx.beginPath();
+      ctx.moveTo(0, h - 18.5);
+      ctx.lineTo(w, h - 18.5);
+      ctx.stroke();
+
+      const steps = 72;
+      const baseLine = h - 18;
+      const peakH = (h - 32) * Math.max(0.22, wetNorm * 1.55);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, baseLine);
+      for (let i = 0; i <= steps; i++) {
+        const t = (i / steps) * maxSec;
+        const env = t < preDelaySec ? 0.08 : Math.exp(-3.6 * ((t - preDelaySec) / decay));
+        const y = baseLine - Math.min(h - 26, env * peakH);
+        ctx.lineTo((i / steps) * w, y);
+      }
+      ctx.lineTo(w, baseLine);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 12, 0, baseLine);
+      grad.addColorStop(0, colorWithAlpha(pal.accent, 0.34));
+      grad.addColorStop(1, colorWithAlpha(pal.accent, 0.02));
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const t = (i / steps) * maxSec;
+        const env = t < preDelaySec ? 0.08 : Math.exp(-3.6 * ((t - preDelaySec) / decay));
+        const y = baseLine - Math.min(h - 26, env * peakH);
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo((i / steps) * w, y);
+      }
+      ctx.strokeStyle = pal.accent;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      const irTag = customReverbIrBuffer ? `CUSTOM IR: ${customReverbIrName}` : `RT60 ${decay.toFixed(1)}s · DAMP ${Math.round(Number(rev.toneHz || 7600) / 100) / 10}k · W ${rev.stereoWidth || 110}%`;
+      ctx.fillStyle = pal.textSecondary;
+      ctx.fillText(irTag, 8, 14);
+      return;
+    }
+
+    const isVocal = activeProcTab === "vocal";
+    const chCfg = isVocal ? activeConfig.vocal || {} : activeConfig.inst || {};
+    const chDspM = isVocal ? vocalDspMeters : instDspMeters;
+    const strokeAccent = isVocal ? pal.accentSecondary : pal.accent;
+    const subTab = activeChSubTabs[isVocal ? "vocal" : "inst"] || "eq";
+
+    // Draw true Dynamics Transfer Curve when inspecting Dynamics tab
+    if (subTab === "dyn") {
+      const thr = Number(chCfg.compThreshDb ?? (isVocal ? -18 : -16));
+      const ratio = chCfg.comp ? Math.max(1, Number(chCfg.compRatio ?? (isVocal ? 3.5 : 2.5))) : 1;
+      const gThr = Number(chCfg.gateThreshDb ?? (isVocal ? -50 : -54));
+      const gFloor = Number(chCfg.gateRangeDb ?? (isVocal ? -14 : -12));
+      const padL = 26;
+      const padB = 16;
+      const pw = w - padL - 12;
+      const ph = h - padB - 14;
+      const dbToX = (db) => padL + ((db + 60) / 60) * pw;
+      const dbToY = (db) => 8 + (1 - (db + 60) / 60) * ph;
+
+      ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+      [-48, -36, -24, -12, 0].forEach((db) => {
+        const x = Math.round(dbToX(db)) + 0.5;
+        const y = Math.round(dbToY(db)) + 0.5;
+        ctx.strokeStyle = pal.grid;
+        ctx.beginPath(); ctx.moveTo(x, 6); ctx.lineTo(x, h - padB); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - 8, y); ctx.stroke();
+        ctx.fillStyle = pal.textMuted;
+        ctx.fillText(String(db), 3, y + 3);
+        ctx.fillText(String(db), x - 8, h - 4);
+      });
+
+      // Unity 1:1 line
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = pal.gridZero;
+      ctx.beginPath();
+      ctx.moveTo(dbToX(-60), dbToY(-60));
+      ctx.lineTo(dbToX(0), dbToY(0));
+      ctx.stroke();
+      ctx.restore();
+
+      // Transfer curve including Gate & Comp
+      ctx.save();
+      ctx.beginPath();
+      for (let inDb = -60; inDb <= 0; inDb += 1) {
+        let outDb = inDb;
+        if (chCfg.gate && inDb < gThr) {
+          outDb = Math.max(-60, inDb + gFloor);
+        }
+        if (chCfg.comp && outDb > thr) {
+          outDb = thr + (outDb - thr) / ratio;
+        }
+        const x = dbToX(inDb);
+        const y = dbToY(outDb);
+        if (inDb === -60) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = strokeAccent;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = pal.textSecondary;
+      const dsTag = isVocal ? ` · DE-ESS ${chDspM.deesserGrDb < -0.05 ? chDspM.deesserGrDb.toFixed(1) : "0.0"} dB` : "";
+      ctx.fillText(
+        `COMP ${chCfg.comp ? `${thr}dB ${ratio.toFixed(1)}:1` : "OFF"} (GR ${chDspM.compGrDb.toFixed(1)}dB)${dsTag}`,
+        padL + 6,
+        14
+      );
+      return;
+    }
+
+    const minF = 20;
+    const maxF = 18000;
+    const logRange = Math.log10(maxF / minF);
+    const freqToX = (f) => (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * w;
+
+    ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+    [12, 0, -12].forEach((db) => {
+      const y = Math.round(h * 0.5 - (db / 16) * (h * 0.38)) + 0.5;
+      ctx.strokeStyle = db === 0 ? pal.gridZero : pal.grid;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    });
+    [60, 250, 1000, 4000, 10000].forEach((f) => {
+      const x = Math.round(freqToX(f)) + 0.5;
+      ctx.strokeStyle = pal.grid;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+      ctx.fillStyle = pal.textMuted;
+      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 4);
+    });
+
+    const freqs = [];
+    for (let i = 0; i <= 72; i++) {
+      freqs.push(minF * Math.pow(maxF / minF, i / 72));
+    }
+    const curvePts =
+      window.LiveStreamDsp && typeof window.LiveStreamDsp.computeChannelEqCurvePoints === "function"
+        ? window.LiveStreamDsp.computeChannelEqCurvePoints(chCfg, {
+          isVocal,
+          freqs,
+          dynamicDeessGrDb: isVocal ? chDspM.deesserGrDb : 0
+        })
+        : freqs.map((f) => ({ freq: f, db: 0 }));
+
+    const pts = curvePts.map((pt) => {
+      const clampedDb = Math.max(-16, Math.min(14, pt.db));
+      return {
+        freq: pt.freq,
+        x: freqToX(pt.freq),
+        y: h * 0.5 - (clampedDb / 16) * (h * 0.38)
+      };
+    });
+
+    const isEqBypass = Boolean(chCfg.eqBypass);
+    if (!isEqBypass) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, h * 0.5);
+      pts.forEach((p) => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(pts[pts.length - 1].x, h * 0.5);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, colorWithAlpha(strokeAccent, 0.28));
+      grad.addColorStop(1, colorWithAlpha(strokeAccent, 0.02));
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    if (isEqBypass) {
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = pal.textMuted;
+    } else {
+      ctx.strokeStyle = strokeAccent;
+    }
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    const lowFreq = Number(chCfg.lowFreq) || (isVocal ? 220 : 90);
+    const midFreq = Number(chCfg.midFreq) || (isVocal ? 3200 : 450);
+    const highFreq = Number(chCfg.highFreq) || (isVocal ? 9000 : 4500);
+    [lowFreq, midFreq, highFreq].forEach((bf) => {
+      const nearest = pts.reduce((best, p) => (Math.abs(p.freq - bf) < Math.abs(best.freq - bf) ? p : best), pts[0]);
+      ctx.beginPath();
+      ctx.arc(freqToX(bf), nearest.y, 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = isEqBypass ? pal.textMuted : strokeAccent;
+      ctx.fill();
+      ctx.strokeStyle = pal.canvasBg;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = pal.textSecondary;
+    ctx.fillText(
+      isEqBypass
+        ? "CHANNEL EQ BYPASSED"
+        : isVocal
+          ? `HPF ${chCfg.hpf}Hz (${chCfg.hpfSlope || 12}dB) · MID ${Math.round(midFreq)}Hz · DE-ESS ${chDspM.deesserGrDb < -0.05 ? chDspM.deesserGrDb.toFixed(1) : "0.0"}dB`
+          : `HPF ${chCfg.hpf}Hz (${chCfg.hpfSlope || 12}dB) · MID ${Math.round(midFreq)}Hz · SEND ${chCfg.reverbSend ?? 65}%`,
+      6,
+      13
+    );
   }
 
   function updateMetersLoop() {
     if (!nodes || !audioCtx) return;
 
-    function measurePeak(analyser, fillEl, clipEl) {
-      if (!analyser || !fillEl) return;
+    function measurePeakRms(analyser, fillEl, clipEl, peakTextEl, rmsTextEl) {
+      if (!analyser) return;
       const arr = new Float32Array(analyser.fftSize);
       analyser.getFloatTimeDomainData(arr);
       let peak = 0;
+      let sumSq = 0;
       for (let i = 0; i < arr.length; i++) {
-        const a = Math.abs(arr[i]);
+        const s = arr[i];
+        const a = Math.abs(s);
         if (a > peak) peak = a;
+        sumSq += s * s;
       }
+      const rms = Math.sqrt(sumSq / arr.length);
       const db = peak > 0.00001 ? 20 * Math.log10(peak) : -60;
+      const rmsDb = rms > 0.00001 ? 20 * Math.log10(rms) : -60;
       const pct = Math.max(0, Math.min(100, ((db + 54) / 54) * 100));
-      fillEl.style.width = `${pct.toFixed(1)}%`;
+      if (fillEl) {
+        if (fillEl.dataset && fillEl.dataset.meterOrient === "vertical") {
+          fillEl.style.height = `${pct.toFixed(1)}%`;
+        } else {
+          fillEl.style.width = `${pct.toFixed(1)}%`;
+        }
+      }
+      if (peakTextEl) {
+        peakTextEl.textContent = db <= -59.5 ? "-∞ dB" : `${db.toFixed(1)} dB`;
+      }
+      if (rmsTextEl) {
+        rmsTextEl.textContent = rmsDb <= -59.5 ? "-∞ dB" : `${rmsDb.toFixed(1)} dB`;
+      }
       if (clipEl) {
         clipEl.classList.toggle("is-clipping", peak >= 0.96);
       }
     }
 
-    measurePeak(nodes.instAnalyser, $("lsInstMeterFill"), $("lsInstClip"));
-    measurePeak(nodes.vocalAnalyser, $("lsVocalMeterFill"), $("lsVocalClip"));
-    measurePeak(nodes.masterAnalyser, $("lsMasterMeterFill"), $("lsMasterClip"));
-    updateGrBar(nodes.vocalComp, "lsVocalGrBar", "lsVocalGrVal");
-    updateGrBar(nodes.limiter, "lsLimiterGrBar", "lsLimiterGrVal");
+    function applyGrReadout(grDb, barId, valId) {
+      const bar = $(barId);
+      const val = $(valId);
+      const clamped = Math.min(0, Number(grDb) || 0);
+      if (bar) bar.style.width = `${Math.max(0, Math.min(100, (Math.abs(clamped) / 18) * 100)).toFixed(1)}%`;
+      if (val) val.textContent = `${clamped.toFixed(1)} dB`;
+    }
+
+    measurePeakRms(nodes.instAnalyser, $("lsInstMeterFill"), $("lsInstClip"), $("lsInstPeakVal"), $("lsInstRmsVal"));
+    measurePeakRms(nodes.vocalAnalyser, $("lsVocalMeterFill"), $("lsVocalClip"), $("lsVocalPeakVal"), $("lsVocalRmsVal"));
+    if (nodes.reverbAnalyser) {
+      measurePeakRms(nodes.reverbAnalyser, $("lsReverbMeterFill"), null, null, null);
+    }
+
+    // Master Stereo L/R + BS.1770-4 True-Peak & Short-Term LUFS from bp-pcm-capture
+    if (masterTelem.kwRing.length > 0) {
+      const dbL = masterTelem.peakL > 0.00001 ? 20 * Math.log10(masterTelem.peakL) : -60;
+      const dbR = masterTelem.peakR > 0.00001 ? 20 * Math.log10(masterTelem.peakR) : -60;
+      const pctL = Math.max(0, Math.min(100, ((dbL + 54) / 54) * 100));
+      const pctR = Math.max(0, Math.min(100, ((dbR + 54) / 54) * 100));
+      if ($("lsMasterMeterFill")) $("lsMasterMeterFill").style.height = `${pctL.toFixed(1)}%`;
+      if ($("lsMasterMeterFillR")) $("lsMasterMeterFillR").style.height = `${pctR.toFixed(1)}%`;
+
+      const tpDb = masterTelem.truePeak > 0.00001 ? 20 * Math.log10(masterTelem.truePeak) : -60;
+      if ($("lsMasterPeakVal")) {
+        $("lsMasterPeakVal").textContent = tpDb <= -59.5 ? "-∞ dBTP" : `${tpDb.toFixed(1)} dBTP`;
+      }
+      const rmsSt = Math.sqrt(0.5 * (masterTelem.rmsL * masterTelem.rmsL + masterTelem.rmsR * masterTelem.rmsR));
+      const rmsDb = rmsSt > 0.00001 ? 20 * Math.log10(rmsSt) : -60;
+      if ($("lsMasterRmsVal")) {
+        $("lsMasterRmsVal").textContent = rmsDb <= -59.5 ? "-∞ dB" : `${rmsDb.toFixed(1)} dB`;
+      }
+      if ($("lsMasterLufsVal")) {
+        $("lsMasterLufsVal").textContent = Number.isFinite(masterTelem.shortTermLufs) && masterTelem.shortTermLufs > -70
+          ? `${masterTelem.shortTermLufs.toFixed(1)} LUFS`
+          : "-∞ LUFS";
+      }
+      if ($("lsMasterClip")) {
+        $("lsMasterClip").classList.toggle("is-clipping", tpDb >= -0.2);
+      }
+    } else {
+      measurePeakRms(
+        nodes.masterAnalyser,
+        $("lsMasterMeterFill"),
+        $("lsMasterClip"),
+        $("lsMasterPeakVal"),
+        $("lsMasterRmsVal")
+      );
+      if ($("lsMasterMeterFillR") && $("lsMasterMeterFill")) {
+        $("lsMasterMeterFillR").style.height = $("lsMasterMeterFill").style.height;
+      }
+    }
+
+    if (nodes.vocalProDspNode) {
+      applyGrReadout(vocalDspMeters.compGrDb, "lsVocalGrBar", "lsVocalGrVal");
+      applyGrReadout(vocalDspMeters.deesserGrDb, "lsVocalDeessGrBar", "lsVocalDeessGrVal");
+      if ($("lsVocalGateGrVal")) {
+        $("lsVocalGateGrVal").textContent = `${Math.min(0, vocalDspMeters.gateGainDb || 0).toFixed(1)} dB`;
+      }
+    } else {
+      updateGrBar(nodes.vocalComp, "lsVocalGrBar", "lsVocalGrVal");
+    }
+
+    if (nodes.instProDspNode) {
+      applyGrReadout(instDspMeters.compGrDb, "lsInstGrBar", "lsInstGrVal");
+      if ($("lsInstGateGrVal")) {
+        $("lsInstGateGrVal").textContent = `${Math.min(0, instDspMeters.gateGainDb || 0).toFixed(1)} dB`;
+      }
+    } else if (nodes.instComp) {
+      updateGrBar(nodes.instComp, "lsInstGrBar", "lsInstGrVal");
+    }
+
+    if (nodes.masterProDspNode) {
+      applyGrReadout(masterDspMeters.limiterGrDb, "lsLimiterGrBar", "lsLimiterGrVal");
+    } else {
+      updateGrBar(nodes.limiter, "lsLimiterGrBar", "lsLimiterGrVal");
+    }
+
+    if ($("lsMasterGrVal") && $("lsLimiterGrVal")) {
+      $("lsMasterGrVal").textContent = $("lsLimiterGrVal").textContent;
+    }
     drawEqAndSpectrum();
+    if (activeProcTab === "vocal" && activeChSubTabs.vocal === "dyn") drawChannelProcCanvas();
+    if (activeProcTab === "inst" && activeChSubTabs.inst === "dyn") drawChannelProcCanvas();
 
     meterRaf = window.requestAnimationFrame(updateMetersLoop);
   }
 
+  function refreshSoundcheckUi() {
+    if (!soundcheckSession || !window.LiveStreamSoundcheck) return;
+    soundcheckSession.swapChannels = Boolean(activeConfig.swapChannels);
+    soundcheckSession.singleChannelAllowed = Boolean($("lsScSingleOkCheck")?.checked);
+    const ready = window.LiveStreamSoundcheck.evaluateReadiness(soundcheckSession, {
+      requireDualInput: activeConfig.mode !== "stereo"
+    });
+    if ($("lsScDeviceName")) $("lsScDeviceName").textContent = soundcheckSession.deviceName || "Audio Input";
+    if ($("lsScFormat")) {
+      const drv = activeHardwareCaptureFormat && activeHardwareCaptureFormat.driver
+        ? activeHardwareCaptureFormat.driver
+        : String(soundcheckSession.sourceType || "wasapi").toUpperCase();
+      const bitTag = activeHardwareCaptureFormat && activeHardwareCaptureFormat.sampleSizeBits
+        ? `${activeHardwareCaptureFormat.sampleSizeBits}-bit in`
+        : "Float32 DSP";
+      $("lsScFormat").textContent = `${drv} · ${soundcheckSession.sampleRate} Hz · ${soundcheckSession.channelCount} ch (${bitTag})`;
+    }
+    if ($("lsScConnBadge")) {
+      $("lsScConnBadge").textContent = soundcheckSession.connected
+        ? "Connected & Streaming"
+        : (soundcheckSession.disconnectedReason || "Disconnected");
+      $("lsScConnBadge").style.color = soundcheckSession.connected
+        ? "var(--studio-success, #22c55e)"
+        : "var(--studio-danger, #dc4148)";
+    }
+    const latest = soundcheckSession.latest || {};
+    if ($("lsScCh1Stats")) {
+      const p1 = Number.isFinite(latest.vocalPeakDb) && latest.vocalPeakDb > -95 ? `${latest.vocalPeakDb.toFixed(1)}` : "-inf";
+      const r1 = Number.isFinite(latest.vocalRmsDb) && latest.vocalRmsDb > -95 ? `${latest.vocalRmsDb.toFixed(1)}` : "-inf";
+      const nf1 = Number.isFinite(latest.noiseFloorVocalDb) && latest.noiseFloorVocalDb > -95 ? `${latest.noiseFloorVocalDb.toFixed(1)}` : "--";
+      $("lsScCh1Stats").textContent = `In 1 Vocals: Peak ${p1} | RMS ${r1} | Floor ${nf1} dB | Clips ${soundcheckSession.clipCountVocal || 0}`;
+    }
+    if ($("lsScCh2Stats")) {
+      const p2 = Number.isFinite(latest.instPeakDb) && latest.instPeakDb > -95 ? `${latest.instPeakDb.toFixed(1)}` : "-inf";
+      const r2 = Number.isFinite(latest.instRmsDb) && latest.instRmsDb > -95 ? `${latest.instRmsDb.toFixed(1)}` : "-inf";
+      const nf2 = Number.isFinite(latest.noiseFloorInstDb) && latest.noiseFloorInstDb > -95 ? `${latest.noiseFloorInstDb.toFixed(1)}` : "--";
+      $("lsScCh2Stats").textContent = `In 2 Inst: Peak ${p2} | RMS ${r2} | Floor ${nf2} dB | Clips ${soundcheckSession.clipCountInst || 0}`;
+    }
+    if ($("lsScStage1Btn")) $("lsScStage1Btn").classList.toggle("is-toggled", Boolean(soundcheckSession.stage1Pass));
+    if ($("lsScStage2Btn")) $("lsScStage2Btn").classList.toggle("is-toggled", Boolean(soundcheckSession.stage2Pass));
+    if ($("lsScStage3Btn")) $("lsScStage3Btn").classList.toggle("is-toggled", Boolean(soundcheckSession.stage3Pass));
+
+    const corr = latest.corr12;
+    if ($("lsScCorrBadge")) {
+      if (corr === null || corr === undefined) {
+        $("lsScCorrBadge").textContent = "Corr: --";
+      } else {
+        const sep = Math.abs((latest.vocalPeakDb || -96) - (latest.instPeakDb || -96));
+        $("lsScCorrBadge").textContent = `Corr: ${corr.toFixed(2)} · Sep ${sep.toFixed(1)} dB`;
+      }
+    }
+    if ($("lsScNoiseBadge")) {
+      const nf = latest.noiseFloorVocalDb;
+      $("lsScNoiseBadge").textContent = nf > -95 ? `Floor: ${nf.toFixed(1)} dB` : "Floor: -- dB";
+    }
+    if ($("lsScStatusText")) {
+      $("lsScStatusText").textContent = ready.message;
+    }
+    if ($("lsScSummaryBadge")) {
+      const ok = Boolean(ready.ready && ready.severity === "ok");
+      $("lsScSummaryBadge").textContent = ok ? "Soundcheck Verified" : (ready.canRecordDualStems ? "Ready (Verify Stages)" : "Soundcheck Alert");
+      $("lsScSummaryBadge").classList.toggle("is-verified", ok);
+    }
+    if ($("lsMonoWarning")) {
+      const monoAlert = Boolean(
+        soundcheckSession.monoDuplicationDetected &&
+        !soundcheckSession.singleChannelAllowed &&
+        activeConfig.mode !== "stereo"
+      );
+      $("lsMonoWarning").style.display = monoAlert ? "block" : "none";
+      if (monoAlert) $("lsMonoWarning").textContent = ready.message;
+    }
+  }
+
   async function initAudioEngine(requestedMode) {
-    const mode = requestedMode || activeSourceMode || "device";
+    const backendSel = $("lsCaptureBackendSelect");
+    const defaultBackendMode = backendSel && backendSel.value === "asio" ? "asio" : "device";
+    const mode = requestedMode || activeSourceMode || defaultBackendMode;
+    const requestedRate = Number($("lsHwSampleRateSelect")?.value || 48000);
+    const requestedLatencyHint = ($("lsHwBufferSelect")?.value || "interactive");
     if (
       audioCtx &&
       activeSourceMode === mode &&
-      ((mode === "device" && mediaStream) || (mode === "file" && testFileAudioEl))
+      ((mode === "device" && mediaStream) ||
+        (mode === "asio" && asioSocket && asioSocket.readyState === 1) ||
+        (mode === "file" && testFileAudioEl))
     ) {
       if (audioCtx.state === "suspended") await audioCtx.resume();
       if (mode === "file" && testFileAudioEl && testFileAudioEl.paused) {
@@ -599,7 +1538,10 @@
 
     activeSourceMode = mode;
     let hwChannels = 2;
-    let hwRate = 48000;
+    let hwRate = requestedRate;
+    let hwSampleSize = null;
+    let deviceLabel = "Audio Interface";
+    let driverLabel = "Browser WASAPI (Shared)";
 
     if (mode === "file") {
       if (!testFileUrl) {
@@ -609,15 +1551,58 @@
       testFileAudioEl.src = testFileUrl;
       testFileAudioEl.loop = Boolean($("lsTestFileLoopCheck")?.checked);
       testFileAudioEl.preload = "auto";
+      deviceLabel = testFileObj ? testFileObj.name : "Test File";
+      driverLabel = "Local File Playback";
+    } else if (mode === "asio") {
+      driverLabel = "Local Bridge (ws://127.0.0.1:17940)";
+      deviceLabel = "Windows Audio Bridge 2-Ch";
+      const wsInfo = await new Promise((resolve, reject) => {
+        let settled = false;
+        const sock = new WebSocket("ws://127.0.0.1:17940");
+        sock.binaryType = "arraybuffer";
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            try { sock.close(); } catch (_) { }
+            reject(
+              new Error(
+                "Local Audio Bridge not running on ws://127.0.0.1:17940. Run `python scripts/local_asio_bridge.py` on your laptop first."
+              )
+            );
+          }
+        }, 3500);
+        sock.onopen = () => {
+          asioSocket = sock;
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve({ sampleRate: requestedRate, channels: 2 });
+          }
+        };
+        sock.onerror = () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            reject(
+              new Error(
+                "Could not connect to Local Audio Bridge (ws://127.0.0.1:17940). Start `python scripts/local_asio_bridge.py` or switch to Browser WASAPI."
+              )
+            );
+          }
+        };
+      });
+      hwChannels = wsInfo.channels || 2;
+      hwRate = wsInfo.sampleRate || requestedRate;
     } else {
       const inSel = $("lsAudioInputSelect");
       const deviceId = inSel && inSel.value ? inSel.value : undefined;
+      deviceLabel = inSel && inSel.options[inSel.selectedIndex] ? inSel.options[inSel.selectedIndex].textContent : "Default Input";
 
       mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           deviceId: deviceId ? { ideal: deviceId } : undefined,
           channelCount: { ideal: 2 },
-          sampleRate: { ideal: 48000 },
+          sampleRate: { ideal: requestedRate },
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false
@@ -627,17 +1612,37 @@
       await refreshAudioDevices(false);
 
       const track = mediaStream.getAudioTracks()[0];
+      if (track && track.label) deviceLabel = track.label;
+      if (track && typeof track.addEventListener === "function") {
+        track.addEventListener("ended", () => {
+          if (soundcheckSession && window.LiveStreamSoundcheck) {
+            window.LiveStreamSoundcheck.markDisconnected(soundcheckSession, "USB audio interface disconnected");
+            refreshSoundcheckUi();
+          }
+          showStudioMessage("Audio interface disconnected! Reconnect USB cable and re-run Soundcheck.", true);
+        });
+      }
       const settings = track && typeof track.getSettings === "function" ? track.getSettings() : {};
       hwChannels = settings.channelCount || 1;
-      hwRate = settings.sampleRate || 48000;
+      hwRate = settings.sampleRate || requestedRate;
+      hwSampleSize = Number.isFinite(Number(settings.sampleSize)) ? Number(settings.sampleSize) : null;
     }
+
+    activeHardwareCaptureFormat = {
+      driver: driverLabel,
+      deviceName: deviceLabel,
+      sampleRate: hwRate,
+      channelCount: hwChannels,
+      sampleSizeBits: hwSampleSize,
+      exportBitDepth: Number($("lsDryBitDepthSelect")?.value || 24)
+    };
 
     const hwPill = $("lsHwInfoPill");
     if (hwPill) {
       hwPill.textContent =
         mode === "file"
           ? `Test File (${testFileObj ? testFileObj.name : "Audio"}) · ${hwRate} Hz · 2 ch`
-          : `${hwRate} Hz · ${hwChannels} ch`;
+          : `${driverLabel} · ${hwRate} Hz · ${hwChannels} ch`;
     }
 
     const monoWarn = $("lsMonoWarning");
@@ -649,7 +1654,7 @@
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioCtx({
       sampleRate: hwRate,
-      latencyHint: "interactive"
+      latencyHint: requestedLatencyHint
     });
     if (audioCtx.state === "suspended") {
       await audioCtx.resume();
@@ -657,17 +1662,87 @@
 
     await audioCtx.audioWorklet.addModule("/js/live-stream-worklet.js?v=2.0");
 
-    const source =
-      mode === "file"
-        ? audioCtx.createMediaElementSource(testFileAudioEl)
-        : audioCtx.createMediaStreamSource(mediaStream);
+    let source;
+    if (mode === "file") {
+      source = audioCtx.createMediaElementSource(testFileAudioEl);
+    } else if (mode === "asio" && asioSocket) {
+      const asioNode = new AudioWorkletNode(audioCtx, "bp-asio-ingest", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
+      });
+      asioSocket.onmessage = (ev) => {
+        if (typeof ev.data === "string") {
+          try {
+            const meta = JSON.parse(ev.data);
+            if (meta.type === "bridge-info") {
+              if (meta.deviceName) deviceLabel = meta.deviceName;
+              if (meta.hostApi) driverLabel = meta.hostApi;
+              if (soundcheckSession) {
+                soundcheckSession.deviceName = meta.deviceName || soundcheckSession.deviceName;
+                soundcheckSession.channelCount = Number(meta.channels) || soundcheckSession.channelCount;
+                soundcheckSession.sourceType = meta.isAsio ? "asio" : "wasapi";
+              }
+              if (activeHardwareCaptureFormat) {
+                activeHardwareCaptureFormat.driver = meta.hostApi || driverLabel;
+                activeHardwareCaptureFormat.deviceName = meta.deviceName || deviceLabel;
+                activeHardwareCaptureFormat.channelCount = Number(meta.channels) || hwChannels;
+              }
+            } else if (meta.deviceName && soundcheckSession) {
+              soundcheckSession.deviceName = meta.deviceName;
+            }
+            if (meta.xruns !== undefined) asioXruns = Number(meta.xruns) || 0;
+            refreshSoundcheckUi();
+          } catch (_) { }
+          return;
+        }
+        if (ev.data instanceof ArrayBuffer && ev.data.byteLength >= 8) {
+          const view = new DataView(ev.data);
+          if (
+            view.getUint8(0) === 0x42 &&
+            view.getUint8(1) === 0x50 &&
+            view.getUint8(2) === 0x41 &&
+            view.getUint8(3) === 0x53
+          ) {
+            const count = view.getUint32(4, true);
+            const ch1 = new Float32Array(ev.data, 8, count);
+            const ch2 = new Float32Array(ev.data, 8 + count * 4, count);
+            const c1Copy = new Float32Array(ch1);
+            const c2Copy = new Float32Array(ch2);
+            asioNode.port.postMessage({ type: "asio-pcm", ch1: c1Copy, ch2: c2Copy, channels: hwChannels }, [
+              c1Copy.buffer,
+              c2Copy.buffer
+            ]);
+          }
+        }
+      };
+      asioSocket.onclose = () => {
+        if (soundcheckSession && window.LiveStreamSoundcheck) {
+          window.LiveStreamSoundcheck.markDisconnected(soundcheckSession, "ASIO bridge disconnected");
+          refreshSoundcheckUi();
+        }
+      };
+      source = asioNode;
+    } else {
+      source = audioCtx.createMediaStreamSource(mediaStream);
+    }
+
+    try {
+      source.channelInterpretation = "discrete";
+    } catch (_) { }
     const splitter = audioCtx.createChannelSplitter(Math.max(2, source.channelCount || 2));
+    try {
+      splitter.channelCount = Math.max(2, source.channelCount || 2);
+      splitter.channelCountMode = "explicit";
+      splitter.channelInterpretation = "discrete";
+    } catch (_) { }
     source.connect(splitter);
 
     if (mode === "file" && testFileAudioEl) {
       await testFileAudioEl.play();
     }
 
+    // Channel routing matrix: ch1 = Physical In 1 (Vocals), ch2 = Physical In 2 (Instruments)
     const ch1FromL = audioCtx.createGain();
     const ch1FromR = audioCtx.createGain();
     const ch2FromL = audioCtx.createGain();
@@ -677,40 +1752,19 @@
     splitter.connect(ch2FromL, 0);
     splitter.connect(ch2FromR, 1);
 
-    // Ch1 Instruments
-    const instGain = audioCtx.createGain();
-    const instHpf = audioCtx.createBiquadFilter();
-    instHpf.type = "highpass";
-    instHpf.Q.value = 0.707;
-    const instEqLow = audioCtx.createBiquadFilter();
-    instEqLow.type = "lowshelf";
-    instEqLow.frequency.value = 90;
-    const instEqMid = audioCtx.createBiquadFilter();
-    instEqMid.type = "peaking";
-    instEqMid.frequency.value = 450;
-    instEqMid.Q.value = 1.0;
-    const instEqHigh = audioCtx.createBiquadFilter();
-    instEqHigh.type = "highshelf";
-    instEqHigh.frequency.value = 4500;
-    const instAnalyser = audioCtx.createAnalyser();
-    instAnalyser.fftSize = 1024;
-    const instMuteGain = audioCtx.createGain();
-
-    ch1FromL.connect(instGain);
-    ch1FromR.connect(instGain);
-    instGain
-      .connect(instHpf)
-      .connect(instEqLow)
-      .connect(instEqMid)
-      .connect(instEqHigh)
-      .connect(instAnalyser)
-      .connect(instMuteGain);
-
-    // Ch2 Vocals
-    const vocalGain = audioCtx.createGain();
+    // Ch1 Vocals: Trim -> HPF1/HPF2 -> LPF -> 3-Band EQ -> ProDSP -> (Pre-Fader PFL & Send) -> Fader -> Mute -> Post-Fader Send -> Pan -> Analyser -> Mix
+    const vocalTrimGain = audioCtx.createGain();
     const vocalHpf = audioCtx.createBiquadFilter();
     vocalHpf.type = "highpass";
     vocalHpf.Q.value = 0.707;
+    const vocalHpf2 = audioCtx.createBiquadFilter();
+    vocalHpf2.type = "highpass";
+    vocalHpf2.Q.value = 0.707;
+    vocalHpf2.frequency.value = 10;
+    const vocalLpf = audioCtx.createBiquadFilter();
+    vocalLpf.type = "lowpass";
+    vocalLpf.Q.value = 0.707;
+    vocalLpf.frequency.value = 20000;
     const vocalEqLow = audioCtx.createBiquadFilter();
     vocalEqLow.type = "lowshelf";
     vocalEqLow.frequency.value = 220;
@@ -718,6 +1772,21 @@
     vocalEqMid.type = "peaking";
     vocalEqMid.frequency.value = 3200;
     vocalEqMid.Q.value = 1.1;
+    let vocalProDspNode = null;
+    try {
+      vocalProDspNode = new AudioWorkletNode(audioCtx, "bp-pro-dsp", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      vocalProDspNode.port.onmessage = (ev) => {
+        if (ev.data && ev.data.type === "dsp-meters") {
+          vocalDspMeters = ev.data;
+        }
+      };
+    } catch (_) {
+      vocalProDspNode = null;
+    }
     const vocalDeesser = audioCtx.createBiquadFilter();
     vocalDeesser.type = "peaking";
     vocalDeesser.frequency.value = 6500;
@@ -729,28 +1798,116 @@
     vocalComp.knee.value = 10;
     vocalComp.attack.value = 0.006;
     vocalComp.release.value = 0.16;
+    const vocalGain = audioCtx.createGain();
+    const vocalMuteGain = audioCtx.createGain();
     const vocalAnalyser = audioCtx.createAnalyser();
     vocalAnalyser.fftSize = 1024;
-    const vocalMuteGain = audioCtx.createGain();
+    const vocalPreRevSendGain = audioCtx.createGain();
+    const vocalPostRevSendGain = audioCtx.createGain();
+    const vocalPanner = typeof audioCtx.createStereoPanner === "function" ? audioCtx.createStereoPanner() : null;
 
-    ch2FromL.connect(vocalGain);
-    ch2FromR.connect(vocalGain);
-    vocalGain
+    ch1FromL.connect(vocalTrimGain);
+    ch1FromR.connect(vocalTrimGain);
+    let vocalPreFader = vocalTrimGain
       .connect(vocalHpf)
+      .connect(vocalHpf2)
+      .connect(vocalLpf)
       .connect(vocalEqLow)
-      .connect(vocalEqMid)
+      .connect(vocalEqMid);
+    if (vocalProDspNode) {
+      vocalPreFader = vocalPreFader.connect(vocalProDspNode);
+    }
+    vocalPreFader = vocalPreFader
       .connect(vocalDeesser)
       .connect(vocalEqHigh)
-      .connect(vocalComp)
-      .connect(vocalAnalyser)
-      .connect(vocalMuteGain);
+      .connect(vocalComp);
 
-    // Dual-mono center sum + Reverb send
-    const mixCenterMerger = audioCtx.createChannelMerger(2);
-    instMuteGain.connect(mixCenterMerger, 0, 0);
-    instMuteGain.connect(mixCenterMerger, 0, 1);
-    vocalMuteGain.connect(mixCenterMerger, 0, 0);
-    vocalMuteGain.connect(mixCenterMerger, 0, 1);
+    const vocalPostFader = vocalPreFader
+      .connect(vocalGain)
+      .connect(vocalMuteGain);
+    vocalPostFader.connect(vocalAnalyser);
+    let vocalOut = vocalPostFader;
+    if (vocalPanner) {
+      vocalOut = vocalPostFader.connect(vocalPanner);
+    }
+
+    // Ch2 Instruments: Trim -> HPF1/HPF2 -> LPF -> 3-Band EQ -> ProDSP -> (Pre-Fader PFL & Send) -> Fader -> Mute -> Post-Fader Send -> Pan -> Analyser -> Mix
+    const instTrimGain = audioCtx.createGain();
+    const instHpf = audioCtx.createBiquadFilter();
+    instHpf.type = "highpass";
+    instHpf.Q.value = 0.707;
+    const instHpf2 = audioCtx.createBiquadFilter();
+    instHpf2.type = "highpass";
+    instHpf2.Q.value = 0.707;
+    instHpf2.frequency.value = 10;
+    const instLpf = audioCtx.createBiquadFilter();
+    instLpf.type = "lowpass";
+    instLpf.Q.value = 0.707;
+    instLpf.frequency.value = 20000;
+    const instEqLow = audioCtx.createBiquadFilter();
+    instEqLow.type = "lowshelf";
+    instEqLow.frequency.value = 90;
+    const instEqMid = audioCtx.createBiquadFilter();
+    instEqMid.type = "peaking";
+    instEqMid.frequency.value = 450;
+    instEqMid.Q.value = 1.0;
+    const instEqHigh = audioCtx.createBiquadFilter();
+    instEqHigh.type = "highshelf";
+    instEqHigh.frequency.value = 4500;
+    let instProDspNode = null;
+    try {
+      instProDspNode = new AudioWorkletNode(audioCtx, "bp-pro-dsp", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [1]
+      });
+      instProDspNode.port.onmessage = (ev) => {
+        if (ev.data && ev.data.type === "dsp-meters") {
+          instDspMeters = ev.data;
+        }
+      };
+    } catch (_) {
+      instProDspNode = null;
+    }
+    const instComp = audioCtx.createDynamicsCompressor();
+    instComp.knee.value = 8;
+    instComp.attack.value = 0.014;
+    instComp.release.value = 0.18;
+    const instGain = audioCtx.createGain();
+    const instMuteGain = audioCtx.createGain();
+    const instAnalyser = audioCtx.createAnalyser();
+    instAnalyser.fftSize = 1024;
+    const instPreRevSendGain = audioCtx.createGain();
+    const instPostRevSendGain = audioCtx.createGain();
+    const instPanner = typeof audioCtx.createStereoPanner === "function" ? audioCtx.createStereoPanner() : null;
+
+    ch2FromL.connect(instTrimGain);
+    ch2FromR.connect(instTrimGain);
+    let instPreFader = instTrimGain
+      .connect(instHpf)
+      .connect(instHpf2)
+      .connect(instLpf)
+      .connect(instEqLow)
+      .connect(instEqMid)
+      .connect(instEqHigh);
+    if (instProDspNode) {
+      instPreFader = instPreFader.connect(instProDspNode);
+    }
+    instPreFader = instPreFader.connect(instComp);
+
+    const instPostFader = instPreFader
+      .connect(instGain)
+      .connect(instMuteGain);
+    instPostFader.connect(instAnalyser);
+    let instOut = instPostFader;
+    if (instPanner) {
+      instOut = instPostFader.connect(instPanner);
+    }
+
+    // Stereo Pan Sum + Independent Per-Channel Pre/Post Reverb Bus
+    const mixCenterMerger = audioCtx.createGain();
+    instOut.connect(mixCenterMerger);
+    vocalOut.connect(mixCenterMerger);
 
     const splitMasterGate = audioCtx.createGain();
     const stereoPassGain = audioCtx.createGain();
@@ -760,9 +1917,16 @@
     const reverbSendGain = audioCtx.createGain();
     const convolver = audioCtx.createConvolver();
     convolver.buffer = buildImpulseResponse(audioCtx, activeConfig.reverb.decay || 1.4);
-    mixCenterMerger.connect(reverbSendGain);
-    stereoPassGain.connect(reverbSendGain);
-    reverbSendGain.connect(convolver);
+    const reverbReturnGain = audioCtx.createGain();
+    const reverbAnalyser = audioCtx.createAnalyser();
+    reverbAnalyser.fftSize = 512;
+
+    vocalPreFader.connect(vocalPreRevSendGain).connect(convolver);
+    vocalPostFader.connect(vocalPostRevSendGain).connect(convolver);
+    instPreFader.connect(instPreRevSendGain).connect(convolver);
+    instPostFader.connect(instPostRevSendGain).connect(convolver);
+    stereoPassGain.connect(reverbSendGain).connect(convolver);
+    convolver.connect(reverbReturnGain).connect(reverbAnalyser);
 
     // 5-Band Master EQ
     const m80 = audioCtx.createBiquadFilter();
@@ -789,6 +1953,22 @@
     glueComp.attack.value = 0.02;
     glueComp.release.value = 0.25;
 
+    let masterProDspNode = null;
+    try {
+      masterProDspNode = new AudioWorkletNode(audioCtx, "bp-pro-dsp", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2]
+      });
+      masterProDspNode.port.onmessage = (ev) => {
+        if (ev.data && ev.data.type === "dsp-meters") {
+          masterDspMeters = ev.data;
+        }
+      };
+    } catch (_) {
+      masterProDspNode = null;
+    }
+
     const limiter = audioCtx.createDynamicsCompressor();
     limiter.knee.value = 0;
     limiter.attack.value = 0.001;
@@ -801,9 +1981,13 @@
 
     splitMasterGate.connect(m80);
     stereoPassGain.connect(m80);
-    convolver.connect(m80);
+    reverbAnalyser.connect(m80);
 
-    m80.connect(m250).connect(m1k).connect(m3k5).connect(m10k).connect(glueComp).connect(limiter).connect(masterOutGain);
+    let masterLimChain = m80.connect(m250).connect(m1k).connect(m3k5).connect(m10k).connect(glueComp);
+    if (masterProDspNode) {
+      masterLimChain = masterLimChain.connect(masterProDspNode);
+    }
+    masterLimChain.connect(limiter).connect(masterOutGain);
     masterOutGain.connect(broadcastMuteGain).connect(masterAnalyser);
 
     let dryWorkletNode = null;
@@ -831,6 +2015,10 @@
 
     let dryFallbackNode = null;
     const dryPreMerger = audioCtx.createChannelMerger(2);
+    try {
+      dryPreMerger.channelCountMode = "explicit";
+      dryPreMerger.channelInterpretation = "discrete";
+    } catch (_) { }
     ch1FromL.connect(dryPreMerger, 0, 0);
     ch1FromR.connect(dryPreMerger, 0, 0);
     ch2FromL.connect(dryPreMerger, 0, 1);
@@ -856,7 +2044,7 @@
       }
     }
 
-    // Earphone monitor routing (supports PFL Solo & setSinkId)
+    // Earphone monitor routing (True Pre-Fader PFL Solo + Post Master Listen & setSinkId)
     const monitorDest = audioCtx.createMediaStreamDestination();
     const monMasterGain = audioCtx.createGain();
     const monInstPflGain = audioCtx.createGain();
@@ -864,11 +2052,11 @@
     const monStereoMerger = audioCtx.createChannelMerger(2);
 
     masterOutGain.connect(monMasterGain).connect(monitorDest);
-    instAnalyser.connect(monStereoMerger, 0, 0);
-    instAnalyser.connect(monStereoMerger, 0, 1);
+    instPreFader.connect(monStereoMerger, 0, 0);
+    instPreFader.connect(monStereoMerger, 0, 1);
     const vocalPflMerger = audioCtx.createChannelMerger(2);
-    vocalAnalyser.connect(vocalPflMerger, 0, 0);
-    vocalAnalyser.connect(vocalPflMerger, 0, 1);
+    vocalPreFader.connect(vocalPflMerger, 0, 0);
+    vocalPreFader.connect(vocalPflMerger, 0, 1);
 
     monStereoMerger.connect(monInstPflGain).connect(monitorDest);
     vocalPflMerger.connect(monVocalPflGain).connect(monitorDest);
@@ -885,7 +2073,7 @@
     if (outSel && outSel.value && typeof monitorAudioEl.setSinkId === "function") {
       try {
         await monitorAudioEl.setSinkId(outSel.value);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     nodes = {
@@ -895,32 +2083,50 @@
       ch1FromR,
       ch2FromL,
       ch2FromR,
+      instTrimGain,
       instGain,
       instHpf,
+      instHpf2,
+      instLpf,
       instEqLow,
       instEqMid,
       instEqHigh,
+      instProDspNode,
+      instComp,
       instAnalyser,
       instMuteGain,
+      instPreRevSendGain,
+      instPostRevSendGain,
+      instPanner,
+      vocalTrimGain,
       vocalGain,
       vocalHpf,
+      vocalHpf2,
+      vocalLpf,
       vocalEqLow,
       vocalEqMid,
+      vocalProDspNode,
       vocalDeesser,
       vocalEqHigh,
       vocalComp,
       vocalAnalyser,
       vocalMuteGain,
+      vocalPreRevSendGain,
+      vocalPostRevSendGain,
+      vocalPanner,
       splitMasterGate,
       stereoPassGain,
       reverbSendGain,
       convolver,
+      reverbReturnGain,
+      reverbAnalyser,
       m80,
       m250,
       m1k,
       m3k5,
       m10k,
       glueComp,
+      masterProDspNode,
       limiter,
       masterOutGain,
       broadcastMuteGain,
@@ -933,23 +2139,55 @@
       dryFallbackNode
     };
 
+    if (window.LiveStreamSoundcheck) {
+      soundcheckSession = window.LiveStreamSoundcheck.createSoundcheckSession({
+        deviceName: deviceLabel,
+        sourceType: mode === "asio" ? "asio" : mode === "file" ? "file" : "wasapi",
+        sampleRate: audioCtx.sampleRate || hwRate,
+        channelCount: hwChannels,
+        swapChannels: Boolean(activeConfig.swapChannels),
+        singleChannelAllowed: Boolean($("lsScSingleOkCheck")?.checked)
+      });
+      refreshSoundcheckUi();
+    }
+
     if (dryWorkletNode) {
       dryWorkletNode.port.onmessage = function (ev) {
         const msg = ev.data;
+        if (!msg) return;
+        if (msg.type === "input-telemetry" && soundcheckSession && window.LiveStreamSoundcheck) {
+          window.LiveStreamSoundcheck.ingestTelemetryFrame(soundcheckSession, msg);
+          refreshSoundcheckUi();
+          return;
+        }
         if (
-          msg &&
           msg.type === "dry-pcm" &&
           window.LiveStudioRecorder &&
           window.LiveStudioRecorder.isRecording()
         ) {
-          window.LiveStudioRecorder.pushDryPcm(msg.ch1, msg.ch2);
+          window.LiveStudioRecorder.pushDryPcm(msg.ch1, msg.ch2, msg.totalFrames);
         }
       };
     }
 
     workletNode.port.onmessage = function (ev) {
       const msg = ev.data;
-      if (msg && msg.type === "pcm") {
+      if (!msg) return;
+      if (msg.type === "master-telemetry") {
+        masterTelem.peakL = msg.peakL || 0;
+        masterTelem.peakR = msg.peakR || 0;
+        masterTelem.rmsL = msg.rmsL || 0;
+        masterTelem.rmsR = msg.rmsR || 0;
+        masterTelem.truePeak = msg.truePeak || 0;
+        masterTelem.kwRing.push(msg.kwMeanSq || 0);
+        if (masterTelem.kwRing.length > 31) masterTelem.kwRing.shift(); // ~3.0s Short-Term window
+        let kwAvg = 0;
+        for (let k = 0; k < masterTelem.kwRing.length; k++) kwAvg += masterTelem.kwRing[k];
+        kwAvg /= Math.max(1, masterTelem.kwRing.length);
+        masterTelem.shortTermLufs = kwAvg > 1e-12 ? -0.691 + 10 * Math.log10(kwAvg) : -Infinity;
+        return;
+      }
+      if (msg.type === "pcm") {
         if (
           window.LiveStudioRecorder &&
           window.LiveStudioRecorder.isRecording()
@@ -976,35 +2214,65 @@
       window.cancelAnimationFrame(meterRaf);
       meterRaf = null;
     }
+    if (asioSocket) {
+      try {
+        asioSocket.onclose = null;
+        asioSocket.close();
+      } catch (_) { }
+      asioSocket = null;
+    }
     if (monitorAudioEl) {
       try {
         monitorAudioEl.pause();
         monitorAudioEl.srcObject = null;
-      } catch (_) {}
+      } catch (_) { }
     }
     if (nodes && nodes.dryWorkletNode) {
       try {
         nodes.dryWorkletNode.port.onmessage = null;
         nodes.dryWorkletNode.disconnect();
-      } catch (_) {}
+      } catch (_) { }
     }
+    if (nodes && nodes.vocalProDspNode) {
+      try {
+        nodes.vocalProDspNode.port.onmessage = null;
+        nodes.vocalProDspNode.disconnect();
+      } catch (_) { }
+    }
+    if (nodes && nodes.instProDspNode) {
+      try {
+        nodes.instProDspNode.port.onmessage = null;
+        nodes.instProDspNode.disconnect();
+      } catch (_) { }
+    }
+    if (nodes && nodes.masterProDspNode) {
+      try {
+        nodes.masterProDspNode.port.onmessage = null;
+        nodes.masterProDspNode.disconnect();
+      } catch (_) { }
+    }
+    vocalDspMeters = { gateGainDb: 0, deesserGrDb: 0, compGrDb: 0, limiterGrDb: 0 };
+    instDspMeters = { gateGainDb: 0, deesserGrDb: 0, compGrDb: 0, limiterGrDb: 0 };
+    masterDspMeters = { limiterGrDb: 0 };
+    masterTelem.kwRing = [];
+    masterTelem.shortTermLufs = -Infinity;
     if (nodes && nodes.dryFallbackNode) {
       try {
         nodes.dryFallbackNode.onaudioprocess = null;
         nodes.dryFallbackNode.disconnect();
-      } catch (_) {}
+      } catch (_) { }
     }
     if (workletNode) {
       try {
         workletNode.port.onmessage = null;
         workletNode.disconnect();
-      } catch (_) {}
+      } catch (_) { }
       workletNode = null;
     }
     if (audioCtx) {
       try {
         await audioCtx.close();
-      } catch (_) {}
+      } catch (_) { }
       audioCtx = null;
     }
     if (mediaStream) {
@@ -1015,7 +2283,7 @@
       try {
         testFileAudioEl.pause();
         testFileAudioEl.src = "";
-      } catch (_) {}
+      } catch (_) { }
       testFileAudioEl = null;
     }
     if ($("lsTestFilePauseBtn")) {
@@ -1030,7 +2298,7 @@
     if (encoderWorker) {
       try {
         encoderWorker.terminate();
-      } catch (_) {}
+      } catch (_) { }
     }
     encoderWorker = new Worker("/js/live-stream-encoder-worker.js?v=1.0");
     encoderWorker.onmessage = function (ev) {
@@ -1055,7 +2323,7 @@
     if (ws) {
       try {
         ws.close();
-      } catch (_) {}
+      } catch (_) { }
     }
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${proto}//${window.location.host}/ws/live-stream/ingest?token=${encodeURIComponent(token)}`;
@@ -1074,7 +2342,7 @@
           const el = $("lsListenerCount");
           if (el) el.textContent = String(msg.listeners);
         }
-      } catch (_) {}
+      } catch (_) { }
     };
 
     ws.onclose = function () {
@@ -1099,6 +2367,10 @@
     if (orb) {
       orb.classList.toggle("is-live", isLive);
       orb.classList.toggle("is-soundcheck", !isLive && Boolean(audioCtx));
+    }
+    const listenerChip = $("lsListenerChip");
+    if (listenerChip) {
+      listenerChip.classList.toggle("live-active", Boolean(isLive));
     }
     if (statusText) {
       if (isLive) {
@@ -1140,7 +2412,7 @@
       if (ws && ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(JSON.stringify({ type: "ping" }));
-        } catch (_) {}
+        } catch (_) { }
       }
     }, 1000);
   }
@@ -1212,13 +2484,13 @@
       if (ws) {
         try {
           ws.close(1000, "Admin ended stream");
-        } catch (_) {}
+        } catch (_) { }
         ws = null;
       }
       if (encoderWorker) {
         try {
           encoderWorker.terminate();
-        } catch (_) {}
+        } catch (_) { }
         encoderWorker = null;
       }
       ingestToken = null;
@@ -1230,7 +2502,11 @@
           headers: apiHeaders(),
           body: JSON.stringify({})
         });
-      } catch (_) {}
+      } catch (_) { }
+
+      if (window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording()) {
+        await stopRecordingWorkflow();
+      }
 
       if (recordedChunks.length > 0) {
         const blob = new Blob(recordedChunks, { type: "audio/mpeg" });
@@ -1304,7 +2580,7 @@
   function saveTimestampsToLocal() {
     try {
       window.localStorage.setItem(getTsStorageKey(), JSON.stringify(capturedTimestamps));
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function loadTimestampsFromLocal() {
@@ -1315,7 +2591,7 @@
       if (Array.isArray(parsed)) {
         capturedTimestamps = parsed;
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function formatTsMmSs(sec) {
@@ -1420,7 +2696,13 @@
 
     if (bhajan && isRec) {
       const stats = window.LiveStudioRecorder.getStats();
-      const preRolledSec = Math.max(0, (stats.elapsedSeconds || 0) - 2);
+      const sampleRate = Number(stats.sampleRate) || 48000;
+      const sampleTimeSec = Number.isFinite(stats.elapsedSampleSeconds) && stats.elapsedSampleSeconds > 0
+        ? stats.elapsedSampleSeconds
+        : (stats.elapsedSeconds || 0);
+      const preRolledSec = Math.max(0, Math.round(sampleTimeSec - 2));
+      const preRolledSampleSec = Math.max(0, Number((sampleTimeSec - 2).toFixed(3)));
+      const sampleFrame = Math.max(0, Math.round(preRolledSampleSec * sampleRate));
       const last = capturedTimestamps[capturedTimestamps.length - 1];
       const alreadyJustMarked =
         last &&
@@ -1433,7 +2715,10 @@
           bhajan_title: bhajan.title,
           singer_name: bhajan.singer_name || "Samiti Singer",
           deity: bhajan.deity || "",
-          start_seconds: preRolledSec
+          start_seconds: preRolledSec,
+          sample_seconds: preRolledSampleSec,
+          sample_frame: sampleFrame,
+          sample_rate: sampleRate
         });
         saveTimestampsToLocal();
         renderTimestampsEditor();
@@ -1454,11 +2739,11 @@
     try {
       const payload = bhajan
         ? {
-            submission_id: bhajan.id,
-            title: bhajan.title,
-            singer_name: bhajan.singer_name,
-            master_id: bhajan.master_id
-          }
+          submission_id: bhajan.id,
+          title: bhajan.title,
+          singer_name: bhajan.singer_name,
+          master_id: bhajan.master_id
+        }
         : { clear: true };
 
       const res = await fetch("/api/admin/live-stream/now-singing", {
@@ -1496,17 +2781,102 @@
     if ($("lsRefreshDevicesBtn")) {
       $("lsRefreshDevicesBtn").onclick = () => refreshAudioDevices(true);
     }
+    if ($("lsCaptureBackendSelect")) {
+      $("lsCaptureBackendSelect").onchange = async function () {
+        const nextMode = this.value === "asio" ? "asio" : "device";
+        activeSourceMode = nextMode;
+        if (audioCtx) {
+          try {
+            await releaseAudioEngine();
+            await initAudioEngine(nextMode);
+            showStudioMessage(
+              nextMode === "asio"
+                ? "Connected via Local ASIO Bridge (ws://127.0.0.1:17940)."
+                : "Switched to Browser WASAPI raw capture.",
+              false
+            );
+          } catch (err) {
+            showStudioMessage("Capture backend error: " + err.message, true);
+          }
+        }
+      };
+    }
+
     if ($("lsSoundcheckBtn")) {
       $("lsSoundcheckBtn").onclick = async () => {
+        const drawer = $("lsSoundcheckDrawer");
+        if (drawer) {
+          drawer.classList.remove("ls-is-hidden");
+          drawer.style.display = "block";
+          drawer.open = true;
+        }
         try {
-          activeSourceMode = "device";
+          const targetMode =
+            $("lsCaptureBackendSelect") && $("lsCaptureBackendSelect").value === "asio"
+              ? "asio"
+              : "device";
+          activeSourceMode = targetMode;
           await releaseAudioEngine();
-          await initAudioEngine("device");
-          showStudioMessage("Audio interface connected for soundcheck!", false);
+          await initAudioEngine(targetMode);
+          if (soundcheckSession && window.LiveStreamSoundcheck) {
+            window.LiveStreamSoundcheck.setSoundcheckStage(
+              soundcheckSession,
+              window.LiveStreamSoundcheck.STAGE_VOCAL
+            );
+            refreshSoundcheckUi();
+          }
+          showStudioMessage("Audio interface connected for 3-stage soundcheck!", false);
         } catch (err) {
           showStudioMessage("Audio input error: " + err.message, true);
         }
       };
+    }
+
+    const reinitOnHwParamChange = async () => {
+      if (!audioCtx) return;
+      try {
+        await releaseAudioEngine();
+        await initAudioEngine(activeSourceMode);
+        showStudioMessage("Reconfigured audio interface sample rate / buffer settings.", false);
+      } catch (err) {
+        showStudioMessage("Hardware reconfig failed: " + err.message, true);
+      }
+    };
+    if ($("lsHwSampleRateSelect")) $("lsHwSampleRateSelect").onchange = reinitOnHwParamChange;
+    if ($("lsHwBufferSelect")) $("lsHwBufferSelect").onchange = reinitOnHwParamChange;
+
+    if ($("lsScStage1Btn")) {
+      $("lsScStage1Btn").onclick = () => {
+        if (!soundcheckSession || !window.LiveStreamSoundcheck) return;
+        window.LiveStreamSoundcheck.setSoundcheckStage(
+          soundcheckSession,
+          window.LiveStreamSoundcheck.STAGE_VOCAL
+        );
+        refreshSoundcheckUi();
+      };
+    }
+    if ($("lsScStage2Btn")) {
+      $("lsScStage2Btn").onclick = () => {
+        if (!soundcheckSession || !window.LiveStreamSoundcheck) return;
+        window.LiveStreamSoundcheck.setSoundcheckStage(
+          soundcheckSession,
+          window.LiveStreamSoundcheck.STAGE_INST
+        );
+        refreshSoundcheckUi();
+      };
+    }
+    if ($("lsScStage3Btn")) {
+      $("lsScStage3Btn").onclick = () => {
+        if (!soundcheckSession || !window.LiveStreamSoundcheck) return;
+        window.LiveStreamSoundcheck.setSoundcheckStage(
+          soundcheckSession,
+          window.LiveStreamSoundcheck.STAGE_BOTH
+        );
+        refreshSoundcheckUi();
+      };
+    }
+    if ($("lsScSingleOkCheck")) {
+      $("lsScSingleOkCheck").onchange = () => refreshSoundcheckUi();
     }
 
     if ($("lsTestFileInput")) {
@@ -1545,7 +2915,7 @@
             applyConfigToGraph();
           }
           if (monitorAudioEl) {
-            await monitorAudioEl.play().catch(() => {});
+            await monitorAudioEl.play().catch(() => { });
           }
           if ($("lsTestFilePauseBtn")) {
             $("lsTestFilePauseBtn").style.display = "inline-flex";
@@ -1565,7 +2935,7 @@
       $("lsTestFilePauseBtn").onclick = async function () {
         if (!testFileAudioEl) return;
         if (testFileAudioEl.paused) {
-          await testFileAudioEl.play().catch(() => {});
+          await testFileAudioEl.play().catch(() => { });
           this.textContent = "Pause File";
         } else {
           testFileAudioEl.pause();
@@ -1646,6 +3016,164 @@
       };
     }
 
+    if ($("lsInstCompBtn")) {
+      $("lsInstCompBtn").onclick = function () {
+        activeConfig.inst.comp = !activeConfig.inst.comp;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalPolarityBtn")) {
+      $("lsVocalPolarityBtn").onclick = function () {
+        activeConfig.vocal.polarity = !activeConfig.vocal.polarity;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstPolarityBtn")) {
+      $("lsInstPolarityBtn").onclick = function () {
+        activeConfig.inst.polarity = !activeConfig.inst.polarity;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalGateBtn")) {
+      $("lsVocalGateBtn").onclick = function () {
+        activeConfig.vocal.gate = !activeConfig.vocal.gate;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstGateBtn")) {
+      $("lsInstGateBtn").onclick = function () {
+        activeConfig.inst.gate = !activeConfig.inst.gate;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalEqBypassBtn")) {
+      $("lsVocalEqBypassBtn").onclick = function () {
+        activeConfig.vocal.eqBypass = !activeConfig.vocal.eqBypass;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstEqBypassBtn")) {
+      $("lsInstEqBypassBtn").onclick = function () {
+        activeConfig.inst.eqBypass = !activeConfig.inst.eqBypass;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalHpfSlope")) {
+      $("lsVocalHpfSlope").onchange = function () {
+        activeConfig.vocal.hpfSlope = Number(this.value) === 24 ? 24 : 12;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstHpfSlope")) {
+      $("lsInstHpfSlope").onchange = function () {
+        activeConfig.inst.hpfSlope = Number(this.value) === 24 ? 24 : 12;
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalDeessMode")) {
+      $("lsVocalDeessMode").onchange = function () {
+        activeConfig.vocal.deessWideband = this.value === "wide";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalCompMode")) {
+      $("lsVocalCompMode").onchange = function () {
+        activeConfig.vocal.compPeakMode = this.value === "peak";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstCompMode")) {
+      $("lsInstCompMode").onchange = function () {
+        activeConfig.inst.compPeakMode = this.value === "peak";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalSendMode")) {
+      $("lsVocalSendMode").onchange = function () {
+        activeConfig.vocal.preFaderSend = this.value === "pre";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstSendMode")) {
+      $("lsInstSendMode").onchange = function () {
+        activeConfig.inst.preFaderSend = this.value === "pre";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsReverbPresetSelect")) {
+      $("lsReverbPresetSelect").onchange = function () {
+        const key = this.value || "medium_prayer_hall";
+        activeConfig.reverb.preset = key;
+        const catalogPreset =
+          window.LiveStreamDsp &&
+          window.LiveStreamDsp.FX_CATALOG &&
+          window.LiveStreamDsp.FX_CATALOG.reverb &&
+          window.LiveStreamDsp.FX_CATALOG.reverb.presets &&
+          window.LiveStreamDsp.FX_CATALOG.reverb.presets[key] &&
+          window.LiveStreamDsp.FX_CATALOG.reverb.presets[key].params;
+        const hallPreset =
+          catalogPreset ||
+          (window.LiveStreamDsp && window.LiveStreamDsp.HALL_IR_PRESETS && window.LiveStreamDsp.HALL_IR_PRESETS[key]);
+        if (hallPreset) {
+          activeConfig.reverb.decay = hallPreset.decay;
+          activeConfig.reverb.preDelayMs = hallPreset.preDelayMs;
+          if (hallPreset.toneHz !== undefined) activeConfig.reverb.toneHz = hallPreset.toneHz;
+          if (hallPreset.roomSize !== undefined) activeConfig.reverb.roomSize = hallPreset.roomSize;
+          if (hallPreset.stereoWidth !== undefined) activeConfig.reverb.stereoWidth = hallPreset.stereoWidth;
+        }
+        customReverbIrBuffer = null;
+        customReverbIrName = "";
+        if ($("lsReverbIrStatus")) $("lsReverbIrStatus").textContent = "Synth IR";
+        syncUiFromConfig();
+        rebuildHallConvolverBuffer();
+      };
+    }
+
+    if ($("lsReverbCustomIrInput")) {
+      $("lsReverbCustomIrInput").onchange = async function () {
+        const file = this.files && this.files[0] ? this.files[0] : null;
+        if (!file) return;
+        try {
+          if (!audioCtx) await initAudioEngine();
+          const buf = await file.arrayBuffer();
+          customReverbIrBuffer = await audioCtx.decodeAudioData(buf);
+          customReverbIrName = file.name;
+          if ($("lsReverbIrStatus")) $("lsReverbIrStatus").textContent = file.name.slice(0, 16);
+          rebuildHallConvolverBuffer();
+          drawChannelProcCanvas();
+          showStudioMessage(`Loaded custom Mandir Hall IR "${file.name}".`, false);
+        } catch (err) {
+          showStudioMessage("Could not load custom IR (.wav): " + err.message, true);
+        } finally {
+          this.value = "";
+        }
+      };
+    }
+
+    if ($("lsReverbIrResetBtn")) {
+      $("lsReverbIrResetBtn").onclick = function () {
+        customReverbIrBuffer = null;
+        customReverbIrName = "";
+        if ($("lsReverbIrStatus")) $("lsReverbIrStatus").textContent = "Synth IR";
+        rebuildHallConvolverBuffer();
+        drawChannelProcCanvas();
+      };
+    }
+
     if ($("lsMasterBypassBtn")) {
       $("lsMasterBypassBtn").onclick = function () {
         activeConfig.master.bypass = !activeConfig.master.bypass;
@@ -1685,7 +3213,7 @@
           this.textContent = monitorEnabled ? "Earphone Monitor: ON" : "Earphone Monitor: OFF";
           applyConfigToGraph();
           if (monitorEnabled && monitorAudioEl) {
-            await monitorAudioEl.play().catch(() => {});
+            await monitorAudioEl.play().catch(() => { });
           }
         } catch (err) {
           showStudioMessage("Could not start earphone monitor: " + err.message, true);
@@ -1725,6 +3253,51 @@
           if ($("lsDeletePresetBtn")) {
             $("lsDeletePresetBtn").disabled = chosen.isBuiltIn;
           }
+        }
+      };
+    }
+
+    if ($("lsExportPresetBtn")) {
+      $("lsExportPresetBtn").onclick = () => {
+        const selId = $("lsPresetSelect")?.value || "preset";
+        const payload = {
+          version: 2,
+          exportedAt: new Date().toISOString(),
+          name: ($("lsPresetSelect")?.options[$("lsPresetSelect").selectedIndex]?.textContent || "Bhajan Studio Preset").trim(),
+          config: activeConfig
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${selId.replace(/[^a-z0-9_-]/gi, "_")}.preset.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+    }
+
+    if ($("lsImportPresetFileInput")) {
+      $("lsImportPresetFileInput").onchange = async function () {
+        const file = this.files && this.files[0] ? this.files[0] : null;
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          const cfg = parsed.config || parsed;
+          if (!cfg || !cfg.vocal || !cfg.inst || !cfg.master) {
+            throw new Error("Invalid preset JSON structure");
+          }
+          activeConfig = cfg;
+          syncUiFromConfig();
+          if (nodes && audioCtx && nodes.convolver) {
+            nodes.convolver.buffer = buildImpulseResponse(audioCtx, activeConfig.reverb.decay || 1.4);
+          }
+          showStudioMessage(`Loaded preset JSON "${parsed.name || file.name}".`, false);
+        } catch (err) {
+          showStudioMessage("Preset import failed: " + err.message, true);
+        } finally {
+          this.value = "";
         }
       };
     }
@@ -1822,6 +3395,33 @@
       }
       try {
         await initAudioEngine();
+        if (soundcheckSession && window.LiveStreamSoundcheck && activeConfig.mode === "split") {
+          soundcheckSession.swapChannels = Boolean(activeConfig.swapChannels);
+          soundcheckSession.singleChannelAllowed = Boolean($("lsScSingleOkCheck")?.checked);
+          const readiness = window.LiveStreamSoundcheck.evaluateReadiness(soundcheckSession, {
+            requireDualInput: true
+          });
+          if (!readiness.canRecordDualStems) {
+            refreshSoundcheckUi();
+            const drawer = $("lsSoundcheckDrawer");
+            if (drawer) drawer.open = true;
+            showStudioMessage(
+              "Dual-input check blocked startRecording: " +
+                (readiness.message || "2 independent channels required. Check USB driver / ASIO Bridge or enable 'Allow 1-Ch Mode'."),
+              true
+            );
+            updateRecorderUi();
+            return;
+          }
+          if (readiness.severity === "warn") {
+            refreshSoundcheckUi();
+          }
+        }
+        if (nodes && nodes.dryWorkletNode && nodes.dryWorkletNode.port) {
+          try {
+            nodes.dryWorkletNode.port.postMessage({ type: "reset-clock" });
+          } catch (_) { }
+        }
         const dlList = $("lsFallbackDownloadsList");
         if (dlList) dlList.innerHTML = "";
         const d = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
@@ -1830,6 +3430,7 @@
           bitDepth: Number($("lsDryBitDepthSelect")?.value || 24),
           publishBitrateKbps: Number($("lsPublishBitrateSelect")?.value || 112),
           sampleRate: (audioCtx && audioCtx.sampleRate) || 48000,
+          hardwareCaptureFormat: activeHardwareCaptureFormat,
           recordDryCh1: Boolean($("lsRecDryCh1Check")?.checked),
           recordDryCh2: Boolean($("lsRecDryCh2Check")?.checked),
           recordMasterMp3: Boolean($("lsRecMasterCheck")?.checked)
@@ -1849,6 +3450,66 @@
       }
     }
 
+    let publishArtifactRole = "final_master";
+    let publishProjectManifest = null;
+
+    function resolveStructuredR2Key(artifactName) {
+      const sDate = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+      const sUid =
+        (lastRecordedResult && lastRecordedResult.projectUid) ||
+        (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+          ? window.LiveStudioRecorder.getState().projectUid
+          : null) ||
+        `session-${sDate || new Date().toISOString().slice(0, 10)}`;
+      if (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.buildStructuredR2Key === "function") {
+        return window.LiveStudioRecorder.buildStructuredR2Key(sDate, sUid, artifactName);
+      }
+      return `recordings/${sDate || "session"}/${sUid}/${artifactName}`;
+    }
+
+    async function syncInitialStudioProject(res) {
+      try {
+        const sDate = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+        const title = ($("lsR2TitleInput")?.value || $("lsTitleInput")?.value || `Bhajan Session – ${sDate}`).trim();
+        const manifest = {
+          version: 1,
+          projectUid: res.projectUid,
+          sessionDate: sDate,
+          title,
+          sampleRate: res.sampleRate || 48000,
+          bitDepth: 24,
+          channelConfig: res.channelConfig || "dual_mono_split",
+          durationSeconds: res.durationSeconds || 0,
+          localFiles: {
+            ch1DryWav: res.dryCh1File ? res.dryCh1File.name : null,
+            ch2DryWav: res.dryCh2File ? res.dryCh2File.name : null,
+            liveRefMp3: res.masterFile ? res.masterFile.name : null
+          },
+          timestamps: capturedTimestamps.slice(),
+          activeFxConfig: activeConfig ? JSON.parse(JSON.stringify(activeConfig)) : null,
+          publicationStatus: "draft"
+        };
+        publishProjectManifest = manifest;
+        await fetch("/api/admin/live-stream/projects", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: apiHeaders(),
+          body: JSON.stringify({
+            project_uid: res.projectUid,
+            session_date: sDate,
+            title,
+            sample_rate: manifest.sampleRate,
+            bit_depth: 24,
+            channel_config: manifest.channelConfig,
+            duration_seconds: manifest.durationSeconds,
+            local_files: manifest.localFiles,
+            publication_status: "draft",
+            manifest
+          })
+        });
+      } catch (_) {}
+    }
+
     async function stopRecordingWorkflow() {
       if (!window.LiveStudioRecorder || !window.LiveStudioRecorder.isRecording()) return;
       try {
@@ -1856,7 +3517,7 @@
         if (nodes && nodes.dryWorkletNode && nodes.dryWorkletNode.port) {
           try {
             nodes.dryWorkletNode.port.postMessage({ type: "flush" });
-          } catch (_) {}
+          } catch (_) { }
           await new Promise((r) => setTimeout(r, 60));
         }
         const res = await window.LiveStudioRecorder.stopRecording(capturedTimestamps);
@@ -1864,16 +3525,32 @@
         if (!res) return;
 
         lastRecordedResult = res;
+        publishArtifactRole = "live_ref";
+        if ($("lsBackupDryStemsR2Btn")) {
+          $("lsBackupDryStemsR2Btn").disabled = !(res.dryCh1File || res.dryCh2File);
+        }
         if (res.masterFile) {
           customPublishFile = null;
           if ($("lsR2SourceLabel")) {
-            $("lsR2SourceLabel").textContent = `Ready to publish: ${res.masterFile.name} (${(res.masterFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+            $("lsR2SourceLabel").textContent = `Ready to publish (Live Ref): ${res.masterFile.name} (${(res.masterFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsR2KeyInput") && /^recordings\/\d{4}-\d{2}-\d{2}-session\.mp3$/.test($("lsR2KeyInput").value.trim())) {
+            $("lsR2KeyInput").value = resolveStructuredR2Key("live-ref.mp3");
           }
           if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
         }
         if ($("lsDawAutoLoadRecBtn")) {
           $("lsDawAutoLoadRecBtn").disabled = !(res.dryCh1File || res.dryCh2File || res.masterFile);
         }
+
+        const integrityIssues = [];
+        if (res.droppedFrames > 0 || res.writeErrorCount > 0) {
+          integrityIssues.push(`${res.droppedFrames || 0} dropped frames / ${res.writeErrorCount || 0} write errors`);
+        }
+        if (res.dryCh1File && res.dryCh1File.size < 44) integrityIssues.push("Ch1 WAV empty");
+        if (res.dryCh2File && res.dryCh2File.size < 44) integrityIssues.push("Ch2 WAV empty");
+
+        syncInitialStudioProject(res);
 
         const dlList = $("lsFallbackDownloadsList");
         if (dlList) {
@@ -1901,12 +3578,51 @@
           }
         }
 
-        showStudioMessage(
-          res.savedToFolder
-            ? `Saved dry stems + master MP3 directly to folder "${res.savedToFolder}". Ready to upload to Cloudflare R2!`
-            : "Recording finalized! You can download stems or upload the Master MP3 to Cloudflare R2 below.",
-          false
-        );
+        if (integrityIssues.length > 0) {
+          showStudioMessage(`Recording stopped with integrity warning (${integrityIssues.join(", ")}). Please inspect stems in DAW before publishing.`, true);
+        } else {
+          showStudioMessage(
+            res.savedToFolder
+              ? `Saved verified stems + project.json directly to folder "${res.savedToFolder}". Ready for DAW mastering & Cloudflare R2!`
+              : "Recording finalized & verified! You can edit stems in the DAW or upload to Cloudflare R2 below.",
+            false
+          );
+        }
+
+        if ($("lsAutoUploadRefCheck")?.checked && res.masterFile) {
+          try {
+            const refKey = resolveStructuredR2Key("live-ref.mp3");
+            const sDate = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+            const title = ($("lsR2TitleInput")?.value || "Bhajan Session").trim();
+            await window.LiveStudioRecorder.uploadFileToR2AndPublish({
+              file: res.masterFile,
+              sessionDate: sDate,
+              sessionUid: res.projectUid,
+              title,
+              storageKey: refKey,
+              durationSeconds: res.durationSeconds || 0,
+              timestamps: capturedTimestamps,
+              isPublished: true,
+              notifyDevotees: false,
+              artifactRole: "live_ref",
+              projectManifest: publishProjectManifest,
+              csrfToken,
+              onProgress: (info) => {
+                if ($("lsR2ProgressWrap")) $("lsR2ProgressWrap").style.display = "block";
+                if ($("lsR2ProgressFill")) $("lsR2ProgressFill").style.width = `${info.pct || 0}%`;
+                if ($("lsR2StatusText")) $("lsR2StatusText").textContent = info.message || "";
+              }
+            });
+            showStudioMessage("Live reference MP3 automatically synced to Cloudflare R2!", false);
+          } catch (upErr) {
+            showStudioMessage("Live reference auto-upload queued: " + upErr.message, true);
+          }
+        }
+
+        if ($("lsAutoOpenDawCheck")?.checked && window.LiveStudioDaw && (res.dryCh1File || res.dryCh2File || res.masterFile)) {
+          window.LiveStudioDaw.openFromRecording(res);
+        }
+        updateResourceStrip();
       } catch (err) {
         updateRecorderUi();
         showStudioMessage("Error stopping recording: " + err.message, true);
@@ -1952,8 +3668,13 @@
         const file = this.files && this.files[0] ? this.files[0] : null;
         customPublishFile = file;
         if (file) {
+          publishArtifactRole = "final_master";
+          const artifactName = file.name.toLowerCase().endsWith(".wav") ? "final-master.wav" : "final-master.mp3";
           if ($("lsR2SourceLabel")) {
-            $("lsR2SourceLabel").textContent = `Selected MP3: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+            $("lsR2SourceLabel").textContent = `Selected Master: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsR2KeyInput")) {
+            $("lsR2KeyInput").value = resolveStructuredR2Key(artifactName);
           }
           if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
         }
@@ -2003,7 +3724,7 @@
       $("lsPublishR2Btn").onclick = async function () {
         const fileToUpload = customPublishFile || (lastRecordedResult && lastRecordedResult.masterFile);
         if (!fileToUpload) {
-          showStudioMessage("Record a session or select an MP3 file to upload first.", true);
+          showStudioMessage("Record a session or select an MP3/WAV file to upload first.", true);
           return;
         }
 
@@ -2035,16 +3756,24 @@
           });
         }
 
+        const recState = window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+          ? window.LiveStudioRecorder.getState()
+          : {};
+        const sUid = (lastRecordedResult && lastRecordedResult.projectUid) || recState.projectUid || null;
+
         try {
           const pubResult = await window.LiveStudioRecorder.uploadFileToR2AndPublish({
             file: fileToUpload,
             sessionDate: ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim(),
+            sessionUid: sUid,
             title: ($("lsR2TitleInput")?.value || "Bhajan Session").trim(),
             storageKey: ($("lsR2KeyInput")?.value || "").trim(),
             durationSeconds: durationSec,
             timestamps: capturedTimestamps,
             isPublished: true,
             notifyDevotees: Boolean($("lsR2NotifyDevoteesCheck")?.checked),
+            artifactRole: customPublishFile ? publishArtifactRole : "live_ref",
+            projectManifest: publishProjectManifest,
             csrfToken,
             onProgress: (info) => {
               if (progressFill) progressFill.style.width = `${info.pct || 0}%`;
@@ -2060,9 +3789,78 @@
           showStudioMessage("Cloudflare R2 Publish failed: " + err.message, true);
         } finally {
           btn.disabled = false;
+          updateResourceStrip();
         }
       };
     }
+
+    if ($("lsBackupDryStemsR2Btn")) {
+      $("lsBackupDryStemsR2Btn").onclick = async function () {
+        if (!lastRecordedResult || (!lastRecordedResult.dryCh1File && !lastRecordedResult.dryCh2File)) {
+          showStudioMessage("No dry Ch1/Ch2 WAV stems available from current session.", true);
+          return;
+        }
+        const btn = this;
+        btn.disabled = true;
+        const files = [lastRecordedResult.dryCh1File, lastRecordedResult.dryCh2File].filter(Boolean);
+        try {
+          const sDate = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+          const uploaded = await window.LiveStudioRecorder.backupDryStemsToR2({
+            files,
+            sessionDate: sDate,
+            sessionUid: lastRecordedResult.projectUid,
+            csrfToken,
+            onProgress: (info) => {
+              if ($("lsR2ProgressWrap")) $("lsR2ProgressWrap").style.display = "block";
+              if ($("lsR2ProgressFill")) $("lsR2ProgressFill").style.width = `${info.pct || 0}%`;
+              if ($("lsR2StatusText")) $("lsR2StatusText").textContent = info.message || "";
+            }
+          });
+          showStudioMessage(`Backed up ${uploaded.length} dry WAV stem(s) privately to Cloudflare R2!`, false);
+        } catch (err) {
+          showStudioMessage("Dry stem backup failed: " + err.message, true);
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    }
+
+    if ($("lsRetryQueuedUploadsBtn")) {
+      $("lsRetryQueuedUploadsBtn").onclick = async function () {
+        if (!window.LiveStudioRecorder || typeof window.LiveStudioRecorder.retryPendingUploads !== "function") return;
+        const btn = this;
+        btn.disabled = true;
+        try {
+          const results = await window.LiveStudioRecorder.retryPendingUploads({
+            csrfToken,
+            onProgress: (info) => {
+              if ($("lsR2ProgressWrap")) $("lsR2ProgressWrap").style.display = "block";
+              if ($("lsR2ProgressFill")) $("lsR2ProgressFill").style.width = `${info.pct || 0}%`;
+              if ($("lsR2StatusText")) $("lsR2StatusText").textContent = info.message || "";
+            }
+          });
+          const okCount = results.filter((r) => r.success).length;
+          showStudioMessage(
+            okCount > 0
+              ? `Retried & published ${okCount} queued upload(s) to Cloudflare R2!`
+              : "No queued uploads completed (check connection or re-select file).",
+            okCount === 0
+          );
+        } catch (err) {
+          showStudioMessage("Retry queued uploads failed: " + err.message, true);
+        } finally {
+          updateResourceStrip();
+        }
+      };
+    }
+
+    window.addEventListener("online", () => {
+      updateResourceStrip();
+      const pending = window.LiveStudioRecorder ? window.LiveStudioRecorder.getPendingUploads() : [];
+      if (pending.length > 0 && $("lsR2StatusText")) {
+        $("lsR2StatusText").textContent = `Connection restored — ${pending.length} queued upload(s) ready. Click Retry Queued.`;
+      }
+    });
 
     window.LiveStudioBridge = {
       getTimestamps: () => capturedTimestamps.slice(),
@@ -2071,21 +3869,91 @@
         saveTimestampsToLocal();
         renderTimestampsEditor();
       },
-      setReadyPublishFile: (file, durationSec) => {
+      setReadyPublishFile: (file, durationSec, meta = {}) => {
         customPublishFile = file;
+        publishArtifactRole = meta.artifactRole || "final_master";
+        if (meta.projectManifest) publishProjectManifest = meta.projectManifest;
         if (!lastRecordedResult) lastRecordedResult = {};
         if (durationSec) lastRecordedResult.durationSeconds = durationSec;
         if (file) {
+          const artifactName = file.name.toLowerCase().endsWith(".wav") ? "final-master.wav" : "final-master.mp3";
           if ($("lsR2SourceLabel")) {
-            $("lsR2SourceLabel").textContent = `Edited Mix Ready: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+            $("lsR2SourceLabel").textContent = `Edited Master Ready: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+          }
+          if ($("lsR2KeyInput")) {
+            $("lsR2KeyInput").value = resolveStructuredR2Key(artifactName);
           }
           if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
         }
       },
       getActiveFxConfig: () => JSON.parse(JSON.stringify(activeConfig)),
       getSessionDate: () => ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim(),
+      getSessionMeta: () => ({
+        sessionDate: ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim(),
+        title: ($("lsR2TitleInput")?.value || $("lsTitleInput")?.value || "Bhajan Session").trim(),
+        r2Key: ($("lsR2KeyInput")?.value || "").trim(),
+        projectUid:
+          (lastRecordedResult && lastRecordedResult.projectUid) ||
+          (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+            ? window.LiveStudioRecorder.getState().projectUid
+            : null)
+      }),
+      getSelectedDirHandleName: () =>
+        window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+          ? window.LiveStudioRecorder.getState().folderName
+          : null,
       getBhajans: () => bhajansList.slice()
     };
+
+    async function updateResourceStrip() {
+      const recState =
+        window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+          ? window.LiveStudioRecorder.getState()
+          : {};
+      if ($("lsResEngineLoad")) {
+        const backendLbl = activeSourceMode === "asio" ? "ASIO/Bridge" : activeSourceMode === "file" ? "Test File" : "WASAPI";
+        const srTxt = audioCtx ? `${Math.round(audioCtx.sampleRate / 100) / 10}k` : "48k";
+        const latMs = audioCtx && Number.isFinite(audioCtx.baseLatency) ? ` ${(audioCtx.baseLatency * 1000).toFixed(1)}ms` : "";
+        $("lsResEngineLoad").textContent = audioCtx ? `${backendLbl} (${srTxt}${latMs})` : "Idle";
+      }
+      if ($("lsResXruns")) {
+        const drops = (recState.droppedFrames || 0) + (asioXruns || 0) + (recState.writeErrorCount || 0);
+        $("lsResXruns").textContent = String(drops);
+      }
+      if ($("lsResDiskFree")) {
+        if (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getDiskEstimate === "function") {
+          try {
+            const disk = await window.LiveStudioRecorder.getDiskEstimate();
+            if (disk && disk.supported && Number.isFinite(disk.availableBytes)) {
+              const gb = (disk.availableBytes / (1024 * 1024 * 1024)).toFixed(1);
+              $("lsResDiskFree").textContent = recState.folderName ? `${gb} GB (${recState.folderName})` : `${gb} GB free`;
+            } else {
+              $("lsResDiskFree").textContent = recState.folderName || "Fallback";
+            }
+          } catch (_) {
+            $("lsResDiskFree").textContent = recState.folderName || "Fallback";
+          }
+        } else {
+          $("lsResDiskFree").textContent = recState.folderName || "Fallback";
+        }
+      }
+      const persistedPending = window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getPendingUploads === "function"
+        ? window.LiveStudioRecorder.getPendingUploads().length
+        : 0;
+      const qCount = Math.max(Number(recState.offlineQueueCount || 0), persistedPending);
+      if ($("lsResPendingUploads")) {
+        $("lsResPendingUploads").textContent = qCount > 0 ? `${qCount} queued` : (isLive ? "Live Streaming" : "0 queued");
+      }
+      if ($("lsQueuedCountBadge")) $("lsQueuedCountBadge").textContent = String(qCount);
+      if ($("lsRetryQueuedUploadsBtn")) $("lsRetryQueuedUploadsBtn").disabled = qCount === 0;
+      if ($("lsResHeap") && window.performance && window.performance.memory) {
+        const mb = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
+        $("lsResHeap").textContent = `${mb} MB`;
+      }
+    }
+
+    setInterval(updateResourceStrip, 2500);
+    updateResourceStrip();
 
     if ($("lsDawAutoLoadRecBtn")) {
       $("lsDawAutoLoadRecBtn").onclick = () => {
@@ -2095,7 +3963,264 @@
       };
     }
 
+    function setProcTab(tabName) {
+      activeProcTab = tabName || "vocal";
+      document.querySelectorAll("[data-proc-tab-btn]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.procTabBtn === activeProcTab);
+      });
+      document.querySelectorAll(".ls-vstrip[data-proc-tab]").forEach((strip) => {
+        strip.classList.toggle("is-active-strip", strip.dataset.procTab === activeProcTab);
+      });
+      document.querySelectorAll("[data-proc-pane]").forEach((pane) => {
+        pane.classList.toggle("ls-is-hidden", pane.dataset.procPane !== activeProcTab);
+      });
+      drawChannelProcCanvas();
+    }
+
+    document.querySelectorAll("[data-proc-tab-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => setProcTab(btn.dataset.procTabBtn));
+    });
+    document.querySelectorAll(".ls-vstrip[data-proc-tab]").forEach((strip) => {
+      strip.addEventListener("click", () => setProcTab(strip.dataset.procTab));
+    });
+
+    function setChSubTab(pair) {
+      const parts = String(pair || "").split(":");
+      if (parts.length !== 2) return;
+      const ch = parts[0];
+      const tab = parts[1];
+      activeChSubTabs[ch] = tab;
+      document.querySelectorAll(`[data-ch-subtab^="${ch}:"]`).forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.chSubtab === pair);
+      });
+      document.querySelectorAll(`[data-ch-subpane^="${ch}:"]`).forEach((pane) => {
+        pane.classList.toggle("ls-is-hidden", pane.dataset.chSubpane !== pair);
+      });
+      drawChannelProcCanvas();
+    }
+
+    document.querySelectorAll("[data-ch-subtab]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        setChSubTab(btn.dataset.chSubtab);
+      });
+    });
+
+    function wireEqCanvasInteraction() {
+      const canvas = $("lsEqSpectrumCanvas");
+      if (!canvas) return;
+      const bands = [
+        { key: "b80", freq: 80, sliderId: "lsMaster80", valId: "lsMaster80Val", def: 0.5 },
+        { key: "b250", freq: 250, sliderId: "lsMaster250", valId: "lsMaster250Val", def: -1.5 },
+        { key: "b1k", freq: 1000, sliderId: "lsMaster1k", valId: "lsMaster1kVal", def: 0 },
+        { key: "b3k5", freq: 3500, sliderId: "lsMaster3k5", valId: "lsMaster3k5Val", def: 1.5 },
+        { key: "b10k", freq: 10000, sliderId: "lsMaster10k", valId: "lsMaster10kVal", def: 1.0 }
+      ];
+      let draggingBand = null;
+
+      function getCoords(ev) {
+        const rect = canvas.getBoundingClientRect();
+        const w = canvas.width || 720;
+        const h = canvas.height || 164;
+        return {
+          x: ((ev.clientX - rect.left) / Math.max(1, rect.width)) * w,
+          y: ((ev.clientY - rect.top) / Math.max(1, rect.height)) * h,
+          w,
+          h
+        };
+      }
+
+      canvas.addEventListener("pointerdown", (ev) => {
+        const pos = getCoords(ev);
+        const logRange = Math.log10(18000 / 20);
+        let closest = null;
+        let closestDist = 26;
+        bands.forEach((b) => {
+          const bx = (Math.log10(b.freq / 20) / logRange) * pos.w;
+          const curDb = activeConfig.master.bypass ? 0 : Number(activeConfig.master[b.key] || 0);
+          const by = pos.h * 0.5 - (curDb / 15) * (pos.h * 0.38);
+          const dist = Math.hypot(pos.x - bx, pos.y - by);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closest = b;
+          }
+        });
+        if (closest) {
+          draggingBand = closest;
+          if (typeof canvas.setPointerCapture === "function") {
+            try { canvas.setPointerCapture(ev.pointerId); } catch (_) { }
+          }
+        }
+      });
+
+      canvas.addEventListener("pointermove", (ev) => {
+        if (!draggingBand) return;
+        const pos = getCoords(ev);
+        const rawDb = ((pos.h * 0.5 - pos.y) / (pos.h * 0.38)) * 15;
+        const snappedDb = Math.max(-12, Math.min(12, Math.round(rawDb * 2) / 2));
+        activeConfig.master[draggingBand.key] = snappedDb;
+        activeConfig.master.bypass = false;
+        const slider = $(draggingBand.sliderId);
+        const lbl = $(draggingBand.valId);
+        if (slider) slider.value = String(snappedDb);
+        if (lbl) lbl.textContent = `${snappedDb} dB`;
+        applyConfigToGraph();
+        drawEqAndSpectrum();
+      });
+
+      const endDrag = () => { draggingBand = null; };
+      canvas.addEventListener("pointerup", endDrag);
+      canvas.addEventListener("pointercancel", endDrag);
+
+      canvas.addEventListener("dblclick", (ev) => {
+        const pos = getCoords(ev);
+        const logRange = Math.log10(18000 / 20);
+        let closest = bands[0];
+        let best = Infinity;
+        bands.forEach((b) => {
+          const bx = (Math.log10(b.freq / 20) / logRange) * pos.w;
+          const d = Math.abs(pos.x - bx);
+          if (d < best) { best = d; closest = b; }
+        });
+        if (best < 40) {
+          activeConfig.master[closest.key] = 0;
+          syncUiFromConfig();
+        }
+      });
+    }
+    wireEqCanvasInteraction();
+
+    function setRecTab(tabName) {
+      const target = tabName || "ssd";
+      document.querySelectorAll("[data-rec-tab-btn]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.recTabBtn === target);
+      });
+      document.querySelectorAll("[data-rec-pane]").forEach((pane) => {
+        pane.classList.toggle("ls-is-hidden", pane.dataset.recPane !== target);
+      });
+    }
+
+    document.querySelectorAll("[data-rec-tab-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => setRecTab(btn.dataset.recTabBtn));
+    });
+
+    function polarToCartesian(cx, cy, r, deg) {
+      const rad = ((deg - 90) * Math.PI) / 180;
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function describeArc(cx, cy, r, startDeg, endDeg) {
+      if (Math.abs(endDeg - startDeg) < 0.5) return "";
+      const lo = Math.min(startDeg, endDeg);
+      const hi = Math.max(startDeg, endDeg);
+      const start = polarToCartesian(cx, cy, r, lo);
+      const end = polarToCartesian(cx, cy, r, hi);
+      const largeArc = hi - lo > 180 ? 1 : 0;
+      return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+    }
+
+    function syncRotaryVisuals() {
+      document.querySelectorAll("svg.ls-rotary-svg[data-rotary-for]").forEach((svg) => {
+        const input = $(svg.dataset.rotaryFor);
+        if (!input) return;
+        const min = Number(input.min ?? 0);
+        const max = Number(input.max ?? 100);
+        const val = Number(input.value ?? min);
+        const norm = Math.max(0, Math.min(1, (val - min) / Math.max(1e-6, max - min)));
+        const angle = -135 + norm * 270;
+
+        const needle = svg.querySelector(".ls-rotary-needle");
+        if (needle) {
+          const tip = polarToCartesian(20, 20, 11.5, angle);
+          needle.setAttribute("x1", "20");
+          needle.setAttribute("y1", "20");
+          needle.setAttribute("x2", tip.x.toFixed(2));
+          needle.setAttribute("y2", tip.y.toFixed(2));
+        }
+        const arc = svg.querySelector(".ls-rotary-arc");
+        if (arc) {
+          const startAngle = min < 0 && max > 0 ? 0 : -135;
+          arc.setAttribute("d", describeArc(20, 20, 15, startAngle, angle));
+        }
+      });
+      if ($("lsReverbDecayChip") && $("lsReverbDecay")) {
+        $("lsReverbDecayChip").textContent = `Decay ${Number($("lsReverbDecay").value || 1.4).toFixed(1)}s`;
+      }
+    }
+
+    function wireRotaryKnobs() {
+      document.querySelectorAll("svg.ls-rotary-svg[data-rotary-for]").forEach((svg) => {
+        const input = $(svg.dataset.rotaryFor);
+        if (!input) return;
+        input.addEventListener("input", syncRotaryVisuals);
+
+        let dragging = false;
+        let startY = 0;
+        let startVal = 0;
+
+        svg.addEventListener("mousedown", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          dragging = true;
+          startY = ev.clientY;
+          startVal = Number(input.value ?? 0);
+          svg.classList.add("is-dragging");
+        });
+        window.addEventListener("mousemove", (ev) => {
+          if (!dragging) return;
+          const min = Number(input.min ?? 0);
+          const max = Number(input.max ?? 100);
+          const step = Number(input.step) || 1;
+          const span = max - min;
+          const raw = startVal + ((startY - ev.clientY) / 110) * span;
+          const snapped = Math.round(raw / step) * step;
+          const clamped = Math.max(min, Math.min(max, Number(snapped.toFixed(3))));
+          if (Number(input.value) !== clamped) {
+            input.value = String(clamped);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        });
+        window.addEventListener("mouseup", () => {
+          if (!dragging) return;
+          dragging = false;
+          svg.classList.remove("is-dragging");
+        });
+        svg.addEventListener("dblclick", (ev) => {
+          ev.stopPropagation();
+          const defVal = input.id === "lsReverbDecay" ? 1.4 : 0;
+          input.value = String(defVal);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      });
+      syncRotaryVisuals();
+    }
+    wireRotaryKnobs();
+
+    const redrawOnThemeChange = () => {
+      window.requestAnimationFrame(() => {
+        drawEqAndSpectrum();
+        drawChannelProcCanvas();
+      });
+    };
+    window.addEventListener("themechange", redrawOnThemeChange);
+    window.addEventListener("resize", redrawOnThemeChange);
+    if (typeof MutationObserver === "function") {
+      const themeObs = new MutationObserver(redrawOnThemeChange);
+      themeObs.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme", "class"]
+      });
+      if (document.body) {
+        themeObs.observe(document.body, {
+          attributes: true,
+          attributeFilter: ["data-theme", "class"]
+        });
+      }
+    }
+
     drawEqAndSpectrum();
+    setProcTab("vocal");
+    setRecTab("ssd");
     loadTimestampsFromLocal();
     renderTimestampsEditor();
     updateRecorderUi();
@@ -2116,7 +4241,7 @@
           streamState = data;
           const cnt = $("lsListenerCount");
           if (cnt) cnt.textContent = String(data.listenerCount || 0);
-        } catch (_) {}
+        } catch (_) { }
       });
     }
   }

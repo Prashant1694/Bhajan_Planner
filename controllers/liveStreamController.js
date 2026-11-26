@@ -3,6 +3,7 @@ const MasterBhajan = require("../models/MasterBhajan");
 const LiveStreamPreset = require("../models/LiveStreamPreset");
 const SessionAudio = require("../models/SessionAudio");
 const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
+const StudioProject = require("../models/StudioProject");
 const ActivityLog = require("../models/ActivityLog");
 const audioStorageService = require("../services/audioStorageService");
 const liveStreamService = require("../services/liveStreamService");
@@ -446,15 +447,29 @@ exports.r2UploadPart = async (req, res) => {
     }
 
     if (mode === "single") {
+      const allowedTypes = new Set([
+        "audio/mpeg",
+        "audio/wav",
+        "audio/wave",
+        "audio/x-wav",
+        "application/json",
+        "audio/mp4",
+        "audio/ogg",
+        "audio/webm",
+        "application/octet-stream"
+      ]);
+      const requestedType = req.query.contentType ? String(req.query.contentType).split(";")[0].trim().toLowerCase() : "";
+      const contentType = allowedTypes.has(requestedType) ? requestedType : "audio/mpeg";
       const putRes = await audioStorageService.putSingleObject({
         key: cleanKey,
-        contentType: "audio/mpeg",
+        contentType,
         body
       });
       return res.json({
         success: true,
         mode: "single",
         key: putRes.key,
+        contentType,
         publicUrl: putRes.publicUrl,
         etag: putRes.etag
       });
@@ -531,7 +546,12 @@ exports.r2PublishSession = async (req, res) => {
       file_size_bytes,
       is_published,
       notify_devotees,
-      timestamps
+      timestamps,
+      clear_timestamps,
+      project_uid,
+      checksum_sha256,
+      artifact_role,
+      r2_keys
     } = req.body || {};
 
     const cleanDate = session_date ? String(session_date).trim() : "";
@@ -553,6 +573,21 @@ exports.r2PublishSession = async (req, res) => {
     const cleanDuration = Math.max(0, parseInt(duration_seconds, 10) || 0);
     const cleanSize = file_size_bytes != null ? Math.max(0, parseInt(file_size_bytes, 10) || 0) : null;
     const publishedFlag = typeof is_published === "boolean" ? is_published : true;
+    const role = ["live_ref", "final_master", "stem_ch1", "stem_ch2"].includes(String(artifact_role || ""))
+      ? String(artifact_role)
+      : "final_master";
+    const cleanChecksum = checksum_sha256 ? String(checksum_sha256).trim().slice(0, 64) : null;
+
+    const existingBefore = await SessionAudio.findOne({ where: { session_date: cleanDate } });
+    const idempotentRetry = Boolean(
+      existingBefore &&
+      cleanKey &&
+      existingBefore.storage_key === cleanKey &&
+      existingBefore.audio_url === resolvedUrl &&
+      existingBefore.title === cleanTitle &&
+      (cleanDuration === 0 || existingBefore.duration_seconds === cleanDuration) &&
+      (cleanSize == null || existingBefore.file_size_bytes === cleanSize)
+    );
 
     const [audio, created] = await SessionAudio.findOrCreate({
       where: { session_date: cleanDate },
@@ -578,36 +613,155 @@ exports.r2PublishSession = async (req, res) => {
     }
 
     let createdTimestamps = [];
-    if (Array.isArray(timestamps)) {
+    let preservedTimestamps = false;
+    const hasIncomingTimestamps = Array.isArray(timestamps) && timestamps.length > 0;
+    const shouldClearTimestamps = clear_timestamps === true || clear_timestamps === "true";
+
+    if (hasIncomingTimestamps || shouldClearTimestamps) {
       await SessionAudioTimestamp.destroy({ where: { session_audio_id: audio.id } });
       const rows = [];
-      for (let i = 0; i < timestamps.length; i++) {
-        const t = timestamps[i];
+      const seenKeys = new Map();
+      const inputList = Array.isArray(timestamps) ? timestamps : [];
+      const candidateSubIds = Array.from(
+        new Set(
+          inputList
+            .map((t) => (t && t.submission_id ? parseInt(t.submission_id, 10) : 0))
+            .filter((n) => Number.isInteger(n) && n > 0)
+        )
+      );
+      const existingSubs = candidateSubIds.length > 0
+        ? await BhajanSubmission.findAll({
+            where: { id: candidateSubIds },
+            attributes: ["id"],
+            raw: true
+          })
+        : [];
+      const validSubmissionIds = new Set(existingSubs.map((s) => Number(s.id)));
+
+      for (let i = 0; i < inputList.length; i++) {
+        const t = inputList[i];
         if (!t || !t.bhajan_title) continue;
+        const bhajanTitle = String(t.bhajan_title).trim().slice(0, 140);
+        if (!bhajanTitle) continue;
         const startSec = audioStorageService.parseTimestampToSeconds(
           t.start_timestamp != null ? t.start_timestamp : t.start_seconds
         );
-        rows.push({
+        const explicitEnd = t.end_timestamp != null || t.end_seconds != null
+          ? audioStorageService.parseTimestampToSeconds(t.end_timestamp != null ? t.end_timestamp : t.end_seconds)
+          : null;
+        const parsedSubId = t.submission_id ? parseInt(t.submission_id, 10) : null;
+        const dedupKey = `${bhajanTitle.toLowerCase()}::${startSec}`;
+        const row = {
           session_audio_id: audio.id,
-          submission_id: t.submission_id ? parseInt(t.submission_id, 10) : null,
-          bhajan_title: String(t.bhajan_title).trim().slice(0, 140),
+          submission_id: parsedSubId && validSubmissionIds.has(parsedSubId) ? parsedSubId : null,
+          bhajan_title: bhajanTitle,
           singer_name: String(t.singer_name || "Samiti Singer").trim().slice(0, 100),
           deity: t.deity ? String(t.deity).trim().slice(0, 60) : null,
           start_seconds: startSec,
-          end_seconds: null,
+          end_seconds: explicitEnd,
           order_index: typeof t.order_index === "number" ? t.order_index : i
-        });
+        };
+        if (seenKeys.has(dedupKey)) {
+          const idx = seenKeys.get(dedupKey);
+          rows[idx] = Object.assign({}, rows[idx], row, {
+            submission_id: row.submission_id || rows[idx].submission_id
+          });
+        } else {
+          seenKeys.set(dedupKey, rows.length);
+          rows.push(row);
+        }
       }
       rows.sort((a, b) => a.start_seconds - b.start_seconds);
+      for (let i = 0; i < rows.length; i++) {
+        rows[i].order_index = i;
+        if (rows[i].end_seconds == null) {
+          if (i + 1 < rows.length && rows[i + 1].start_seconds > rows[i].start_seconds) {
+            rows[i].end_seconds = rows[i + 1].start_seconds;
+          } else if (cleanDuration > rows[i].start_seconds) {
+            rows[i].end_seconds = cleanDuration;
+          }
+        }
+      }
       if (rows.length > 0) {
         createdTimestamps = await SessionAudioTimestamp.bulkCreate(rows);
+      }
+    } else {
+      const existingRows = await SessionAudioTimestamp.findAll({
+        where: { session_audio_id: audio.id },
+        order: [["order_index", "ASC"], ["start_seconds", "ASC"]]
+      });
+      if (existingRows.length > 0) {
+        preservedTimestamps = true;
+        const lastRow = existingRows[existingRows.length - 1];
+        if (lastRow && lastRow.end_seconds == null && cleanDuration > lastRow.start_seconds) {
+          lastRow.end_seconds = cleanDuration;
+          await lastRow.save().catch(() => { });
+        }
+        createdTimestamps = existingRows;
+      }
+    }
+
+    let revisionsCount = 0;
+    if (project_uid) {
+      const cleanUid = String(project_uid).trim();
+      const linkedProj = await StudioProject.findOne({ where: { project_uid: cleanUid } }).catch(() => null);
+      if (linkedProj) {
+        let existingKeys = {};
+        try {
+          existingKeys = linkedProj.r2_keys_json ? JSON.parse(linkedProj.r2_keys_json) : {};
+        } catch {
+          existingKeys = {};
+        }
+        const mergedKeys = Object.assign(
+          {},
+          existingKeys,
+          r2_keys && typeof r2_keys === "object" ? r2_keys : {}
+        );
+        if (cleanKey) {
+          if (role === "live_ref") mergedKeys.live_ref_key = cleanKey;
+          else if (role === "final_master") mergedKeys.final_master_key = cleanKey;
+          mergedKeys.latest_key = cleanKey;
+          mergedKeys.latest_url = resolvedUrl;
+        }
+        const prevRevisions = Array.isArray(mergedKeys.revisions) ? mergedKeys.revisions : [];
+        const revSig = `${role}::${cleanKey || resolvedUrl}::${cleanChecksum || ""}`;
+        const alreadyRecorded = prevRevisions.some(
+          (r) => `${r.artifact_role || ""}::${r.key || r.url || ""}::${r.checksum_sha256 || ""}` === revSig
+        );
+        if (!alreadyRecorded) {
+          prevRevisions.push({
+            artifact_role: role,
+            key: cleanKey,
+            url: resolvedUrl,
+            duration_seconds: cleanDuration,
+            file_size_bytes: cleanSize,
+            checksum_sha256: cleanChecksum,
+            published_at: new Date().toISOString()
+          });
+        }
+        mergedKeys.revisions = prevRevisions.slice(-25);
+        revisionsCount = mergedKeys.revisions.length;
+
+        await linkedProj.update({
+          publication_status: "published",
+          r2_keys_json: JSON.stringify(mergedKeys),
+          updated_at: new Date()
+        }).catch(() => { });
+      } else {
+        await StudioProject.update(
+          {
+            publication_status: "published",
+            updated_at: new Date()
+          },
+          { where: { project_uid: cleanUid } }
+        ).catch(() => { });
       }
     }
 
     try {
       await ActivityLog.create({
         action: "LIVE_STUDIO_PUBLISH_AUDIO",
-        details: `Published Cloudflare R2 audio for ${cleanDate} ("${cleanTitle}") with ${createdTimestamps.length} timestamps`,
+        details: `Published Cloudflare R2 audio (${role}) for ${cleanDate} ("${cleanTitle}") with ${createdTimestamps.length} timestamps${cleanChecksum ? ` [sha256:${cleanChecksum.slice(0, 12)}]` : ""}${idempotentRetry ? " [idempotent]" : ""}`,
         session_id: cleanDate,
         ip_address: req.ip || "127.0.0.1"
       });
@@ -634,6 +788,10 @@ exports.r2PublishSession = async (req, res) => {
 
     return res.json({
       success: true,
+      idempotentRetry,
+      preservedTimestamps,
+      revisionsCount,
+      artifactRole: role,
       audio: {
         id: audio.id,
         session_date: audio.session_date,
@@ -653,5 +811,235 @@ exports.r2PublishSession = async (req, res) => {
       success: false,
       error: err.message || "Failed to publish session recording."
     });
+  }
+};
+
+exports.r2PresignUpload = async (req, res) => {
+  try {
+    if (!audioStorageService.isCloudflareConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: "Cloudflare R2 credentials are not configured in environment."
+      });
+    }
+    const { key, session_date, session_id, artifact_type, uploadId, partNumber, method } = req.body || {};
+    const rawKey = key || audioStorageService.buildSessionObjectKey({
+      sessionDate: session_date,
+      sessionId: session_id,
+      artifactType: artifact_type || "final-master.mp3"
+    });
+    const cleanKey = audioStorageService.sanitizeR2StorageKey(rawKey, session_date);
+    const queryParams = {};
+    if (uploadId && partNumber) {
+      queryParams.uploadId = String(uploadId);
+      queryParams.partNumber = String(partNumber);
+    }
+    const presigned = audioStorageService.createPresignedR2Url({
+      method: method || "PUT",
+      key: cleanKey,
+      queryParams,
+      expiresIn: 3600
+    });
+    return res.json({
+      success: true,
+      url: presigned.url,
+      method: presigned.method,
+      key: presigned.key,
+      publicUrl: presigned.publicUrl,
+      expiresIn: presigned.expiresIn
+    });
+  } catch (err) {
+    console.error("r2PresignUpload error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || "Failed to generate direct R2 upload URL."
+    });
+  }
+};
+
+exports.listStudioProjects = async (req, res) => {
+  try {
+    const rows = await StudioProject.findAll({
+      order: [["updated_at", "DESC"]],
+      limit: 50,
+      raw: true
+    });
+    const projects = rows.map((r) => ({
+      id: r.id,
+      project_uid: r.project_uid,
+      session_date: r.session_date,
+      title: r.title,
+      sample_rate: r.sample_rate,
+      bit_depth: r.bit_depth,
+      channel_config: r.channel_config,
+      duration_seconds: r.duration_seconds,
+      publication_status: r.publication_status,
+      updated_at: r.updated_at
+    }));
+    res.json({ success: true, projects });
+  } catch (err) {
+    console.error("listStudioProjects error:", err);
+    res.status(500).json({ success: false, error: "Failed to list studio projects." });
+  }
+};
+
+exports.getStudioProject = async (req, res) => {
+  try {
+    const param = String(req.params.idOrDate || "").trim();
+    if (!param) return res.status(400).json({ success: false, error: "Project ID or date required." });
+
+    let row = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(param)) {
+      row = await StudioProject.findOne({
+        where: { session_date: param },
+        order: [["updated_at", "DESC"]],
+        raw: true
+      });
+    } else if (/^\d+$/.test(param)) {
+      row = await StudioProject.findByPk(Number(param), { raw: true });
+    } else {
+      row = await StudioProject.findOne({ where: { project_uid: param }, raw: true });
+    }
+
+    if (!row) {
+      return res.status(404).json({ success: false, error: "Studio project not found." });
+    }
+
+    let manifest = null;
+    try {
+      manifest = JSON.parse(row.project_state_json);
+    } catch {
+      manifest = null;
+    }
+
+    return res.json({
+      success: true,
+      project: {
+        id: row.id,
+        project_uid: row.project_uid,
+        session_date: row.session_date,
+        title: row.title,
+        sample_rate: row.sample_rate,
+        bit_depth: row.bit_depth,
+        channel_config: row.channel_config,
+        duration_seconds: row.duration_seconds,
+        publication_status: row.publication_status,
+        checksum_sha256: row.checksum_sha256,
+        local_files: row.local_files_json ? JSON.parse(row.local_files_json) : {},
+        r2_keys: row.r2_keys_json ? JSON.parse(row.r2_keys_json) : {},
+        manifest
+      }
+    });
+  } catch (err) {
+    console.error("getStudioProject error:", err);
+    return res.status(500).json({ success: false, error: "Failed to load studio project." });
+  }
+};
+
+exports.saveStudioProject = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const manifest = body.manifest || body;
+    const rawDate = String(body.session_date || body.sessionDate || manifest.sessionDate || getLocalDateStr()).trim();
+    const cleanDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : getLocalDateStr();
+    const projectUid = String(body.project_uid || body.projectUid || manifest.projectUid || `proj-${cleanDate}`).trim().slice(0, 96);
+    const title = String(body.title || manifest.title || `Bhajan Session – ${cleanDate}`).trim().slice(0, 160);
+    const sampleRate = parseInt(body.sample_rate || body.sampleRate || manifest.sampleRate || 48000, 10) || 48000;
+    const rawBitDepth = body.bit_depth || body.bitDepth || manifest.bitDepth || 24;
+    const validation = audioStorageService.validateSessionManifest(Object.assign({}, manifest, {
+      session_date: cleanDate,
+      project_uid: projectUid,
+      sample_rate: sampleRate,
+      bit_depth: Number(rawBitDepth),
+      duration_seconds: Number(body.duration_seconds ?? body.durationSeconds ?? manifest.durationSeconds ?? 0)
+    }));
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.errors.join(" "),
+        errors: validation.errors
+      });
+    }
+    const bitDepth = [16, 24, 32].includes(Number(rawBitDepth)) ? Number(rawBitDepth) : 24;
+    const channelConfig = String(body.channel_config || body.channelConfig || manifest.channelConfig || "dual_mono_split").slice(0, 64);
+    const durationSeconds = Math.max(0, Number(body.duration_seconds ?? body.durationSeconds ?? manifest.durationSeconds ?? 0) || 0);
+    const pubStatus = String(body.publication_status || body.publicationStatus || manifest.publicationStatus || "draft").slice(0, 32);
+    const checksum = (body.checksum_sha256 || body.checksumSha256)
+      ? String(body.checksum_sha256 || body.checksumSha256).trim().slice(0, 64)
+      : null;
+    const now = new Date();
+
+    const existing = await StudioProject.findOne({ where: { project_uid: projectUid } });
+    let existingR2Keys = {};
+    if (existing && existing.r2_keys_json) {
+      try {
+        existingR2Keys = JSON.parse(existing.r2_keys_json) || {};
+      } catch {
+        existingR2Keys = {};
+      }
+    }
+    const incomingR2Keys = body.r2_keys || body.r2Keys || manifest.r2Keys || {};
+    const mergedR2Keys = Object.assign({}, existingR2Keys, incomingR2Keys);
+    if (!Array.isArray(incomingR2Keys.revisions) && Array.isArray(existingR2Keys.revisions)) {
+      mergedR2Keys.revisions = existingR2Keys.revisions;
+    }
+
+    const payload = {
+      project_uid: projectUid,
+      session_date: cleanDate,
+      title,
+      sample_rate: Math.max(8000, sampleRate),
+      bit_depth: bitDepth,
+      channel_config: channelConfig,
+      duration_seconds: durationSeconds,
+      local_files_json: JSON.stringify(body.local_files || body.localFiles || manifest.localFiles || {}),
+      r2_keys_json: JSON.stringify(mergedR2Keys),
+      project_state_json: JSON.stringify(manifest),
+      publication_status: pubStatus,
+      checksum_sha256: checksum,
+      updated_at: now
+    };
+
+    let saved;
+    if (existing) {
+      await existing.update(payload);
+      saved = existing;
+    } else {
+      saved = await StudioProject.create(Object.assign({ created_at: now }, payload));
+    }
+
+    return res.json({
+      success: true,
+      project: {
+        id: saved.id,
+        project_uid: saved.project_uid,
+        session_date: saved.session_date,
+        title: saved.title,
+        publication_status: saved.publication_status,
+        duration_seconds: saved.duration_seconds,
+        updated_at: saved.updated_at
+      }
+    });
+  } catch (err) {
+    console.error("saveStudioProject error:", err);
+    return res.status(500).json({ success: false, error: "Failed to save studio project." });
+  }
+};
+
+exports.deleteStudioProject = async (req, res) => {
+  try {
+    const param = String(req.params.id || "").trim();
+    if (!param) {
+      return res.status(400).json({ success: false, error: "Invalid project ID." });
+    }
+    const where = /^\d+$/.test(param) ? { id: Number(param) } : { project_uid: param };
+    const deleted = await StudioProject.destroy({ where });
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: "Project not found." });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("deleteStudioProject error:", err);
+    return res.status(500).json({ success: false, error: "Failed to delete studio project." });
   }
 };

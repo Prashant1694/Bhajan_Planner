@@ -1,20 +1,22 @@
-<%
-  const studioJsonFn = typeof safeJson === "function"
-    ? safeJson
-    : function (v) {
-        return JSON.stringify(v)
-          .replace(/</g, "\\u003c")
-          .replace(/>/g, "\\u003e")
-          .replace(/&/g, "\\u0026")
-          .replace(/\u2028/g, "\\u2028")
-          .replace(/\u2029/g, "\\u2029");
-      };
+<% const studioJsonFn=typeof safeJson==="function" ? safeJson : function (v) { return JSON.stringify(v)
+  .replace(/</g, "\\u003c" ) .replace( />/g, "\\u003e")
+.replace(/&/g, "\\u0026")
+.replace(/\u2028/g, "\\u2028")
+.replace(/\u2029/g, "\\u2029");
+};
 %>
 
 <div class="ls-studio-wrap">
-  <!-- UNIFIED TOP COMMAND BAR -->
+  <!-- UNIFIED STUDIO HEADER & MODE SWITCHER -->
   <header class="ls-daw-topbar">
     <div class="ls-hero-title-group">
+      <div class="ls-brand-emblem" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="2.2" />
+          <path
+            d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49m11.31-2.83a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+        </svg>
+      </div>
       <div class="ls-status-orb" id="lsStatusOrb"></div>
       <div class="ls-title-stack">
         <h1 class="ls-hero-title">Live Stream Broadcast Studio</h1>
@@ -22,90 +24,110 @@
       </div>
     </div>
 
-    <!-- Integrated Segmented Mode Switcher -->
+    <!-- Segmented Console / Multitrack DAW Switcher -->
     <nav class="ls-studio-tabs" aria-label="Studio Mode">
       <button type="button" class="ls-tab-btn is-active" id="lsTabLiveBtn">1. Live Console</button>
       <button type="button" class="ls-tab-btn" id="lsTabDawBtn">2. Multitrack DAW</button>
     </nav>
 
+    <!-- Telemetry Strip -->
     <div class="ls-telemetry-strip">
       <span class="ls-stat-chip" id="lsHwInfoPill">Idle</span>
-      <span class="ls-stat-chip live-active">
+      <span class="ls-stat-chip<%= streamState && streamState.isLive ? ' live-active' : '' %>" id="lsListenerChip">
         <span class="ls-chip-dot"></span>
-        Listeners <strong id="lsListenerCount"><%= streamState.listenerCount || 0 %></strong>
+        Listeners <strong id="lsListenerCount">
+          <%= streamState.listenerCount || 0 %>
+        </strong>
       </span>
-      <span class="ls-stat-chip ls-mono-chip" id="lsElapsedTime">00:00</span>
-      <span class="ls-stat-chip ls-mono-chip" id="lsBytesSent">0.00 MB</span>
+      <span class="ls-stat-chip ls-mono-chip" id="lsElapsedTime" title="Broadcast / Session Duration">00:00</span>
+      <span class="ls-stat-chip ls-mono-chip" id="lsBytesSent" title="Streamed / Recorded Data">0.00 MB</span>
+      <button type="button" class="ls-btn-mini ls-theme-quick-btn admin-theme-toggle-btn" id="lsStudioThemeToggleBtn"
+        title="Toggle Light / Dark Theme" aria-label="Toggle Light or Dark Theme">
+        <span class="ls-icon-moon" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </span>
+        <span class="ls-icon-sun" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </span>
+      </button>
     </div>
   </header>
+
+  <!-- LOCAL-FIRST WORKSTATION RESOURCE & COST MONITOR -->
+  <div class="ls-resource-strip" id="lsResourceStrip" aria-label="Local Workstation Resource Monitor">
+    <div class="ls-resource-metrics">
+      <span class="ls-res-item">DSP/CPU: <strong id="lsResEngineLoad">Idle</strong></span>
+      <span class="ls-res-item">RAM: <strong id="lsResHeap">--</strong></span>
+      <span class="ls-res-item">XRuns: <strong id="lsResXruns">0</strong></span>
+      <span class="ls-res-item">SSD Free: <strong id="lsResDiskFree">Checking...</strong></span>
+      <span class="ls-res-item">R2 Queue: <strong id="lsResPendingUploads">0 queued</strong></span>
+    </div>
+    <span class="ls-badge-pill ls-badge-blue" title="All DSP, mixing, recording & mastering runs locally on laptop">
+      Local Workstation · Zero Cloud DSP Cost
+    </span>
+  </div>
 
   <div class="ls-warning-banner" id="lsStudioNotice" style="display:none;"></div>
 
   <div class="ls-warning-banner" id="lsMonoWarning" style="display:none;">
-    <strong>Mono Input Detected:</strong> Windows gave Chrome only <strong>1 mono channel</strong>. Set Windows Sound Recording Format to <strong>2 channel, 24-bit, 48000 Hz</strong> and uncheck Exclusive Mode to separate Ch 1 Instruments &amp; Ch 2 Vocals cleanly.
-  </div>
-
-  <!-- COMPACT UTILITY DRAWERS (SETUP GUIDE & LOCAL TEST SOURCE) -->
-  <div class="ls-utility-drawers">
-    <details class="ls-setup-details">
-      <summary>
-        <span>Hardware &amp; Audition WASAPI Guide</span>
-        <span class="ls-badge-pill">Mode A</span>
-      </summary>
-      <div class="ls-setup-body">
-        <div class="ls-setup-step">
-          <strong>1. Windows Sound (One-Time)</strong>
-          Open <code>mmsys.cpl</code> &rarr; Recording &rarr; Behringer USB Audio &rarr; Advanced: pick <strong>2 ch, 24-bit, 48000 Hz</strong> and disable exclusive control.
-        </div>
-        <div class="ls-setup-step">
-          <strong>2. Simultaneous Capture</strong>
-          Record dry 24-bit Ch1 + Ch2 stems directly to your local SSD while streaming live at up to 320 kbps MP3.
-        </div>
-        <div class="ls-setup-step">
-          <strong>3. Zero-Feedback Monitor</strong>
-          Turn <strong>Earphone Monitor: ON</strong> and pick headphones to dial EQ, De-Esser &amp; Hall Reverb live.
-        </div>
-      </div>
-    </details>
-
-    <details class="ls-setup-details">
-      <summary>
-        <span>Local Test Audio Source (No Gear Needed)</span>
-        <span class="ls-channel-tag" id="lsTestFileStatus">No test file loaded</span>
-      </summary>
-      <div class="ls-test-source-body">
-        <input type="file" id="lsTestFileInput" accept="audio/*" class="ls-input">
-        <label class="ls-checkbox-line">
-          <input type="checkbox" id="lsTestFileLoopCheck" checked>
-          Loop
-        </label>
-        <button type="button" class="ls-btn ls-btn-primary" id="lsUseTestFileBtn" disabled>Play Test File</button>
-        <button type="button" class="ls-btn" id="lsTestFilePauseBtn" style="display:none;">Pause File</button>
-      </div>
-    </details>
+    <strong>Mono Input Detected:</strong> Windows gave Chrome only <strong>1 mono channel</strong>. Set Windows Sound
+    Recording Format to <strong>2 channel, 24-bit, 48000 Hz</strong> and disable Exclusive Mode, OR select <strong>Local Native ASIO Bridge</strong>.
   </div>
 
   <!-- ======================================================================
-       TAB 1: LIVE CONSOLE & SSD RECORDER
+       TAB 1: LIVE BROADCAST CONSOLE & SSD RECORDER
        ====================================================================== -->
   <div id="lsTabLivePane">
-    <!-- I/O, Preset & Earphone Monitor Ribbon -->
-    <section class="ls-io-ribbon">
+    <!-- Hardware I/O, Capture Backend, Routing Matrix, Preset Rack & Earphone Monitor -->
+    <details class="ls-io-ribbon" id="lsIoRibbonDetails" open aria-label="Audio Hardware and Routing">
+      <summary class="ls-io-summary">
+        <span class="ls-io-summary-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <circle cx="8" cy="12" r="2" />
+            <circle cx="16" cy="12" r="2" />
+          </svg>
+          <span>Audio Hardware, Routing Matrix &amp; Studio Rack</span>
+        </span>
+        <span class="ls-io-summary-right">
+          <span class="ls-badge-pill ls-badge-blue" id="lsIoSummaryTag">Mode A · 2-Ch Split</span>
+          <span class="ls-io-chevron" aria-hidden="true">▾</span>
+        </span>
+      </summary>
+      <div class="ls-io-body">
       <div class="ls-io-grid">
         <div class="ls-field">
-          <label for="lsAudioInputSelect">Audio Interface / Line In</label>
+          <label for="lsAudioInputSelect">Capture Driver &amp; Audio Interface</label>
           <div class="ls-inline-ctrl">
-            <select class="ls-select" id="lsAudioInputSelect"></select>
-            <button type="button" class="ls-btn" id="lsRefreshDevicesBtn" title="Detect or refresh devices">Refresh</button>
-            <button type="button" class="ls-btn ls-btn-primary" id="lsSoundcheckBtn">Soundcheck</button>
+            <select class="ls-select" id="lsCaptureBackendSelect" style="max-width:148px;" title="Capture Backend">
+              <option value="wasapi" selected>Browser WASAPI</option>
+              <option value="asio">ASIO Bridge (17940)</option>
+            </select>
+            <select class="ls-select" id="lsAudioInputSelect" aria-label="Audio Input Device"></select>
+            <button type="button" class="ls-btn" id="lsRefreshDevicesBtn"
+              title="Detect or refresh devices">Refresh</button>
+            <button type="button" class="ls-btn ls-btn-primary" id="lsSoundcheckBtn"
+              title="Engage audio engine for live monitoring &amp; meters">Start Audio Soundcheck</button>
           </div>
         </div>
 
         <div class="ls-field">
-          <label for="lsInputMode">Routing Matrix</label>
+          <label for="lsInputMode">Routing Matrix (In 1 = Vocals · In 2 = Inst)</label>
           <div class="ls-inline-ctrl">
             <select class="ls-select" id="lsInputMode">
-              <option value="split">Mode A · 2-Ch Split (Ch1 Inst / Ch2 Vocal)</option>
+              <option value="split" selected>Mode A · 2-Ch Split (In1 Vocal / In2 Inst)</option>
               <option value="stereo">Mode B · Stereo Master Pass-Through</option>
             </select>
             <button type="button" class="ls-btn" id="lsSwapBtn" title="Swap Ch 1 and Ch 2 inputs">Swap 1↔2</button>
@@ -116,8 +138,16 @@
           <label for="lsPresetSelect">Studio Rack Preset</label>
           <div class="ls-inline-ctrl">
             <select class="ls-select" id="lsPresetSelect"></select>
-            <button type="button" class="ls-btn" id="lsSavePresetBtn">Save</button>
-            <button type="button" class="ls-btn" id="lsDeletePresetBtn" disabled>Del</button>
+            <button type="button" class="ls-btn" id="lsSavePresetBtn"
+              title="Save current console settings">Save</button>
+            <button type="button" class="ls-btn" id="lsExportPresetBtn"
+              title="Export preset JSON">Exp</button>
+            <label class="ls-btn" style="cursor:pointer;margin:0;" title="Import preset JSON">
+              Imp
+              <input type="file" id="lsImportPresetFileInput" accept="application/json,.json" style="display:none;">
+            </label>
+            <button type="button" class="ls-btn" id="lsDeletePresetBtn" disabled
+              title="Delete custom preset">Del</button>
           </div>
         </div>
       </div>
@@ -133,161 +163,146 @@
           <select class="ls-select" id="lsMonitorOutputSelect" aria-label="Earphone Output Device"></select>
         </div>
       </div>
-    </section>
+      </div>
+    </details>
 
-    <!-- 2-COLUMN CONSOLE WORKSPACE -->
+    <!-- COMPACT UTILITY DRAWERS -->
+    <div class="ls-utility-drawers">
+      <details class="ls-setup-details" id="lsSoundcheckDrawer">
+        <summary>
+          <span>Dual-Input Hardware Soundcheck &amp; ASIO Bridge</span>
+          <span class="ls-badge-pill" id="lsScSummaryBadge">Check I/O</span>
+        </summary>
+        <div class="ls-soundcheck-grid">
+          <div class="ls-sc-stat-card">
+            <div class="ls-sc-stat-label">Interface &amp; Driver</div>
+            <div class="ls-sc-stat-val" id="lsScDeviceName">Not engaged</div>
+            <div class="ls-channel-tag" id="lsScFormat">48 kHz · 2 ch pending</div>
+            <div class="ls-channel-tag" id="lsScConnBadge">Disconnected</div>
+          </div>
+          <div class="ls-sc-stat-card">
+            <div class="ls-sc-stat-label">Channel Isolation / Corr</div>
+            <div class="ls-sc-stat-val" id="lsScCorrBadge">--</div>
+            <div class="ls-channel-tag" id="lsScNoiseBadge">Noise Floor: -- dBFS</div>
+            <div class="ls-channel-tag" id="lsScCh1Stats">In 1 (Vocals): -- dBFS</div>
+            <div class="ls-channel-tag" id="lsScCh2Stats">In 2 (Inst): -- dBFS</div>
+          </div>
+          <div class="ls-sc-stat-card" style="grid-column: span 2;">
+            <div class="ls-sc-stat-label">3-Stage Verification Wizard &amp; Hardware Buffer</div>
+            <div class="ls-btn-row" style="margin-top:4px;flex-wrap:wrap;gap:6px;">
+              <button type="button" class="ls-btn-mini ls-btn-primary" id="lsScStage1Btn">1. Test Vocals (In 1)</button>
+              <button type="button" class="ls-btn-mini" id="lsScStage2Btn">2. Test Inst (In 2)</button>
+              <button type="button" class="ls-btn-mini" id="lsScStage3Btn">3. Test Both</button>
+              <select class="ls-select" id="lsHwSampleRateSelect" style="max-width:112px;height:28px;font-size:11px;" title="Target Hardware Sample Rate">
+                <option value="48000" selected>48000 Hz</option>
+                <option value="44100">44100 Hz</option>
+              </select>
+              <select class="ls-select" id="lsHwBufferSelect" style="max-width:128px;height:28px;font-size:11px;" title="AudioWorklet Latency Mode">
+                <option value="interactive" selected>Low Latency</option>
+                <option value="balanced">Balanced</option>
+                <option value="playback">Safe Buffer</option>
+              </select>
+              <label class="ls-checkbox-line" style="font-size:10.5px;">
+                <input type="checkbox" id="lsScSingleOkCheck"> Allow 1-Ch Mode
+              </label>
+            </div>
+            <div class="ls-hero-sub" id="lsScStatusText" style="margin-top:4px;">
+              Engage Soundcheck, speak into Vocals (In 1), then play Instruments (In 2). For Windows Bridge, run <code>python scripts/local_asio_bridge.py</code>.
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="ls-setup-details">
+        <summary>
+          <span>Local Test Audio Source (No Gear Needed)</span>
+          <span class="ls-channel-tag" id="lsTestFileStatus">No test file loaded</span>
+        </summary>
+        <div class="ls-test-source-body">
+          <input type="file" id="lsTestFileInput" accept="audio/*" class="ls-input" aria-label="Load local test audio">
+          <label class="ls-checkbox-line">
+            <input type="checkbox" id="lsTestFileLoopCheck" checked>
+            Loop
+          </label>
+          <button type="button" class="ls-btn ls-btn-primary" id="lsUseTestFileBtn" disabled>Play Test File</button>
+          <button type="button" class="ls-btn" id="lsTestFilePauseBtn" style="display:none;">Pause File</button>
+        </div>
+      </details>
+    </div>
+
+    <!-- 2-COLUMN CONSOLE CONTROL ROOM -->
     <div class="ls-main-grid">
-      <!-- LEFT COLUMN: CHANNEL STRIPS + MASTER BUS -->
+      <!-- LEFT PRIMARY CONSOLE: MASTER BUS EQ + VERTICAL MIXER + CHANNEL PROCESSOR -->
       <div class="ls-col-stack">
-        <!-- DUAL-BUS CHANNEL STRIPS -->
+        <!-- MASTER BUS EQ, GLUE & LIMITER -->
         <section class="ls-card">
           <div class="ls-card-header">
-            <h2 class="ls-card-title">Dual-Bus Console Strips <span class="ls-badge-pill">48 kHz DSP</span></h2>
-            <span class="ls-channel-tag">Auto-centered stereo sum</span>
-          </div>
-
-          <div class="ls-channels-grid" id="lsChannelsGrid">
-            <!-- CH 1: INSTRUMENTS -->
-            <div class="ls-channel-strip ls-strip-inst">
-              <div class="ls-channel-head">
-                <div>
-                  <div class="ls-channel-name">CH 1 · Instruments</div>
-                  <div class="ls-channel-tag">Harmonium, Tabla, Manjira</div>
-                </div>
-                <span class="ls-clip-pill" id="lsInstClip">CLIP</span>
-              </div>
-              <div class="ls-meter-bar-bg">
-                <div class="ls-meter-fill" id="lsInstMeterFill"></div>
-              </div>
-              <div class="ls-btn-row ls-strip-switches">
-                <button type="button" class="ls-btn ls-btn-mini" id="lsInstMuteBtn">Mute</button>
-                <button type="button" class="ls-btn ls-btn-mini" id="lsInstSoloBtn">Solo PFL</button>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Input Gain</span>
-                <input type="range" class="ls-range" id="lsInstGain" min="0" max="200" value="100">
-                <span class="ls-slider-val" id="lsInstGainVal">100%</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Low Cut HPF</span>
-                <input type="range" class="ls-range" id="lsInstHpf" min="20" max="200" value="45">
-                <span class="ls-slider-val" id="lsInstHpfVal">45 Hz</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Low (90 Hz)</span>
-                <input type="range" class="ls-range" id="lsInstLow" min="-12" max="12" step="0.5" value="1.5">
-                <span class="ls-slider-val" id="lsInstLowVal">1.5 dB</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Mid (450 Hz)</span>
-                <input type="range" class="ls-range" id="lsInstMid" min="-12" max="12" step="0.5" value="0">
-                <span class="ls-slider-val" id="lsInstMidVal">0 dB</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">High (4.5k)</span>
-                <input type="range" class="ls-range" id="lsInstHigh" min="-12" max="12" step="0.5" value="-1">
-                <span class="ls-slider-val" id="lsInstHighVal">-1 dB</span>
-              </div>
-            </div>
-
-            <!-- CH 2: VOCALS -->
-            <div class="ls-channel-strip ls-strip-vocal">
-              <div class="ls-channel-head">
-                <div>
-                  <div class="ls-channel-name">CH 2 · Vocals</div>
-                  <div class="ls-channel-tag">Lead &amp; Chorus Singers</div>
-                </div>
-                <span class="ls-clip-pill" id="lsVocalClip">CLIP</span>
-              </div>
-              <div class="ls-meter-bar-bg">
-                <div class="ls-meter-fill" id="lsVocalMeterFill"></div>
-              </div>
-              <div class="ls-btn-row ls-strip-switches">
-                <button type="button" class="ls-btn ls-btn-mini" id="lsVocalMuteBtn">Mute</button>
-                <button type="button" class="ls-btn ls-btn-mini" id="lsVocalSoloBtn">Solo PFL</button>
-                <button type="button" class="ls-btn ls-btn-mini is-toggled" id="lsVocalCompBtn">Vocal Comp: ON</button>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Vocal Gain</span>
-                <input type="range" class="ls-range" id="lsVocalGain" min="0" max="200" value="112">
-                <span class="ls-slider-val" id="lsVocalGainVal">112%</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Low Cut HPF</span>
-                <input type="range" class="ls-range" id="lsVocalHpf" min="20" max="240" value="85">
-                <span class="ls-slider-val" id="lsVocalHpfVal">85 Hz</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Warmth (220)</span>
-                <input type="range" class="ls-range" id="lsVocalLow" min="-12" max="12" step="0.5" value="0.5">
-                <span class="ls-slider-val" id="lsVocalLowVal">0.5 dB</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Clarity (3.2k)</span>
-                <input type="range" class="ls-range" id="lsVocalMid" min="-12" max="12" step="0.5" value="2.5">
-                <span class="ls-slider-val" id="lsVocalMidVal">2.5 dB</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">Air (9 kHz)</span>
-                <input type="range" class="ls-range" id="lsVocalHigh" min="-12" max="12" step="0.5" value="1.5">
-                <span class="ls-slider-val" id="lsVocalHighVal">1.5 dB</span>
-              </div>
-              <div class="ls-slider-row">
-                <span class="ls-slider-label">De-Esser (6.5k)</span>
-                <input type="range" class="ls-range" id="lsVocalDeesser" min="0" max="12" step="0.5" value="2.5">
-                <span class="ls-slider-val" id="lsVocalDeesserVal">-2.5 dB</span>
-              </div>
-              <div class="ls-gr-row">
-                <span>Comp GR</span>
-                <div class="ls-gr-track"><div class="ls-gr-fill" id="lsVocalGrBar"></div></div>
-                <span class="ls-gr-val" id="lsVocalGrVal">0.0 dB</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- MANDIR HALL REVERB SEND -->
-          <div class="ls-reverb-bar">
-            <div class="ls-reverb-label">
-              <span class="ls-channel-name">Mandir Hall Reverb</span>
-              <span class="ls-channel-tag">Stereo Convolution Send</span>
-            </div>
-            <div class="ls-slider-row ls-slider-compact">
-              <span class="ls-slider-label">Reverb Mix</span>
-              <input type="range" class="ls-range" id="lsReverbWet" min="0" max="45" step="1" value="14">
-              <span class="ls-slider-val" id="lsReverbWetVal">14%</span>
-            </div>
-            <div class="ls-slider-row ls-slider-compact">
-              <span class="ls-slider-label">Hall Decay</span>
-              <input type="range" class="ls-range" id="lsReverbDecay" min="0.5" max="2.6" step="0.1" value="1.4">
-              <span class="ls-slider-val" id="lsReverbDecayVal">1.4s</span>
-            </div>
-          </div>
-        </section>
-
-        <!-- MASTER BUS & LIVE RTA SPECTRUM -->
-        <section class="ls-card">
-          <div class="ls-card-header">
-            <h2 class="ls-card-title">Master Bus EQ, Glue &amp; Limiter</h2>
+            <h2 class="ls-card-title">
+              <span class="ls-title-icon" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="4" y1="21" x2="4" y2="14" />
+                  <line x1="4" y1="10" x2="4" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12" y2="3" />
+                  <line x1="20" y1="21" x2="20" y2="16" />
+                  <line x1="20" y1="12" x2="20" y2="3" />
+                  <line x1="1" y1="14" x2="7" y2="14" />
+                  <line x1="9" y1="8" x2="15" y2="8" />
+                  <line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </span>
+              <span>Master Bus EQ, Glue &amp; Limiter</span>
+            </h2>
             <div class="ls-btn-row">
               <span class="ls-clip-pill" id="lsMasterClip">MASTER CLIP</span>
-              <button type="button" class="ls-btn ls-btn-mini" id="lsMasterBypassBtn">EQ Active</button>
-              <button type="button" class="ls-btn ls-btn-mini is-toggled" id="lsGlueCompBtn">Glue Comp: ON</button>
-              <button type="button" class="ls-btn ls-btn-mini is-toggled" id="lsLimiterBtn">Limiter: ON (-1.5dB)</button>
+              <button type="button" class="ls-btn-mini" id="lsMasterBypassBtn">EQ Active</button>
+              <button type="button" class="ls-btn-mini is-toggled" id="lsGlueCompBtn">Glue Comp: ON</button>
+              <button type="button" class="ls-btn-mini is-toggled" id="lsLimiterBtn">Limiter: ON (-1.0 dBTP)</button>
             </div>
           </div>
 
-          <div class="ls-eq-canvas-wrap">
-            <canvas id="lsEqSpectrumCanvas" width="600" height="126"></canvas>
-          </div>
-
-          <div class="ls-master-meters">
-            <div class="ls-meter-bar-bg">
-              <div class="ls-meter-fill" id="lsMasterMeterFill"></div>
+          <!-- Adaptive Master EQ Curve + Vertical Master Stereo Meter Bay -->
+          <div class="ls-master-scope-layout">
+            <div class="ls-eq-canvas-wrap">
+              <canvas id="lsEqSpectrumCanvas" width="720" height="164"></canvas>
             </div>
-            <div class="ls-gr-row">
-              <span>Limiter GR</span>
-              <div class="ls-gr-track"><div class="ls-gr-fill" id="lsLimiterGrBar"></div></div>
-              <span class="ls-gr-val" id="lsLimiterGrVal">0.0 dB</span>
+
+            <div class="ls-master-meter-bay">
+              <div class="ls-master-stats-col">
+                <div class="ls-stat-mini-block">
+                  <span class="ls-stat-mini-label">LUFS (ST)</span>
+                  <span class="ls-stat-mini-val" id="lsMasterLufsVal">-∞ LUFS</span>
+                </div>
+                <div class="ls-stat-mini-block">
+                  <span class="ls-stat-mini-label">True Peak</span>
+                  <span class="ls-stat-mini-val is-green" id="lsMasterPeakVal">-∞ dBTP</span>
+                </div>
+                <div class="ls-stat-mini-block">
+                  <span class="ls-stat-mini-label">Stereo RMS</span>
+                  <span class="ls-stat-mini-val" id="lsMasterRmsVal">-∞ dB</span>
+                </div>
+                <div class="ls-stat-mini-block">
+                  <span class="ls-stat-mini-label">Limiter GR</span>
+                  <span class="ls-stat-mini-val" id="lsLimiterGrVal">0.0 dB</span>
+                </div>
+                <div class="ls-gr-track" style="margin-top:2px;">
+                  <div class="ls-gr-fill" id="lsLimiterGrBar"></div>
+                </div>
+              </div>
+
+              <div class="ls-vmeter-wrap">
+                <div class="ls-vstrip-scale">
+                  <span>+6</span><span>0</span><span>-6</span><span>-12</span><span>-24</span><span>-∞</span>
+                </div>
+                <div class="ls-vmeter-pair">
+                  <div class="ls-vmeter-track" title="Master Left">
+                    <div class="ls-vmeter-fill" id="lsMasterMeterFill" data-meter-orient="vertical"></div>
+                  </div>
+                  <div class="ls-vmeter-track" title="Master Right">
+                    <div class="ls-vmeter-fill" id="lsMasterMeterFillR" data-meter-orient="vertical"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -319,26 +334,556 @@
             </div>
           </div>
 
-          <div class="ls-slider-row ls-slider-compact" style="margin-top:8px;">
+          <div class="ls-slider-row ls-slider-compact" style="margin-top:9px;">
             <span class="ls-slider-label">Master Out</span>
             <input type="range" class="ls-range" id="lsMasterGain" min="0" max="160" value="100">
             <span class="ls-slider-val" id="lsMasterGainVal">100%</span>
           </div>
         </section>
-      </div>
 
-      <!-- RIGHT COLUMN: ON-AIR STREAM + NOW SINGING + SSD/R2 PUBLISH -->
-      <div class="ls-col-stack">
-        <!-- ON AIR BROADCAST CONTROL -->
+        <!-- VERTICAL DUAL-BUS MIXING CONSOLE + TABBED CHANNEL PROCESSOR -->
         <section class="ls-card">
           <div class="ls-card-header">
-            <h2 class="ls-card-title">Broadcast Control</h2>
-            <span class="ls-badge-pill">Up to 320 kbps MP3</span>
+            <h2 class="ls-card-title">Dual-Bus Mixing Console <span class="ls-badge-pill">48 kHz DSP</span></h2>
+            <span class="ls-channel-tag">Select any strip to inspect EQ &amp; dynamics</span>
           </div>
 
-          <div class="ls-field" style="margin-bottom:10px;">
+          <div class="ls-console-mixer-row">
+            <!-- LEFT: VERTICAL CHANNEL STRIPS (IN 1 VOCALS · IN 2 INSTRUMENTS · FX RET) -->
+            <div class="ls-vstrips-deck" id="lsChannelsGrid">
+              <!-- CH 1: VOCALS (PHYSICAL INPUT 1) -->
+              <div class="ls-vstrip ls-strip-vocal is-active-strip" data-proc-tab="vocal">
+                <div class="ls-vstrip-head">
+                  <span class="ls-vstrip-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    </svg>
+                  </span>
+                  <span class="ls-vstrip-num">IN 1 · CH 1</span>
+                  <div class="ls-channel-name">Vocals</div>
+                  <div class="ls-channel-tag">Lead · Chorus</div>
+                </div>
+
+                <span class="ls-clip-pill" id="lsVocalClip">CLIP</span>
+
+                <div class="ls-vstrip-switches">
+                  <button type="button" class="ls-btn-mini" id="lsVocalMuteBtn" title="Mute Vocals">M</button>
+                  <button type="button" class="ls-btn-mini" id="lsVocalSoloBtn" title="Solo PFL Vocals">S</button>
+                  <button type="button" class="ls-btn-mini" id="lsVocalPolarityBtn" title="Polarity Invert">&#216;</button>
+                  <button type="button" class="ls-btn-mini" id="lsVocalGateBtn" title="Toggle Hysteresis Gate">G</button>
+                  <button type="button" class="ls-btn-mini ls-vstrip-comp-btn is-toggled" id="lsVocalCompBtn"
+                    title="Toggle Vocal Compressor">Comp: ON</button>
+                </div>
+
+                <div class="ls-rotary-block">
+                  <div class="ls-rotary-wrap" title="Drag vertically to Pan Vocals (double-click to center)">
+                    <svg class="ls-rotary-svg" data-rotary-for="lsVocalPan" viewBox="0 0 40 40" role="slider" aria-label="Vocals Pan Dial">
+                      <circle class="ls-rotary-cap" cx="20" cy="20" r="14" />
+                      <path class="ls-rotary-track" d="M 9.4 30.6 A 15 15 0 1 1 30.6 30.6" />
+                      <path class="ls-rotary-arc" d="" />
+                      <line class="ls-rotary-needle" x1="20" y1="20" x2="20" y2="8" />
+                    </svg>
+                  </div>
+                  <div class="ls-vstrip-mini-row">
+                    <span class="ls-slider-label">Pan</span>
+                    <input type="range" class="ls-range" id="lsVocalPan" min="-100" max="100" value="0" aria-label="Vocals Pan">
+                    <span class="ls-slider-val" id="lsVocalPanVal">C</span>
+                  </div>
+                </div>
+
+                <div class="ls-vstrip-db-tag">
+                  <span>Pk <strong id="lsVocalPeakVal">-∞ dB</strong></span>
+                  <span id="lsVocalRmsVal">-∞ dB</span>
+                </div>
+
+                <div class="ls-vstrip-readout" id="lsVocalGainVal">+1.0 dB</div>
+
+                <div class="ls-vstrip-fader-bay">
+                  <div class="ls-vstrip-scale">
+                    <span>+6</span><span>0</span><span>-6</span><span>-12</span><span>-24</span><span>-36</span><span>-∞</span>
+                  </div>
+                  <input type="range" class="ls-vrange" id="lsVocalGain" min="0" max="200" value="112"
+                    aria-label="Vocals Gain">
+                  <div class="ls-vmeter-track ls-vstrip-meter">
+                    <div class="ls-vmeter-fill" id="lsVocalMeterFill" data-meter-orient="vertical"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CH 2: INSTRUMENTS (PHYSICAL INPUT 2) -->
+              <div class="ls-vstrip ls-strip-inst" data-proc-tab="inst">
+                <div class="ls-vstrip-head">
+                  <span class="ls-vstrip-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 18V5l12-2v13" />
+                      <circle cx="6" cy="18" r="3" />
+                      <circle cx="18" cy="16" r="3" />
+                    </svg>
+                  </span>
+                  <span class="ls-vstrip-num">IN 2 · CH 2</span>
+                  <div class="ls-channel-name">Instruments</div>
+                  <div class="ls-channel-tag">Harmonium · Tabla</div>
+                </div>
+
+                <span class="ls-clip-pill" id="lsInstClip">CLIP</span>
+
+                <div class="ls-vstrip-switches">
+                  <button type="button" class="ls-btn-mini" id="lsInstMuteBtn" title="Mute Instruments">M</button>
+                  <button type="button" class="ls-btn-mini" id="lsInstSoloBtn" title="Solo PFL Instruments">S</button>
+                  <button type="button" class="ls-btn-mini" id="lsInstPolarityBtn" title="Polarity Invert">&#216;</button>
+                  <button type="button" class="ls-btn-mini" id="lsInstGateBtn" title="Toggle Hysteresis Gate">G</button>
+                  <button type="button" class="ls-btn-mini ls-vstrip-comp-btn" id="lsInstCompBtn"
+                    title="Toggle Instruments Compressor">Comp: OFF</button>
+                </div>
+
+                <div class="ls-rotary-block">
+                  <div class="ls-rotary-wrap" title="Drag vertically to Pan Instruments (double-click to center)">
+                    <svg class="ls-rotary-svg" data-rotary-for="lsInstPan" viewBox="0 0 40 40" role="slider" aria-label="Instruments Pan Dial">
+                      <circle class="ls-rotary-cap" cx="20" cy="20" r="14" />
+                      <path class="ls-rotary-track" d="M 9.4 30.6 A 15 15 0 1 1 30.6 30.6" />
+                      <path class="ls-rotary-arc" d="" />
+                      <line class="ls-rotary-needle" x1="20" y1="20" x2="20" y2="8" />
+                    </svg>
+                  </div>
+                  <div class="ls-vstrip-mini-row">
+                    <span class="ls-slider-label">Pan</span>
+                    <input type="range" class="ls-range" id="lsInstPan" min="-100" max="100" value="0" aria-label="Instruments Pan">
+                    <span class="ls-slider-val" id="lsInstPanVal">C</span>
+                  </div>
+                </div>
+
+                <div class="ls-vstrip-db-tag">
+                  <span>Pk <strong id="lsInstPeakVal">-∞ dB</strong></span>
+                  <span id="lsInstRmsVal">-∞ dB</span>
+                </div>
+
+                <div class="ls-vstrip-readout" id="lsInstGainVal">0.0 dB</div>
+
+                <div class="ls-vstrip-fader-bay">
+                  <div class="ls-vstrip-scale">
+                    <span>+6</span><span>0</span><span>-6</span><span>-12</span><span>-24</span><span>-36</span><span>-∞</span>
+                  </div>
+                  <input type="range" class="ls-vrange" id="lsInstGain" min="0" max="200" value="100"
+                    aria-label="Instruments Gain">
+                  <div class="ls-vmeter-track ls-vstrip-meter">
+                    <div class="ls-vmeter-fill" id="lsInstMeterFill" data-meter-orient="vertical"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- FX RETURN: MANDIR HALL REVERB -->
+              <div class="ls-vstrip ls-strip-fx" data-proc-tab="reverb">
+                <div class="ls-vstrip-head">
+                  <span class="ls-vstrip-icon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="2" />
+                      <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48 0a6 6 0 0 1 0-8.49" />
+                    </svg>
+                  </span>
+                  <span class="ls-vstrip-num">FX RET</span>
+                  <div class="ls-channel-name">Hall Reverb</div>
+                  <div class="ls-channel-tag">Stereo Hall</div>
+                </div>
+
+                <span class="ls-clip-pill">SEND</span>
+
+                <div class="ls-vstrip-switches">
+                  <span class="ls-badge-pill ls-badge-blue">Stereo IR</span>
+                </div>
+
+                <div class="ls-rotary-block">
+                  <div class="ls-rotary-wrap" title="Drag vertically to adjust Hall Decay RT60">
+                    <svg class="ls-rotary-svg" data-rotary-for="lsReverbDecay" viewBox="0 0 40 40" role="slider" aria-label="Hall Decay Dial">
+                      <circle class="ls-rotary-cap" cx="20" cy="20" r="14" />
+                      <path class="ls-rotary-track" d="M 9.4 30.6 A 15 15 0 1 1 30.6 30.6" />
+                      <path class="ls-rotary-arc" d="" />
+                      <line class="ls-rotary-needle" x1="20" y1="20" x2="20" y2="8" />
+                    </svg>
+                  </div>
+                  <span class="ls-rotary-val-chip" id="lsReverbDecayChip">Decay 1.4s</span>
+                </div>
+
+                <div class="ls-vstrip-readout" id="lsReverbWetVal">14%</div>
+
+                <div class="ls-vstrip-fader-bay">
+                  <div class="ls-vstrip-scale">
+                    <span>45%</span><span>30%</span><span>20%</span><span>10%</span><span>0%</span>
+                  </div>
+                  <input type="range" class="ls-vrange" id="lsReverbWet" min="0" max="45" step="1" value="14"
+                    aria-label="Reverb Mix">
+                  <div class="ls-vmeter-track ls-vstrip-meter">
+                    <div class="ls-vmeter-fill" id="lsReverbMeterFill" data-meter-orient="vertical"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT: TABBED CHANNEL PROCESSOR MODULE (PRESERVES ALL INPUT/EQ/COMP IDS) -->
+            <div class="ls-proc-panel" id="lsChannelProcModule">
+              <div class="ls-subtabs-bar" role="tablist" aria-label="Channel Processor Tabs">
+                <button type="button" class="ls-subtab-btn is-active" data-proc-tab-btn="vocal">CH 1 · Vocal DSP</button>
+                <button type="button" class="ls-subtab-btn" data-proc-tab-btn="inst">CH 2 · Inst DSP</button>
+                <button type="button" class="ls-subtab-btn" data-proc-tab-btn="reverb">FX · Mandir Hall</button>
+              </div>
+
+              <div class="ls-proc-canvas-wrap">
+                <canvas id="lsChannelProcCanvas" width="420" height="116"></canvas>
+              </div>
+
+              <!-- Pane 1: Vocals EQ, Trim, Dynamic De-Esser, Comp, Gate & Reverb Send -->
+              <div data-proc-pane="vocal">
+                <div class="ls-proc-subbar" role="tablist" aria-label="Vocals Inspector Section">
+                  <button type="button" class="ls-proc-subbtn is-active" data-ch-subtab="vocal:eq">EQ &amp; Trim</button>
+                  <button type="button" class="ls-proc-subbtn" data-ch-subtab="vocal:dyn">Dynamics &amp; De-Ess</button>
+                  <button type="button" class="ls-proc-subbtn" data-ch-subtab="vocal:send">Aux Send</button>
+                  <button type="button" class="ls-btn-mini" id="lsVocalEqBypassBtn" style="margin-left:auto;" title="Bypass Vocal EQ">EQ Active</button>
+                </div>
+
+                <div data-ch-subpane="vocal:eq">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Input Trim</span>
+                    <input type="range" class="ls-range" id="lsVocalTrim" min="-18" max="18" step="0.5" value="0">
+                    <span class="ls-slider-val" id="lsVocalTrimVal">0 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Low Cut HPF</span>
+                    <input type="range" class="ls-range" id="lsVocalHpf" min="20" max="240" value="85">
+                    <span class="ls-slider-val" id="lsVocalHpfVal">85 Hz</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">HPF Slope / LPF</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <select class="ls-select ls-select-sm" id="lsVocalHpfSlope" style="max-width:86px;" aria-label="Vocal HPF Slope">
+                        <option value="12" selected>12 dB/oct</option>
+                        <option value="24">24 dB/oct</option>
+                      </select>
+                      <input type="range" class="ls-range" id="lsVocalLpf" min="2000" max="20000" step="250" value="20000" aria-label="Vocal LPF">
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalLpfVal">20k Hz</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Warmth (220)</span>
+                    <input type="range" class="ls-range" id="lsVocalLow" min="-12" max="12" step="0.5" value="0.5">
+                    <span class="ls-slider-val" id="lsVocalLowVal">0.5 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Presence Mid</span>
+                    <input type="range" class="ls-range" id="lsVocalMid" min="-12" max="12" step="0.5" value="2.5">
+                    <span class="ls-slider-val" id="lsVocalMidVal">2.5 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Mid Freq / Q</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsVocalMidFreq" min="400" max="8000" step="50" value="3200" aria-label="Vocal Mid Freq">
+                      <input type="range" class="ls-range" id="lsVocalMidQ" min="0.4" max="6" step="0.1" value="1.1" style="max-width:68px;" aria-label="Vocal Mid Q">
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalMidFreqVal">3.2k Q1.1</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">Air (9 kHz)</span>
+                    <input type="range" class="ls-range" id="lsVocalHigh" min="-12" max="12" step="0.5" value="1.5">
+                    <span class="ls-slider-val" id="lsVocalHighVal">1.5 dB</span>
+                  </div>
+                </div>
+
+                <div data-ch-subpane="vocal:dyn" class="ls-is-hidden">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">De-Esser Cut</span>
+                    <input type="range" class="ls-range" id="lsVocalDeesser" min="0" max="12" step="0.5" value="2.5">
+                    <span class="ls-slider-val" id="lsVocalDeesserVal">-2.5 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Sibilance Freq</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsVocalDeessFreq" min="4000" max="10000" step="100" value="6500" aria-label="De-Esser Freq">
+                      <select class="ls-select ls-select-sm" id="lsVocalDeessMode" style="max-width:80px;" aria-label="De-Esser Mode">
+                        <option value="split" selected>Split</option>
+                        <option value="wide">Wide</option>
+                      </select>
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalDeessFreqVal">6.5k Hz</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">De-Ess Thresh</span>
+                    <input type="range" class="ls-range" id="lsVocalDeessThresh" min="-45" max="-6" step="1" value="-26">
+                    <span class="ls-slider-val" id="lsVocalDeessThreshVal">-26 dB</span>
+                  </div>
+                  <div class="ls-gr-row" style="margin-top:2px;margin-bottom:6px;">
+                    <span>De-Ess GR</span>
+                    <div class="ls-gr-track"><div class="ls-gr-fill" id="lsVocalDeessGrBar"></div></div>
+                    <span class="ls-gr-val" id="lsVocalDeessGrVal">0.0 dB</span>
+                  </div>
+
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Comp Thresh</span>
+                    <input type="range" class="ls-range" id="lsVocalCompThresh" min="-40" max="0" step="1" value="-18">
+                    <span class="ls-slider-val" id="lsVocalCompThreshVal">-18 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Ratio / Mode</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsVocalCompRatio" min="1" max="12" step="0.5" value="3.5" aria-label="Vocal Comp Ratio">
+                      <select class="ls-select ls-select-sm" id="lsVocalCompMode" style="max-width:74px;" aria-label="Vocal Comp Detector">
+                        <option value="rms" selected>RMS</option>
+                        <option value="peak">Peak</option>
+                      </select>
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalCompRatioVal">3.5:1</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Att / Rel (ms)</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsVocalCompAttack" min="1" max="80" step="1" value="8" aria-label="Vocal Comp Attack">
+                      <input type="range" class="ls-range" id="lsVocalCompRelease" min="40" max="500" step="10" value="160" aria-label="Vocal Comp Release">
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalCompTimesVal">8 / 160</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Comp Makeup</span>
+                    <input type="range" class="ls-range" id="lsVocalCompMakeup" min="-6" max="12" step="0.5" value="1.5">
+                    <span class="ls-slider-val" id="lsVocalCompMakeupVal">+1.5 dB</span>
+                  </div>
+                  <div class="ls-gr-row" style="margin-top:2px;margin-bottom:6px;">
+                    <span>Comp GR</span>
+                    <div class="ls-gr-track"><div class="ls-gr-fill" id="lsVocalGrBar"></div></div>
+                    <span class="ls-gr-val" id="lsVocalGrVal">0.0 dB</span>
+                  </div>
+
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Gate Thresh</span>
+                    <input type="range" class="ls-range" id="lsVocalGateThresh" min="-72" max="-24" step="1" value="-50">
+                    <span class="ls-slider-val" id="lsVocalGateThreshVal">-50 dB</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">Gate Floor/Hold</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsVocalGateRange" min="-36" max="0" step="1" value="-14" aria-label="Vocal Gate Range">
+                      <input type="range" class="ls-range" id="lsVocalGateHold" min="20" max="300" step="10" value="90" aria-label="Vocal Gate Hold">
+                    </div>
+                    <span class="ls-slider-val" id="lsVocalGateGrVal">0.0 dB</span>
+                  </div>
+                </div>
+
+                <div data-ch-subpane="vocal:send" class="ls-is-hidden">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Hall Send Lvl</span>
+                    <input type="range" class="ls-range" id="lsVocalRevSend" min="0" max="150" step="1" value="100">
+                    <span class="ls-slider-val" id="lsVocalRevSendVal">100%</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">Send Tap Point</span>
+                    <select class="ls-select ls-select-sm" id="lsVocalSendMode" aria-label="Vocal Reverb Send Mode">
+                      <option value="post" selected>Post-Fader (Follows Fader)</option>
+                      <option value="pre">Pre-Fader (Always Active)</option>
+                    </select>
+                    <span class="ls-slider-val" id="lsVocalSendModeVal">POST</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pane 2: Instruments EQ, Dynamics & Reverb Send -->
+              <div data-proc-pane="inst" class="ls-is-hidden">
+                <div class="ls-proc-subbar" role="tablist" aria-label="Instruments Inspector Section">
+                  <button type="button" class="ls-proc-subbtn is-active" data-ch-subtab="inst:eq">EQ &amp; Trim</button>
+                  <button type="button" class="ls-proc-subbtn" data-ch-subtab="inst:dyn">Dynamics &amp; Gate</button>
+                  <button type="button" class="ls-proc-subbtn" data-ch-subtab="inst:send">Aux Send</button>
+                  <button type="button" class="ls-btn-mini" id="lsInstEqBypassBtn" style="margin-left:auto;" title="Bypass Instrument EQ">EQ Active</button>
+                </div>
+
+                <div data-ch-subpane="inst:eq">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Input Trim</span>
+                    <input type="range" class="ls-range" id="lsInstTrim" min="-18" max="18" step="0.5" value="0">
+                    <span class="ls-slider-val" id="lsInstTrimVal">0 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Low Cut HPF</span>
+                    <input type="range" class="ls-range" id="lsInstHpf" min="20" max="200" value="45">
+                    <span class="ls-slider-val" id="lsInstHpfVal">45 Hz</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">HPF Slope / LPF</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <select class="ls-select ls-select-sm" id="lsInstHpfSlope" style="max-width:86px;" aria-label="Instrument HPF Slope">
+                        <option value="12" selected>12 dB/oct</option>
+                        <option value="24">24 dB/oct</option>
+                      </select>
+                      <input type="range" class="ls-range" id="lsInstLpf" min="2000" max="20000" step="250" value="20000" aria-label="Instrument LPF">
+                    </div>
+                    <span class="ls-slider-val" id="lsInstLpfVal">20k Hz</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Low (90 Hz)</span>
+                    <input type="range" class="ls-range" id="lsInstLow" min="-12" max="12" step="0.5" value="1.5">
+                    <span class="ls-slider-val" id="lsInstLowVal">1.5 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Mid Bell</span>
+                    <input type="range" class="ls-range" id="lsInstMid" min="-12" max="12" step="0.5" value="0">
+                    <span class="ls-slider-val" id="lsInstMidVal">0 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Mid Freq / Q</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsInstMidFreq" min="180" max="5000" step="25" value="450" aria-label="Instrument Mid Freq">
+                      <input type="range" class="ls-range" id="lsInstMidQ" min="0.4" max="6" step="0.1" value="1.0" style="max-width:68px;" aria-label="Instrument Mid Q">
+                    </div>
+                    <span class="ls-slider-val" id="lsInstMidFreqVal">450 Q1.0</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">High (4.5k)</span>
+                    <input type="range" class="ls-range" id="lsInstHigh" min="-12" max="12" step="0.5" value="-1">
+                    <span class="ls-slider-val" id="lsInstHighVal">-1 dB</span>
+                  </div>
+                </div>
+
+                <div data-ch-subpane="inst:dyn" class="ls-is-hidden">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Comp Thresh</span>
+                    <input type="range" class="ls-range" id="lsInstCompThresh" min="-40" max="0" step="1" value="-16">
+                    <span class="ls-slider-val" id="lsInstCompThreshVal">-16 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Ratio / Mode</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsInstCompRatio" min="1" max="12" step="0.5" value="2.5" aria-label="Inst Comp Ratio">
+                      <select class="ls-select ls-select-sm" id="lsInstCompMode" style="max-width:74px;" aria-label="Inst Comp Detector">
+                        <option value="rms" selected>RMS</option>
+                        <option value="peak">Peak</option>
+                      </select>
+                    </div>
+                    <span class="ls-slider-val" id="lsInstCompRatioVal">2.5:1</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Att / Rel (ms)</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsInstCompAttack" min="1" max="80" step="1" value="14" aria-label="Inst Comp Attack">
+                      <input type="range" class="ls-range" id="lsInstCompRelease" min="40" max="500" step="10" value="180" aria-label="Inst Comp Release">
+                    </div>
+                    <span class="ls-slider-val" id="lsInstCompTimesVal">14 / 180</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Comp Makeup</span>
+                    <input type="range" class="ls-range" id="lsInstCompMakeup" min="-6" max="12" step="0.5" value="0.5">
+                    <span class="ls-slider-val" id="lsInstCompMakeupVal">+0.5 dB</span>
+                  </div>
+                  <div class="ls-gr-row" style="margin-top:2px;margin-bottom:6px;">
+                    <span>Inst GR</span>
+                    <div class="ls-gr-track"><div class="ls-gr-fill" id="lsInstGrBar"></div></div>
+                    <span class="ls-gr-val" id="lsInstGrVal">0.0 dB</span>
+                  </div>
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Gate Thresh</span>
+                    <input type="range" class="ls-range" id="lsInstGateThresh" min="-72" max="-24" step="1" value="-54">
+                    <span class="ls-slider-val" id="lsInstGateThreshVal">-54 dB</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">Gate Floor/Hold</span>
+                    <div class="ls-inline-ctrl" style="gap:4px;">
+                      <input type="range" class="ls-range" id="lsInstGateRange" min="-36" max="0" step="1" value="-12" aria-label="Inst Gate Range">
+                      <input type="range" class="ls-range" id="lsInstGateHold" min="20" max="350" step="10" value="140" aria-label="Inst Gate Hold">
+                    </div>
+                    <span class="ls-slider-val" id="lsInstGateGrVal">0.0 dB</span>
+                  </div>
+                </div>
+
+                <div data-ch-subpane="inst:send" class="ls-is-hidden">
+                  <div class="ls-slider-row">
+                    <span class="ls-slider-label">Hall Send Lvl</span>
+                    <input type="range" class="ls-range" id="lsInstRevSend" min="0" max="150" step="1" value="65">
+                    <span class="ls-slider-val" id="lsInstRevSendVal">65%</span>
+                  </div>
+                  <div class="ls-slider-row ls-slider-compact">
+                    <span class="ls-slider-label">Send Tap Point</span>
+                    <select class="ls-select ls-select-sm" id="lsInstSendMode" aria-label="Instrument Reverb Send Mode">
+                      <option value="post" selected>Post-Fader (Follows Fader)</option>
+                      <option value="pre">Pre-Fader (Always Active)</option>
+                    </select>
+                    <span class="ls-slider-val" id="lsInstSendModeVal">POST</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pane 3: Mandir Hall Convolution Reverb -->
+              <div data-proc-pane="reverb" class="ls-is-hidden">
+                <div class="ls-field" style="margin-bottom:8px;">
+                  <label for="lsReverbPresetSelect">Hall Acoustic Preset</label>
+                  <select class="ls-select ls-select-sm" id="lsReverbPresetSelect" style="width:100%;">
+                    <option value="medium_prayer_hall" selected>Medium Prayer Hall (Recommended)</option>
+                    <option value="small_mandir">Small Mandir</option>
+                    <option value="large_mandir_hall">Large Mandir Hall</option>
+                    <option value="concert_hall">Concert Hall</option>
+                    <option value="vocal_plate">Vocal Plate</option>
+                    <option value="studio_room">Studio Room</option>
+                  </select>
+                </div>
+                <div class="ls-slider-row">
+                  <span class="ls-slider-label">Hall Decay</span>
+                  <input type="range" class="ls-range" id="lsReverbDecay" min="0.5" max="3.2" step="0.1" value="1.4">
+                  <span class="ls-slider-val" id="lsReverbDecayVal">1.4s</span>
+                </div>
+                <div class="ls-slider-row">
+                  <span class="ls-slider-label">Pre-Delay</span>
+                  <input type="range" class="ls-range" id="lsReverbPreDelay" min="0" max="100" step="2" value="20">
+                  <span class="ls-slider-val" id="lsReverbPreDelayVal">20 ms</span>
+                </div>
+                <div class="ls-slider-row">
+                  <span class="ls-slider-label">HF Damping</span>
+                  <input type="range" class="ls-range" id="lsReverbTone" min="2000" max="16000" step="250" value="7600">
+                  <span class="ls-slider-val" id="lsReverbToneVal">7.6k Hz</span>
+                </div>
+                <div class="ls-slider-row">
+                  <span class="ls-slider-label">Room Size</span>
+                  <input type="range" class="ls-range" id="lsReverbRoomSize" min="15" max="100" step="5" value="62">
+                  <span class="ls-slider-val" id="lsReverbRoomSizeVal">62%</span>
+                </div>
+                <div class="ls-slider-row">
+                  <span class="ls-slider-label">Stereo Width</span>
+                  <input type="range" class="ls-range" id="lsReverbWidth" min="0" max="150" step="5" value="110">
+                  <span class="ls-slider-val" id="lsReverbWidthVal">110%</span>
+                </div>
+                <div class="ls-slider-row ls-slider-compact" style="margin-top:4px;">
+                  <span class="ls-slider-label">Custom IR</span>
+                  <div class="ls-inline-ctrl" style="gap:4px;">
+                    <label class="ls-btn-mini" style="cursor:pointer;margin:0;" title="Load Custom Mandir .wav Impulse Response">
+                      Load .WAV IR
+                      <input type="file" id="lsReverbCustomIrInput" accept=".wav,audio/wav" style="display:none;">
+                    </label>
+                    <button type="button" class="ls-btn-mini" id="lsReverbIrResetBtn">Built-in</button>
+                  </div>
+                  <span class="ls-slider-val" id="lsReverbIrStatus">Synth IR</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT CONTROL-ROOM COLUMN: BROADCAST CONTROL, NOW SINGING & SSD/R2 -->
+      <div class="ls-col-stack">
+        <!-- BROADCAST CONTROL -->
+        <section class="ls-card">
+          <div class="ls-card-header">
+            <h2 class="ls-card-title">
+              <span class="ls-title-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+                  <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+                  <circle cx="12" cy="12" r="2" />
+                  <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+                  <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+                </svg>
+              </span>
+              <span>Broadcast Control</span>
+            </h2>
+            <span class="ls-badge-pill">Up to 320 kbps</span>
+          </div>
+
+          <div class="ls-field" style="margin-bottom:9px;">
             <label for="lsStreamTitle">Session Title</label>
-            <input type="text" class="ls-input" id="lsStreamTitle" value="Thursday Evening Bhajan Satsang" maxlength="120">
+            <input type="text" class="ls-input" id="lsStreamTitle" value="Thursday Evening Bhajan Satsang"
+              maxlength="120">
           </div>
 
           <div class="ls-form-row">
@@ -372,8 +917,18 @@
           </div>
 
           <div class="ls-btn-row ls-transport-actions">
-            <button type="button" class="ls-btn ls-btn-go-live" id="lsGoLiveBtn">Go Live Now</button>
-            <button type="button" class="ls-btn ls-btn-stop" id="lsStopBtn" disabled>End Stream</button>
+            <button type="button" class="ls-btn ls-btn-go-live" id="lsGoLiveBtn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="7" />
+              </svg>
+              <span>Go Live Now</span>
+            </button>
+            <button type="button" class="ls-btn ls-btn-stop" id="lsStopBtn" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14" rx="2" />
+              </svg>
+              <span>End Stream</span>
+            </button>
             <button type="button" class="ls-btn" id="lsBroadcastMuteBtn">Mute</button>
           </div>
 
@@ -382,39 +937,53 @@
               <strong>Browser Master Backup Ready</strong>
               <div class="ls-hero-sub" id="lsBackupSizeText"></div>
             </div>
-            <a class="ls-btn ls-btn-primary" id="lsBackupDownloadLink" href="#" download="bhajan-live.mp3" style="text-decoration:none;">Download</a>
+            <a class="ls-btn ls-btn-primary" id="lsBackupDownloadLink" href="#" download="bhajan-live.mp3"
+              style="text-decoration:none;">Download</a>
           </div>
         </section>
 
         <!-- NOW SINGING QUEUE SYNC -->
         <section class="ls-card">
           <div class="ls-card-header">
-            <h2 class="ls-card-title">"Now Singing" Live Sync</h2>
-            <button type="button" class="ls-btn ls-btn-mini" id="lsClearNowSingingBtn">Clear</button>
+            <h2 class="ls-card-title">Now Singing / Live Sync</h2>
+            <button type="button" class="ls-btn-mini" id="lsClearNowSingingBtn">Clear</button>
           </div>
 
           <div class="ls-date-bar">
-            <input type="date" class="ls-input" id="lsSessionDateInput" value="<%= sessionDate %>" aria-label="Session Date">
+            <input type="date" class="ls-input" id="lsSessionDateInput" value="<%= sessionDate %>"
+              aria-label="Session Date">
             <button type="button" class="ls-btn" id="lsLoadDateBhajansBtn">Load Session</button>
           </div>
 
           <div class="ls-now-singing-banner">
             <span class="ls-channel-tag">On Player:</span>
-            <strong id="lsNowSingingCurrent"><%= streamState.nowSinging ? (streamState.nowSinging.title + (streamState.nowSinging.singerName ? ' — ' + streamState.nowSinging.singerName : '')) : 'None selected' %></strong>
+            <strong id="lsNowSingingCurrent">
+              <%= streamState.nowSinging ? (streamState.nowSinging.title + (streamState.nowSinging.singerName ? ' — ' +
+                streamState.nowSinging.singerName : '' )) : 'None selected' %>
+            </strong>
           </div>
 
           <div class="ls-bhajan-list" id="lsBhajanPickerList"></div>
         </section>
 
-        <!-- MULTITRACK SSD RECORDER & R2 CLOUD PUBLISH -->
+        <!-- SSD RECORDER & CLOUDFLARE R2 PUBLISHING -->
         <section class="ls-card">
           <div class="ls-card-header">
-            <h2 class="ls-card-title">SSD Recorder &amp; Cloudflare R2</h2>
-            <span class="ls-badge-pill"><%= r2Status && r2Status.configured ? ('R2 · ' + (r2Status.bucketName || 'Ready')) : 'R2 Keys Missing' %></span>
+            <h2 class="ls-card-title">SSD Recording &amp; Cloudflare R2</h2>
+            <span class="ls-badge-pill <%= r2Status && r2Status.configured ? 'ls-badge-blue' : '' %>">
+              <%= r2Status && r2Status.configured ? ('R2 · ' + (r2Status.bucketName || ' Ready')) : 'R2 Keys Missing' %>
+            </span>
           </div>
 
-          <div class="ls-subpanel">
-            <div class="ls-channel-head">
+          <div class="ls-subtabs-bar" role="tablist" aria-label="Recording and Publishing Mode"
+            style="margin-bottom:9px;">
+            <button type="button" class="ls-subtab-btn is-active" data-rec-tab-btn="ssd">SSD Capture</button>
+            <button type="button" class="ls-subtab-btn" data-rec-tab-btn="r2">Cloudflare R2 Publish</button>
+          </div>
+
+          <div class="ls-subpanel" data-rec-pane="ssd">
+            <div class="ls-channel-head"
+              style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
               <div>
                 <div class="ls-channel-name">Direct-to-SSD Capture</div>
                 <div class="ls-channel-tag" id="lsRecFolderLabel">No SSD folder chosen (downloads on stop)</div>
@@ -450,24 +1019,31 @@
               <label class="ls-checkbox-line"><input type="checkbox" id="lsRecDryCh2Check" checked> Ch2 Dry WAV</label>
               <label class="ls-checkbox-line"><input type="checkbox" id="lsRecMasterCheck" checked> Master MP3</label>
             </div>
+            <div class="ls-inline-checks">
+              <label class="ls-checkbox-line"><input type="checkbox" id="lsAutoOpenDawCheck" checked> Auto-open DAW on Stop</label>
+              <label class="ls-checkbox-line"><input type="checkbox" id="lsAutoUploadRefCheck"> Auto-upload Live Ref</label>
+            </div>
 
-            <div class="ls-btn-row">
-              <button type="button" class="ls-btn" id="lsPickSsdFolderBtn">Choose Folder</button>
-              <button type="button" class="ls-btn ls-btn-primary" id="lsStartRecOnlyBtn">Start Rec</button>
-              <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsRecordAndLiveBtn">Rec + Go Live</button>
+            <div class="ls-ssd-btn-grid">
+              <button type="button" class="ls-btn ls-btn-sm" id="lsPickSsdFolderBtn">Choose Folder</button>
+              <button type="button" class="ls-btn ls-btn-sm ls-btn-primary" id="lsStartRecOnlyBtn">Start Rec</button>
+              <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsRecordAndLiveBtn">Rec + Go
+                Live</button>
               <button type="button" class="ls-btn ls-btn-stop ls-btn-sm" id="lsStopRecBtn" disabled>Stop Rec</button>
             </div>
 
             <div id="lsFallbackDownloadsList" class="ls-fallback-links"></div>
           </div>
 
-          <div class="ls-subpanel" style="margin-top:12px;">
-            <div class="ls-channel-head">
+          <div class="ls-subpanel ls-is-hidden" data-rec-pane="r2">
+            <div class="ls-channel-head"
+              style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
               <div>
                 <div class="ls-channel-name">Cloudflare R2 Publish</div>
                 <div class="ls-channel-tag" id="lsR2SourceLabel">Waiting for session MP3 or DAW mix</div>
               </div>
-              <button type="button" class="ls-btn-mini" id="lsExportAuditionCsvBtn">Audition CSV</button>
+              <button type="button" class="ls-btn-mini" id="lsExportAuditionCsvBtn"
+                title="Export Audition markers CSV">Audition CSV</button>
             </div>
 
             <div class="ls-form-row">
@@ -481,9 +1057,9 @@
               </div>
             </div>
 
-            <div class="ls-field" style="margin-bottom:10px;">
-              <label for="lsR2CustomFileInput">Custom MP3 File Override</label>
-              <input type="file" id="lsR2CustomFileInput" accept="audio/mpeg,.mp3" class="ls-input">
+            <div class="ls-field" style="margin-bottom:9px;">
+              <label for="lsR2CustomFileInput">Custom MP3 / WAV Master Override</label>
+              <input type="file" id="lsR2CustomFileInput" accept="audio/mpeg,.mp3,audio/wav,.wav" class="ls-input">
             </div>
 
             <div class="ls-ts-header">
@@ -492,7 +1068,7 @@
             </div>
             <div class="ls-ts-list" id="lsTimestampsList"></div>
 
-            <label class="ls-checkbox-line" style="margin-bottom:10px;">
+            <label class="ls-checkbox-line" style="margin:8px 0 9px;">
               <input type="checkbox" id="lsR2NotifyDevoteesCheck" checked>
               Notify devotees when audio publishes
             </label>
@@ -500,11 +1076,19 @@
             <div class="ls-progress-track" id="lsR2ProgressWrap" style="display:none;">
               <div class="ls-progress-fill" id="lsR2ProgressFill"></div>
             </div>
-            <div class="ls-hero-sub" id="lsR2StatusText" style="margin-bottom:8px;"></div>
+            <div class="ls-hero-sub" id="lsR2StatusText" style="margin-bottom:7px;"></div>
 
             <button type="button" class="ls-btn ls-btn-primary" id="lsPublishR2Btn" style="width:100%;" disabled>
-              Upload MP3 to Cloudflare R2 &amp; Publish
+              Upload Master to Cloudflare R2 &amp; Publish
             </button>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button type="button" class="ls-btn ls-btn-mini" id="lsBackupDryStemsR2Btn" style="flex:1;" disabled>
+                Backup Dry WAV Stems
+              </button>
+              <button type="button" class="ls-btn ls-btn-mini" id="lsRetryQueuedUploadsBtn" style="flex:1;" disabled>
+                Retry Queued (<span id="lsQueuedCountBadge">0</span>)
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -512,60 +1096,153 @@
   </div><!-- /#lsTabLivePane -->
 
   <!-- ======================================================================
-       TAB 2: UNIFIED MODERN MULTITRACK DAW WORKSPACE
+       TAB 2: MULTITRACK DAW WORKSTATION
        ====================================================================== -->
   <div id="lsTabDawPane" style="display:none;">
     <div class="ls-daw-shell">
-      <!-- ZONE 1: DAW TRANSPORT, EDIT TOOLS, TRACK OPS & MEDIA LOADERS -->
-      <div class="ls-daw-transport-bar">
-        <div class="ls-btn-row">
-          <button type="button" class="ls-btn ls-btn-primary" id="lsDawPlayBtn">Play</button>
-          <button type="button" class="ls-btn" id="lsDawStopBtn">Stop</button>
-          <span class="ls-daw-timecode" id="lsDawTimecode">00:00.0 / 00:00</span>
+      <!-- ZONE 1: COMPACT PRO TRANSPORT & EDITING TOOLBAR -->
+      <div class="ls-daw-transport-bar" role="toolbar" aria-label="DAW Transport and Editing Tools">
+        <div class="ls-daw-deck-primary">
+          <div class="ls-btn-row">
+            <button type="button" class="ls-btn ls-btn-primary ls-daw-play-circle" id="lsDawPlayBtn"
+              title="Play / Pause (Space)" aria-label="Play or Pause">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="6 4 20 12 6 20 6 4" />
+              </svg>
+              <span class="ls-play-label ls-is-hidden">Play</span>
+            </button>
+            <button type="button" class="ls-btn" id="lsDawStopBtn" title="Stop and return playhead to start">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14" rx="1.5" />
+              </svg>
+              <span>Stop</span>
+            </button>
+            <span class="ls-daw-timecode" id="lsDawTimecode">00:00.0 / 00:00</span>
+            <select class="ls-select ls-select-sm" id="lsDawRulerModeSelect" aria-label="Ruler Display Mode" title="Timeline Ruler & Timecode Display">
+              <option value="time" selected>Time</option>
+              <option value="bars">Bars:Beats</option>
+              <option value="samples">Samples</option>
+            </select>
+            <input type="number" id="lsDawBpmInput" class="ls-input" min="30" max="240" value="96"
+              style="width:58px;height:27px;padding:2px 6px;" title="Project Tempo (BPM)" aria-label="Project Tempo BPM">
+          </div>
+
+          <div class="ls-btn-row ls-tool-cluster">
+            <button type="button" class="ls-btn-mini" id="lsDawPrevMarkerBtn"
+              title="Previous Bhajan Marker ([)">◀ Mrk</button>
+            <button type="button" class="ls-btn-mini" id="lsDawAddMarkerBtn"
+              title="Add bhajan timestamp marker at playhead">+ Marker</button>
+            <button type="button" class="ls-btn-mini" id="lsDawNextMarkerBtn"
+              title="Next Bhajan Marker (])">Mrk ▶</button>
+            <button type="button" class="ls-btn-mini" id="lsDawUndoBtn" disabled title="Undo (Ctrl+Z)">Undo</button>
+            <button type="button" class="ls-btn-mini" id="lsDawRedoBtn" disabled title="Redo (Ctrl+Y)">Redo</button>
+            <div class="ls-daw-history-wrap">
+              <button type="button" class="ls-btn-mini" id="lsDawHistoryBtn"
+                title="Browse non-destructive edit history">History</button>
+              <div class="ls-daw-history-popover ls-is-hidden" id="lsDawHistoryMenu"></div>
+            </div>
+            <button type="button" class="ls-btn-mini" id="lsDawZoomOutBtn" title="Zoom out timeline">-</button>
+            <button type="button" class="ls-btn-mini" id="lsDawZoomInBtn" title="Zoom in timeline">+</button>
+            <button type="button" class="ls-btn-mini" id="lsDawZoomFitBtn"
+              title="Fit entire project to timeline width">Fit</button>
+            <button type="button" class="ls-btn-mini" id="lsDawTrackHeightBtn"
+              title="Cycle track lane height (Compact / Normal / Tall)">Lane H</button>
+            <button type="button" class="ls-btn-mini" id="lsDawWaveScaleBtn"
+              title="Cycle visual waveform vertical scale (1x / 2x / 4x)">Wave ×1</button>
+          </div>
+
+          <div class="ls-btn-row">
+            <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAutoLoadRecBtn" disabled
+              title="Load last SSD/stream recording stems">Load Recording</button>
+            <button type="button" class="ls-btn-mini" id="lsDawSaveProjectBtn"
+              title="Save DAW project manifest locally & to Bhajan Planner DB">Save Proj</button>
+            <button type="button" class="ls-btn-mini" id="lsDawLoadProjectBtn"
+              title="Reload saved DAW project for selected session date">Load Proj</button>
+            <label class="ls-btn-mini" style="cursor:pointer;" title="Import offline project.json file">
+              <span>Open .json</span>
+              <input type="file" id="lsDawImportProjectInput" accept="application/json,.json" style="display:none;">
+            </label>
+            <label class="ls-btn-mini" style="cursor:pointer;" title="Replace project with an audio file">
+              <span>Open File</span>
+              <input type="file" id="lsDawSingleFileInput" accept="audio/*" style="display:none;">
+            </label>
+            <label class="ls-btn-mini" style="cursor:pointer;" title="Append an audio clip onto the timeline">
+              <span>+ Join Clip</span>
+              <input type="file" id="lsDawAppendFileInput" accept="audio/*" style="display:none;">
+            </label>
+          </div>
         </div>
 
-        <div class="ls-btn-row ls-tool-cluster">
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawSplitBtn" title="Split clip at playhead (S)">Split</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawSetInBtn" title="Mark start of range (I)">In</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawSetOutBtn" title="Mark end of range (O)">Out</button>
-          <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsDawRippleCutBtn" title="Ripple delete selected range">Ripple Cut</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawDeleteClipBtn" title="Delete clip and crossfade">Del Clip</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawAddMarkerBtn">+ Marker</button>
-        </div>
+        <div class="ls-daw-deck-tools">
+          <div class="ls-btn-row">
+            <button type="button" class="ls-btn-mini" id="lsDawSplitBtn" title="Split clip at playhead (S)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="12" y1="3" x2="12" y2="21" />
+                <polyline points="8 7 4 12 8 17" />
+                <polyline points="16 7 20 12 16 17" />
+              </svg>
+              <span>Split</span>
+            </button>
+            <button type="button" class="ls-btn-mini" id="lsDawJoinClipsBtn"
+              title="Join contiguous/split clips (J)">Join</button>
+            <button type="button" class="ls-btn-mini" id="lsDawSetInBtn"
+              title="Set selection In point at playhead (I)">In</button>
+            <button type="button" class="ls-btn-mini" id="lsDawSetOutBtn"
+              title="Set selection Out point at playhead (O)">Out</button>
+            <button type="button" class="ls-btn-mini" id="lsDawLoopBtn"
+              title="Loop selection or project (L)">Loop</button>
+            <button type="button" class="ls-btn-mini is-toggled" id="lsDawSnapBtn"
+              title="Snap playhead/nudges to markers & grid">Snap</button>
+            <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawRippleCutBtn"
+              title="Ripple delete selected range with crossfade">Ripple Cut</button>
+            <button type="button" class="ls-btn-mini" id="lsDawRangeNormBtn"
+              title="Normalize selected time range to -1.0 dBTP">Norm Range</button>
+            <button type="button" class="ls-btn-mini" id="lsDawCutClipBtn"
+              title="Cut selected clip(s) (Ctrl+X)">Cut</button>
+            <button type="button" class="ls-btn-mini" id="lsDawCopyClipBtn"
+              title="Copy selected clip(s) (Ctrl+C)">Copy</button>
+            <button type="button" class="ls-btn-mini" id="lsDawPasteClipBtn"
+              title="Paste clipboard at playhead (Ctrl+V)">Paste</button>
+            <button type="button" class="ls-btn-mini" id="lsDawDupClipBtn"
+              title="Duplicate selected clip (Ctrl+D)">Dup</button>
+            <button type="button" class="ls-btn-mini" id="lsDawDeleteClipBtn"
+              title="Delete selected clip and close gap">Del Clip</button>
+          </div>
 
-        <div class="ls-btn-row ls-tool-cluster">
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawAddTrackBtn">+ Track</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawDeleteTrackBtn">Del Track</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawSelectMasterBtn">Master FX</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawUndoBtn" disabled>Undo</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawRedoBtn" disabled>Redo</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawZoomOutBtn">-</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawZoomInBtn">+</button>
-          <button type="button" class="ls-btn ls-btn-mini" id="lsDawZoomFitBtn">Fit</button>
-        </div>
-
-        <div class="ls-btn-row">
-          <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAutoLoadRecBtn" disabled>Load Recording</button>
-          <label class="ls-btn ls-btn-mini" style="cursor:pointer;">
-            Open File
-            <input type="file" id="lsDawSingleFileInput" accept="audio/*" style="display:none;">
-          </label>
-          <label class="ls-btn ls-btn-mini" style="cursor:pointer;">
-            + Join Clip
-            <input type="file" id="lsDawAppendFileInput" accept="audio/*" style="display:none;">
-          </label>
+          <div class="ls-btn-row ls-tool-cluster">
+            <button type="button" class="ls-btn-mini" id="lsDawAddTrackBtn" title="Add a new audio track">+ Track</button>
+            <button type="button" class="ls-btn-mini" id="lsDawDeleteTrackBtn" title="Delete selected track">Del
+              Track</button>
+            <button type="button" class="ls-btn-mini" id="lsDawSelectMasterBtn" title="Inspect Master Bus FX rack">Master
+              FX</button>
+            <button type="button" class="ls-btn-mini" id="lsDawAutoToggleBtn" title="Show/edit track automation lane">Auto</button>
+            <select class="ls-select ls-select-sm" id="lsDawAutoLaneSelect" style="display:none;max-width:140px;" aria-label="Automation Lane">
+              <option value="gain" selected>Track Volume (%)</option>
+              <option value="pan">Stereo Pan</option>
+              <option value="clipGain">Clip Gain (dB)</option>
+              <option value="eqPresenceDb">EQ Presence (dB)</option>
+              <option value="compThreshold">Comp Threshold (dB)</option>
+              <option value="reverbSend">Reverb Send (%)</option>
+              <option value="fxWetDry">Plugin Rack Mix (%)</option>
+            </select>
+            <button type="button" class="ls-btn-mini" id="lsDawAutoClearBtn" style="display:none;"
+              title="Clear active automation lane on selected track">Clear Auto</button>
+          </div>
         </div>
       </div>
 
       <details class="ls-daw-stems-drawer">
-        <summary>Import Dual Dry Stems (Ch 1 Instruments + Ch 2 Vocals WAV)</summary>
+        <summary>
+          <span>Import Dual Dry Stems (Ch 1 Vocals + Ch 2 Instruments WAV)</span>
+          <span class="ls-channel-tag">Multitrack Stem Pair</span>
+        </summary>
         <div class="ls-daw-stems-row">
           <div class="ls-field">
-            <label for="lsDawFileCh1Input">Track 1 · Ch 1 Dry WAV</label>
+            <label for="lsDawFileCh1Input">Track 1 · Ch 1 Vocals Dry WAV</label>
             <input type="file" id="lsDawFileCh1Input" accept="audio/*" class="ls-input">
           </div>
           <div class="ls-field">
-            <label for="lsDawFileCh2Input">Track 2 · Ch 2 Dry WAV</label>
+            <label for="lsDawFileCh2Input">Track 2 · Ch 2 Instruments Dry WAV</label>
             <input type="file" id="lsDawFileCh2Input" accept="audio/*" class="ls-input">
           </div>
           <button type="button" class="ls-btn ls-btn-primary" id="lsDawLoadStemsBtn">Load 2-Track Stems</button>
@@ -583,8 +1260,9 @@
       <!-- ZONE 2: ARRANGEMENT TIMELINE -->
       <div class="ls-daw-workspace">
         <div class="ls-daw-track-headers" id="lsDawTrackHeaders">
+          <div class="ls-daw-tracks-corner"><span>TRACKS · MIX</span><span>2 TRK</span></div>
           <div class="ls-daw-track-box is-selected">
-            <div class="ls-channel-name">Track 1 · Instruments</div>
+            <div class="ls-channel-name">Track 1 · Vocals</div>
             <input type="range" class="ls-range" id="lsDawTrack1Gain" min="0" max="180" value="100">
             <div class="ls-btn-row">
               <button type="button" class="ls-btn-mini" id="lsDawTrack1Mute">M</button>
@@ -592,7 +1270,7 @@
             </div>
           </div>
           <div class="ls-daw-track-box">
-            <div class="ls-channel-name">Track 2 · Vocals</div>
+            <div class="ls-channel-name">Track 2 · Instruments</div>
             <input type="range" class="ls-range" id="lsDawTrack2Gain" min="0" max="180" value="100">
             <div class="ls-btn-row">
               <button type="button" class="ls-btn-mini" id="lsDawTrack2Mute">M</button>
@@ -605,27 +1283,48 @@
         </div>
       </div>
 
-      <!-- ZONE 3: MODULAR PER-TRACK & MASTER EFFECTS RACK -->
+      <!-- CONTEXTUAL WORKSPACE SWITCHER FOR LOWER BAY -->
+      <div class="ls-daw-view-bar" id="lsDawWorkspaceViewBar" role="tablist" aria-label="DAW Lower Workspace">
+        <span class="ls-daw-view-label">Inspector &amp; Processing Focus</span>
+        <div class="ls-seg-switch">
+          <button type="button" class="ls-seg-btn is-active" data-daw-view-btn="all">All Panels</button>
+          <button type="button" class="ls-seg-btn" data-daw-view-btn="fx">FX &amp; Plugin Rack</button>
+          <button type="button" class="ls-seg-btn" data-daw-view-btn="master">Clip &amp; Mastering</button>
+        </div>
+      </div>
+
+      <!-- ZONE 3: MODULAR PER-TRACK & MASTER PLUGIN RACK -->
       <div class="ls-fx-rack-panel" id="lsDawFxRackPanel">
         <div class="ls-fx-rack-header">
           <div class="ls-fx-rack-title-wrap">
             <h3 class="ls-card-title">
-              Track Effects &amp; Mastering Rack
-              <span class="ls-badge-pill" id="lsDawFxActiveTrackLabel">Track 1 · Instruments</span>
+              <span>Track Effects &amp; Mastering Rack</span>
+              <span class="ls-badge-pill" id="lsDawFxActiveTrackLabel">Track 1 · Vocals</span>
             </h3>
-            <span class="ls-channel-tag">Per-track modular insert chain · Real-time live preview &amp; offline mixdown</span>
+            <span class="ls-channel-tag">Per-track modular insert chain · Real-time live preview &amp; offline
+              mixdown</span>
           </div>
           <div class="ls-btn-row">
-            <select class="ls-select ls-select-sm" id="lsDawFxTrackSelect"></select>
-            <select class="ls-select ls-select-sm" id="lsDawAddFxSelect">
+            <select class="ls-select ls-select-sm" id="lsDawFxTrackSelect" aria-label="Select track FX rack"></select>
+            <select class="ls-select ls-select-sm" id="lsDawChainPresetSelect" aria-label="DAW Chain Presets" title="Load a Part 12 Mandir DAW Preset Chain"></select>
+            <button type="button" class="ls-btn ls-btn-sm" id="lsDawApplyChainPresetBtn">Apply Preset</button>
+            <button type="button" class="ls-btn-mini" id="lsDawSaveChainPresetBtn" title="Save current rack as custom preset">Save</button>
+            <button type="button" class="ls-btn-mini" id="lsDawExportChainBtn" title="Export FX rack JSON">Exp</button>
+            <label class="ls-btn-mini" style="cursor:pointer;margin:0;" title="Import FX rack JSON">
+              Imp
+              <input type="file" id="lsDawImportChainInput" accept="application/json,.json" style="display:none;">
+            </label>
+            <select class="ls-select ls-select-sm" id="lsDawAddFxSelect" aria-label="Choose plugin to insert">
               <option value="eq">+ 5-Band Parametric EQ</option>
               <option value="filter">+ HPF / LPF Filter</option>
               <option value="compressor">+ Dynamics Compressor</option>
+              <option value="gate">+ Hysteresis Gate / Expander</option>
               <option value="deesser">+ Vocal De-Esser</option>
               <option value="reverb">+ Mandir Hall Reverb</option>
               <option value="delay">+ Stereo Echo / Delay</option>
               <option value="saturation">+ Tape / Tube Warmth</option>
-              <option value="limiter">+ Brickwall Limiter</option>
+              <option value="stereo_width">+ Stereo M/S Imaging</option>
+              <option value="limiter">+ True-Peak Brickwall Limiter</option>
             </select>
             <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAddFxBtn">+ Add Effect</button>
             <button type="button" class="ls-btn ls-btn-sm" id="lsDawImportLiveFxBtn">Import Live Mixer FX</button>
@@ -635,16 +1334,25 @@
         <div class="ls-fx-rack-grid">
           <div class="ls-fx-slot-list" id="lsDawFxSlotList"></div>
           <div class="ls-fx-editor" id="lsDawFxEditorPane">
-            <div class="ls-hero-sub">Select an effect slot or click <strong>+ Add Effect</strong> to shape this track's tone.</div>
+            <div class="ls-hero-sub">Select an effect slot or click <strong>+ Add Effect</strong> to shape this track's
+              sound.</div>
           </div>
         </div>
       </div>
 
-      <!-- ZONE 4: CLIP INSPECTOR & FINAL MASTERING RENDER -->
+      <!-- ZONE 4: CLIP INSPECTOR & MASTER EXPORT DOCK -->
       <div class="ls-daw-bottom-dock">
         <div class="ls-daw-dock-pane" id="lsDawInspectorBox">
-          <div class="ls-channel-head">
-            <div class="ls-channel-name">Clip Inspector: <span id="lsDawSelectedClipLabel">None</span></div>
+          <div class="ls-card-header" style="margin-bottom:8px;padding-bottom:6px;">
+            <span class="ls-card-title">Clip Inspector: <span id="lsDawSelectedClipLabel"
+                style="color:var(--studio-accent);">None</span></span>
+            <div class="ls-btn-row">
+              <button type="button" class="ls-btn-mini" id="lsDawSlipBackBtn" title="Slip audio inside clip -50ms (Shift -250ms)">Slip ◀</button>
+              <button type="button" class="ls-btn-mini" id="lsDawSlipFwdBtn" title="Slip audio inside clip +50ms (Shift +250ms)">Slip ▶</button>
+              <button type="button" class="ls-btn-mini" id="lsDawNudgeBackBtn" title="Nudge clip -25ms (Shift -250ms)">◀ Nudge</button>
+              <button type="button" class="ls-btn-mini" id="lsDawNudgeFwdBtn" title="Nudge clip +25ms (Shift +250ms)">Nudge ▶</button>
+              <button type="button" class="ls-btn-mini" id="lsDawNormClipBtn" title="Normalize clip gain to -1 dBTP">Normalize</button>
+            </div>
           </div>
           <div class="ls-slider-row">
             <span class="ls-slider-label">Clip Gain</span>
@@ -680,9 +1388,29 @@
         </div>
 
         <div class="ls-daw-dock-pane">
-          <div class="ls-channel-head">
-            <div class="ls-channel-name">Master Export &amp; Cloudflare R2 Delivery</div>
-            <span class="ls-badge-pill">112k Default</span>
+          <div class="ls-card-header" style="margin-bottom:8px;padding-bottom:6px;">
+            <span class="ls-card-title">Master Export &amp; Cloudflare R2 Delivery</span>
+            <div class="ls-btn-row" style="gap:6px;">
+              <select class="ls-select ls-select-sm" id="lsDawExportSampleRateSelect" aria-label="Export Sample Rate"
+                title="Target Sample Rate (32-tap Blackman Sinc SRC)">
+                <option value="48000" selected>48 kHz</option>
+                <option value="44100">44.1 kHz</option>
+              </select>
+              <select class="ls-select ls-select-sm" id="lsDawExportFormatSelect" aria-label="Export Format">
+                <option value="mp3_192" selected>MP3 192 kbps Stereo</option>
+                <option value="mp3_320">MP3 320 kbps HQ</option>
+                <option value="mp3_128">MP3 128 kbps Stereo</option>
+                <option value="mp3_112">MP3 112 kbps (~50MB/hr)</option>
+                <option value="wav_24">WAV 24-bit / 48 kHz</option>
+                <option value="wav_16">WAV 16-bit (TPDF Dither)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ls-slider-row" style="margin-bottom:7px;">
+            <span class="ls-slider-label">Master Trim</span>
+            <input type="range" class="ls-range" id="lsDawMasterTrimInput" min="-12" max="12" step="0.5" value="0">
+            <span class="ls-slider-val" id="lsDawMasterTrimVal">0 dB</span>
           </div>
 
           <div class="ls-daw-master-options">
@@ -697,26 +1425,46 @@
             <label class="ls-daw-check-label">
               Loudness:
               <select class="ls-select ls-select-sm" id="lsDawLufsSelect">
-                <option value="-14" selected>-14 LUFS (Streaming)</option>
-                <option value="-16">-16 LUFS (Dynamic)</option>
-                <option value="off">Off</option>
+                <option value="-14" selected>-14 LUFS (Streaming / R2)</option>
+                <option value="-16">-16 LUFS (Devotional / Podcast)</option>
+                <option value="-18">-18 LUFS (Dynamic Acoustic)</option>
+                <option value="-23">-23 LUFS (EBU R128)</option>
+                <option value="custom">Custom Target...</option>
+                <option value="off">Off (Ceiling Safety Only)</option>
               </select>
+            </label>
+            <span id="lsDawCustomLufsWrap" style="display:none;align-items:center;gap:6px;">
+              <input type="number" id="lsDawCustomLufsInput" class="ls-input" step="0.5" min="-26" max="-8" value="-14"
+                style="width:58px;height:24px;padding:2px 5px;" title="Custom Integrated LUFS Target" aria-label="Custom LUFS">
+              <input type="number" id="lsDawCustomCeilingInput" class="ls-input" step="0.1" min="-3.0" max="-0.1" value="-1.0"
+                style="width:58px;height:24px;padding:2px 5px;" title="Custom True-Peak Ceiling (dBTP)" aria-label="Custom Ceiling dBTP">
+            </span>
+            <label class="ls-daw-check-label" title="Prevents excessive brickwall limiting that crushes natural devotional dynamics">
+              <input type="checkbox" id="lsDawProtectDynamicsCheck" checked>
+              Smart Dynamics Guard
             </label>
             <span class="ls-loudness-pill" id="lsDawLoudnessReport" style="display:none;"></span>
           </div>
+
+          <div class="ls-loudness-report-card" id="lsDawLoudnessReportCard" style="display:none;"></div>
 
           <div class="ls-progress-track" id="lsDawRenderProgressWrap" style="display:none;">
             <div class="ls-progress-fill" id="lsDawRenderProgressFill"></div>
           </div>
 
           <div class="ls-btn-row" style="margin-top:10px;">
-            <button type="button" class="ls-btn ls-btn-primary" id="lsDawRenderBtn" disabled>Render Edited MP3</button>
-            <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsDawRenderPublishBtn" disabled>Render &amp; Upload R2</button>
-            <a class="ls-btn" id="lsDawDownloadRenderedBtn" href="#" download="edited-session.mp3" style="display:none;text-decoration:none;">Download MP3</a>
+            <button type="button" class="ls-btn ls-btn-sm" id="lsDawAnalyzeMixBtn" disabled
+              title="Measure ITU-R BS.1770-4 Loudness & True-Peak headroom before rendering">Measure Loudness</button>
+            <button type="button" class="ls-btn ls-btn-primary" id="lsDawRenderBtn" disabled>Render Master Mix</button>
+            <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsDawRenderPublishBtn" disabled>Render
+              &amp; Upload R2</button>
+            <a class="ls-btn" id="lsDawDownloadRenderedBtn" href="#" download="edited-session.mp3"
+              style="display:none;text-decoration:none;">Download Export</a>
           </div>
 
           <div class="ls-kbd-hints">
-            <strong>Space</strong> Play/Pause · <strong>S</strong> Split · <strong>I</strong>/<strong>O</strong> In/Out · <strong>M</strong> Mute · <strong>Ctrl+Z</strong> Undo · <strong>Ctrl+Y</strong> Redo
+            <strong>Space</strong> Play/Pause · <strong>S</strong> Split · <strong>I</strong>/<strong>O</strong> In/Out
+            · <strong>L</strong> Loop · <strong>Ctrl+Z</strong>/<strong>Y</strong> Undo/Redo · <strong>Ctrl+D</strong> Dup · <strong>Ctrl+S</strong> Save Proj
           </div>
         </div>
       </div>
@@ -733,9 +1481,10 @@
     r2Status: <%- studioJsonFn(typeof r2Status !== "undefined" ? r2Status : { configured: false }) %>
   };
 </script>
-<script src="/js/live-stream-wav-utils.js?v=3.0"></script>
-<script src="/js/live-stream-dsp.js?v=3.0"></script>
-<script src="/js/live-stream-recorder.js?v=3.0"></script>
-<script src="/js/live-stream-daw-engine.js?v=3.0"></script>
-<script src="/js/live-stream-daw-ui.js?v=3.0"></script>
-<script src="/js/live-stream-studio.js?v=3.0"></script>
+<script src="/js/live-stream-wav-utils.js?v=6.0"></script>
+<script src="/js/live-stream-soundcheck.js?v=6.0"></script>
+<script src="/js/live-stream-dsp.js?v=6.0"></script>
+<script src="/js/live-stream-recorder.js?v=6.0"></script>
+<script src="/js/live-stream-daw-engine.js?v=6.0"></script>
+<script src="/js/live-stream-daw-ui.js?v=6.0"></script>
+<script src="/js/live-stream-studio.js?v=6.0"></script>

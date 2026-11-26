@@ -1,5 +1,6 @@
 /**
- * Lossless WAV Binary Encoder & Adobe Audition CC Marker CSV Utilities.
+ * Lossless WAV Binary Encoder, TPDF Dithering, Windowed-Sinc SRC & RIFF Verifier
+ * Plus Adobe Audition CC Marker CSV Utilities.
  * Works cleanly in Browser Window, Web Worker, and Node.js unit tests.
  */
 (function (root, factory) {
@@ -38,7 +39,7 @@
     view.setUint32(4, 36 + safeDataLen, true);
     writeAscii(view, 8, "WAVE");
     writeAscii(view, 12, "fmt ");
-    view.setUint32(16, 16, true); // PCM / IEEE subchunk1 size
+    view.setUint32(16, 16, true);
     view.setUint16(20, audioFormat, true);
     view.setUint16(22, safeCh, true);
     view.setUint32(24, safeRate, true);
@@ -52,11 +53,27 @@
   }
 
   /**
-   * Converts Float32 [-1, 1] mono samples into packed little-endian PCM / IEEE Float bytes.
+   * Generates Triangular Probability Density Function (TPDF) dither noise in [-1, 1] LSB.
    */
-  function floatToPcmBytes(floatSamples, bitDepth = 24) {
+  function createPrng(seed) {
+    let state = (seed >>> 0) || 0x9e3779b9;
+    return function nextRand() {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  /**
+   * Converts Float32 [-1, 1] mono samples into packed little-endian PCM / IEEE Float bytes.
+   * For 16-bit PCM, applies TPDF dithering by default unless opts.dither === false.
+   */
+  function floatToPcmBytes(floatSamples, bitDepth = 24, opts = {}) {
     const len = floatSamples ? floatSamples.length : 0;
     const safeBits = bitDepth === 32 ? 32 : bitDepth === 16 ? 16 : 24;
+    const useDither = safeBits === 16 && opts.dither === true;
+    const rand = useDither
+      ? (opts.seed != null ? createPrng(opts.seed) : Math.random)
+      : null;
 
     if (safeBits === 32) {
       const out = new Uint8Array(len * 4);
@@ -77,7 +94,13 @@
         let s = floatSamples[i];
         if (s > 1) s = 1;
         else if (s < -1) s = -1;
-        const val = s < 0 ? Math.round(s * 32768) : Math.round(s * 32767);
+        let scaled = s * 32767;
+        if (useDither) {
+          scaled += rand() - rand();
+        }
+        let val = Math.round(s < 0 && !useDither ? s * 32768 : scaled);
+        if (val > 32767) val = 32767;
+        else if (val < -32768) val = -32768;
         view.setInt16(i * 2, val, true);
       }
       return out;
@@ -98,6 +121,194 @@
       out[offset++] = (val >> 16) & 0xff;
     }
     return out;
+  }
+
+  /**
+   * Converts Float32 [-1, 1] mono samples into TPDF-dithered Int16Array for MP3 / 16-bit mastering pipelines.
+   */
+  function floatToInt16Dithered(floatSamples, opts = {}) {
+    const len = floatSamples ? floatSamples.length : 0;
+    const out = new Int16Array(len);
+    const useDither = opts.dither !== false;
+    const rand = useDither
+      ? (opts.seed != null ? createPrng(opts.seed) : Math.random)
+      : null;
+    for (let i = 0; i < len; i += 1) {
+      let s = floatSamples[i];
+      if (s > 1) s = 1;
+      else if (s < -1) s = -1;
+      let scaled = s * 32767;
+      if (useDither) scaled += rand() - rand();
+      let val = Math.round(s < 0 && !useDither ? s * 32768 : scaled);
+      if (val > 32767) val = 32767;
+      else if (val < -32768) val = -32768;
+      out[i] = val;
+    }
+    return out;
+  }
+
+  /**
+   * Encodes mono or stereo Float32 arrays directly into a complete RIFF/WAVE Uint8Array.
+   * Applies TPDF dither automatically for 16-bit exports.
+   */
+  function encodeStereoWavBuffer({
+    left,
+    right = null,
+    sampleRate = 48000,
+    bitDepth = 24,
+    dither = true
+  } = {}) {
+    const chL = left || new Float32Array(0);
+    const isStereo = Boolean(right && right.length === chL.length);
+    const numChannels = isStereo ? 2 : 1;
+    const frames = chL.length;
+    const safeBits = bitDepth === 32 ? 32 : bitDepth === 16 ? 16 : 24;
+
+    let interleaved;
+    if (isStereo) {
+      interleaved = new Float32Array(frames * 2);
+      for (let i = 0; i < frames; i++) {
+        interleaved[i * 2] = chL[i];
+        interleaved[i * 2 + 1] = right[i];
+      }
+    } else {
+      interleaved = chL;
+    }
+
+    const pcmBytes = floatToPcmBytes(interleaved, safeBits, {
+      dither: safeBits === 16 && dither !== false
+    });
+    const header = buildWavHeader({
+      sampleRate,
+      numChannels,
+      bitDepth: safeBits,
+      dataByteLength: pcmBytes.byteLength
+    });
+    const out = new Uint8Array(44 + pcmBytes.byteLength);
+    out.set(header, 0);
+    out.set(pcmBytes, 44);
+    return out;
+  }
+
+  /**
+   * High-quality 32-tap Blackman-windowed Sinc sample-rate converter for Float32 mono buffers.
+   */
+  function resampleFloat32Sinc(input, srcRate, dstRate) {
+    if (!input || input.length === 0) return new Float32Array(0);
+    const sRate = Number(srcRate) || 48000;
+    const dRate = Number(dstRate) || 48000;
+    if (Math.abs(sRate - dRate) < 1) {
+      const copy = new Float32Array(input.length);
+      copy.set(input);
+      return copy;
+    }
+
+    const ratio = dRate / sRate;
+    const outLen = Math.max(1, Math.round(input.length * ratio));
+    const out = new Float32Array(outLen);
+    const halfTaps = 16; // 32-tap kernel
+    const cutoff = Math.min(1, ratio) * 0.92;
+    const inLen = input.length;
+
+    for (let i = 0; i < outLen; i++) {
+      const srcPos = i / ratio;
+      const center = Math.floor(srcPos);
+      let acc = 0;
+      let wSum = 0;
+      for (let k = -halfTaps + 1; k <= halfTaps; k++) {
+        const idx = center + k;
+        if (idx < 0 || idx >= inLen) continue;
+        const x = srcPos - idx;
+        const normX = (k - (srcPos - center) + halfTaps) / (2 * halfTaps);
+        const win = 0.42 - 0.5 * Math.cos(2 * Math.PI * normX) + 0.08 * Math.cos(4 * Math.PI * normX);
+        const arg = Math.PI * cutoff * x;
+        const sinc = Math.abs(arg) < 1e-6 ? 1 : Math.sin(arg) / arg;
+        const w = win * sinc * cutoff;
+        acc += input[idx] * w;
+        wSum += w;
+      }
+      out[i] = wSum > 1e-6 ? acc / wSum : 0;
+    }
+    return out;
+  }
+
+  /**
+   * Stereo 32-tap Blackman-windowed Sinc sample-rate conversion for offline mastering exports.
+   */
+  function resampleStereoSinc(left, right, srcRate, dstRate) {
+    const outRate = Number(dstRate) || 48000;
+    const outL = resampleFloat32Sinc(left, srcRate, outRate);
+    const outR = right ? resampleFloat32Sinc(right, srcRate, outRate) : null;
+    return { left: outL, right: outR, sampleRate: outRate };
+  }
+
+  /**
+   * Verifies RIFF/WAVE header fields and payload byte alignment.
+   */
+  function verifyWavHeaderAndSize(buf) {
+    if (!buf) return { valid: false, error: "Empty buffer" };
+    const u8 = buf instanceof Uint8Array
+      ? buf
+      : buf instanceof ArrayBuffer
+        ? new Uint8Array(buf)
+        : ArrayBuffer.isView(buf)
+          ? new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+          : null;
+    if (!u8 || u8.byteLength < 44) {
+      return { valid: false, error: `WAV too small (${u8 ? u8.byteLength : 0} bytes)` };
+    }
+    const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    const ascii = (pos, len) => {
+      let s = "";
+      for (let i = 0; i < len; i++) s += String.fromCharCode(view.getUint8(pos + i));
+      return s;
+    };
+    if (ascii(0, 4) !== "RIFF" || ascii(8, 4) !== "WAVE") {
+      return { valid: false, error: "Missing RIFF/WAVE signature" };
+    }
+
+    let offset = 12;
+    let audioFormat = 0;
+    let numChannels = 0;
+    let sampleRate = 0;
+    let bitDepth = 0;
+    let dataSize = 0;
+    let dataOffset = -1;
+    while (offset + 8 <= u8.byteLength) {
+      const id = ascii(offset, 4);
+      const chunkSize = view.getUint32(offset + 4, true);
+      if (id === "fmt " && offset + 24 <= u8.byteLength) {
+        audioFormat = view.getUint16(offset + 8, true);
+        numChannels = view.getUint16(offset + 10, true);
+        sampleRate = view.getUint32(offset + 12, true);
+        bitDepth = view.getUint16(offset + 22, true);
+      } else if (id === "data") {
+        dataOffset = offset + 8;
+        dataSize = chunkSize;
+        break;
+      }
+      offset += 8 + chunkSize + (chunkSize % 2);
+    }
+
+    if (dataOffset < 0 || (audioFormat !== 1 && audioFormat !== 3)) {
+      return { valid: false, error: "Invalid WAV fmt/data chunks" };
+    }
+    if (dataSize <= 0 || u8.byteLength < dataOffset + dataSize) {
+      return {
+        valid: false,
+        error: `WAV data size mismatch (declared ${dataSize} bytes, actual payload ${u8.byteLength - dataOffset} bytes)`
+      };
+    }
+    const bytesPerFrame = Math.max(1, numChannels * (bitDepth / 8));
+    return {
+      valid: true,
+      audioFormat,
+      numChannels,
+      sampleRate,
+      bitDepth,
+      dataByteLength: dataSize,
+      durationSeconds: dataSize / (bytesPerFrame * Math.max(1, sampleRate))
+    };
   }
 
   function formatSecondsMMSS(sec) {
@@ -136,6 +347,11 @@
   return {
     buildWavHeader,
     floatToPcmBytes,
+    floatToInt16Dithered,
+    encodeStereoWavBuffer,
+    resampleFloat32Sinc,
+    resampleStereoSinc,
+    verifyWavHeaderAndSize,
     formatSecondsMMSS,
     formatAuditionTimestamp,
     formatAuditionMarkersCsv

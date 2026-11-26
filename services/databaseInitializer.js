@@ -26,6 +26,7 @@ const SessionAudio = require("../models/SessionAudio");
 const SessionAudioTimestamp = require("../models/SessionAudioTimestamp");
 const LiveStream = require("../models/LiveStream");
 const LiveStreamPreset = require("../models/LiveStreamPreset");
+const StudioProject = require("../models/StudioProject");
 
 async function initializeSuperAdmin() {
   const superAdminCount = await AdminUser.count({
@@ -567,6 +568,9 @@ async function initializeDatabase() {
     const { runDiwaliMigration } = require("./diwaliMigration");
     await runDiwaliMigration();
     await ensureDatabaseIndexes();
+    await sequelize.query(
+      "CREATE INDEX IF NOT EXISTS idx_studio_projects_session_date ON studio_projects (session_date)"
+    );
 
     await initializeSuperAdmin();
     await migrateLegacySubmissions();

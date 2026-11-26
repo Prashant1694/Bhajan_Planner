@@ -17,9 +17,9 @@ const DEFAULT_PRESETS = [
     config: {
       mode: "split",
       swapChannels: false,
-      inst: { gain: 100, mute: false, hpf: 45, low: 1.5, mid: 0, high: -1.0 },
-      vocal: { gain: 112, mute: false, hpf: 85, low: 0.5, mid: 2.5, deesser: 2.5, high: 1.5, comp: true },
-      reverb: { wet: 14, decay: 1.4 },
+      inst: { gain: 100, mute: false, hpf: 45, hpfSlope: 12, lpf: 20000, low: 1.5, mid: 0, high: -1.0, comp: false, reverbSend: 65, preFaderSend: false },
+      vocal: { gain: 112, mute: false, hpf: 85, hpfSlope: 12, lpf: 20000, low: 0.5, mid: 2.5, deesser: 2.5, high: 1.5, comp: true, reverbSend: 100, preFaderSend: false },
+      reverb: { preset: "medium_prayer_hall", wet: 14, decay: 1.4, preDelayMs: 20, toneHz: 7600, roomSize: 62, stereoWidth: 110 },
       master: { b80: 0.5, b250: -1.5, b1k: 0, b3k5: 1.5, b10k: 1.0, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
@@ -31,9 +31,9 @@ const DEFAULT_PRESETS = [
     config: {
       mode: "split",
       swapChannels: false,
-      inst: { gain: 105, mute: false, hpf: 40, low: 2.0, mid: 0.5, high: -1.5 },
-      vocal: { gain: 110, mute: false, hpf: 80, low: 1.5, mid: 1.5, deesser: 2.5, high: 0.5, comp: true },
-      reverb: { wet: 24, decay: 1.8 },
+      inst: { gain: 105, mute: false, hpf: 40, hpfSlope: 12, lpf: 18500, low: 2.0, mid: 0.5, high: -1.5, reverbSend: 80 },
+      vocal: { gain: 110, mute: false, hpf: 80, hpfSlope: 12, lpf: 20000, low: 1.5, mid: 1.5, deesser: 2.5, high: 0.5, comp: true, reverbSend: 115 },
+      reverb: { preset: "large_mandir_hall", wet: 22, decay: 2.1, preDelayMs: 32, toneHz: 6500, roomSize: 82, stereoWidth: 120 },
       master: { b80: 1.0, b250: -1.0, b1k: 0, b3k5: 1.0, b10k: 0.5, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
@@ -45,9 +45,9 @@ const DEFAULT_PRESETS = [
     config: {
       mode: "split",
       swapChannels: false,
-      inst: { gain: 85, mute: false, hpf: 60, low: 0, mid: -2.0, high: -1.5 },
-      vocal: { gain: 120, mute: false, hpf: 95, low: -1.0, mid: 4.0, deesser: 3.5, high: 2.5, comp: true },
-      reverb: { wet: 12, decay: 1.2 },
+      inst: { gain: 85, mute: false, hpf: 60, hpfSlope: 12, lpf: 18000, low: 0, mid: -2.0, high: -1.5, reverbSend: 55 },
+      vocal: { gain: 120, mute: false, hpf: 95, hpfSlope: 24, lpf: 20000, low: -1.0, mid: 4.0, deesser: 3.5, high: 2.5, comp: true, reverbSend: 95 },
+      reverb: { preset: "small_mandir", wet: 12, decay: 1.1, preDelayMs: 14, toneHz: 8400, roomSize: 42, stereoWidth: 95 },
       master: { b80: -0.5, b250: -2.5, b1k: 0.5, b3k5: 2.5, b10k: 1.5, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
@@ -59,10 +59,94 @@ const DEFAULT_PRESETS = [
     config: {
       mode: "split",
       swapChannels: false,
-      inst: { gain: 108, mute: false, hpf: 38, low: 3.0, mid: 1.0, high: 2.0 },
-      vocal: { gain: 110, mute: false, hpf: 85, low: 0, mid: 2.0, deesser: 2.5, high: 2.0, comp: true },
-      reverb: { wet: 10, decay: 1.1 },
+      inst: { gain: 108, mute: false, hpf: 38, hpfSlope: 12, lpf: 20000, low: 3.0, mid: 1.0, high: 2.0, comp: true, compAttackMs: 18, reverbSend: 50 },
+      vocal: { gain: 110, mute: false, hpf: 85, hpfSlope: 12, lpf: 20000, low: 0, mid: 2.0, deesser: 2.5, high: 2.0, comp: true, reverbSend: 95 },
+      reverb: { preset: "studio_room", wet: 10, decay: 0.9, preDelayMs: 10, toneHz: 8800, roomSize: 35, stereoWidth: 90 },
       master: { b80: 1.5, b250: -2.0, b1k: 0, b3k5: 2.0, b10k: 2.5, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-natural-instruments",
+    name: "Natural Instruments",
+    description: "Uncolored acoustic balance preserving harmonium sustain and tabla room decay",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 100, mute: false, hpf: 38, hpfSlope: 12, lpf: 20000, low: 0.5, mid: 0, high: 0.5, reverbSend: 60 },
+      vocal: { gain: 108, mute: false, hpf: 80, hpfSlope: 12, lpf: 20000, low: 0, mid: 1.0, deesser: 2.0, high: 0.5, comp: true, reverbSend: 95 },
+      reverb: { preset: "medium_prayer_hall", wet: 12, decay: 1.2, preDelayMs: 18, toneHz: 7800, roomSize: 55, stereoWidth: 105 },
+      master: { b80: 0, b250: -1.0, b1k: 0, b3k5: 0.5, b10k: 0.5, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-harmonium-clarity",
+    name: "Harmonium Clarity",
+    description: "Cuts boxiness and highlights warm harmonium reeds alongside clean lead vocals",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 104, mute: false, hpf: 48, hpfSlope: 12, lpf: 18500, low: 1.5, mid: 1.0, midFreq: 1100, midQ: 1.1, high: -1.5, reverbSend: 65 },
+      vocal: { gain: 110, mute: false, hpf: 85, hpfSlope: 12, lpf: 20000, low: 0, mid: 2.0, deesser: 2.5, high: 1.0, comp: true, reverbSend: 100 },
+      reverb: { preset: "medium_prayer_hall", wet: 14, decay: 1.4, preDelayMs: 20, toneHz: 7600, roomSize: 62, stereoWidth: 110 },
+      master: { b80: 0.5, b250: -2.0, b1k: 0.5, b3k5: 1.0, b10k: 0.5, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-tabla-definition",
+    name: "Tabla Definition",
+    description: "Defined bayam bass punch and clean dayan transient snap with soft vocal glue",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 106, mute: false, hpf: 36, hpfSlope: 12, lpf: 20000, low: 2.5, mid: 0.5, midFreq: 350, midQ: 1.2, high: 2.5, comp: true, compAttackMs: 20, reverbSend: 45 },
+      vocal: { gain: 110, mute: false, hpf: 85, hpfSlope: 12, lpf: 20000, low: 0, mid: 1.5, deesser: 2.5, high: 1.5, comp: true, reverbSend: 95 },
+      reverb: { preset: "small_mandir", wet: 11, decay: 1.0, preDelayMs: 12, toneHz: 8500, roomSize: 40, stereoWidth: 95 },
+      master: { b80: 1.5, b250: -2.0, b1k: 0, b3k5: 1.5, b10k: 2.0, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-natural-vocal",
+    name: "Natural Vocal",
+    description: "Gentle rumble removal and transparent dynamic de-essing with minimal coloring",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 96, mute: false, hpf: 45, hpfSlope: 12, lpf: 20000, low: 0.5, mid: -0.5, high: -0.5, reverbSend: 60 },
+      vocal: { gain: 110, mute: false, hpf: 80, hpfSlope: 12, lpf: 20000, low: 0.5, mid: 1.0, deesser: 2.5, high: 1.0, comp: true, reverbSend: 100 },
+      reverb: { preset: "medium_prayer_hall", wet: 14, decay: 1.4, preDelayMs: 20, toneHz: 7600, roomSize: 62, stereoWidth: 110 },
+      master: { b80: 0, b250: -1.0, b1k: 0, b3k5: 1.0, b10k: 0.5, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-vocal-presence",
+    name: "Vocal Presence",
+    description: "Articulate devotion lyrics for soloists and chorus lead without harsh sibilance",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 90, mute: false, hpf: 55, hpfSlope: 12, lpf: 18500, low: 0, mid: -1.5, high: -1.0, reverbSend: 55 },
+      vocal: { gain: 116, mute: false, hpf: 90, hpfSlope: 24, lpf: 20000, low: -0.5, mid: 3.0, deesser: 3.5, high: 2.0, comp: true, reverbSend: 105 },
+      reverb: { preset: "vocal_plate", wet: 15, decay: 1.25, preDelayMs: 18, toneHz: 9500, roomSize: 52, stereoWidth: 115 },
+      master: { b80: 0, b250: -2.0, b1k: 0.5, b3k5: 2.0, b10k: 1.5, glueComp: true, limiter: true, gain: 100, bypass: false }
+    }
+  },
+  {
+    id: "builtin-full-bhajan-ensemble",
+    name: "Full Bhajan Ensemble",
+    description: "Broadcast-ready live mix tuned for full mandir bhajan satsang sessions",
+    isBuiltIn: true,
+    config: {
+      mode: "split",
+      swapChannels: false,
+      inst: { gain: 102, mute: false, hpf: 42, hpfSlope: 12, lpf: 20000, low: 1.5, mid: -0.5, high: 0.5, reverbSend: 70 },
+      vocal: { gain: 114, mute: false, hpf: 85, hpfSlope: 12, lpf: 20000, low: 0.5, mid: 2.0, deesser: 3.0, high: 1.5, comp: true, reverbSend: 105 },
+      reverb: { preset: "medium_prayer_hall", wet: 18, decay: 1.6, preDelayMs: 24, toneHz: 7400, roomSize: 68, stereoWidth: 115 },
+      master: { b80: 0.5, b250: -1.8, b1k: 0, b3k5: 1.5, b10k: 1.0, glueComp: true, limiter: true, gain: 100, bypass: false }
     }
   },
   {
@@ -73,9 +157,9 @@ const DEFAULT_PRESETS = [
     config: {
       mode: "split",
       swapChannels: false,
-      inst: { gain: 100, mute: false, hpf: 20, low: 0, mid: 0, high: 0 },
-      vocal: { gain: 100, mute: false, hpf: 20, low: 0, mid: 0, deesser: 0, high: 0, comp: false },
-      reverb: { wet: 0, decay: 1.2 },
+      inst: { gain: 100, mute: false, hpf: 20, hpfSlope: 12, lpf: 20000, low: 0, mid: 0, high: 0, reverbSend: 0 },
+      vocal: { gain: 100, mute: false, hpf: 20, hpfSlope: 12, lpf: 20000, low: 0, mid: 0, deesser: 0, high: 0, comp: false, reverbSend: 0 },
+      reverb: { preset: "studio_room", wet: 0, decay: 1.2, preDelayMs: 12, toneHz: 9000, roomSize: 30, stereoWidth: 100 },
       master: { b80: 0, b250: 0, b1k: 0, b3k5: 0, b10k: 0, glueComp: false, limiter: true, gain: 100, bypass: true }
     }
   }

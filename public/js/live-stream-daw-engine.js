@@ -1,7 +1,8 @@
 /**
- * Non-Destructive Multitrack DAW Timeline, Tracks & Modular FX Engine
- * Manages dynamic tracks, per-track/master modular FX racks, clips, splits, trims,
- * ripple deletes, crossfades, undo/redo history, and synchronized bhajan markers.
+ * Non-Destructive Multitrack DAW Timeline, Tracks, Sample-Accurate Automation & Project Engine
+ * Manages dynamic tracks, per-track/master modular FX racks, clips, splits, trims, slips,
+ * nudges, snapping, clipboard copy/paste/duplicate, normalize, loop regions, automation lanes,
+ * undo/redo history, synchronized bhajan markers, and complete project manifest serialization.
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
@@ -12,12 +13,13 @@
 })(typeof globalThis !== "undefined" ? globalThis : self, function (Dsp) {
   "use strict";
 
-  const MAX_UNDO = 50;
-  const TRACK_COLORS = ["#d97706", "#2563eb", "#16a34a", "#9333ea", "#0891b2", "#db2777", "#65a30d"];
+  const MAX_UNDO = 60;
+  const TRACK_COLORS = ["#9333ea", "#2563eb", "#16a34a", "#d97706", "#0891b2", "#db2777", "#65a30d"];
   let nextClipCounter = 1;
   let nextMarkerCounter = 1;
   let nextTrackCounter = 3;
   let nextFxCounter = 1;
+  let nextAutoCounter = 1;
 
   function genClipId() {
     return `clip-${Date.now().toString(36)}-${nextClipCounter++}`;
@@ -29,6 +31,10 @@
 
   function genTrackId() {
     return `track-${nextTrackCounter++}-${Date.now().toString(36)}`;
+  }
+
+  function genAutoId() {
+    return `auto-${Date.now().toString(36)}-${nextAutoCounter++}`;
   }
 
   function cloneData(obj) {
@@ -44,33 +50,63 @@
       type,
       name: type,
       enabled: overrides?.enabled !== false,
+      wetDry: overrides?.wetDry != null ? Number(overrides.wetDry) : 100,
       params: Object.assign({}, overrides?.params || overrides || {})
     };
+  }
+
+  const AUTOMATION_LANES = {
+    gain: { key: "gain", label: "Track Volume (%)", min: 0, max: 180, defaultVal: 100, unit: "%" },
+    pan: { key: "pan", label: "Stereo Pan", min: -100, max: 100, defaultVal: 0, unit: "" },
+    clipGain: { key: "clipGain", label: "Clip Gain (dB)", min: -18, max: 12, defaultVal: 0, unit: " dB" },
+    eqPresenceDb: { key: "eqPresenceDb", label: "EQ Presence 3.5k (dB)", min: -12, max: 12, defaultVal: 0, unit: " dB" },
+    compThreshold: { key: "compThreshold", label: "Comp Threshold (dB)", min: -48, max: 0, defaultVal: -18, unit: " dB" },
+    reverbSend: { key: "reverbSend", label: "Reverb Wet/Send (%)", min: 0, max: 100, defaultVal: 16, unit: "%" },
+    fxWetDry: { key: "fxWetDry", label: "Plugin Rack Mix (%)", min: 0, max: 100, defaultVal: 100, unit: "%" }
+  };
+
+  function createDefaultAutomation() {
+    const out = {};
+    Object.keys(AUTOMATION_LANES).forEach((k) => { out[k] = []; });
+    return out;
+  }
+
+  function quantizeToSample(sec, state) {
+    const sr = Math.max(8000, Number(state && state.timelineConfig && state.timelineConfig.sampleRate) || 48000);
+    return Math.round(Math.max(0, Number(sec) || 0) * sr) / sr;
   }
 
   function createDefaultTracks() {
     return [
       {
         id: "track-1",
-        name: "Track 1 · Instruments",
-        color: "#d97706",
+        name: "Track 1 · Vocals",
+        color: "#9333ea",
         role: "ch1",
+        inputChannel: 1,
         gain: 100,
         pan: 0,
         mute: false,
         solo: false,
-        fxRack: []
+        frozen: false,
+        groupId: null,
+        fxRack: [],
+        automation: createDefaultAutomation()
       },
       {
         id: "track-2",
-        name: "Track 2 · Vocals",
+        name: "Track 2 · Instruments",
         color: "#2563eb",
         role: "ch2",
+        inputChannel: 2,
         gain: 100,
         pan: 0,
         mute: false,
         solo: false,
-        fxRack: []
+        frozen: false,
+        groupId: null,
+        fxRack: [],
+        automation: createDefaultAutomation()
       }
     ];
   }
@@ -82,14 +118,34 @@
       color: "#dc2626",
       role: "master",
       gain: 100,
+      inputTrimDb: 0,
       pan: 0,
       mute: false,
       solo: false,
+      groupId: null,
       fxRack: [
-        createFxSlotData("eq", { id: "fx-master-eq" }),
-        createFxSlotData("limiter", { id: "fx-master-lim", ceilingDb: -1.5, releaseMs: 80 })
-      ]
+        createFxSlotData("eq", { id: "fx-master-eq", name: "Corrective EQ", enabled: true, hpfHz: 28, hpfSlope: 24 }),
+        createFxSlotData("compressor", {
+          id: "fx-master-glue",
+          name: "Bus Glue Compressor",
+          threshold: -14,
+          ratio: 2.0,
+          knee: 14,
+          attackMs: 22,
+          releaseMs: 260,
+          enabled: true
+        }),
+        createFxSlotData("eq", { id: "fx-master-tonal-eq", name: "Tonal Mastering EQ", enabled: false, linearPhase: 1 }),
+        createFxSlotData("saturation", { id: "fx-master-sat", name: "Mastering Warmth", enabled: false, drive: 15, mix: 25, autoGain: 1 }),
+        createFxSlotData("stereo_width", { id: "fx-master-width", name: "Stereo M/S Imager", enabled: false, widthPct: 108, bassMonoHz: 120 }),
+        createFxSlotData("limiter", { id: "fx-master-lim", name: "True-Peak Brickwall Limiter", enabled: true, ceilingDb: -1.0, releaseMs: 80 })
+      ],
+      automation: createDefaultAutomation()
     };
+  }
+
+  function createDefaultTimelineConfig() {
+    return { rulerMode: "time", bpm: 96, beatsPerBar: 4, sampleRate: 48000 };
   }
 
   function createInitialState() {
@@ -100,6 +156,10 @@
       tracks: createDefaultTracks(),
       masterTrack: createDefaultMasterTrack(),
       selectedTrackId: "track-1",
+      clipboard: [],
+      loopRegion: { enabled: false, startSec: 0, endSec: 0 },
+      snap: { gridEnabled: false, gridSec: 1.0, markersEnabled: true, toleranceSec: 0.35 },
+      timelineConfig: createDefaultTimelineConfig(),
       undoStack: [],
       redoStack: []
     };
@@ -109,27 +169,75 @@
     if (!Array.isArray(state.tracks) || state.tracks.length === 0) {
       state.tracks = createDefaultTracks();
     }
+    state.tracks.forEach((tr) => {
+      if (!tr.automation) tr.automation = createDefaultAutomation();
+      Object.keys(AUTOMATION_LANES).forEach((k) => {
+        if (!Array.isArray(tr.automation[k])) tr.automation[k] = [];
+      });
+      if (!Array.isArray(tr.fxRack)) tr.fxRack = [];
+      if (tr.groupId === undefined) tr.groupId = null;
+    });
     if (!state.masterTrack) {
       state.masterTrack = createDefaultMasterTrack();
     }
+    if (state.masterTrack.inputTrimDb === undefined) {
+      state.masterTrack.inputTrimDb = 0;
+    }
+    if (!state.masterTrack.automation) state.masterTrack.automation = createDefaultAutomation();
+    Object.keys(AUTOMATION_LANES).forEach((k) => {
+      if (!Array.isArray(state.masterTrack.automation[k])) state.masterTrack.automation[k] = [];
+    });
     if (!state.selectedTrackId) {
       state.selectedTrackId = state.tracks[0].id;
     }
+    if (!state.loopRegion) {
+      state.loopRegion = { enabled: false, startSec: 0, endSec: 0 };
+    }
+    if (!state.snap) {
+      state.snap = { gridEnabled: false, gridSec: 1.0, markersEnabled: true, toleranceSec: 0.35 };
+    }
+    if (!state.timelineConfig) {
+      state.timelineConfig = createDefaultTimelineConfig();
+    }
+    if (!Array.isArray(state.clipboard)) {
+      state.clipboard = [];
+    }
   }
 
-  function pushUndo(state) {
+  function pushUndo(state, label = "Edit") {
     ensureTrackState(state);
     state.undoStack.push({
+      label: String(label || "Edit"),
+      timestamp: Date.now(),
       clips: cloneData(state.clips),
       markers: cloneData(state.markers),
       tracks: cloneData(state.tracks),
       masterTrack: cloneData(state.masterTrack),
-      selectedTrackId: state.selectedTrackId
+      selectedTrackId: state.selectedTrackId,
+      loopRegion: cloneData(state.loopRegion)
     });
     if (state.undoStack.length > MAX_UNDO) {
       state.undoStack.shift();
     }
     state.redoStack = [];
+  }
+
+  function setTimelineConfig(state, patch = {}) {
+    ensureTrackState(state);
+    const cfg = state.timelineConfig;
+    if (patch.rulerMode && ["time", "bars", "samples"].includes(patch.rulerMode)) {
+      cfg.rulerMode = patch.rulerMode;
+    }
+    if (patch.bpm != null && Number.isFinite(Number(patch.bpm))) {
+      cfg.bpm = Math.max(30, Math.min(240, Number(patch.bpm)));
+    }
+    if (patch.beatsPerBar != null && Number.isFinite(Number(patch.beatsPerBar))) {
+      cfg.beatsPerBar = Math.max(2, Math.min(12, Math.round(Number(patch.beatsPerBar))));
+    }
+    if (patch.sampleRate != null && Number.isFinite(Number(patch.sampleRate))) {
+      cfg.sampleRate = Math.max(44100, Math.min(96000, Math.round(Number(patch.sampleRate))));
+    }
+    return cfg;
   }
 
   function computeTimelineLayout(clips) {
@@ -144,7 +252,6 @@
       const duration = Math.max(0.05, Number(c.sourceEnd || 0) - Number(c.sourceStart || 0));
 
       if (!c.trackId) {
-        // Master/linked timeline spine (100% compatible with Ch1+Ch2 split stems)
         let effectiveCrossfade = 0;
         if (spineIndex > 0 && Number(c.crossfadePrevSec || 0) > 0) {
           const prevSpine = items.slice().reverse().find((it) => !it.clip.trackId);
@@ -171,7 +278,6 @@
           timelineEnd
         });
       } else {
-        // Independent custom track clip
         const tid = c.trackId;
         const defaultStart = trackCursors[tid] || 0;
         const timelineStart = c.timelineOffsetSec != null
@@ -199,6 +305,42 @@
     };
   }
 
+  function snapTime(state, rawSec, overrideOpts = {}) {
+    const t = Math.max(0, Number(rawSec) || 0);
+    ensureTrackState(state);
+    const snap = Object.assign({}, state.snap, overrideOpts);
+    const tol = Number(snap.toleranceSec) || 0.35;
+
+    if (snap.markersEnabled && Array.isArray(state.markers)) {
+      let bestMarker = null;
+      let bestDist = tol;
+      for (let i = 0; i < state.markers.length; i++) {
+        const ms = Number(state.markers[i].start_seconds || 0);
+        const dist = Math.abs(ms - t);
+        if (dist <= bestDist) {
+          bestDist = dist;
+          bestMarker = ms;
+        }
+      }
+      if (bestMarker !== null) return quantizeToSample(bestMarker, state);
+    }
+
+    if (snap.gridEnabled) {
+      let g = overrideOpts.gridSec != null ? Number(overrideOpts.gridSec) : null;
+      if (!(g > 0)) {
+        if (state.timelineConfig && state.timelineConfig.rulerMode === "bars") {
+          g = 60 / Math.max(30, Number(state.timelineConfig.bpm) || 96);
+        } else {
+          g = Number(snap.gridSec) || 1.0;
+        }
+      }
+      if (g > 0) {
+        return quantizeToSample(Math.round(t / g) * g, state);
+      }
+    }
+    return quantizeToSample(t, state);
+  }
+
   function addSource(state, { id, name, duration, sampleRate = 48000, hasTwoTracks = false }) {
     const srcId = id || `src-${Date.now().toString(36)}-${Object.keys(state.sources).length + 1}`;
     state.sources[srcId] = {
@@ -214,7 +356,7 @@
   function appendClip(state, { sourceId, label, duration, crossfadePrevSec = 0.25, trackId = null, timelineOffsetSec = null } = {}) {
     const src = state.sources[sourceId];
     const clipDur = src ? src.duration : Math.max(0.1, Number(duration) || 0.1);
-    pushUndo(state);
+    pushUndo(state, "Append Clip");
 
     const existingSpineCount = state.clips.filter((x) => !x.trackId).length;
     const clip = {
@@ -235,7 +377,7 @@
   }
 
   function splitAt(state, timeSec, targetTrackId) {
-    const t = Number(timeSec);
+    const t = quantizeToSample(Number(timeSec), state);
     if (!Number.isFinite(t)) return false;
 
     const { items } = computeTimelineLayout(state.clips);
@@ -254,10 +396,10 @@
     }
     if (!target) return false;
 
-    pushUndo(state);
+    pushUndo(state, "Split Clip");
     const orig = target.clip;
     const offsetInClip = t - target.timelineStart;
-    const splitSourceTime = orig.sourceStart + offsetInClip;
+    const splitSourceTime = quantizeToSample(orig.sourceStart + offsetInClip, state);
 
     const firstClip = {
       ...cloneData(orig),
@@ -299,7 +441,7 @@
     const dBack = clip.sourceEnd - nextEnd;
     if (Math.abs(dFront) < 0.001 && Math.abs(dBack) < 0.001) return false;
 
-    pushUndo(state);
+    pushUndo(state, "Trim Clip");
     const oldStart = target.timelineStart;
     const oldEnd = target.timelineEnd;
 
@@ -328,12 +470,241 @@
     return true;
   }
 
+  /**
+   * Non-destructive slip edit: slides underlying audio content inside a clip window without changing clip duration.
+   */
+  function slipClip(state, clipId, deltaSourceSec) {
+    const idx = state.clips.findIndex((c) => c.id === clipId);
+    if (idx === -1) return false;
+    const clip = state.clips[idx];
+    const src = state.sources[clip.sourceId];
+    const srcDur = src ? src.duration : clip.sourceEnd;
+    const clipLen = clip.sourceEnd - clip.sourceStart;
+    const minDelta = -clip.sourceStart;
+    const maxDelta = srcDur - clip.sourceEnd;
+    const clampedDelta = Math.max(minDelta, Math.min(maxDelta, Number(deltaSourceSec) || 0));
+    if (Math.abs(clampedDelta) < 0.001) return false;
+
+    pushUndo(state, "Slip Clip");
+    clip.sourceStart += clampedDelta;
+    clip.sourceEnd = clip.sourceStart + clipLen;
+    return true;
+  }
+
+  /**
+   * Nudge a track clip left or right along the timeline (promotes spine clip offset if needed or adjusts timelineOffsetSec).
+   */
+  function nudgeClip(state, clipId, deltaSec, snapOpts = null) {
+    const { items } = computeTimelineLayout(state.clips);
+    const target = items.find((it) => it.clip.id === clipId);
+    if (!target) return false;
+
+    const delta = Number(deltaSec) || 0;
+    if (Math.abs(delta) < 0.001) return false;
+
+    pushUndo(state, "Nudge Clip");
+    const c = state.clips[target.index];
+    const baseStart = c.trackId ? target.timelineStart : target.timelineStart;
+    let nextStart = Math.max(0, baseStart + delta);
+    if (snapOpts) {
+      nextStart = snapTime(state, nextStart, snapOpts);
+    }
+    if (!c.trackId) {
+      c.trackId = state.selectedTrackId && state.selectedTrackId !== "master"
+        ? state.selectedTrackId
+        : (state.tracks[0] && state.tracks[0].id) || "track-1";
+    }
+    c.timelineOffsetSec = quantizeToSample(nextStart, state);
+    c.crossfadePrevSec = 0;
+    return true;
+  }
+
+  function duplicateClip(state, clipId) {
+    const { items } = computeTimelineLayout(state.clips);
+    const target = items.find((it) => it.clip.id === clipId);
+    if (!target) return null;
+
+    pushUndo(state, "Duplicate Clip");
+    const copy = cloneData(target.clip);
+    copy.id = genClipId();
+    copy.label = `${copy.label} Copy`;
+    if (copy.trackId) {
+      copy.timelineOffsetSec = target.timelineEnd;
+    } else {
+      copy.crossfadePrevSec = 0;
+    }
+    state.clips.push(copy);
+    return copy;
+  }
+
+  function copyClips(state, clipIds) {
+    ensureTrackState(state);
+    const ids = new Set(Array.isArray(clipIds) ? clipIds : [clipIds]);
+    const matched = state.clips.filter((c) => ids.has(c.id)).map((c) => cloneData(c));
+    state.clipboard = matched;
+    return matched.length;
+  }
+
+  function pasteClips(state, atTimeSec = 0, targetTrackId = null) {
+    ensureTrackState(state);
+    if (!state.clipboard.length) return [];
+    pushUndo(state, "Paste Clips");
+    const created = [];
+    let cursor = Math.max(0, Number(atTimeSec) || 0);
+    state.clipboard.forEach((srcClip) => {
+      const c = cloneData(srcClip);
+      c.id = genClipId();
+      if (targetTrackId && targetTrackId !== "master") {
+        c.trackId = targetTrackId;
+        c.timelineOffsetSec = cursor;
+      } else if (c.trackId) {
+        c.timelineOffsetSec = cursor;
+      }
+      cursor += Math.max(0.05, Number(c.sourceEnd) - Number(c.sourceStart));
+      state.clips.push(c);
+      created.push(c);
+    });
+    return created;
+  }
+
+  function cutClips(state, clipIds) {
+    ensureTrackState(state);
+    const ids = new Set(Array.isArray(clipIds) ? clipIds : [clipIds]);
+    const matched = state.clips.filter((c) => ids.has(c.id)).map((c) => cloneData(c));
+    if (matched.length === 0) return 0;
+    state.clipboard = matched;
+    pushUndo(state, "Cut Clips");
+    state.clips = state.clips.filter((c) => !ids.has(c.id));
+    const firstSpine = state.clips.find((c) => !c.trackId);
+    if (firstSpine) firstSpine.crossfadePrevSec = 0;
+    return matched.length;
+  }
+
+  function joinClips(state, clipIds = []) {
+    ensureTrackState(state);
+    const { items } = computeTimelineLayout(state.clips);
+    let group = [];
+    const reqIds = Array.isArray(clipIds) ? clipIds.filter(Boolean) : [clipIds].filter(Boolean);
+    if (reqIds.length >= 2) {
+      const idSet = new Set(reqIds);
+      group = items.filter((it) => idSet.has(it.clip.id));
+    } else if (reqIds.length === 1) {
+      const firstIdx = items.findIndex((it) => it.clip.id === reqIds[0]);
+      if (firstIdx !== -1) {
+        const first = items[firstIdx];
+        const nextSame = items.slice(firstIdx + 1).find((it) => (it.clip.trackId || null) === (first.clip.trackId || null));
+        if (nextSame) group = [first, nextSame];
+      }
+    }
+    if (group.length < 2) return null;
+    const refSrc = group[0].clip.sourceId;
+    const refTrack = group[0].clip.trackId || null;
+    if (!group.every((it) => it.clip.sourceId === refSrc && (it.clip.trackId || null) === refTrack)) {
+      return null;
+    }
+    const sorted = group.slice().sort((a, b) => a.clip.sourceStart - b.clip.sourceStart);
+    const firstClip = sorted[0].clip;
+    const lastClip = sorted[sorted.length - 1].clip;
+    const minStart = Math.min(...sorted.map((it) => it.clip.sourceStart));
+    const maxEnd = Math.max(...sorted.map((it) => it.clip.sourceEnd));
+    const removeIds = new Set(sorted.slice(1).map((it) => it.clip.id));
+
+    pushUndo(state, "Join Clips");
+    const target = state.clips.find((c) => c.id === firstClip.id);
+    if (!target) return null;
+    target.sourceStart = minStart;
+    target.sourceEnd = maxEnd;
+    target.fadeOutSec = lastClip.fadeOutSec || 0;
+    state.clips = state.clips.filter((c) => !removeIds.has(c.id));
+    return target;
+  }
+
+  function applyRangeGain(state, rangeStartSec, rangeEndSec, deltaGainDb, targetTrackId = null) {
+    ensureTrackState(state);
+    const rStart = Math.max(0, Math.min(Number(rangeStartSec), Number(rangeEndSec)));
+    const rEnd = Math.max(rStart, Math.max(Number(rangeStartSec), Number(rangeEndSec)));
+    const dGain = Number(deltaGainDb);
+    if (!Number.isFinite(rStart) || !Number.isFinite(rEnd) || rEnd - rStart < 0.05 || !Number.isFinite(dGain)) {
+      return 0;
+    }
+    const { items } = computeTimelineLayout(state.clips);
+    const overlaps = (it) =>
+      it.timelineEnd > rStart + 0.005 &&
+      it.timelineStart < rEnd - 0.005 &&
+      (!targetTrackId || targetTrackId === "master" || it.clip.trackId === targetTrackId || !it.clip.trackId);
+    if (!items.some(overlaps)) return 0;
+
+    pushUndo(state, "Range Gain");
+    const nextClips = [];
+    let modified = 0;
+
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i];
+      const c = it.clip;
+      if (!overlaps(it)) {
+        nextClips.push(cloneData(c));
+        continue;
+      }
+
+      const cutStart = Math.max(it.timelineStart, rStart);
+      const cutEnd = Math.min(it.timelineEnd, rEnd);
+      const srcInCutStart = c.sourceStart + (cutStart - it.timelineStart);
+      const srcInCutEnd = c.sourceStart + (cutEnd - it.timelineStart);
+
+      if (cutStart - it.timelineStart > 0.05) {
+        const leftPart = cloneData(c);
+        leftPart.sourceEnd = quantizeToSample(srcInCutStart, state);
+        leftPart.fadeOutSec = 0;
+        nextClips.push(leftPart);
+      }
+
+      const midPart = cloneData(c);
+      if (cutStart - it.timelineStart > 0.05) midPart.id = genClipId();
+      midPart.sourceStart = quantizeToSample(srcInCutStart, state);
+      midPart.sourceEnd = quantizeToSample(srcInCutEnd, state);
+      midPart.gainDb = Math.max(-24, Math.min(18, Math.round(((Number(c.gainDb) || 0) + dGain) * 10) / 10));
+      if (cutStart - it.timelineStart > 0.05) {
+        midPart.fadeInSec = 0;
+        midPart.crossfadePrevSec = 0;
+      }
+      if (it.timelineEnd - cutEnd > 0.05) {
+        midPart.fadeOutSec = 0;
+      }
+      if (c.trackId) midPart.timelineOffsetSec = quantizeToSample(cutStart, state);
+      nextClips.push(midPart);
+      modified += 1;
+
+      if (it.timelineEnd - cutEnd > 0.05) {
+        const rightPart = cloneData(c);
+        rightPart.id = genClipId();
+        rightPart.sourceStart = quantizeToSample(srcInCutEnd, state);
+        rightPart.fadeInSec = 0;
+        rightPart.crossfadePrevSec = 0;
+        if (c.trackId) rightPart.timelineOffsetSec = quantizeToSample(cutEnd, state);
+        nextClips.push(rightPart);
+      }
+    }
+
+    state.clips = nextClips;
+    return modified;
+  }
+
+  function normalizeClip(state, clipId, targetPeakDb = -1.0, measuredPeakDb = -6.0) {
+    const idx = state.clips.findIndex((c) => c.id === clipId);
+    if (idx === -1) return false;
+    if (!Number.isFinite(measuredPeakDb) || measuredPeakDb < -80) return false;
+    const neededGain = Math.max(-24, Math.min(18, Number(targetPeakDb) - Number(measuredPeakDb)));
+    pushUndo(state, "Normalize Clip");
+    state.clips[idx].gainDb = Math.round(neededGain * 10) / 10;
+    return true;
+  }
+
   function rippleDeleteClip(state, clipId, { joinCrossfadeSec = 0.25 } = {}) {
     const { items } = computeTimelineLayout(state.clips);
     const idx = items.findIndex((it) => it.clip.id === clipId);
     if (idx === -1) return false;
 
-    pushUndo(state);
+    pushUndo(state, "Ripple Delete Clip");
     const target = items[idx];
     const isSpine = !target.clip.trackId;
     const delStart = target.timelineStart;
@@ -386,7 +757,7 @@
     const touchesAny = items.some((it) => it.timelineEnd > rStart && it.timelineStart < rEnd);
     if (!touchesAny) return false;
 
-    pushUndo(state);
+    pushUndo(state, "Ripple Cut Range");
 
     const newClips = [];
     let firstAfterSpineIdx = -1;
@@ -498,9 +869,9 @@
     return state.tracks.find((t) => t.id === trackId) || null;
   }
 
-  function addTrack(state, { name, color, role = "audio" } = {}) {
+  function addTrack(state, { name, color, role = "audio", groupId = null } = {}) {
     ensureTrackState(state);
-    pushUndo(state);
+    pushUndo(state, "Add Track");
     const idx = state.tracks.length;
     const track = {
       id: genTrackId(),
@@ -511,7 +882,10 @@
       pan: 0,
       mute: false,
       solo: false,
-      fxRack: []
+      frozen: false,
+      groupId: groupId || null,
+      fxRack: [],
+      automation: createDefaultAutomation()
     };
     state.tracks.push(track);
     state.selectedTrackId = track.id;
@@ -524,7 +898,7 @@
     const idx = state.tracks.findIndex((t) => t.id === trackId);
     if (idx === -1) return false;
 
-    pushUndo(state);
+    pushUndo(state, "Delete Track");
     state.tracks.splice(idx, 1);
     state.clips = state.clips.filter((c) => c.trackId !== trackId);
     if (state.selectedTrackId === trackId) {
@@ -543,19 +917,44 @@
   function renameTrack(state, trackId, name) {
     const tr = getTrackById(state, trackId);
     if (!tr || !String(name || "").trim()) return false;
-    pushUndo(state);
+    pushUndo(state, "Rename Track");
     tr.name = String(name).trim().slice(0, 48);
+    return true;
+  }
+
+  function setTrackGroup(state, trackId, groupId) {
+    const tr = getTrackById(state, trackId);
+    if (!tr || trackId === "master") return false;
+    tr.groupId = groupId || null;
     return true;
   }
 
   function updateTrackProps(state, trackId, props = {}, opts = {}) {
     const tr = getTrackById(state, trackId);
     if (!tr) return false;
-    if (opts.recordUndo) pushUndo(state);
-    if (props.gain != null) tr.gain = Math.max(0, Math.min(200, Number(props.gain) || 0));
-    if (props.pan != null) tr.pan = Math.max(-100, Math.min(100, Number(props.pan) || 0));
+    if (opts.recordUndo) pushUndo(state, "Track Mix");
+    const nextGain = props.gain != null ? Math.max(0, Math.min(200, Number(props.gain) || 0)) : null;
+    const nextPan = props.pan != null ? Math.max(-100, Math.min(100, Number(props.pan) || 0)) : null;
+    const dGain = nextGain != null ? nextGain - (tr.gain ?? 100) : 0;
+    const dPan = nextPan != null ? nextPan - (tr.pan ?? 0) : 0;
+
+    if (nextGain != null) tr.gain = nextGain;
+    if (props.inputTrimDb != null) tr.inputTrimDb = Math.max(-24, Math.min(18, Number(props.inputTrimDb) || 0));
+    if (nextPan != null) tr.pan = nextPan;
     if (props.mute != null) tr.mute = Boolean(props.mute);
     if (props.solo != null) tr.solo = Boolean(props.solo);
+    if (props.frozen != null) tr.frozen = Boolean(props.frozen);
+    if (props.groupId !== undefined && trackId !== "master") tr.groupId = props.groupId || null;
+
+    if (tr.groupId && trackId !== "master" && !opts.skipGroup) {
+      state.tracks.forEach((peer) => {
+        if (peer.id === tr.id || peer.groupId !== tr.groupId) return;
+        if (nextGain != null && dGain !== 0) peer.gain = Math.max(0, Math.min(200, (peer.gain ?? 100) + dGain));
+        if (nextPan != null && dPan !== 0) peer.pan = Math.max(-100, Math.min(100, (peer.pan ?? 0) + dPan));
+        if (props.mute != null) peer.mute = Boolean(props.mute);
+        if (props.solo != null) peer.solo = Boolean(props.solo);
+      });
+    }
     return true;
   }
 
@@ -564,11 +963,23 @@
   function addTrackFx(state, trackId, fxType, overrides) {
     const tr = getTrackById(state, trackId);
     if (!tr) return null;
-    pushUndo(state);
+    pushUndo(state, `Add FX: ${fxType}`);
     const slot = createFxSlotData(fxType, overrides);
     if (!Array.isArray(tr.fxRack)) tr.fxRack = [];
     tr.fxRack.push(slot);
     return slot;
+  }
+
+  function duplicateTrackFx(state, trackId, slotId) {
+    const tr = getTrackById(state, trackId);
+    if (!tr || !Array.isArray(tr.fxRack)) return null;
+    const idx = tr.fxRack.findIndex((s) => s.id === slotId);
+    if (idx === -1) return null;
+    pushUndo(state, "Duplicate FX");
+    const copy = cloneData(tr.fxRack[idx]);
+    copy.id = `fx-${Date.now().toString(36)}-${nextFxCounter++}`;
+    tr.fxRack.splice(idx + 1, 0, copy);
+    return copy;
   }
 
   function removeTrackFx(state, trackId, slotId) {
@@ -576,7 +987,7 @@
     if (!tr || !Array.isArray(tr.fxRack)) return false;
     const idx = tr.fxRack.findIndex((s) => s.id === slotId);
     if (idx === -1) return false;
-    pushUndo(state);
+    pushUndo(state, "Remove FX");
     tr.fxRack.splice(idx, 1);
     return true;
   }
@@ -586,7 +997,7 @@
     if (!tr || !Array.isArray(tr.fxRack)) return false;
     const slot = tr.fxRack.find((s) => s.id === slotId);
     if (!slot) return false;
-    pushUndo(state);
+    pushUndo(state, "Toggle FX");
     slot.enabled = !slot.enabled;
     return true;
   }
@@ -598,7 +1009,7 @@
     if (idx === -1) return false;
     const nextIdx = idx + (delta < 0 ? -1 : 1);
     if (nextIdx < 0 || nextIdx >= tr.fxRack.length) return false;
-    pushUndo(state);
+    pushUndo(state, "Reorder FX");
     const [removed] = tr.fxRack.splice(idx, 1);
     tr.fxRack.splice(nextIdx, 0, removed);
     return true;
@@ -610,11 +1021,110 @@
     const slot = tr.fxRack.find((s) => s.id === slotId);
     if (!slot) return false;
     if (opts.recordUndo) pushUndo(state);
+    if (nextParams && nextParams.wetDry != null) {
+      slot.wetDry = Math.max(0, Math.min(100, Number(nextParams.wetDry)));
+    }
     slot.params = Object.assign({}, slot.params || {}, nextParams || {});
     return true;
   }
 
-  /* =========================== Markers & Undo =========================== */
+  /* ==================== Sample-Accurate Automation Lanes ==================== */
+
+  function addAutomationPoint(state, trackId, laneName, timeSec, value) {
+    const tr = getTrackById(state, trackId);
+    if (!tr) return null;
+    if (!tr.automation) tr.automation = createDefaultAutomation();
+    if (!Array.isArray(tr.automation[laneName])) tr.automation[laneName] = [];
+    pushUndo(state, `Add Automation: ${laneName}`);
+    const pt = {
+      id: genAutoId(),
+      timeSec: quantizeToSample(timeSec, state),
+      value: Number(value) || 0
+    };
+    tr.automation[laneName].push(pt);
+    tr.automation[laneName].sort((a, b) => a.timeSec - b.timeSec);
+    return pt;
+  }
+
+  function updateAutomationPoint(state, trackId, laneName, ptId, { timeSec, value } = {}) {
+    const tr = getTrackById(state, trackId);
+    const list = tr && tr.automation && tr.automation[laneName];
+    if (!Array.isArray(list)) return false;
+    const pt = list.find((p) => p.id === ptId);
+    if (!pt) return false;
+    if (timeSec != null) pt.timeSec = quantizeToSample(timeSec, state);
+    if (value != null) pt.value = Number(value) || 0;
+    list.sort((a, b) => a.timeSec - b.timeSec);
+    return true;
+  }
+
+  function removeAutomationPoint(state, trackId, laneName, ptId) {
+    const tr = getTrackById(state, trackId);
+    const list = tr && tr.automation && tr.automation[laneName];
+    if (!Array.isArray(list)) return false;
+    const idx = list.findIndex((p) => p.id === ptId);
+    if (idx === -1) return false;
+    pushUndo(state, `Remove Automation: ${laneName}`);
+    list.splice(idx, 1);
+    return true;
+  }
+
+  function clearAutomationLane(state, trackId, laneName) {
+    const tr = getTrackById(state, trackId);
+    if (!tr) return false;
+    if (!tr.automation) tr.automation = createDefaultAutomation();
+    if (!Array.isArray(tr.automation[laneName]) || tr.automation[laneName].length === 0) return false;
+    pushUndo(state, `Clear Automation: ${laneName}`);
+    tr.automation[laneName] = [];
+    return true;
+  }
+
+  function evaluateAutomation(points, timeSec, fallbackValue = 0) {
+    if (!Array.isArray(points) || points.length === 0) return Number(fallbackValue) || 0;
+    const t = Math.max(0, Number(timeSec) || 0);
+    if (t <= points[0].timeSec) return Number(points[0].value);
+    const last = points[points.length - 1];
+    if (t >= last.timeSec) return Number(last.value);
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      if (t >= a.timeSec && t <= b.timeSec) {
+        const span = Math.max(1e-6, b.timeSec - a.timeSec);
+        const frac = (t - a.timeSec) / span;
+        return a.value + (b.value - a.value) * frac;
+      }
+    }
+    return Number(fallbackValue) || 0;
+  }
+
+  function sampleAutomationEnvelope(points, startSec, numSamples, sampleRate, fallbackValue = 0) {
+    const out = new Float32Array(numSamples);
+    if (!Array.isArray(points) || points.length === 0) {
+      out.fill(Number(fallbackValue) || 0);
+      return out;
+    }
+    const sr = Math.max(8000, Number(sampleRate) || 48000);
+    const t0 = Math.max(0, Number(startSec) || 0);
+    for (let i = 0; i < numSamples; i++) {
+      out[i] = evaluateAutomation(points, t0 + i / sr, fallbackValue);
+    }
+    return out;
+  }
+
+  function setLoopRegion(state, { enabled, startSec, endSec } = {}) {
+    ensureTrackState(state);
+    const s = Math.max(0, Number(startSec ?? state.loopRegion.startSec) || 0);
+    const e = Math.max(s, Number(endSec ?? state.loopRegion.endSec) || 0);
+    state.loopRegion = {
+      enabled: enabled != null ? Boolean(enabled) : state.loopRegion.enabled,
+      startSec: s,
+      endSec: e
+    };
+    return state.loopRegion;
+  }
+
+  /* ==================== Markers, Undo & Project Persistence ==================== */
 
   function setMarkers(state, markersList) {
     state.markers = (Array.isArray(markersList) ? markersList : [])
@@ -631,7 +1141,7 @@
   }
 
   function addMarker(state, { submission_id = null, bhajan_title, singer_name = "Samiti Singer", deity = "", start_seconds = 0 }) {
-    pushUndo(state);
+    pushUndo(state, "Add Marker");
     const marker = {
       id: genMarkerId(),
       submission_id,
@@ -648,7 +1158,7 @@
   function nudgeMarker(state, markerId, deltaSec) {
     const idx = state.markers.findIndex((m) => m.id === markerId);
     if (idx === -1) return false;
-    pushUndo(state);
+    pushUndo(state, "Nudge Marker");
     state.markers[idx].start_seconds = Math.max(
       0,
       Math.round((state.markers[idx].start_seconds + Number(deltaSec || 0)) * 100) / 100
@@ -660,7 +1170,7 @@
   function removeMarker(state, markerId) {
     const idx = state.markers.findIndex((m) => m.id === markerId);
     if (idx === -1) return false;
-    pushUndo(state);
+    pushUndo(state, "Remove Marker");
     state.markers.splice(idx, 1);
     return true;
   }
@@ -668,48 +1178,141 @@
   function undo(state) {
     if (state.undoStack.length === 0) return false;
     ensureTrackState(state);
+    const prev = state.undoStack.pop();
     state.redoStack.push({
+      label: prev.label || "Edit",
+      timestamp: prev.timestamp || Date.now(),
       clips: cloneData(state.clips),
       markers: cloneData(state.markers),
       tracks: cloneData(state.tracks),
       masterTrack: cloneData(state.masterTrack),
-      selectedTrackId: state.selectedTrackId
+      selectedTrackId: state.selectedTrackId,
+      loopRegion: cloneData(state.loopRegion)
     });
-    const prev = state.undoStack.pop();
     state.clips = prev.clips;
     state.markers = prev.markers;
     if (prev.tracks) state.tracks = prev.tracks;
     if (prev.masterTrack) state.masterTrack = prev.masterTrack;
     if (prev.selectedTrackId) state.selectedTrackId = prev.selectedTrackId;
+    if (prev.loopRegion) state.loopRegion = prev.loopRegion;
     return true;
   }
 
   function redo(state) {
     if (state.redoStack.length === 0) return false;
     ensureTrackState(state);
+    const next = state.redoStack.pop();
     state.undoStack.push({
+      label: next.label || "Edit",
+      timestamp: next.timestamp || Date.now(),
       clips: cloneData(state.clips),
       markers: cloneData(state.markers),
       tracks: cloneData(state.tracks),
       masterTrack: cloneData(state.masterTrack),
-      selectedTrackId: state.selectedTrackId
+      selectedTrackId: state.selectedTrackId,
+      loopRegion: cloneData(state.loopRegion)
     });
-    const next = state.redoStack.pop();
     state.clips = next.clips;
     state.markers = next.markers;
     if (next.tracks) state.tracks = next.tracks;
     if (next.masterTrack) state.masterTrack = next.masterTrack;
     if (next.selectedTrackId) state.selectedTrackId = next.selectedTrackId;
+    if (next.loopRegion) state.loopRegion = next.loopRegion;
+    return true;
+  }
+
+  function getHistoryList(state) {
+    ensureTrackState(state);
+    return {
+      undoItems: state.undoStack.map((u, index) => ({
+        index,
+        label: u.label || "Edit",
+        timestamp: u.timestamp || 0
+      })),
+      redoItems: state.redoStack.slice().reverse().map((r, index) => ({
+        index,
+        label: r.label || "Edit",
+        timestamp: r.timestamp || 0
+      }))
+    };
+  }
+
+  function jumpToHistoryStep(state, direction, count = 1) {
+    const steps = Math.max(0, Math.round(Number(count) || 0));
+    let applied = 0;
+    for (let i = 0; i < steps; i += 1) {
+      const ok = direction === "redo" ? redo(state) : undo(state);
+      if (!ok) break;
+      applied += 1;
+    }
+    return applied;
+  }
+
+  function exportProjectManifest(state, meta = {}) {
+    ensureTrackState(state);
+    const layout = computeTimelineLayout(state.clips);
+    return {
+      schemaVersion: "2.0",
+      projectUid: meta.projectUid || `proj-${meta.sessionDate || "session"}-${Date.now().toString(36)}`,
+      sessionDate: meta.sessionDate || null,
+      title: meta.title || "Bhajan Session Project",
+      sampleRate: Number(meta.sampleRate) || 48000,
+      bitDepth: Number(meta.bitDepth) || 24,
+      channelConfig: meta.channelConfig || "dual_mono_split",
+      durationSeconds: Math.round(layout.totalDuration * 1000) / 1000,
+      localFiles: meta.localFiles || {},
+      r2Keys: meta.r2Keys || {},
+      exportSettings: meta.exportSettings || {},
+      publicationStatus: meta.publicationStatus || "draft",
+      sources: cloneData(state.sources),
+      clips: cloneData(state.clips),
+      markers: cloneData(state.markers),
+      tracks: cloneData(state.tracks),
+      masterTrack: cloneData(state.masterTrack),
+      selectedTrackId: state.selectedTrackId,
+      loopRegion: cloneData(state.loopRegion),
+      snap: cloneData(state.snap),
+      timelineConfig: cloneData(state.timelineConfig),
+      savedAt: new Date().toISOString()
+    };
+  }
+
+  function importProjectManifest(state, manifest) {
+    if (!state || !manifest || typeof manifest !== "object") return false;
+    state.sources = cloneData(manifest.sources || {});
+    state.clips = cloneData(manifest.clips || []);
+    state.markers = cloneData(manifest.markers || []);
+    state.tracks = cloneData(manifest.tracks && manifest.tracks.length ? manifest.tracks : createDefaultTracks());
+    state.masterTrack = cloneData(manifest.masterTrack || createDefaultMasterTrack());
+    state.selectedTrackId = manifest.selectedTrackId || state.tracks[0].id;
+    state.loopRegion = cloneData(manifest.loopRegion || { enabled: false, startSec: 0, endSec: 0 });
+    state.snap = cloneData(manifest.snap || { gridEnabled: false, gridSec: 1.0, markersEnabled: true, toleranceSec: 0.35 });
+    state.timelineConfig = cloneData(manifest.timelineConfig || createDefaultTimelineConfig());
+    state.undoStack = [];
+    state.redoStack = [];
+    ensureTrackState(state);
     return true;
   }
 
   return {
+    AUTOMATION_LANES,
     createInitialState,
     computeTimelineLayout,
+    snapTime,
+    setTimelineConfig,
     addSource,
     appendClip,
     splitAt,
     trimClip,
+    slipClip,
+    nudgeClip,
+    duplicateClip,
+    copyClips,
+    pasteClips,
+    cutClips,
+    joinClips,
+    applyRangeGain,
+    normalizeClip,
     rippleDeleteClip,
     rippleDeleteRange,
     updateClipProps,
@@ -718,17 +1321,30 @@
     deleteTrack,
     selectTrack,
     renameTrack,
+    setTrackGroup,
     updateTrackProps,
     addTrackFx,
+    duplicateTrackFx,
     removeTrackFx,
     toggleTrackFx,
     moveTrackFx,
     updateTrackFxParams,
+    addAutomationPoint,
+    updateAutomationPoint,
+    removeAutomationPoint,
+    clearAutomationLane,
+    evaluateAutomation,
+    sampleAutomationEnvelope,
+    setLoopRegion,
     setMarkers,
     addMarker,
     nudgeMarker,
     removeMarker,
     undo,
-    redo
+    redo,
+    getHistoryList,
+    jumpToHistoryStep,
+    exportProjectManifest,
+    importProjectManifest
   };
 });
