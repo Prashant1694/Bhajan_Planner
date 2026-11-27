@@ -19,6 +19,34 @@
   let presets = Array.isArray(boot.presets) ? boot.presets.slice() : [];
   let streamState = boot.streamState || { isLive: false, listenerCount: 0 };
   let bhajansList = Array.isArray(boot.bhajans) ? boot.bhajans.slice() : [];
+  let unexportedRecordingGuard = false;
+  let refreshGuardOpen = false;
+  let bypassUnloadOnce = false;
+  let pendingGuardAction = null;
+  let historyGuardArmed = false;
+  let frozenInertElements = [];
+
+  function triggerStemDownloads(items) {
+    if (!Array.isArray(items) || items.length === 0) return false;
+    const valid = items.filter((item) => item && item.blob);
+    if (valid.length === 0) return false;
+    valid.forEach((item, idx) => {
+      setTimeout(() => {
+        try {
+          const url = URL.createObjectURL(item.blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = item.filename || `bhajan-stem-${idx + 1}`;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 15000);
+        } catch (_) { }
+      }, idx * 180);
+    });
+    return true;
+  }
 
   const defaultConfig =
     (presets[0] && JSON.parse(JSON.stringify(presets[0].config))) || {
@@ -48,6 +76,8 @@
     return {
       mode: src.mode === "stereo" ? "stereo" : "split",
       swapChannels: Boolean(src.swapChannels),
+      ch1InputSource: src.ch1InputSource != null ? String(src.ch1InputSource) : (src.swapChannels ? "1" : "0"),
+      ch2InputSource: src.ch2InputSource != null ? String(src.ch2InputSource) : (src.swapChannels ? "0" : "1"),
       inst: {
         gain: inst.gain ?? 100,
         trimDb: inst.trimDb ?? 0,
@@ -142,7 +172,35 @@
   let soundcheckSession = null;
   let activeHardwareCaptureFormat = null;
   let asioSocket = null;
+  let bridgeMonitorSocket = null;
   let asioXruns = 0;
+  let activeBridgeDevices = [];
+  let activeChannelCatalog = [];
+  let activeDetectedChannelCount = 0;
+  let activeDetectedDeviceName = "";
+  let activeDetectedDriverName = "";
+  let ch2AutoMutedBySingleCh = false;
+  let preferredBridgeDeviceId = "";
+  let bridgeStandbyMode = true;
+  let lastSentBridgeRouting = "";
+  let lastPassiveBridgeProbeAt = 0;
+  let lastPinDomRenderAt = 0;
+  let inputLearnState = null; // { targetBus: "vocal"|"inst", startedAt: number, streakPin: -1, streakCount: 0, timer: number, callback?: Function }
+  const pinNoiseFloorsDb = [];
+  const rawMcSubscribers = new Set();
+  const livePinLevels = {
+    channels: 0,
+    peaksDb: [],
+    rmsDb: [],
+    noiseFloorsDb: [],
+    snrDb: [],
+    activePins: [],
+    corr01: 0,
+    duplicatedMono: false,
+    standby: true,
+    updatedAt: 0
+  };
+  const pinFloatScratch = new Float32Array(256);
 
   let customReverbIrBuffer = null;
   let customReverbIrName = "";
@@ -323,17 +381,650 @@
     param.setTargetAtTime(value, audioCtx.currentTime, 0.025);
   }
 
+  function cleanHardwareDeviceLabel(rawLabel) {
+    let txt = String(rawLabel || "").trim();
+    if (!txt) return "Audio Input";
+    // Strip Chromium USB VID:PID suffix e.g. "(08bb:2902)" before extracting interface name
+    txt = txt.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)/ig, "").trim();
+    const m = txt.match(/\(([^()]+)\)?\s*$/);
+    if (m && m[1]) {
+      const inner = m[1].replace(/^\d+\s*-\s*/, "").trim();
+      if (inner && !/^\d+$/.test(inner)) return inner;
+    }
+    return txt.replace(/^\d+\s*-\s*/, "").trim();
+  }
+
+  function buildDetectedChannelCatalog(cleanName, detectedChannelCount, pinNames) {
+    const total = Math.max(0, Math.floor(Number(detectedChannelCount) || 0));
+    if (total <= 0) return [];
+    const safeName = cleanHardwareDeviceLabel(cleanName || "Audio Input");
+    const pins = Array.isArray(pinNames) ? pinNames : [];
+    const catalog = [];
+    for (let ch = 0; ch < total; ch++) {
+      const code = `${String(ch + 1).padStart(2, "0")}M`;
+      const rawPin = pins[ch] ? String(pins[ch]).trim() : "";
+      const usablePin = rawPin && !/not connected/i.test(rawPin)
+        ? (/\b\d+\s*$/.test(rawPin) ? rawPin : `${rawPin} ${ch + 1}`)
+        : `${safeName} ${ch + 1}`;
+      catalog.push({ id: String(ch), index: ch, code, label: `[${code}] ${usablePin}`, group: "Mono" });
+    }
+    const pairs = Math.floor(total / 2);
+    for (let p = 0; p < pairs; p++) {
+      const c1 = p * 2;
+      const c2 = c1 + 1;
+      const code = `${String(p + 1).padStart(2, "0")}S`;
+      const id = p === 0 ? "stereo" : `stereo:${c1}:${c2}`;
+      catalog.push({ id, indices: [c1, c2], code, label: `[${code}] ${safeName} ${c1 + 1}/${c2 + 1}`, group: "Stereo" });
+    }
+    return catalog;
+  }
+
+  function getActiveChannelCatalog() {
+    return Array.isArray(activeChannelCatalog) ? activeChannelCatalog : [];
+  }
+
+  function emitHardwareCatalogChanged() {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("ls-hardware-catalog-changed", {
+          detail: {
+            catalog: getActiveChannelCatalog(),
+            channelCount: activeDetectedChannelCount,
+            deviceName: activeDetectedDeviceName,
+            driverName: activeDetectedDriverName
+          }
+        })
+      );
+    } catch (_) { }
+  }
+
+  function reconcileRoutingWithCatalog(catalog) {
+    const list = Array.isArray(catalog) ? catalog : [];
+    const monos = list.filter((c) => c.group === "Mono");
+    const validIds = new Set(list.map((c) => String(c.id)));
+    validIds.add("none");
+    if (list.length === 0) return;
+
+    if (!validIds.has(String(activeConfig.ch1InputSource))) {
+      activeConfig.ch1InputSource = monos[0] ? String(monos[0].id) : "none";
+    }
+    if (monos.length === 1) {
+      if (String(activeConfig.ch1InputSource) === "1" || String(activeConfig.ch1InputSource).startsWith("stereo")) {
+        activeConfig.ch1InputSource = String(monos[0].id);
+      }
+      if (String(activeConfig.ch2InputSource) !== "0" && String(activeConfig.ch2InputSource) !== "none") {
+        activeConfig.ch2InputSource = "none";
+        ch2AutoMutedBySingleCh = true;
+      }
+    } else if (monos.length >= 2) {
+      if (ch2AutoMutedBySingleCh && String(activeConfig.ch2InputSource) === "none") {
+        activeConfig.ch2InputSource = String(monos[1].id);
+        ch2AutoMutedBySingleCh = false;
+      } else if (!validIds.has(String(activeConfig.ch2InputSource))) {
+        activeConfig.ch2InputSource = String(monos[1].id);
+      }
+    }
+    activeConfig.swapChannels = activeConfig.ch1InputSource === "1" && activeConfig.ch2InputSource === "0";
+  }
+
+  function resolvePinIndicesForRoute(spec) {
+    const s = String(spec == null ? "none" : spec).trim().toLowerCase();
+    if (s === "none" || s === "off" || s === "-1" || !s) return [];
+    if (s === "stereo") return [0, 1];
+    if (s.startsWith("stereo:")) {
+      const parts = s.split(":").slice(1);
+      const a = Number(parts[0]);
+      const b = Number(parts[1]);
+      return [Number.isFinite(a) ? a : 0, Number.isFinite(b) ? b : 1];
+    }
+    const idx = Number(s);
+    return Number.isInteger(idx) && idx >= 0 ? [idx] : [];
+  }
+
+  function gainArrayForRoute(spec, totalPins) {
+    const n = Math.max(1, Number(totalPins) || 1);
+    const gains = new Array(n).fill(0);
+    const pins = resolvePinIndicesForRoute(spec).filter((p) => p >= 0 && p < n);
+    if (pins.length === 0) return gains;
+    const weight = pins.length > 1 ? 1 / pins.length : 1;
+    pins.forEach((p) => {
+      gains[p] = weight;
+    });
+    return gains;
+  }
+
+  function dispatchBpmcBinaryPacket(buf) {
+    if (!(buf instanceof ArrayBuffer) || buf.byteLength < 8) return false;
+    const view = new DataView(buf);
+    if (
+      view.getUint8(0) !== 0x42 ||
+      view.getUint8(1) !== 0x50 ||
+      view.getUint8(2) !== 0x4d ||
+      view.getUint8(3) !== 0x43
+    ) {
+      return false;
+    }
+    const numCh = view.getUint16(4, true);
+    const nf = view.getUint16(6, true);
+    if (numCh <= 0 || nf <= 0 || buf.byteLength < 8 + numCh * nf * 4) return true;
+    const channels = new Array(numCh);
+    for (let c = 0; c < numCh; c++) {
+      channels[c] = new Float32Array(buf, 8 + c * nf * 4, nf);
+    }
+    rawMcSubscribers.forEach((fn) => {
+      try {
+        fn({
+          channels,
+          frames: nf,
+          sampleRate: audioCtx ? audioCtx.sampleRate : 48000,
+          catalog: getActiveChannelCatalog()
+        });
+      } catch (_) { }
+    });
+    return true;
+  }
+
+  function syncBridgeMultichannelTap() {
+    const enabled = rawMcSubscribers.size > 0;
+    const msg = JSON.stringify({ type: "set-multichannel-tap", enabled });
+    if (asioSocket && asioSocket.readyState === 1) {
+      try { asioSocket.send(msg); } catch (_) { }
+    }
+    if (bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1) {
+      try { bridgeMonitorSocket.send(msg); } catch (_) { }
+    } else if (enabled) {
+      connectPassiveBridgeMonitor();
+    }
+  }
+
+  function updateSelectorLiveOptionLabels(sel, forceUpdate) {
+    if (!sel) return;
+    if (!forceUpdate && document.activeElement === sel) return;
+    const peaks = Array.isArray(livePinLevels.peaksDb) ? livePinLevels.peaksDb : [];
+    const activeSet = new Set(Array.isArray(livePinLevels.activePins) ? livePinLevels.activePins : []);
+    const hasFreshLevels = (Date.now() - livePinLevels.updatedAt) < 2500 && peaks.length > 0;
+    Array.from(sel.options).forEach((opt) => {
+      const base = opt.dataset.baseLabel || opt.textContent;
+      if (!opt.dataset.baseLabel) opt.dataset.baseLabel = base;
+      if (!hasFreshLevels || opt.value === "none") {
+        if (opt.textContent !== base) opt.textContent = base;
+        return;
+      }
+      const idxs = resolvePinIndicesForRoute(opt.value);
+      let maxDb = -96;
+      let anyActive = false;
+      idxs.forEach((i) => {
+        if (i >= 0 && i < peaks.length && peaks[i] > maxDb) maxDb = peaks[i];
+        if (activeSet.has(i)) anyActive = true;
+      });
+      const nextText = anyActive
+        ? `${base}  ● LIVE (${maxDb.toFixed(0)} dB)`
+        : base;
+      if (opt.textContent !== nextText) opt.textContent = nextText;
+    });
+  }
+
+  function populateSingleInputSelector(sel, catalog, selectedVal) {
+    if (!sel) return;
+    const valStr = selectedVal != null ? String(selectedVal) : "none";
+    const sig = catalog.map((c) => `${c.group}:${c.id}:${c.label}`).join("|");
+    if (sel.dataset.catalogSig === sig) {
+      if (Array.from(sel.options).some((o) => o.value === valStr) && sel.value !== valStr) {
+        sel.value = valStr;
+      }
+      updateSelectorLiveOptionLabels(sel, false);
+      return;
+    }
+
+    sel.dataset.catalogSig = sig;
+    sel.innerHTML = "";
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "none";
+    noneOpt.textContent = catalog.length === 0 ? "None (Not detected — click Detect)" : "None";
+    noneOpt.dataset.baseLabel = noneOpt.textContent;
+    sel.appendChild(noneOpt);
+
+    const monos = catalog.filter((item) => item.group === "Mono");
+    const stereos = catalog.filter((item) => item.group === "Stereo");
+    if (monos.length > 0) {
+      const grpM = document.createElement("optgroup");
+      grpM.label = `Mono (${monos.length} Detected)`;
+      monos.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.label;
+        opt.dataset.baseLabel = item.label;
+        grpM.appendChild(opt);
+      });
+      sel.appendChild(grpM);
+    }
+    if (stereos.length > 0) {
+      const grpS = document.createElement("optgroup");
+      grpS.label = "Stereo";
+      stereos.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.label;
+        opt.dataset.baseLabel = item.label;
+        grpS.appendChild(opt);
+      });
+      sel.appendChild(grpS);
+    }
+    if (Array.from(sel.options).some((o) => o.value === valStr)) {
+      sel.value = valStr;
+    } else if (sel.options.length > 1) {
+      sel.selectedIndex = 1;
+    } else {
+      sel.value = "none";
+    }
+    updateSelectorLiveOptionLabels(sel, true);
+  }
+
+  function renderInputChannelSelectors() {
+    const catalog = getActiveChannelCatalog();
+    populateSingleInputSelector($("lsVocalInputChannelSelect"), catalog, activeConfig.ch1InputSource);
+    populateSingleInputSelector($("lsInstInputChannelSelect"), catalog, activeConfig.ch2InputSource);
+  }
+
+  function formatStripCodeLabel(spec, fallbackTag) {
+    const s = String(spec == null ? "none" : spec).trim().toLowerCase();
+    if (activeDetectedChannelCount <= 0) return fallbackTag;
+    if (s === "none" || !s) return "NONE";
+    if (s === "stereo") return "01S";
+    if (s.startsWith("stereo:")) {
+      const p = s.split(":");
+      return `${Number(p[1] || 0) + 1}/${Number(p[2] || 1) + 1}S`;
+    }
+    const idx = Number(s);
+    return Number.isInteger(idx) && idx >= 0 ? `${String(idx + 1).padStart(2, "0")}M` : fallbackTag;
+  }
+
+  function updateStripLiveRouteBadge(badgeEl, routeSpec) {
+    if (!badgeEl) return;
+    if (bridgeStandbyMode || activeDetectedChannelCount <= 0) {
+      badgeEl.textContent = bridgeStandbyMode ? "○ Standby" : "○ Not probed";
+      badgeEl.classList.remove("is-live-signal", "is-unassigned");
+      return;
+    }
+    const idxs = resolvePinIndicesForRoute(routeSpec);
+    if (idxs.length === 0) {
+      badgeEl.textContent = "× Unassigned";
+      badgeEl.classList.remove("is-live-signal");
+      badgeEl.classList.add("is-unassigned");
+      return;
+    }
+    const peaks = Array.isArray(livePinLevels.peaksDb) ? livePinLevels.peaksDb : [];
+    const activeSet = new Set(Array.isArray(livePinLevels.activePins) ? livePinLevels.activePins : []);
+    const fresh = (Date.now() - livePinLevels.updatedAt) < 2500 && peaks.length > 0;
+    if (!fresh) {
+      const pinTxt = idxs.map((i) => `In ${i + 1}`).join("+");
+      badgeEl.textContent = `○ ${pinTxt} Ready`;
+      badgeEl.classList.remove("is-live-signal", "is-unassigned");
+      return;
+    }
+    let bestDb = -96;
+    let isActive = false;
+    idxs.forEach((i) => {
+      if (i >= 0 && i < peaks.length && peaks[i] > bestDb) bestDb = peaks[i];
+      if (activeSet.has(i)) isActive = true;
+    });
+    const pinLbl = idxs.map((i) => `In ${i + 1}`).join("+");
+    if (isActive) {
+      badgeEl.textContent = `● ${pinLbl} ${bestDb.toFixed(1)} dB`;
+      badgeEl.classList.add("is-live-signal");
+      badgeEl.classList.remove("is-unassigned");
+    } else {
+      badgeEl.textContent = `○ ${pinLbl} Idle`;
+      badgeEl.classList.remove("is-live-signal", "is-unassigned");
+    }
+  }
+
+  function renderLivePinDetectionUi(forceNow) {
+    const now = Date.now();
+    if (!forceNow && now - lastPinDomRenderAt < 90) return;
+    lastPinDomRenderAt = now;
+
+    if ($("lsVocalStripPinTag")) {
+      $("lsVocalStripPinTag").textContent = activeDetectedChannelCount > 0
+        ? `${formatStripCodeLabel(activeConfig.ch1InputSource, "01M")} · CH 1`
+        : "CH 1 · STANDBY";
+    }
+    if ($("lsInstStripPinTag")) {
+      $("lsInstStripPinTag").textContent = activeDetectedChannelCount > 0
+        ? `${formatStripCodeLabel(activeConfig.ch2InputSource, "02M")} · CH 2`
+        : "CH 2 · STANDBY";
+    }
+    updateStripLiveRouteBadge($("lsVocalRouteLiveBadge"), activeConfig.ch1InputSource);
+    updateStripLiveRouteBadge($("lsInstRouteLiveBadge"), activeConfig.ch2InputSource);
+
+    if ($("lsVocalDetectInputBtn")) {
+      const learningV = Boolean(inputLearnState && inputLearnState.targetBus === "vocal");
+      $("lsVocalDetectInputBtn").classList.toggle("is-learning", learningV);
+      $("lsVocalDetectInputBtn").textContent = learningV ? "Speak..." : "Detect";
+    }
+    if ($("lsInstDetectInputBtn")) {
+      const learningI = Boolean(inputLearnState && inputLearnState.targetBus === "inst");
+      $("lsInstDetectInputBtn").classList.toggle("is-learning", learningI);
+      $("lsInstDetectInputBtn").textContent = learningI ? "Play..." : "Detect";
+    }
+
+    updateSelectorLiveOptionLabels($("lsVocalInputChannelSelect"), false);
+    updateSelectorLiveOptionLabels($("lsInstInputChannelSelect"), false);
+
+    const bar = $("lsLiveDetectedPinsBar");
+    if (!bar) return;
+    const monos = getActiveChannelCatalog().filter((c) => c.group === "Mono");
+    if (monos.length === 0) {
+      bar.innerHTML = "";
+      const empty = document.createElement("span");
+      empty.className = "ls-live-pins-empty";
+      empty.textContent = bridgeStandbyMode
+        ? "Audio Bridge Standby — connect an external USB/ASIO interface or choose a Built-in input manually"
+        : "Live Hardware Inputs: Not probed yet — click Start Audio Soundcheck, Refresh, or Detect";
+      bar.appendChild(empty);
+      return;
+    }
+
+    const peaks = Array.isArray(livePinLevels.peaksDb) ? livePinLevels.peaksDb : [];
+    const floors = Array.isArray(livePinLevels.noiseFloorsDb) ? livePinLevels.noiseFloorsDb : [];
+    const activeSet = new Set(Array.isArray(livePinLevels.activePins) ? livePinLevels.activePins : []);
+    const fresh = (now - livePinLevels.updatedAt) < 2500 && peaks.length > 0;
+    const ch1Pins = new Set(resolvePinIndicesForRoute(activeConfig.ch1InputSource));
+    const ch2Pins = new Set(resolvePinIndicesForRoute(activeConfig.ch2InputSource));
+
+    bar.innerHTML = "";
+    monos.forEach((m) => {
+      const pinIdx = Number(m.index);
+      const db = pinIdx < peaks.length ? Number(peaks[pinIdx]) : -96;
+      const floorDb = pinIdx < floors.length ? Number(floors[pinIdx]) : null;
+      const isLivePin = fresh && activeSet.has(pinIdx);
+      const feedsVocals = ch1Pins.has(pinIdx);
+      const feedsInst = ch2Pins.has(pinIdx);
+      const isShared = feedsVocals && feedsInst;
+      const isDupMono = Boolean(livePinLevels.duplicatedMono) && pinIdx < 2;
+
+      const chip = document.createElement("div");
+      chip.className = "ls-live-pin-chip"
+        + (isLivePin ? " is-active-pin" : "")
+        + (isShared ? " is-shared-route" : "")
+        + (isDupMono ? " is-duplicated-mono" : "");
+      if (isDupMono) {
+        chip.title = "Correlated Dual-Mono (corr > 0.97): both pins carry the same signal";
+      }
+
+      const codeSpan = document.createElement("span");
+      codeSpan.className = "ls-live-pin-code";
+      codeSpan.textContent = `[${m.code}]`;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "ls-live-pin-name";
+      nameSpan.textContent = m.label.replace(/^\[[^\]]+\]\s*/, "");
+      nameSpan.title = m.label;
+
+      const meter = document.createElement("div");
+      meter.className = "ls-live-pin-meter";
+      const fill = document.createElement("div");
+      fill.className = "ls-live-pin-meter-fill";
+      const pct = fresh ? Math.max(0, Math.min(100, ((db + 60) / 60) * 100)) : 0;
+      fill.style.width = `${pct.toFixed(0)}%`;
+      meter.appendChild(fill);
+
+      const dbSpan = document.createElement("span");
+      dbSpan.className = "ls-live-pin-db";
+      dbSpan.textContent = !fresh
+        ? "○ Probe"
+        : (isLivePin ? `● ${db.toFixed(1)} dB` : (floorDb != null ? `○ Idle (${floorDb.toFixed(0)} dB)` : "○ Idle"));
+
+      const destSpan = document.createElement("span");
+      destSpan.className = "ls-live-pin-dest";
+      if (feedsVocals && feedsInst) destSpan.textContent = "→ Vocals + Inst";
+      else if (feedsVocals) destSpan.textContent = "→ CH 1 Vocals";
+      else if (feedsInst) destSpan.textContent = "→ CH 2 Inst";
+      else destSpan.textContent = "→ Unrouted";
+
+      chip.appendChild(codeSpan);
+      chip.appendChild(nameSpan);
+      chip.appendChild(meter);
+      chip.appendChild(dbSpan);
+      chip.appendChild(destSpan);
+      bar.appendChild(chip);
+    });
+
+    if (monos.length === 1) {
+      const note = document.createElement("span");
+      note.className = "ls-live-pins-empty";
+      note.textContent = activeSourceMode === "asio"
+        ? "1 physical input reported by driver."
+        : "Browser WASAPI only exposes 1 ch — run Audio Bridge (17940) for discrete Ch 1 & Ch 2.";
+      bar.appendChild(note);
+    } else if (livePinLevels.duplicatedMono) {
+      const warnNote = document.createElement("span");
+      warnNote.className = "ls-live-pins-empty";
+      warnNote.textContent = "⚠ Correlated Mono: Ch 1 & Ch 2 are identical — set USB/OS device to 2-Channel Split.";
+      bar.appendChild(warnNote);
+    }
+  }
+
+  function stopInputAutoDetect(silent) {
+    if (!inputLearnState) return;
+    if (inputLearnState.timer) clearTimeout(inputLearnState.timer);
+    inputLearnState = null;
+    renderLivePinDetectionUi(true);
+    try {
+      window.dispatchEvent(new CustomEvent("ls-input-detect-ended", { detail: { silent: Boolean(silent) } }));
+    } catch (_) { }
+    if (!silent) showStudioMessage("Auto-Detect cancelled.", false);
+  }
+
+  function evaluateInputLearnSample() {
+    if (!inputLearnState) return;
+    const peaks = Array.isArray(livePinLevels.peaksDb) ? livePinLevels.peaksDb : [];
+    const activeSet = new Set(Array.isArray(livePinLevels.activePins) ? livePinLevels.activePins : []);
+    if (peaks.length === 0) return;
+
+    let bestPin = -1;
+    let bestDb = -96;
+    let secondDb = -96;
+    for (let i = 0; i < peaks.length; i++) {
+      const v = Number(peaks[i]);
+      if (v > bestDb) {
+        secondDb = bestDb;
+        bestDb = v;
+        bestPin = i;
+      } else if (v > secondDb) {
+        secondDb = v;
+      }
+    }
+
+    const dominantMarginOk = peaks.length < 2 || (bestDb - secondDb) >= 4.0;
+    const isSignalActive = bestPin >= 0 && bestDb > -45.0 && (activeSet.has(bestPin) || bestDb >= -24.0);
+    if (isSignalActive && dominantMarginOk) {
+      if (inputLearnState.streakPin === bestPin) {
+        inputLearnState.streakCount += 1;
+      } else {
+        inputLearnState.streakPin = bestPin;
+        inputLearnState.streakCount = 1;
+      }
+      if (inputLearnState.streakCount >= 2) {
+        const targetBus = inputLearnState.targetBus;
+        const onDetected = inputLearnState.onDetected;
+        stopInputAutoDetect(true);
+        const valStr = String(bestPin);
+        const item = getActiveChannelCatalog().find((c) => String(c.id) === valStr);
+        const label = item ? item.label : `In ${bestPin + 1}`;
+        if (typeof onDetected === "function") {
+          onDetected(valStr, label, bestDb);
+          return;
+        }
+        if (targetBus === "vocal") {
+          activeConfig.ch1InputSource = valStr;
+        } else {
+          ch2AutoMutedBySingleCh = false;
+          activeConfig.ch2InputSource = valStr;
+        }
+        activeConfig.swapChannels = activeConfig.ch1InputSource === "1" && activeConfig.ch2InputSource === "0";
+        syncUiFromConfig();
+        showStudioMessage(
+          `Auto-detected ${label} (${bestDb.toFixed(1)} dB) → ${targetBus === "vocal" ? "CH 1 Vocals" : "CH 2 Instruments"}`,
+          false
+        );
+      }
+    } else {
+      inputLearnState.streakCount = 0;
+    }
+  }
+
+  function handleLivePinLevelsMessage(msg) {
+    if (!msg || msg.type !== "input-levels") return;
+    if (typeof msg.standby === "boolean") bridgeStandbyMode = msg.standby;
+    const peaks = Array.isArray(msg.peaksDb) ? msg.peaksDb.map(Number) : [];
+    const rms = Array.isArray(msg.rmsDb) ? msg.rmsDb.map(Number) : [];
+    const nCh = Number(msg.channels) || peaks.length;
+    livePinLevels.channels = nCh;
+    livePinLevels.peaksDb = peaks;
+    livePinLevels.rmsDb = rms;
+    livePinLevels.noiseFloorsDb = Array.isArray(msg.noiseFloorsDb) ? msg.noiseFloorsDb.map(Number) : [];
+    livePinLevels.snrDb = Array.isArray(msg.snrDb) ? msg.snrDb.map(Number) : [];
+    livePinLevels.activePins = Array.isArray(msg.activePins) ? msg.activePins : [];
+    livePinLevels.corr01 = Number(msg.corr01) || 0;
+    livePinLevels.duplicatedMono = Boolean(msg.duplicatedMono);
+    livePinLevels.standby = Boolean(msg.standby);
+    livePinLevels.updatedAt = Date.now();
+    if (nCh > 0 && activeDetectedChannelCount !== nCh && msg.cleanName) {
+      activeDetectedChannelCount = nCh;
+      activeDetectedDeviceName = cleanHardwareDeviceLabel(msg.cleanName);
+      activeDetectedDriverName = msg.hostApi || activeDetectedDriverName;
+      activeChannelCatalog = buildDetectedChannelCatalog(activeDetectedDeviceName, nCh);
+      reconcileRoutingWithCatalog(activeChannelCatalog);
+      renderInputChannelSelectors();
+      emitHardwareCatalogChanged();
+    }
+    evaluateInputLearnSample();
+    renderLivePinDetectionUi(false);
+  }
+
+  function populateBridgeDevicesDropdown(devices, activeDeviceId) {
+    const inSel = $("lsAudioInputSelect");
+    if (!inSel || !Array.isArray(devices)) return;
+    const prevVal = inSel.value;
+    inSel.innerHTML = "";
+
+    const standbyOpt = document.createElement("option");
+    standbyOpt.value = "none";
+    standbyOpt.textContent = "None — Standby (External Interface Only)";
+    inSel.appendChild(standbyOpt);
+
+    const extDevs = devices.filter((d) => d.deviceCategory === "external_interface");
+    const sysDevs = devices.filter((d) => d.deviceCategory !== "external_interface");
+
+    function appendDeviceOption(parent, d) {
+      const opt = document.createElement("option");
+      opt.value = String(d.id || d.name || "");
+      const srK = d.defaultSampleRate ? `${Math.round(d.defaultSampleRate / 1000)}k` : "48k";
+      opt.textContent = `[${d.hostApi}] ${d.name} (${d.maxInputChannels} ch @ ${srK})`;
+      parent.appendChild(opt);
+    }
+
+    if (extDevs.length > 0) {
+      const grp = document.createElement("optgroup");
+      grp.label = "External Audio Interfaces (USB / ASIO)";
+      extDevs.forEach((d) => appendDeviceOption(grp, d));
+      inSel.appendChild(grp);
+    }
+    if (sysDevs.length > 0) {
+      const grp = document.createElement("optgroup");
+      grp.label = "Built-in / System Inputs (Manual Only)";
+      sysDevs.forEach((d) => appendDeviceOption(grp, d));
+      inSel.appendChild(grp);
+    }
+
+    if (activeDeviceId && devices.some((d) => String(d.id) === String(activeDeviceId))) {
+      inSel.value = String(activeDeviceId);
+    } else if (!activeDeviceId) {
+      inSel.value = "none";
+    } else if (prevVal && (prevVal === "none" || devices.some((d) => String(d.id) === prevVal))) {
+      inSel.value = prevVal;
+    } else {
+      inSel.value = "none";
+    }
+  }
+
+  function handleBridgeInfoMeta(meta) {
+    if (!meta || meta.type !== "bridge-info") return;
+    if (Array.isArray(meta.devices)) {
+      activeBridgeDevices = meta.devices;
+    }
+    const isStandby = Boolean(meta.standby) || Number(meta.channels) === 0;
+    bridgeStandbyMode = isStandby;
+    const chCount = isStandby ? 0 : Math.max(0, Number(meta.channels) || 0);
+    const clean = isStandby
+      ? "No External Interface (Standby)"
+      : cleanHardwareDeviceLabel(meta.cleanName || meta.deviceName || "Audio Bridge");
+    activeDetectedChannelCount = chCount;
+    activeDetectedDeviceName = clean;
+    activeDetectedDriverName = meta.hostApi || "Audio Bridge";
+    if (isStandby) {
+      activeChannelCatalog = [];
+      livePinLevels.channels = 0;
+      livePinLevels.peaksDb = [];
+      livePinLevels.rmsDb = [];
+      livePinLevels.noiseFloorsDb = [];
+      livePinLevels.activePins = [];
+      livePinLevels.standby = true;
+    } else if (Array.isArray(meta.inputChannels) && meta.inputChannels.length > 0) {
+      activeChannelCatalog = meta.inputChannels;
+    } else if (meta.deviceName && chCount > 0) {
+      activeChannelCatalog = buildDetectedChannelCatalog(clean, chCount);
+    } else {
+      activeChannelCatalog = [];
+    }
+    reconcileRoutingWithCatalog(activeChannelCatalog);
+    const backendSel = $("lsCaptureBackendSelect");
+    if (backendSel && backendSel.value === "asio") {
+      populateBridgeDevicesDropdown(activeBridgeDevices, isStandby ? "" : meta.deviceId);
+    }
+    const asioPanelBtn = $("lsOpenAsioPanelBtn");
+    if (asioPanelBtn) {
+      asioPanelBtn.classList.toggle("ls-is-hidden", isStandby || !meta.isAsio);
+    }
+    renderInputChannelSelectors();
+    emitHardwareCatalogChanged();
+    renderLivePinDetectionUi(true);
+    if (meta.warning) {
+      showStudioMessage(meta.warning, true);
+    }
+  }
+
   function applyConfigToGraph() {
     if (!nodes || !audioCtx) return;
     const c = activeConfig;
     const isSplit = c.mode !== "stereo";
 
-    // Channel routing matrix: default Physical In 1 -> Ch1 Vocals, Physical In 2 -> Ch2 Instruments
-    // Dry capture ALWAYS taps ch1From/ch2From strictly upstream of Trim, EQ, Dynamics & Faders
-    rampParam(nodes.ch1FromL.gain, c.swapChannels ? 0 : 1);
-    rampParam(nodes.ch1FromR.gain, c.swapChannels ? 1 : 0);
-    rampParam(nodes.ch2FromL.gain, c.swapChannels ? 1 : 0);
-    rampParam(nodes.ch2FromR.gain, c.swapChannels ? 0 : 1);
+    // Channel routing matrix: supports arbitrary N-pin hardware mono/stereo pairs or None per bus
+    // Dry capture ALWAYS taps ch1PinGains/ch2PinGains strictly upstream of Trim, EQ, Dynamics & Faders
+    const ch1List = Array.isArray(nodes.ch1PinGains)
+      ? nodes.ch1PinGains
+      : [nodes.ch1FromL, nodes.ch1FromR].filter(Boolean);
+    const ch2List = Array.isArray(nodes.ch2PinGains)
+      ? nodes.ch2PinGains
+      : [nodes.ch2FromL, nodes.ch2FromR].filter(Boolean);
+
+    if (activeSourceMode === "asio" && asioSocket && asioSocket.readyState === 1) {
+      const routeSig = `${c.ch1InputSource}|${c.ch2InputSource}`;
+      if (lastSentBridgeRouting !== routeSig) {
+        lastSentBridgeRouting = routeSig;
+        try {
+          asioSocket.send(JSON.stringify({ type: "set-routing", ch1: c.ch1InputSource, ch2: c.ch2InputSource }));
+        } catch (_) { }
+      }
+      ch1List.forEach((g, idx) => rampParam(g.gain, idx === 0 && c.ch1InputSource !== "none" ? 1 : 0));
+      ch2List.forEach((g, idx) => rampParam(g.gain, idx === 1 && c.ch2InputSource !== "none" ? 1 : 0));
+    } else {
+      const g1 = gainArrayForRoute(c.ch1InputSource, ch1List.length);
+      const g2 = gainArrayForRoute(c.ch2InputSource, ch2List.length);
+      ch1List.forEach((g, idx) => rampParam(g.gain, g1[idx] || 0));
+      ch2List.forEach((g, idx) => rampParam(g.gain, g2[idx] || 0));
+    }
     if (isSplit) {
       rampParam(nodes.splitMasterGate.gain, 1);
       rampParam(nodes.stereoPassGain.gain, 0);
@@ -808,8 +1499,16 @@
     const ioTag = $("lsIoSummaryTag");
     if (ioTag) {
       const baseMode = c.mode === "stereo" ? "Mode B · Stereo Pass" : "Mode A · 2-Ch Split";
-      ioTag.textContent = c.swapChannels ? `${baseMode} · Swapped 1↔2` : baseMode;
+      if (activeDetectedChannelCount <= 0) {
+        ioTag.textContent = `${baseMode} · Unprobed`;
+      } else {
+        ioTag.textContent = c.mode === "stereo"
+          ? `${baseMode} · ${activeDetectedChannelCount}-Ch`
+          : `${baseMode} · ${activeDetectedChannelCount}-Ch (${formatStripCodeLabel(c.ch1InputSource, "None")} / ${formatStripCodeLabel(c.ch2InputSource, "None")})`;
+      }
     }
+    renderInputChannelSelectors();
+    renderLivePinDetectionUi(true);
     if (typeof syncRotaryVisuals === "function") syncRotaryVisuals();
     applyConfigToGraph();
     drawEqAndSpectrum();
@@ -836,6 +1535,52 @@
     }
   }
 
+  async function probeBrowserDeviceChannels(deviceId, labelHint) {
+    if (audioCtx && activeSourceMode === "device" && activeHardwareCaptureFormat) {
+      const nCh = Math.max(1, Number(activeHardwareCaptureFormat.channelCount) || 1);
+      const clean = cleanHardwareDeviceLabel(activeHardwareCaptureFormat.deviceName || labelHint);
+      activeDetectedChannelCount = nCh;
+      activeDetectedDeviceName = clean;
+      activeDetectedDriverName = activeHardwareCaptureFormat.driver || "Browser WASAPI (Shared)";
+      activeChannelCatalog = buildDetectedChannelCatalog(clean, nCh);
+      reconcileRoutingWithCatalog(activeChannelCatalog);
+      renderInputChannelSelectors();
+      emitHardwareCatalogChanged();
+      renderLivePinDetectionUi(true);
+      return nCh;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 0;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          channelCount: { ideal: 8 },
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+      const trk = stream.getAudioTracks()[0];
+      const settings = trk && typeof trk.getSettings === "function" ? trk.getSettings() : {};
+      const chCount = Math.max(1, Number(settings.channelCount) || 1);
+      const realLabel = (trk && trk.label) || labelHint || "Audio Input";
+      stream.getTracks().forEach((t) => t.stop());
+
+      const clean = cleanHardwareDeviceLabel(realLabel);
+      activeDetectedChannelCount = chCount;
+      activeDetectedDeviceName = clean;
+      activeDetectedDriverName = "Browser WASAPI (Shared)";
+      activeChannelCatalog = buildDetectedChannelCatalog(clean, chCount);
+      reconcileRoutingWithCatalog(activeChannelCatalog);
+      renderInputChannelSelectors();
+      emitHardwareCatalogChanged();
+      renderLivePinDetectionUi(true);
+      return chCount;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   async function refreshAudioDevices(requestPermission) {
     if (!window.isSecureContext) {
       showStudioMessage("Audio capture requires http://localhost:5000 or HTTPS.", true);
@@ -857,7 +1602,8 @@
       const prevIn = inSel ? inSel.value : "";
       const prevOut = outSel ? outSel.value : "";
 
-      if (inSel) {
+      const backendSel = $("lsCaptureBackendSelect");
+      if (inSel && (!backendSel || backendSel.value !== "asio" || activeBridgeDevices.length === 0)) {
         inSel.innerHTML = "";
         const inputs = list.filter((d) => d.kind === "audioinput");
         const needsPermission =
@@ -866,9 +1612,14 @@
           const opt = document.createElement("option");
           opt.value = "";
           opt.textContent = needsPermission
-            ? "Click 'Detect / Refresh Devices' to allow audio access"
-            : "No audio inputs detected (plug in interface and click Detect)";
+            ? "Click 'Refresh' to allow audio access & probe channels"
+            : "No audio inputs detected (plug in interface and click Refresh)";
           inSel.appendChild(opt);
+          activeDetectedChannelCount = 0;
+          activeChannelCatalog = [];
+          renderInputChannelSelectors();
+          emitHardwareCatalogChanged();
+          renderLivePinDetectionUi(true);
         } else {
           inputs.forEach((d, idx) => {
             const opt = document.createElement("option");
@@ -878,11 +1629,21 @@
           });
           if (prevIn && inputs.some((d) => d.deviceId === prevIn)) {
             inSel.value = prevIn;
+          }
+          const selTxt = inSel.options[inSel.selectedIndex] ? inSel.options[inSel.selectedIndex].textContent : "";
+          const hasLabelAccess = inputs.some((d) => Boolean(d.deviceId && d.label));
+          if (hasLabelAccess) {
+            await probeBrowserDeviceChannels(inSel.value, selTxt);
           } else {
-            const behringer = inputs.find((d) => /behringer|umc|usb audio|line/i.test(d.label || ""));
-            if (behringer) inSel.value = behringer.deviceId;
+            activeDetectedChannelCount = 0;
+            activeChannelCatalog = [];
+            renderInputChannelSelectors();
+            emitHardwareCatalogChanged();
+            renderLivePinDetectionUi(true);
           }
         }
+      } else if (inSel && backendSel && backendSel.value === "asio" && activeBridgeDevices.length > 0) {
+        populateBridgeDevicesDropdown(activeBridgeDevices, preferredBridgeDeviceId || undefined);
       }
 
       if (outSel) {
@@ -1364,6 +2125,68 @@
       measurePeakRms(nodes.reverbAnalyser, $("lsReverbMeterFill"), null, null, null);
     }
 
+    // Pre-routing physical hardware input pin telemetry (when engine captures directly from device or file)
+    if (Array.isArray(nodes.rawPinAnalysers) && nodes.rawPinAnalysers.length > 0 && activeSourceMode !== "asio") {
+      const peaks = [];
+      const rmsList = [];
+      const floors = [];
+      const snrs = [];
+      const activePins = [];
+      let dot01 = 0;
+      let e0 = 0;
+      let e1 = 0;
+      const ch0Samples = nodes.rawPinAnalysers.length >= 2 ? new Float32Array(pinFloatScratch.length) : null;
+      for (let p = 0; p < nodes.rawPinAnalysers.length; p++) {
+        const an = nodes.rawPinAnalysers[p];
+        an.getFloatTimeDomainData(pinFloatScratch);
+        if (p === 0 && ch0Samples) ch0Samples.set(pinFloatScratch);
+        let pk = 0;
+        let sq = 0;
+        for (let i = 0; i < pinFloatScratch.length; i++) {
+          const s = pinFloatScratch[i];
+          const a = s < 0 ? -s : s;
+          if (a > pk) pk = a;
+          sq += s * s;
+          if (p === 1 && ch0Samples) {
+            const s0 = ch0Samples[i];
+            dot01 += s0 * s;
+            e0 += s0 * s0;
+            e1 += s * s;
+          }
+        }
+        const rms = Math.sqrt(sq / pinFloatScratch.length);
+        const pDb = pk > 1e-5 ? Number((20 * Math.log10(pk)).toFixed(1)) : -96;
+        const rDb = rms > 1e-5 ? Number((20 * Math.log10(rms)).toFixed(1)) : -96;
+        let curFl = pinNoiseFloorsDb[p];
+        if (curFl == null) curFl = Math.max(-90, Math.min(-28, rDb > -92 ? rDb : -72));
+        else if (rDb < curFl) curFl = curFl + 0.35 * (Math.max(-90, rDb) - curFl);
+        else if ((pDb - rDb) < 6.5 && rDb < -28) curFl = curFl + 0.04 * (rDb - curFl);
+        curFl = Math.max(-90, Math.min(-28, curFl));
+        pinNoiseFloorsDb[p] = curFl;
+        const floorVal = Number(curFl.toFixed(1));
+        const snr = Number((pDb - floorVal).toFixed(1));
+        peaks.push(pDb);
+        rmsList.push(rDb);
+        floors.push(floorVal);
+        snrs.push(snr);
+        if (pDb > -45 && (snr >= 9 || pDb >= -24)) activePins.push(p);
+      }
+      const corr01 = (e0 > 1e-9 && e1 > 1e-9) ? Number((dot01 / Math.sqrt(e0 * e1)).toFixed(3)) : 0;
+      const duplicatedMono = peaks.length >= 2 && corr01 > 0.97 && Math.abs(peaks[0] - peaks[1]) < 1.2 && peaks[0] > -55;
+      livePinLevels.channels = peaks.length;
+      livePinLevels.peaksDb = peaks;
+      livePinLevels.rmsDb = rmsList;
+      livePinLevels.noiseFloorsDb = floors;
+      livePinLevels.snrDb = snrs;
+      livePinLevels.activePins = activePins;
+      livePinLevels.corr01 = corr01;
+      livePinLevels.duplicatedMono = duplicatedMono;
+      livePinLevels.standby = false;
+      livePinLevels.updatedAt = Date.now();
+      evaluateInputLearnSample();
+      renderLivePinDetectionUi(false);
+    }
+
     // Master Stereo L/R + BS.1770-4 True-Peak & Short-Term LUFS from bp-pcm-capture
     if (masterTelem.kwRing.length > 0) {
       const dbL = masterTelem.peakL > 0.00001 ? 20 * Math.log10(masterTelem.peakL) : -60;
@@ -1536,8 +2359,16 @@
       await releaseAudioEngine();
     }
 
+    if (mode === "asio" && bridgeMonitorSocket) {
+      try {
+        bridgeMonitorSocket.onclose = null;
+        bridgeMonitorSocket.close();
+      } catch (_) { }
+      bridgeMonitorSocket = null;
+    }
+
     activeSourceMode = mode;
-    let hwChannels = 2;
+    let hwChannels = 1;
     let hwRate = requestedRate;
     let hwSampleSize = null;
     let deviceLabel = "Audio Interface";
@@ -1551,16 +2382,24 @@
       testFileAudioEl.src = testFileUrl;
       testFileAudioEl.loop = Boolean($("lsTestFileLoopCheck")?.checked);
       testFileAudioEl.preload = "auto";
+      hwChannels = 2;
       deviceLabel = testFileObj ? testFileObj.name : "Test File";
       driverLabel = "Local File Playback";
+      activeDetectedChannelCount = 2;
+      activeDetectedDeviceName = deviceLabel;
+      activeDetectedDriverName = driverLabel;
+      activeChannelCatalog = buildDetectedChannelCatalog(deviceLabel, 2);
+      reconcileRoutingWithCatalog(activeChannelCatalog);
+      emitHardwareCatalogChanged();
     } else if (mode === "asio") {
       driverLabel = "Local Bridge (ws://127.0.0.1:17940)";
-      deviceLabel = "Windows Audio Bridge 2-Ch";
+      deviceLabel = "Windows Audio Bridge";
       const wsInfo = await new Promise((resolve, reject) => {
         let settled = false;
+        let helloWaitTimer = null;
         const sock = new WebSocket("ws://127.0.0.1:17940");
         sock.binaryType = "arraybuffer";
-        const timer = setTimeout(() => {
+        const connTimer = setTimeout(() => {
           if (!settled) {
             settled = true;
             try { sock.close(); } catch (_) { }
@@ -1573,16 +2412,68 @@
         }, 3500);
         sock.onopen = () => {
           asioSocket = sock;
-          if (!settled) {
-            settled = true;
-            clearTimeout(timer);
-            resolve({ sampleRate: requestedRate, channels: 2 });
+          clearTimeout(connTimer);
+          if (preferredBridgeDeviceId && preferredBridgeDeviceId !== "none") {
+            try {
+              sock.send(JSON.stringify({ type: "select-device", deviceId: preferredBridgeDeviceId }));
+            } catch (_) { }
+          }
+          if (rawMcSubscribers.size > 0) {
+            try {
+              sock.send(JSON.stringify({ type: "set-multichannel-tap", enabled: true }));
+            } catch (_) { }
+          }
+          try {
+            lastSentBridgeRouting = `${activeConfig.ch1InputSource}|${activeConfig.ch2InputSource}`;
+            sock.send(
+              JSON.stringify({
+                type: "set-routing",
+                ch1: activeConfig.ch1InputSource,
+                ch2: activeConfig.ch2InputSource
+              })
+            );
+          } catch (_) { }
+          helloWaitTimer = setTimeout(() => {
+            if (!settled) {
+              settled = true;
+              resolve({ sampleRate: requestedRate, channels: 2 });
+            }
+          }, 700);
+        };
+        sock.onmessage = (ev) => {
+          if (typeof ev.data === "string") {
+            try {
+              const meta = JSON.parse(ev.data);
+              if (meta && meta.type === "bridge-info") {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(helloWaitTimer);
+                  if (meta.standby || Number(meta.channels) === 0) {
+                    handleBridgeInfoMeta(meta);
+                    try { sock.close(); } catch (_) { }
+                    if (asioSocket === sock) asioSocket = null;
+                    reject(
+                      new Error(
+                        "Audio Bridge is in Standby (no external USB/ASIO interface detected). Plug in your interface or pick a Built-in Input from the dropdown."
+                      )
+                    );
+                    return;
+                  }
+                  resolve({
+                    sampleRate: Number(meta.sampleRate) || requestedRate,
+                    channels: Number(meta.channels) || 2,
+                    meta
+                  });
+                }
+              }
+            } catch (_) { }
           }
         };
         sock.onerror = () => {
           if (!settled) {
             settled = true;
-            clearTimeout(timer);
+            clearTimeout(connTimer);
+            clearTimeout(helloWaitTimer);
             reject(
               new Error(
                 "Could not connect to Local Audio Bridge (ws://127.0.0.1:17940). Start `python scripts/local_asio_bridge.py` or switch to Browser WASAPI."
@@ -1593,6 +2484,11 @@
       });
       hwChannels = wsInfo.channels || 2;
       hwRate = wsInfo.sampleRate || requestedRate;
+      if (wsInfo.meta) {
+        deviceLabel = wsInfo.meta.deviceName || deviceLabel;
+        driverLabel = wsInfo.meta.hostApi || driverLabel;
+        handleBridgeInfoMeta(wsInfo.meta);
+      }
     } else {
       const inSel = $("lsAudioInputSelect");
       const deviceId = inSel && inSel.value ? inSel.value : undefined;
@@ -1623,9 +2519,19 @@
         });
       }
       const settings = track && typeof track.getSettings === "function" ? track.getSettings() : {};
-      hwChannels = settings.channelCount || 1;
+      hwChannels = Math.max(1, settings.channelCount || 1);
       hwRate = settings.sampleRate || requestedRate;
       hwSampleSize = Number.isFinite(Number(settings.sampleSize)) ? Number(settings.sampleSize) : null;
+
+      const cleanDev = cleanHardwareDeviceLabel(deviceLabel);
+      activeDetectedChannelCount = hwChannels;
+      activeDetectedDeviceName = cleanDev;
+      activeDetectedDriverName = driverLabel;
+      activeChannelCatalog = buildDetectedChannelCatalog(cleanDev, hwChannels);
+      reconcileRoutingWithCatalog(activeChannelCatalog);
+      renderInputChannelSelectors();
+      emitHardwareCatalogChanged();
+      renderLivePinDetectionUi(true);
     }
 
     activeHardwareCaptureFormat = {
@@ -1681,13 +2587,19 @@
               if (soundcheckSession) {
                 soundcheckSession.deviceName = meta.deviceName || soundcheckSession.deviceName;
                 soundcheckSession.channelCount = Number(meta.channels) || soundcheckSession.channelCount;
-                soundcheckSession.sourceType = meta.isAsio ? "asio" : "wasapi";
+                soundcheckSession.sourceType = meta.isAsio ? "asio" : (meta.isExclusive ? "asio" : "wasapi");
               }
               if (activeHardwareCaptureFormat) {
                 activeHardwareCaptureFormat.driver = meta.hostApi || driverLabel;
                 activeHardwareCaptureFormat.deviceName = meta.deviceName || deviceLabel;
                 activeHardwareCaptureFormat.channelCount = Number(meta.channels) || hwChannels;
               }
+              handleBridgeInfoMeta(meta);
+            } else if (meta.type === "input-levels") {
+              handleLivePinLevelsMessage(meta);
+              return;
+            } else if (meta.type === "asio-panel-status") {
+              showStudioMessage(meta.message || "ASIO panel request handled.", !meta.opened);
             } else if (meta.deviceName && soundcheckSession) {
               soundcheckSession.deviceName = meta.deviceName;
             }
@@ -1713,6 +2625,8 @@
               c1Copy.buffer,
               c2Copy.buffer
             ]);
+          } else {
+            dispatchBpmcBinaryPacket(ev.data);
           }
         }
       };
@@ -1730,9 +2644,10 @@
     try {
       source.channelInterpretation = "discrete";
     } catch (_) { }
-    const splitter = audioCtx.createChannelSplitter(Math.max(2, source.channelCount || 2));
+    const splitterCount = mode === "asio" ? 2 : Math.max(1, hwChannels, source.channelCount || 1);
+    const splitter = audioCtx.createChannelSplitter(splitterCount);
     try {
-      splitter.channelCount = Math.max(2, source.channelCount || 2);
+      splitter.channelCount = splitterCount;
       splitter.channelCountMode = "explicit";
       splitter.channelInterpretation = "discrete";
     } catch (_) { }
@@ -1742,15 +2657,29 @@
       await testFileAudioEl.play();
     }
 
-    // Channel routing matrix: ch1 = Physical In 1 (Vocals), ch2 = Physical In 2 (Instruments)
-    const ch1FromL = audioCtx.createGain();
-    const ch1FromR = audioCtx.createGain();
-    const ch2FromL = audioCtx.createGain();
-    const ch2FromR = audioCtx.createGain();
-    splitter.connect(ch1FromL, 0);
-    splitter.connect(ch1FromR, 1);
-    splitter.connect(ch2FromL, 0);
-    splitter.connect(ch2FromR, 1);
+    // Channel routing matrix: supports arbitrary N-pin hardware inputs -> CH 1 (Vocals) & CH 2 (Instruments)
+    const rawPinAnalysers = [];
+    const ch1PinGains = [];
+    const ch2PinGains = [];
+    for (let pin = 0; pin < splitterCount; pin++) {
+      const g1 = audioCtx.createGain();
+      const g2 = audioCtx.createGain();
+      splitter.connect(g1, pin);
+      splitter.connect(g2, pin);
+      ch1PinGains.push(g1);
+      ch2PinGains.push(g2);
+      if (mode !== "asio" && pin < hwChannels) {
+        const pinAn = audioCtx.createAnalyser();
+        pinAn.fftSize = 256;
+        pinAn.smoothingTimeConstant = 0.25;
+        splitter.connect(pinAn, pin);
+        rawPinAnalysers.push(pinAn);
+      }
+    }
+    const ch1FromL = ch1PinGains[0];
+    const ch1FromR = ch1PinGains[1] || null;
+    const ch2FromL = ch2PinGains[0];
+    const ch2FromR = ch2PinGains[1] || null;
 
     // Ch1 Vocals: Trim -> HPF1/HPF2 -> LPF -> 3-Band EQ -> ProDSP -> (Pre-Fader PFL & Send) -> Fader -> Mute -> Post-Fader Send -> Pan -> Analyser -> Mix
     const vocalTrimGain = audioCtx.createGain();
@@ -1806,8 +2735,7 @@
     const vocalPostRevSendGain = audioCtx.createGain();
     const vocalPanner = typeof audioCtx.createStereoPanner === "function" ? audioCtx.createStereoPanner() : null;
 
-    ch1FromL.connect(vocalTrimGain);
-    ch1FromR.connect(vocalTrimGain);
+    ch1PinGains.forEach((g) => g.connect(vocalTrimGain));
     let vocalPreFader = vocalTrimGain
       .connect(vocalHpf)
       .connect(vocalHpf2)
@@ -1881,8 +2809,7 @@
     const instPostRevSendGain = audioCtx.createGain();
     const instPanner = typeof audioCtx.createStereoPanner === "function" ? audioCtx.createStereoPanner() : null;
 
-    ch2FromL.connect(instTrimGain);
-    ch2FromR.connect(instTrimGain);
+    ch2PinGains.forEach((g) => g.connect(instTrimGain));
     let instPreFader = instTrimGain
       .connect(instHpf)
       .connect(instHpf2)
@@ -2019,10 +2946,8 @@
       dryPreMerger.channelCountMode = "explicit";
       dryPreMerger.channelInterpretation = "discrete";
     } catch (_) { }
-    ch1FromL.connect(dryPreMerger, 0, 0);
-    ch1FromR.connect(dryPreMerger, 0, 0);
-    ch2FromL.connect(dryPreMerger, 0, 1);
-    ch2FromR.connect(dryPreMerger, 0, 1);
+    ch1PinGains.forEach((g) => g.connect(dryPreMerger, 0, 0));
+    ch2PinGains.forEach((g) => g.connect(dryPreMerger, 0, 1));
 
     if (dryWorkletNode) {
       dryPreMerger.connect(dryWorkletNode).connect(silentSink);
@@ -2079,6 +3004,9 @@
     nodes = {
       source,
       splitter,
+      rawPinAnalysers,
+      ch1PinGains,
+      ch2PinGains,
       ch1FromL,
       ch1FromR,
       ch2FromL,
@@ -2291,7 +3219,15 @@
       $("lsTestFilePauseBtn").textContent = "Pause File";
     }
     nodes = null;
+    livePinLevels.peaksDb = [];
+    livePinLevels.rmsDb = [];
+    livePinLevels.activePins = [];
+    livePinLevels.updatedAt = 0;
     updateHeroStatusUi();
+    renderLivePinDetectionUi(true);
+    if ($("lsCaptureBackendSelect")?.value === "asio") {
+      connectPassiveBridgeMonitor();
+    }
   }
 
   function startEncoderWorker(sampleRate, kbps) {
@@ -2767,31 +3703,259 @@
     }
   }
 
+  function connectPassiveBridgeMonitor() {
+    if (asioSocket && asioSocket.readyState === 1) return;
+    if (bridgeMonitorSocket && (bridgeMonitorSocket.readyState === 0 || bridgeMonitorSocket.readyState === 1)) return;
+    if (typeof WebSocket !== "function") return;
+    try {
+      const sock = new WebSocket("ws://127.0.0.1:17940/?mode=monitor");
+      sock.binaryType = "arraybuffer";
+      bridgeMonitorSocket = sock;
+      sock.onopen = () => {
+        try {
+          sock.send(JSON.stringify({ type: "set-client-mode", mode: "monitor" }));
+          if (rawMcSubscribers.size > 0) {
+            sock.send(JSON.stringify({ type: "set-multichannel-tap", enabled: true }));
+          }
+        } catch (_) { }
+      };
+      sock.onmessage = (ev) => {
+        if (ev.data instanceof ArrayBuffer) {
+          dispatchBpmcBinaryPacket(ev.data);
+          return;
+        }
+        if (typeof ev.data !== "string") return;
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg && msg.type === "bridge-info") {
+            if ($("lsCaptureBackendSelect")) $("lsCaptureBackendSelect").value = "asio";
+            handleBridgeInfoMeta(msg);
+          } else if (msg && msg.type === "input-levels") {
+            handleLivePinLevelsMessage(msg);
+          }
+        } catch (_) { }
+      };
+      sock.onerror = () => {
+        if (bridgeMonitorSocket === sock) bridgeMonitorSocket = null;
+      };
+      sock.onclose = () => {
+        if (bridgeMonitorSocket === sock) bridgeMonitorSocket = null;
+      };
+    } catch (_) { }
+  }
+
+  async function probeLocalAudioBridge(switchBackendIfFound = true) {
+    lastPassiveBridgeProbeAt = Date.now();
+    if (asioSocket && asioSocket.readyState === 1) return { active: true };
+    if (bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1) {
+      if (switchBackendIfFound && $("lsCaptureBackendSelect")) $("lsCaptureBackendSelect").value = "asio";
+      return activeDetectedChannelCount > 0
+        ? { cleanName: activeDetectedDeviceName, hostApi: activeDetectedDriverName, channels: activeDetectedChannelCount }
+        : { active: true };
+    }
+    if (typeof WebSocket !== "function") return null;
+    return await new Promise((resolve) => {
+      let settled = false;
+      let sock;
+      const done = (val) => {
+        if (settled) return;
+        settled = true;
+        try {
+          if (sock) sock.close();
+        } catch (_) { }
+        if (val) connectPassiveBridgeMonitor();
+        resolve(val);
+      };
+      const timer = setTimeout(() => done(null), 650);
+      try {
+        sock = new WebSocket("ws://127.0.0.1:17940/?mode=monitor");
+        sock.onmessage = (ev) => {
+          if (typeof ev.data !== "string") return;
+          try {
+            const meta = JSON.parse(ev.data);
+            if (meta && meta.type === "bridge-info") {
+              clearTimeout(timer);
+              if (switchBackendIfFound && $("lsCaptureBackendSelect")) {
+                $("lsCaptureBackendSelect").value = "asio";
+              }
+              handleBridgeInfoMeta(meta);
+              done(meta);
+            }
+          } catch (_) { }
+        };
+        sock.onerror = () => {
+          clearTimeout(timer);
+          done(null);
+        };
+      } catch (_) {
+        clearTimeout(timer);
+        done(null);
+      }
+    });
+  }
+
+  async function toggleInputChannelAutoDetect(targetBus) {
+    if (inputLearnState && inputLearnState.targetBus === targetBus) {
+      stopInputAutoDetect(false);
+      return;
+    }
+    stopInputAutoDetect(true);
+
+    const isBridgeMonitoring = Boolean(bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1);
+    if (!audioCtx && !isBridgeMonitoring) {
+      const bridgeMeta = await probeLocalAudioBridge(true);
+      const targetMode = bridgeMeta || $("lsCaptureBackendSelect")?.value === "asio" ? "asio" : "device";
+      if (!bridgeMeta) {
+        try {
+          await initAudioEngine(targetMode);
+        } catch (err) {
+          showStudioMessage("Start Audio Input first to auto-detect channel: " + err.message, true);
+          return;
+        }
+      }
+    }
+
+    inputLearnState = {
+      targetBus,
+      startedAt: Date.now(),
+      streakPin: -1,
+      streakCount: 0,
+      timer: setTimeout(() => {
+        if (inputLearnState && inputLearnState.targetBus === targetBus) {
+          stopInputAutoDetect(true);
+          showStudioMessage(
+            `No live signal detected on any pin for ${targetBus === "vocal" ? "Vocals" : "Instruments"} within 7s. Speak/play louder and try Detect again.`,
+            true
+          );
+        }
+      }, 7000)
+    };
+    renderLivePinDetectionUi(true);
+    showStudioMessage(
+      targetBus === "vocal"
+        ? "Listening... speak into your microphone now to auto-assign CH 1 Vocals!"
+        : "Listening... play harmonium/tabla now to auto-assign CH 2 Instruments!",
+      false
+    );
+  }
+
   function wireStudioEvents() {
     renderPresetOptions(presets[0] ? presets[0].id : null);
     syncUiFromConfig();
     renderBhajanPickerList(streamState.nowSinging ? streamState.nowSinging.submissionId : null);
     updateHeroStatusUi();
-    refreshAudioDevices(false);
+    refreshAudioDevices(false).then(() => probeLocalAudioBridge(true));
+
+    window.addEventListener("focus", () => {
+      if (isLive || (audioCtx && activeSourceMode === "asio")) return;
+      if (Date.now() - lastPassiveBridgeProbeAt > 2500) {
+        probeLocalAudioBridge(true);
+      }
+    });
 
     if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === "function") {
       navigator.mediaDevices.addEventListener("devicechange", () => refreshAudioDevices(false));
     }
 
     if ($("lsRefreshDevicesBtn")) {
-      $("lsRefreshDevicesBtn").onclick = () => refreshAudioDevices(true);
+      $("lsRefreshDevicesBtn").onclick = async () => {
+        const activeBridgeSock = asioSocket && asioSocket.readyState === 1
+          ? asioSocket
+          : (bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1 ? bridgeMonitorSocket : null);
+        if (activeBridgeSock) {
+          try {
+            activeBridgeSock.send(JSON.stringify({ type: "refresh-devices" }));
+            showStudioMessage("Scanning Windows audio devices & USB interfaces on bridge...", false);
+            return;
+          } catch (_) { }
+        }
+        const probe = await probeLocalAudioBridge(true);
+        if (probe) {
+          showStudioMessage(
+            `Detected Audio Bridge: ${probe.cleanName || probe.deviceName || "Audio Interface"} (${probe.hostApi || "Bridge"}, ${probe.channels || activeDetectedChannelCount} ch)`,
+            false
+          );
+          return;
+        }
+        await refreshAudioDevices(true);
+      };
+    }
+    if ($("lsOpenAsioPanelBtn")) {
+      $("lsOpenAsioPanelBtn").onclick = () => {
+        if (asioSocket && asioSocket.readyState === 1) {
+          asioSocket.send(JSON.stringify({ type: "open-asio-panel" }));
+        } else {
+          showStudioMessage("Engage Soundcheck via ASIO driver first to open its driver panel.", true);
+        }
+      };
+    }
+    if ($("lsAudioInputSelect")) {
+      $("lsAudioInputSelect").onchange = async function () {
+        if ($("lsCaptureBackendSelect")?.value === "asio") {
+          preferredBridgeDeviceId = this.value;
+          if (this.value === "none") {
+            bridgeStandbyMode = true;
+            activeDetectedChannelCount = 0;
+            activeDetectedDeviceName = "No External Interface (Standby)";
+            activeDetectedDriverName = "Standby";
+            activeChannelCatalog = [];
+            reconcileRoutingWithCatalog(activeChannelCatalog);
+            renderInputChannelSelectors();
+            emitHardwareCatalogChanged();
+            renderLivePinDetectionUi(true);
+          } else {
+            const chosen = activeBridgeDevices.find((d) => String(d.id) === String(this.value));
+            if (chosen) {
+              bridgeStandbyMode = false;
+              const chCnt = Number(chosen.maxInputChannels) || 0;
+              activeDetectedChannelCount = chCnt;
+              activeDetectedDeviceName = cleanHardwareDeviceLabel(chosen.cleanName || chosen.name);
+              activeDetectedDriverName = chosen.hostApi || "Audio Bridge";
+              activeChannelCatalog = Array.isArray(chosen.channelsCatalog)
+                ? chosen.channelsCatalog
+                : buildDetectedChannelCatalog(activeDetectedDeviceName, chCnt, chosen.pinNames);
+              reconcileRoutingWithCatalog(activeChannelCatalog);
+              renderInputChannelSelectors();
+              emitHardwareCatalogChanged();
+              renderLivePinDetectionUi(true);
+            }
+          }
+          const activeSock = asioSocket && asioSocket.readyState === 1
+            ? asioSocket
+            : (bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1 ? bridgeMonitorSocket : null);
+          if (activeSock) {
+            try {
+              activeSock.send(JSON.stringify({ type: "select-device", deviceId: this.value }));
+            } catch (_) { }
+          }
+        } else {
+          const lbl = this.options[this.selectedIndex] ? this.options[this.selectedIndex].textContent : "";
+          await probeBrowserDeviceChannels(this.value, lbl);
+        }
+      };
     }
     if ($("lsCaptureBackendSelect")) {
       $("lsCaptureBackendSelect").onchange = async function () {
         const nextMode = this.value === "asio" ? "asio" : "device";
         activeSourceMode = nextMode;
+        if (nextMode === "asio") {
+          await probeLocalAudioBridge(false);
+        } else {
+          if (bridgeMonitorSocket) {
+            try { bridgeMonitorSocket.close(); } catch (_) { }
+            bridgeMonitorSocket = null;
+          }
+          const asioBtn = $("lsOpenAsioPanelBtn");
+          if (asioBtn) asioBtn.classList.add("ls-is-hidden");
+          await refreshAudioDevices(false);
+        }
         if (audioCtx) {
           try {
             await releaseAudioEngine();
             await initAudioEngine(nextMode);
             showStudioMessage(
               nextMode === "asio"
-                ? "Connected via Local ASIO Bridge (ws://127.0.0.1:17940)."
+                ? "Connected via Local Audio Bridge (ws://127.0.0.1:17940)."
                 : "Switched to Browser WASAPI raw capture.",
               false
             );
@@ -2811,6 +3975,9 @@
           drawer.open = true;
         }
         try {
+          if ($("lsCaptureBackendSelect")?.value !== "asio") {
+            await probeLocalAudioBridge(true);
+          }
           const targetMode =
             $("lsCaptureBackendSelect") && $("lsCaptureBackendSelect").value === "asio"
               ? "asio"
@@ -2959,9 +4126,44 @@
 
     if ($("lsSwapBtn")) {
       $("lsSwapBtn").onclick = function () {
-        activeConfig.swapChannels = !activeConfig.swapChannels;
+        const prevCh1 = activeConfig.ch1InputSource;
+        activeConfig.ch1InputSource = activeConfig.ch2InputSource;
+        activeConfig.ch2InputSource = prevCh1;
+        activeConfig.swapChannels = activeConfig.ch1InputSource === "1" && activeConfig.ch2InputSource === "0"
+          ? true
+          : !activeConfig.swapChannels;
         syncUiFromConfig();
       };
+    }
+
+    if ($("lsVocalInputChannelSelect")) {
+      const vocalSel = $("lsVocalInputChannelSelect");
+      vocalSel.addEventListener("pointerdown", () => updateSelectorLiveOptionLabels(vocalSel, true));
+      vocalSel.addEventListener("focus", () => updateSelectorLiveOptionLabels(vocalSel, true));
+      vocalSel.onchange = function () {
+        activeConfig.ch1InputSource = this.value;
+        activeConfig.swapChannels = activeConfig.ch1InputSource === "1" && activeConfig.ch2InputSource === "0";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsInstInputChannelSelect")) {
+      const instSel = $("lsInstInputChannelSelect");
+      instSel.addEventListener("pointerdown", () => updateSelectorLiveOptionLabels(instSel, true));
+      instSel.addEventListener("focus", () => updateSelectorLiveOptionLabels(instSel, true));
+      instSel.onchange = function () {
+        ch2AutoMutedBySingleCh = false;
+        activeConfig.ch2InputSource = this.value;
+        activeConfig.swapChannels = activeConfig.ch1InputSource === "1" && activeConfig.ch2InputSource === "0";
+        syncUiFromConfig();
+      };
+    }
+
+    if ($("lsVocalDetectInputBtn")) {
+      $("lsVocalDetectInputBtn").onclick = () => toggleInputChannelAutoDetect("vocal");
+    }
+    if ($("lsInstDetectInputBtn")) {
+      $("lsInstDetectInputBtn").onclick = () => toggleInputChannelAutoDetect("inst");
     }
 
     if ($("lsInstMuteBtn")) {
@@ -3394,6 +4596,9 @@
         return;
       }
       try {
+        if (!audioCtx && $("lsCaptureBackendSelect")?.value !== "asio") {
+          await probeLocalAudioBridge(true);
+        }
         await initAudioEngine();
         if (soundcheckSession && window.LiveStreamSoundcheck && activeConfig.mode === "split") {
           soundcheckSession.swapChannels = Boolean(activeConfig.swapChannels);
@@ -3435,6 +4640,10 @@
           recordDryCh2: Boolean($("lsRecDryCh2Check")?.checked),
           recordMasterMp3: Boolean($("lsRecMasterCheck")?.checked)
         });
+        unexportedRecordingGuard = true;
+        if (typeof window.armStudioHistoryGuard === "function") {
+          window.armStudioHistoryGuard();
+        }
         clearInterval(recStatsTimer);
         recStatsTimer = setInterval(updateRecorderUi, 500);
         updateRecorderUi();
@@ -3442,7 +4651,13 @@
         if (alsoGoLive) {
           await goLive();
         } else {
-          showStudioMessage("Lossless multitrack SSD recording started!", false);
+          const recState = window.LiveStudioRecorder.getState();
+          const where = recState.storageBackend === "user_folder"
+            ? `SSD folder "${recState.folderName}"`
+            : (recState.storageBackend === "opfs_vault"
+              ? "Default SSD Vault (BhajanPlanner/Recordings)"
+              : "browser recording buffer");
+          showStudioMessage(`Lossless multitrack capture started -> ${where}.`, false);
         }
       } catch (err) {
         updateRecorderUi();
@@ -3573,8 +4788,23 @@
               a.download = item.filename;
               a.style.textDecoration = "none";
               a.textContent = `Download ${item.label}`;
+              a.onclick = () => {
+                unexportedRecordingGuard = false;
+              };
               dlList.appendChild(a);
             });
+          }
+        }
+
+        if (res.savedToFolder) {
+          unexportedRecordingGuard = false;
+        } else {
+          unexportedRecordingGuard = true;
+          if (res.savedToDefaultVault && typeof window.refreshVaultRecoveryBanner === "function") {
+            window.refreshVaultRecoveryBanner();
+          }
+          if ($("lsAutoExportDownloadsCheck")?.checked && Array.isArray(res.fallbackDownloads) && res.fallbackDownloads.length > 0) {
+            triggerStemDownloads(res.fallbackDownloads);
           }
         }
 
@@ -3584,7 +4814,9 @@
           showStudioMessage(
             res.savedToFolder
               ? `Saved verified stems + project.json directly to folder "${res.savedToFolder}". Ready for DAW mastering & Cloudflare R2!`
-              : "Recording finalized & verified! You can edit stems in the DAW or upload to Cloudflare R2 below.",
+              : (res.savedToDefaultVault
+                ? `Saved verified stems to Default SSD Vault ("${res.vaultPath}") & started Downloads backup. Ready for DAW or Cloudflare R2!`
+                : "Recording finalized & verified! Save stems to Downloads, edit in the DAW, or upload to Cloudflare R2 below."),
             false
           );
         }
@@ -3644,6 +4876,8 @@
           if ($("lsRecFolderLabel")) {
             $("lsRecFolderLabel").textContent = `SSD Folder Ready: ${picked.name}`;
           }
+          syncFolderStatusUi();
+          updateResourceStrip();
           showStudioMessage(`Selected SSD folder "${picked.name}" for lossless WAV + MP3 capture.`, false);
         } catch (err) {
           if (err && err.name !== "AbortError") {
@@ -3784,6 +5018,10 @@
             `Published "${pubResult.audio.title}" to Cloudflare R2 with ${pubResult.timestampCount} bhajan timestamps!`,
             false
           );
+          unexportedRecordingGuard = false;
+          if (window.LiveStudioDaw && typeof window.LiveStudioDaw.markExportedClean === "function") {
+            window.LiveStudioDaw.markExportedClean();
+          }
         } catch (err) {
           if (statusText) statusText.textContent = err.message;
           showStudioMessage("Cloudflare R2 Publish failed: " + err.message, true);
@@ -3902,6 +5140,56 @@
         window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
           ? window.LiveStudioRecorder.getState().folderName
           : null,
+      getInputChannelCatalog: () => getActiveChannelCatalog(),
+      getInputRouting: () => ({
+        ch1: activeConfig.ch1InputSource,
+        ch2: activeConfig.ch2InputSource
+      }),
+      isBridgeStandby: () => bridgeStandbyMode,
+      getLivePinLevels: () => ({ ...livePinLevels }),
+      subscribeRawMultiChannel: (fn) => {
+        if (typeof fn !== "function") return;
+        rawMcSubscribers.add(fn);
+        syncBridgeMultichannelTap();
+      },
+      unsubscribeRawMultiChannel: (fn) => {
+        rawMcSubscribers.delete(fn);
+        syncBridgeMultichannelTap();
+      },
+      setMultichannelTapEnabled: (enabled) => {
+        if (!enabled) rawMcSubscribers.clear();
+        syncBridgeMultichannelTap();
+      },
+      startTrackAutoDetect: async (onDetected, targetLabel) => {
+        stopInputAutoDetect(true);
+        const isBridgeMonitoring = Boolean(
+          (asioSocket && asioSocket.readyState === 1) ||
+          (bridgeMonitorSocket && bridgeMonitorSocket.readyState === 1)
+        );
+        if (!audioCtx && !isBridgeMonitoring) {
+          await probeLocalAudioBridge(true);
+        }
+        inputLearnState = {
+          targetBus: "daw-track",
+          startedAt: Date.now(),
+          streakPin: -1,
+          streakCount: 0,
+          onDetected,
+          timer: setTimeout(() => {
+            if (inputLearnState && inputLearnState.targetBus === "daw-track") {
+              stopInputAutoDetect(true);
+              showStudioMessage(
+                `No live signal detected for ${targetLabel || "DAW Track"} within 7s.`,
+                true
+              );
+            }
+          }, 7000)
+        };
+        renderLivePinDetectionUi(true);
+      },
+      stopTrackAutoDetect: () => stopInputAutoDetect(true),
+      cleanHardwareDeviceLabel,
+      buildDetectedChannelCatalog,
       getBhajans: () => bhajansList.slice()
     };
 
@@ -4218,19 +5506,446 @@
       }
     }
 
+    function syncFolderStatusUi() {
+      const lbl = $("lsRecFolderLabel");
+      if (!lbl || !window.LiveStudioRecorder) return;
+      const summary = window.LiveStudioRecorder.getStorageSummary
+        ? window.LiveStudioRecorder.getStorageSummary()
+        : { mode: window.LiveStudioRecorder.getDirectoryName() ? "user_folder" : "memory", folderName: window.LiveStudioRecorder.getDirectoryName() };
+      if (summary.folderName) {
+        lbl.textContent = `SSD Folder Ready: ${summary.folderName}`;
+      } else if (summary.savedPendingName) {
+        lbl.textContent = `Previous folder "${summary.savedPendingName}" (click Choose Folder to re-grant) — Default SSD Vault active`;
+      } else if (summary.mode === "opfs_vault") {
+        lbl.textContent = `Default SSD Vault active (${summary.vaultPath || "BhajanPlanner/Recordings"}) — or Choose Folder`;
+      } else {
+        lbl.textContent = "Browser RAM capture (auto-downloads on stop) — Choose Folder for direct SSD";
+      }
+    }
+
+    async function refreshVaultRecoveryBanner() {
+      const banner = $("lsVaultRecoveryBanner");
+      const txtEl = $("lsVaultRecoveryText");
+      if (!banner || !window.LiveStudioRecorder || typeof window.LiveStudioRecorder.listVaultSessions !== "function") {
+        return;
+      }
+      try {
+        const sessions = await window.LiveStudioRecorder.listVaultSessions();
+        if (!sessions || sessions.length === 0) {
+          banner.classList.add("ls-is-hidden");
+          return;
+        }
+        const curDate = ($("lsSessionDateInput")?.value || boot.sessionDate || "").trim();
+        const latest = sessions.find((s) => s.sessionDate === curDate) || sessions[0];
+        const mb = (latest.totalBytes / (1024 * 1024)).toFixed(1);
+        const parts = [];
+        if (latest.hasCh1) parts.push("Ch1 WAV");
+        if (latest.hasCh2) parts.push("Ch2 WAV");
+        if (latest.hasMaster) parts.push("MP3");
+        if (txtEl) {
+          txtEl.textContent = `${latest.sessionDate} · ${formatTsMmSs(latest.durationSeconds)} · ${mb} MB (${parts.join(" + ")})`;
+        }
+        banner.classList.remove("ls-is-hidden");
+
+        const openBtn = $("lsVaultRecoverDawBtn");
+        const dlBtn = $("lsVaultDownloadBtn");
+        const delBtn = $("lsVaultDeleteBtn");
+
+        if (openBtn) {
+          openBtn.onclick = async () => {
+            openBtn.disabled = true;
+            try {
+              const loaded = await window.LiveStudioRecorder.loadVaultSession(latest.dirNameDate, latest.dirNameUid);
+              lastRecordedResult = loaded;
+              if (loaded.timestamps && loaded.timestamps.length > 0 && capturedTimestamps.length === 0) {
+                capturedTimestamps = loaded.timestamps.slice();
+                saveTimestampsToLocal();
+                renderTimestampsEditor();
+              }
+              if ($("lsBackupDryStemsR2Btn")) {
+                $("lsBackupDryStemsR2Btn").disabled = !(loaded.dryCh1File || loaded.dryCh2File);
+              }
+              if ($("lsDawAutoLoadRecBtn")) {
+                $("lsDawAutoLoadRecBtn").disabled = !(loaded.dryCh1File || loaded.dryCh2File || loaded.masterFile);
+              }
+              if (loaded.masterFile && $("lsR2SourceLabel")) {
+                $("lsR2SourceLabel").textContent = `Recovered from SSD Vault: ${loaded.masterFile.name} (${(loaded.masterFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+                if ($("lsPublishR2Btn")) $("lsPublishR2Btn").disabled = false;
+              }
+              if (window.LiveStudioDaw && typeof window.LiveStudioDaw.openFromRecording === "function") {
+                await window.LiveStudioDaw.openFromRecording(loaded);
+              }
+              showStudioMessage(`Recovered recording "${latest.sessionUid}" from Default SSD Vault into DAW!`, false);
+            } catch (err) {
+              showStudioMessage("Failed to recover vault session: " + err.message, true);
+            } finally {
+              openBtn.disabled = false;
+            }
+          };
+        }
+
+        if (dlBtn) {
+          dlBtn.onclick = async () => {
+            dlBtn.disabled = true;
+            try {
+              const loaded = await window.LiveStudioRecorder.loadVaultSession(latest.dirNameDate, latest.dirNameUid);
+              triggerStemDownloads(loaded.fallbackDownloads || []);
+              unexportedRecordingGuard = false;
+              showStudioMessage(`Saving ${loaded.fallbackDownloads.length} recovered file(s) from SSD Vault to Downloads...`, false);
+            } catch (err) {
+              showStudioMessage("Failed to export vault stems: " + err.message, true);
+            } finally {
+              dlBtn.disabled = false;
+            }
+          };
+        }
+
+        if (delBtn) {
+          delBtn.onclick = async () => {
+            delBtn.disabled = true;
+            try {
+              await window.LiveStudioRecorder.deleteVaultSession(latest.dirNameDate, latest.dirNameUid);
+              await refreshVaultRecoveryBanner();
+              showStudioMessage(`Cleared SSD Vault recording (${latest.sessionUid}).`, false);
+            } catch (err) {
+              showStudioMessage("Could not clear SSD Vault entry: " + err.message, true);
+            } finally {
+              delBtn.disabled = false;
+            }
+          };
+        }
+      } catch (_) { }
+    }
+    window.refreshVaultRecoveryBanner = refreshVaultRecoveryBanner;
+
+    if (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.restoreSavedDirectory === "function") {
+      window.LiveStudioRecorder.restoreSavedDirectory().then(() => {
+        syncFolderStatusUi();
+        updateResourceStrip();
+      });
+    } else {
+      syncFolderStatusUi();
+    }
+    refreshVaultRecoveryBanner();
+
+    function getStudioProtectionStatus() {
+      const recActive = Boolean(window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording());
+      const dawDirty = Boolean(
+        window.LiveStudioDaw &&
+        typeof window.LiveStudioDaw.hasUnsavedChanges === "function" &&
+        window.LiveStudioDaw.hasUnsavedChanges()
+      );
+      const reasons = [];
+      if (isLive) reasons.push("Live broadcast is currently ON AIR");
+      if (recActive) reasons.push("Multitrack recording is actively writing stems");
+      if (!recActive && unexportedRecordingGuard) reasons.push("Recorded session stems have not been published or saved");
+      if (dawDirty) reasons.push("DAW project has unexported edits");
+
+      const recState = window.LiveStudioRecorder && typeof window.LiveStudioRecorder.getState === "function"
+        ? window.LiveStudioRecorder.getState()
+        : {};
+      const canSaveStems = Boolean(
+        !recActive &&
+        lastRecordedResult &&
+        Array.isArray(lastRecordedResult.fallbackDownloads) &&
+        lastRecordedResult.fallbackDownloads.length > 0
+      );
+      return {
+        protected: reasons.length > 0,
+        reasons,
+        recActive,
+        canSaveStems,
+        vaultBacked: recState.storageBackend === "opfs_vault" || Boolean(lastRecordedResult && lastRecordedResult.savedToDefaultVault)
+      };
+    }
+
+    function armStudioHistoryGuard() {
+      if (historyGuardArmed || !window.history || typeof window.history.pushState !== "function") return;
+      try {
+        window.history.pushState({ bpStudioGuard: true }, "", window.location.href);
+        historyGuardArmed = true;
+      } catch (_) { }
+    }
+    window.armStudioHistoryGuard = armStudioHistoryGuard;
+
+    function triggerGuardPulse() {
+      const dialog = $("lsRefreshGuardDialog");
+      if (!dialog) return;
+      dialog.classList.remove("is-locked-pulse");
+      void dialog.offsetWidth;
+      dialog.classList.add("is-locked-pulse");
+    }
+
+    function applyScreenFreeze(freeze) {
+      const htmlEl = document.documentElement;
+      const bodyEl = document.body;
+      if (freeze) {
+        if (htmlEl) htmlEl.classList.add("ls-screen-frozen");
+        if (bodyEl) bodyEl.classList.add("ls-screen-frozen");
+        frozenInertElements = [];
+        const candidates = document.querySelectorAll(
+          ".sidebar, .topbar, .ls-console-topbar, #lsResourceStrip, #lsIoRibbonDetails, #lsTabLivePane, #lsTabDawPane"
+        );
+        candidates.forEach((el) => {
+          if (!el || el.closest("#lsRefreshGuardDialog")) return;
+          frozenInertElements.push({
+            el,
+            prevInert: Boolean(el.inert),
+            prevAriaHidden: el.getAttribute("aria-hidden")
+          });
+          el.inert = true;
+          el.setAttribute("aria-hidden", "true");
+        });
+      } else {
+        if (htmlEl) htmlEl.classList.remove("ls-screen-frozen");
+        if (bodyEl) bodyEl.classList.remove("ls-screen-frozen");
+        frozenInertElements.forEach((entry) => {
+          try {
+            entry.el.inert = entry.prevInert;
+            if (entry.prevAriaHidden === null) {
+              entry.el.removeAttribute("aria-hidden");
+            } else {
+              entry.el.setAttribute("aria-hidden", entry.prevAriaHidden);
+            }
+          } catch (_) { }
+        });
+        frozenInertElements = [];
+      }
+    }
+
+    function trapGuardWheelTouch(ev) {
+      if (!refreshGuardOpen) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+
+    function trapGuardKeydown(ev) {
+      if (!refreshGuardOpen) return;
+      const dialog = $("lsRefreshGuardDialog");
+      const actionsBox = $("lsRefreshGuardActions");
+      const key = String(ev.key || "");
+
+      if (key === "Tab" && actionsBox) {
+        const focusables = Array.from(actionsBox.querySelectorAll("button:not(:disabled)")).filter(
+          (b) => b.style.display !== "none"
+        );
+        if (focusables.length > 0) {
+          const idx = focusables.indexOf(document.activeElement);
+          let nextIdx;
+          if (ev.shiftKey) {
+            nextIdx = idx <= 0 ? focusables.length - 1 : idx - 1;
+          } else {
+            nextIdx = idx === -1 || idx >= focusables.length - 1 ? 0 : idx + 1;
+          }
+          ev.preventDefault();
+          ev.stopPropagation();
+          focusables[nextIdx].focus();
+          return;
+        }
+      }
+
+      if ((key === "Enter" || ev.code === "Space") && dialog && document.activeElement && dialog.contains(document.activeElement)) {
+        return;
+      }
+
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      triggerGuardPulse();
+    }
+
+    function closeRefreshGuardModal() {
+      const dialog = $("lsRefreshGuardDialog");
+      refreshGuardOpen = false;
+      pendingGuardAction = null;
+      applyScreenFreeze(false);
+      window.removeEventListener("wheel", trapGuardWheelTouch, true);
+      window.removeEventListener("touchmove", trapGuardWheelTouch, true);
+      window.removeEventListener("keydown", trapGuardKeydown, true);
+      if (dialog) {
+        try {
+          if (typeof dialog.close === "function" && dialog.open) dialog.close();
+        } catch (_) { }
+        dialog.removeAttribute("open");
+      }
+    }
+
+    function openRefreshGuardModal(actionInfo) {
+      const status = getStudioProtectionStatus();
+      if (!status.protected) return false;
+
+      const dialog = $("lsRefreshGuardDialog");
+      if (!dialog) return false;
+
+      pendingGuardAction = actionInfo || { actionType: "reload" };
+      const titleEl = $("lsRefreshGuardTitle");
+      const descEl = $("lsRefreshGuardDesc");
+      const metaEl = $("lsRefreshGuardMeta");
+      const saveBtn = $("lsGuardSaveStemsBtn");
+      const leaveBtn = $("lsGuardConfirmLeaveBtn");
+
+      const isLeave = pendingGuardAction.actionType === "navigate" || pendingGuardAction.actionType === "back";
+      if (titleEl) {
+        titleEl.textContent = status.recActive
+          ? "Recording In Progress — Screen Locked"
+          : (isLive ? "Live Broadcast ON AIR — Screen Locked" : "Unsaved Session Work — Confirm Refresh");
+      }
+      if (descEl) {
+        descEl.textContent = status.recActive
+          ? "You attempted to refresh or leave while recording. Stems are streaming to Default SSD Vault, but refreshing now will stop capture. Screen interaction is frozen until you choose an option:"
+          : "You attempted to refresh or leave before publishing or closing this session. Screen interaction is frozen until you choose an option:";
+      }
+      if (metaEl) {
+        const recStats = window.LiveStudioRecorder && window.LiveStudioRecorder.getStats ? window.LiveStudioRecorder.getStats() : null;
+        const statsLine = status.recActive && recStats
+          ? `Captured so far: ${formatTsMmSs(recStats.elapsedSeconds)} (${(recStats.totalBytes / (1024 * 1024)).toFixed(2)} MB)\n`
+          : (status.vaultBacked ? "Safe copy stored in Default SSD Vault (BhajanPlanner/Recordings).\n" : "");
+        metaEl.textContent = statsLine + status.reasons.join(" · ");
+      }
+      if (saveBtn) {
+        saveBtn.style.display = status.canSaveStems ? "inline-flex" : "none";
+      }
+      if (leaveBtn) {
+        leaveBtn.textContent = isLeave ? "Discard & Leave Page" : "Discard & Refresh Anyway";
+      }
+
+      refreshGuardOpen = true;
+      applyScreenFreeze(true);
+      window.addEventListener("wheel", trapGuardWheelTouch, { passive: false, capture: true });
+      window.addEventListener("touchmove", trapGuardWheelTouch, { passive: false, capture: true });
+      window.addEventListener("keydown", trapGuardKeydown, true);
+
+      try {
+        if (typeof dialog.showModal === "function") {
+          if (!dialog.open) dialog.showModal();
+        } else {
+          dialog.setAttribute("open", "open");
+        }
+      } catch (_) {
+        dialog.setAttribute("open", "open");
+      }
+      $("lsGuardStayBtn")?.focus();
+      return true;
+    }
+
+    const guardDialog = $("lsRefreshGuardDialog");
+    if (guardDialog) {
+      guardDialog.addEventListener("cancel", (ev) => {
+        ev.preventDefault();
+        triggerGuardPulse();
+      });
+      guardDialog.addEventListener("click", (ev) => {
+        if (ev.target === guardDialog) {
+          ev.preventDefault();
+          triggerGuardPulse();
+        }
+      });
+    }
+
+    if ($("lsGuardStayBtn")) {
+      $("lsGuardStayBtn").onclick = () => {
+        closeRefreshGuardModal();
+        showStudioMessage("Stayed in Studio — recording and session state preserved.", false);
+      };
+    }
+
+    if ($("lsGuardSaveStemsBtn")) {
+      $("lsGuardSaveStemsBtn").onclick = () => {
+        if (lastRecordedResult && Array.isArray(lastRecordedResult.fallbackDownloads) && lastRecordedResult.fallbackDownloads.length > 0) {
+          triggerStemDownloads(lastRecordedResult.fallbackDownloads);
+          unexportedRecordingGuard = false;
+          closeRefreshGuardModal();
+          showStudioMessage(`Triggered Download of ${lastRecordedResult.fallbackDownloads.length} session file(s). Stayed safely in Studio!`, false);
+        } else {
+          closeRefreshGuardModal();
+        }
+      };
+    }
+
+    if ($("lsGuardConfirmLeaveBtn")) {
+      $("lsGuardConfirmLeaveBtn").onclick = async () => {
+        const action = pendingGuardAction || { actionType: "reload" };
+        bypassUnloadOnce = true;
+        unexportedRecordingGuard = false;
+        if (window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording()) {
+          try {
+            await window.LiveStudioRecorder.stopRecording(capturedTimestamps);
+          } catch (_) { }
+        }
+        closeRefreshGuardModal();
+        if (action.actionType === "navigate" && action.targetUrl) {
+          window.location.href = action.targetUrl;
+        } else if (action.actionType === "back") {
+          window.history.back();
+        } else {
+          window.location.reload();
+        }
+      };
+    }
+
+    const interceptRefreshKey = (ev) => {
+      if (refreshGuardOpen) return;
+      const key = String(ev.key || "").toLowerCase();
+      const isReloadKey = key === "f5" || ((ev.ctrlKey || ev.metaKey) && key === "r");
+      if (!isReloadKey) return;
+      if (getStudioProtectionStatus().protected) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        openRefreshGuardModal({ actionType: "reload" });
+      }
+    };
+
+    const interceptLinkNav = (ev) => {
+      if (refreshGuardOpen) return;
+      const anchor = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
+      if (!anchor || anchor.hasAttribute("download")) return;
+      if (anchor.closest("#lsRefreshGuardDialog")) return;
+      const href = anchor.getAttribute("href") || "";
+      if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("blob:") || anchor.target === "_blank") {
+        return;
+      }
+      if (getStudioProtectionStatus().protected) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        openRefreshGuardModal({ actionType: "navigate", targetUrl: anchor.href });
+      }
+    };
+
+    window.addEventListener("keydown", interceptRefreshKey, true);
+    document.addEventListener("click", interceptLinkNav, true);
+    try {
+      if (window.parent && window.parent !== window && window.parent.location.origin === window.location.origin) {
+        window.parent.addEventListener("keydown", interceptRefreshKey, true);
+        window.parent.document.addEventListener("click", interceptLinkNav, true);
+      }
+    } catch (_) { }
+
+    window.addEventListener("popstate", () => {
+      if (bypassUnloadOnce) return;
+      if (getStudioProtectionStatus().protected) {
+        armStudioHistoryGuard();
+        openRefreshGuardModal({ actionType: "back" });
+      }
+    });
+
+    window.addEventListener("beforeunload", (ev) => {
+      if (bypassUnloadOnce) return;
+      const status = getStudioProtectionStatus();
+      if (status.protected) {
+        ev.preventDefault();
+        ev.returnValue = "";
+        openRefreshGuardModal({ actionType: "reload" });
+      }
+    });
+
     drawEqAndSpectrum();
     setProcTab("vocal");
     setRecTab("ssd");
     loadTimestampsFromLocal();
     renderTimestampsEditor();
     updateRecorderUi();
-
-    window.addEventListener("beforeunload", (ev) => {
-      if (isLive || (window.LiveStudioRecorder && window.LiveStudioRecorder.isRecording())) {
-        ev.preventDefault();
-        ev.returnValue = "";
-      }
-    });
 
     // Subscribe to server SSE so listener count stays live even before WS ping
     if (typeof EventSource === "function") {

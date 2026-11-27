@@ -1665,6 +1665,556 @@ test("Phase 9B: Part 16 Complete 21-Step End-to-End Mandir Workflow — Soundche
   assert.equal(drySha2After, drySha2Before);
 });
 
+test("Default OPFS SSD Vault recording, interrupted WAV header recovery, and screen-freezing refresh guard contracts", async () => {
+  const LiveStudioRecorder = require("../public/js/live-stream-recorder");
+
+  // In-memory mock FileSystemDirectoryHandle matching Chromium OPFS API
+  function makeMockFile(name, bytesRef, type = "application/octet-stream") {
+    return {
+      name,
+      type,
+      get size() {
+        return bytesRef.buf.byteLength;
+      },
+      slice(start = 0, end = bytesRef.buf.byteLength) {
+        const sub = bytesRef.buf.subarray(start, end);
+        return makeMockFile(name, { buf: sub }, type);
+      },
+      async arrayBuffer() {
+        return bytesRef.buf.slice().buffer;
+      },
+      async text() {
+        return Buffer.from(bytesRef.buf).toString("utf8");
+      }
+    };
+  }
+
+  function makeMockFileHandle(name) {
+    const bytesRef = { buf: new Uint8Array(0) };
+    const extType = name.endsWith(".wav") ? "audio/wav" : name.endsWith(".mp3") ? "audio/mpeg" : "application/json";
+    return {
+      kind: "file",
+      name,
+      async getFile() {
+        return makeMockFile(name, bytesRef, extType);
+      },
+      async createWritable(opts = {}) {
+        let working = opts.keepExistingData ? bytesRef.buf.slice() : new Uint8Array(0);
+        let cursor = 0;
+        return {
+          async write(chunk) {
+            let pos = cursor;
+            let payload;
+            if (chunk && typeof chunk === "object" && chunk.type === "write") {
+              pos = Number(chunk.position) || 0;
+              payload = chunk.data;
+            } else {
+              payload = chunk;
+            }
+            const dataU8 = typeof payload === "string"
+              ? new Uint8Array(Buffer.from(payload, "utf8"))
+              : payload instanceof Uint8Array
+                ? payload
+                : new Uint8Array(payload);
+            const needed = pos + dataU8.byteLength;
+            if (needed > working.byteLength) {
+              const expanded = new Uint8Array(needed);
+              expanded.set(working, 0);
+              working = expanded;
+            }
+            working.set(dataU8, pos);
+            cursor = needed;
+          },
+          async close() {
+            bytesRef.buf = working;
+          }
+        };
+      }
+    };
+  }
+
+  function makeMockDirHandle(name) {
+    const map = new Map();
+    return {
+      kind: "directory",
+      name,
+      async getDirectoryHandle(childName, opts = {}) {
+        const cur = map.get(childName);
+        if (cur && cur.kind === "directory") return cur;
+        if (!opts.create) throw new Error(`Directory not found: ${childName}`);
+        const d = makeMockDirHandle(childName);
+        map.set(childName, d);
+        return d;
+      },
+      async getFileHandle(childName, opts = {}) {
+        const cur = map.get(childName);
+        if (cur && cur.kind === "file") return cur;
+        if (!opts.create) throw new Error(`File not found: ${childName}`);
+        const f = makeMockFileHandle(childName);
+        map.set(childName, f);
+        return f;
+      },
+      async removeEntry(childName) {
+        map.delete(childName);
+      },
+      async *entries() {
+        for (const [k, v] of map.entries()) {
+          yield [k, v];
+        }
+      }
+    };
+  }
+
+  const mockOpfsRoot = makeMockDirHandle("opfs-root");
+  LiveStudioRecorder.setTestOpfsRoot(mockOpfsRoot);
+
+  try {
+    // 1. Start recording WITHOUT picking any folder -> automatically routes to Default SSD Vault (OPFS)
+    assert.equal(LiveStudioRecorder.getDirectoryName(), null);
+    assert.equal(LiveStudioRecorder.getStorageSummary().mode, "opfs_vault");
+
+    const started = await LiveStudioRecorder.startRecording({
+      sessionDate: "2026-11-26",
+      sessionUid: "2026-11-26_Satsang_TestVault",
+      sampleRate: 48000,
+      bitDepth: 24,
+      recordDryCh1: true,
+      recordDryCh2: true,
+      recordMasterMp3: false
+    });
+    assert.equal(started.active, true);
+    assert.equal(LiveStudioRecorder.getState().storageBackend, "opfs_vault");
+
+    const ch1Buf = makeSine(440, 0.2, 0.35, 48000);
+    const ch2Buf = makeSine(220, 0.2, 0.25, 48000);
+    LiveStudioRecorder.pushDryPcm(ch1Buf, ch2Buf, ch1Buf.length);
+
+    const stopRes = await LiveStudioRecorder.stopRecording([
+      { bhajan_title: "Ganesha Vandana", singer_name: "Test Singer", start_seconds: 0 }
+    ]);
+    assert.equal(stopRes.savedToDefaultVault, true);
+    assert.equal(stopRes.storageBackend, "opfs_vault");
+    assert.equal(stopRes.vaultPath, "BhajanPlanner/Recordings/2026-11-26/2026-11-26_Satsang_TestVault");
+    assert.equal(stopRes.verified, true);
+    assert.equal(stopRes.fallbackDownloads.length, 2);
+
+    // 2. Verify listVaultSessions discovers the saved OPFS recording even after a simulated refresh
+    const listed = await LiveStudioRecorder.listVaultSessions();
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].sessionUid, "2026-11-26_Satsang_TestVault");
+    assert.equal(listed[0].hasCh1, true);
+    assert.equal(listed[0].hasCh2, true);
+
+    const loaded = await LiveStudioRecorder.loadVaultSession("2026-11-26", "2026-11-26_Satsang_TestVault");
+    assert.equal(loaded.recoveredFromVault, true);
+    assert.equal(loaded.timestamps.length, 1);
+    const ch1Check = WavUtils.verifyWavHeaderAndSize(await loaded.dryCh1File.arrayBuffer());
+    assert.equal(ch1Check.valid, true);
+    assert.equal(ch1Check.bitDepth, 24);
+
+    // 3. Simulate mid-recording refresh/crash where WAV header still declares 0 data bytes
+    const recDir = await (await mockOpfsRoot.getDirectoryHandle("BhajanPlanner")).getDirectoryHandle("Recordings");
+    const crashDateDir = await recDir.getDirectoryHandle("2026-11-27", { create: true });
+    const crashSessDir = await crashDateDir.getDirectoryHandle("2026-11-27_Crashed_Session", { create: true });
+    const brokenHeader = WavUtils.buildWavHeader({ sampleRate: 48000, numChannels: 1, bitDepth: 24, dataByteLength: 0 });
+    const rawPcm = WavUtils.floatToPcmBytes(makeSine(330, 0.1, 0.4, 48000), 24);
+    const fhCrash = await crashSessDir.getFileHandle("Ch1_Vocals_DRY.wav", { create: true });
+    const wrCrash = await fhCrash.createWritable();
+    await wrCrash.write({ type: "write", position: 0, data: brokenHeader });
+    await wrCrash.write({ type: "write", position: 44, data: rawPcm });
+    await wrCrash.close();
+
+    const recoveredCrash = await LiveStudioRecorder.loadVaultSession("2026-11-27", "2026-11-27_Crashed_Session");
+    const repairedCheck = WavUtils.verifyWavHeaderAndSize(await recoveredCrash.dryCh1File.arrayBuffer());
+    assert.equal(repairedCheck.valid, true, "Crash recovery must repair 44-byte WAV header to match PCM size");
+    assert.equal(repairedCheck.dataByteLength, rawPcm.byteLength);
+
+    assert.equal(await LiveStudioRecorder.deleteVaultSession("2026-11-26", "2026-11-26_Satsang_TestVault"), true);
+    assert.equal(await LiveStudioRecorder.deleteVaultSession("2026-11-27", "2026-11-27_Crashed_Session"), true);
+    assert.equal((await LiveStudioRecorder.listVaultSessions()).length, 0);
+  } finally {
+    LiveStudioRecorder.setTestOpfsRoot(null);
+  }
+
+  // 4. Verify Screen-Freezing Refresh Guard & Vault Banner UI/CSS/JS contracts (strict 0 !important)
+  const ejsSrc = fs.readFileSync(path.join(ROOT, "views/admin-live-stream.ejs"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "public/css/live-stream-studio.css"), "utf8");
+  const studioSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-studio.js"), "utf8");
+  const dawUiSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-daw-ui.js"), "utf8");
+
+  assert.equal(cssSrc.includes("!important"), false, "CSS must maintain zero !important declarations");
+  [
+    "lsRefreshGuardDialog",
+    "lsGuardStayBtn",
+    "lsGuardSaveStemsBtn",
+    "lsGuardConfirmLeaveBtn",
+    "lsVaultRecoveryBanner",
+    "lsVaultRecoverDawBtn",
+    "lsVaultDownloadBtn",
+    "lsVaultDeleteBtn",
+    "lsAutoExportDownloadsCheck"
+  ].forEach((id) => {
+    assert.ok(ejsSrc.includes(`id="${id}"`), `Missing refresh guard or vault UI element #${id}`);
+  });
+  assert.ok(cssSrc.includes(".ls-screen-frozen") && cssSrc.includes(".ls-refresh-guard-dialog::backdrop"));
+  assert.ok(
+    studioSrc.includes("openRefreshGuardModal") &&
+      studioSrc.includes("applyScreenFreeze") &&
+      studioSrc.includes("trapGuardKeydown") &&
+      studioSrc.includes("el.inert = true")
+  );
+  assert.ok(dawUiSrc.includes("hasUnsavedChanges"));
+});
+
+test("Audition-style per-channel hardware routing ([01M]/[02M]/[01S]), bridge channel catalog & live routing contracts", () => {
+  const vm = require("node:vm");
+  const { execFileSync } = require("node:child_process");
+  const pyScript = [
+    "import json, scripts.local_asio_bridge as b",
+    "clean = b.clean_hardware_name('Microphone (3- USB Audio CODEC ) (08bb:2902)')",
+    "clean_trunc = b.clean_hardware_name('Microphone (3- USB Audio CODEC')",
+    "cat = b.build_audition_channel_catalog(clean, 2)",
+    "r_norm = b.route_channels_frame([[0.25, 0.5], [-0.4, -0.8]], 2, {'ch1': '0', 'ch2': '1'})",
+    "r_swap = b.route_channels_frame([[0.25, 0.5], [-0.4, -0.8]], 2, {'ch1': '1', 'ch2': '0'})",
+    "r_st_none = b.route_channels_frame([[0.6, 0.2], [0.2, 0.6]], 2, {'ch1': 'stereo', 'ch2': 'none'})",
+    "lv = b.compute_raw_channel_levels([[0.5, -0.5], [0.0001, -0.0001]], 2)",
+    "tr = b._RawPinLevelTracker(2)",
+    "tr.update([[0.25, -0.25], [0.0001, 0.0]], 2)",
+    "fl = tr.flush()",
+    "print(json.dumps({'clean': clean, 'clean_trunc': clean_trunc, 'cat': cat, 'r_norm': r_norm, 'r_swap': r_swap, 'r_st_none': r_st_none, 'lv': lv, 'fl': fl}))"
+  ].join("\n");
+  const out = JSON.parse(execFileSync("python", ["-c", pyScript], { cwd: ROOT, encoding: "utf8" }));
+
+  assert.equal(out.clean, "USB Audio CODEC", "Python bridge must strip Chromium USB VID:PID (08bb:2902)");
+  assert.equal(out.clean_trunc, "USB Audio CODEC", "Python bridge must handle truncated WaveIn labels");
+  assert.deepEqual(
+    out.cat.map((x) => x.label),
+    ["[01M] USB Audio CODEC 1", "[02M] USB Audio CODEC 2", "[01S] USB Audio CODEC 1/2"]
+  );
+  assert.deepEqual(out.r_norm[0], [0.25, 0.5]);
+  assert.deepEqual(out.r_norm[1], [-0.4, -0.8]);
+  assert.deepEqual(out.r_swap[0], [-0.4, -0.8]);
+  assert.deepEqual(out.r_swap[1], [0.25, 0.5]);
+  assert.ok(Math.abs(out.r_st_none[0][0] - 0.4) < 1e-6);
+  assert.deepEqual(out.r_st_none[1], [0, 0]);
+  assert.equal(out.lv.channels, 2);
+  assert.deepEqual(out.lv.activePins, [0], "Only pin 0 with loud signal must report active");
+  assert.ok(out.lv.peaksDb[0] > -8 && out.lv.peaksDb[1] < -60);
+  assert.deepEqual(out.fl.activePins, [0]);
+
+  const ejsSrc = fs.readFileSync(path.join(ROOT, "views/admin-live-stream.ejs"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "public/css/live-stream-studio.css"), "utf8");
+  const studioSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-studio.js"), "utf8");
+  const dawUiSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-daw-ui.js"), "utf8");
+
+  assert.equal(cssSrc.includes("!important"), false, "CSS must maintain zero !important declarations");
+  assert.ok(ejsSrc.includes('id="lsVocalInputChannelSelect"'));
+  assert.ok(ejsSrc.includes('id="lsInstInputChannelSelect"'));
+  assert.ok(ejsSrc.includes('id="lsLiveDetectedPinsBar"'));
+  assert.ok(ejsSrc.includes('id="lsVocalDetectInputBtn"'));
+  assert.ok(ejsSrc.includes('id="lsInstDetectInputBtn"'));
+  assert.ok(ejsSrc.includes('id="lsVocalRouteLiveBadge"'));
+  assert.ok(ejsSrc.includes('id="lsInstRouteLiveBadge"'));
+  assert.ok(ejsSrc.includes('id="lsOpenAsioPanelBtn"'));
+  assert.equal(ejsSrc.includes("[01M] Input 1"), false, "EJS must not hardcode fake [01M] Input 1 before probing");
+  assert.equal(ejsSrc.includes("[02M] Input 2"), false, "EJS must not hardcode fake [02M] Input 2 before probing");
+  assert.equal(dawUiSrc.includes("[01M] Input 1"), false, "DAW UI must not fall back to fake [01M] Input 1");
+  assert.ok(cssSrc.includes(".ls-vstrip-route-select") && cssSrc.includes(".ls-live-pin-chip"));
+  assert.ok(
+    studioSrc.includes("probeLocalAudioBridge") &&
+      studioSrc.includes("connectPassiveBridgeMonitor") &&
+      studioSrc.includes("probeBrowserDeviceChannels") &&
+      studioSrc.includes("handleLivePinLevelsMessage") &&
+      studioSrc.includes("rawPinAnalysers") &&
+      studioSrc.includes("toggleInputChannelAutoDetect")
+  );
+  assert.ok(dawUiSrc.includes("ls-daw-track-input-select") && dawUiSrc.includes("ls-hardware-catalog-changed"));
+
+  // Execute cleanHardwareDeviceLabel & buildDetectedChannelCatalog from live-stream-studio.js
+  const docMock = {
+    readyState: "complete",
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+    getElementById: () => null
+  };
+  const ctx = {
+    window: {
+      __LIVE_STUDIO_BOOT__: { presets: [], bhajans: [] },
+      isSecureContext: false,
+      addEventListener: () => {}
+    },
+    document: docMock,
+    navigator: {},
+    localStorage: { getItem: () => null, setItem: () => {} },
+    CustomEvent: class CustomEvent { constructor(name, opts) { this.type = name; this.detail = opts && opts.detail; } },
+    setInterval: () => 0,
+    clearInterval: () => {},
+    setTimeout: () => 0,
+    clearTimeout: () => {},
+    Date,
+    Math,
+    Number,
+    String,
+    Array,
+    Set,
+    Float32Array,
+    JSON,
+    console
+  };
+  ctx.window.window = ctx.window;
+  ctx.window.document = docMock;
+  vm.runInNewContext(studioSrc, ctx);
+  const bridge = ctx.window.LiveStudioBridge;
+  assert.ok(bridge && typeof bridge.cleanHardwareDeviceLabel === "function");
+  assert.equal(bridge.cleanHardwareDeviceLabel("Microphone (3- USB Audio CODEC ) (08bb:2902)"), "USB Audio CODEC");
+  assert.deepEqual(JSON.parse(JSON.stringify(bridge.buildDetectedChannelCatalog("USB Audio CODEC", 0))), []);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(bridge.buildDetectedChannelCatalog("USB Audio CODEC", 1).map((c) => c.label))),
+    ["[01M] USB Audio CODEC 1"]
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(bridge.buildDetectedChannelCatalog("UMC404HD", 4).map((c) => c.code))),
+    ["01M", "02M", "03M", "04M", "01S", "02S"]
+  );
+  assert.ok(studioSrc.includes('"refresh-devices"'));
+
+  // Verify live controller capture across WASAPI Exclusive, COM ASIO (ASIO4ALL / Realtek ASIO) & WinMM
+  // with zero access violation warnings
+  const capCheckScript = [
+    "import json, queue, time, scripts.local_asio_bridge as b",
+    "devs = b.list_audio_devices()",
+    "q = queue.Queue(maxsize=96)",
+    "stats = {'xruns': 0, 'droppedFrames': 0, 'disconnected': False, 'warning': None}",
+    "rt = {'ch1': '0', 'ch2': '1'}",
+    "lt = b._RawPinLevelTracker(2)",
+    "ctrl = b._ActiveCaptureController(devs, devs[0], 48000, 512, q, stats, rt, level_tracker=lt)",
+    "results = []",
+    "for d in devs:",
+    "  while not q.empty(): q.get_nowait()",
+    "  ctrl.switch_device(d['id'])",
+    "  time.sleep(0.25)",
+    "  w = stats.get('warning')",
+    "  pkt_cnt = q.qsize()",
+    "  first_hdr = q.get_nowait()[:4].decode('ascii', 'ignore') if pkt_cnt > 0 else None",
+    "  ctrl.stop()",
+    "  results.append({'id': d['id'], 'backend': d['backend'], 'warning': w, 'packets': pkt_cnt, 'hdr': first_hdr})",
+    "print(json.dumps(results))"
+  ].join("\n");
+  const capRawOut = execFileSync("python", ["-c", capCheckScript], { cwd: ROOT, encoding: "utf8" });
+  const capJsonLine = capRawOut.trim().split(/\r?\n/).filter((l) => l.trim().startsWith("[")).pop();
+  const capResults = JSON.parse(capJsonLine);
+  assert.ok(Array.isArray(capResults) && capResults.length > 0);
+  capResults.forEach((row) => {
+    const w = row.warning ? String(row.warning) : "";
+    assert.equal(w.toLowerCase().includes("access violation"), false, `${row.id} hit access violation: ${w}`);
+    if (!w) {
+      assert.ok(row.packets > 0, `${row.id} produced no BPAS packets`);
+      assert.equal(row.hdr, "BPAS", `${row.id} packet header mismatch`);
+    }
+  });
+});
+
+test("Hardcoded device elimination, bridge Standby & hotplug, adaptive SNR floor, BPMC, and DAW multitrack I/O", () => {
+  const { execFileSync } = require("child_process");
+  const bridgeSrc = fs.readFileSync(path.join(ROOT, "scripts/local_asio_bridge.py"), "utf8");
+  const studioSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-studio.js"), "utf8");
+  const dawUiSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-daw-ui.js"), "utf8");
+  const ejsSrc = fs.readFileSync(path.join(ROOT, "views/admin-live-stream.ejs"), "utf8");
+  const cssSrc = fs.readFileSync(path.join(ROOT, "public/css/live-stream-studio.css"), "utf8");
+
+  // 1. Zero hardcoded vendor/keyword device matching
+  assert.equal(bridgeSrc.includes("AUDITION_INTERFACE_KEYWORDS"), false, "Python bridge must not hardcode AUDITION_INTERFACE_KEYWORDS");
+  assert.equal(/behringer\|umc/i.test(studioSrc), false, "Studio JS must not hardcode /behringer|umc/");
+  assert.equal(/realtek/i.test(studioSrc), false, "Studio JS must not hardcode realtek exclusions");
+  assert.ok(bridgeSrc.includes("AUDCLNT_E_DEVICE_INVALIDATED"), "Python bridge must handle WASAPI disconnect invalidation");
+  assert.ok(bridgeSrc.includes("pack_bpmc_packet") && bridgeSrc.includes("set-multichannel-tap"), "Python bridge must support BPMC multichannel tap");
+  assert.ok(bridgeSrc.includes("hotplug_loop"), "Python bridge must run hotplug monitor loop");
+
+  // 2. Python Standby resolution, BPMC packet framing, adaptive noise-floor SNR, and correlated-mono check
+  const unitPy = [
+    "import json, struct, queue, scripts.local_asio_bridge as b",
+    "devs_onboard_only = [",
+    "  {'id': 'wasapi_excl:0', 'name': 'Microphone Array', 'deviceCategory': 'onboard', 'backend': 'wasapi_exclusive', 'isExclusive': True, 'isAsio': False, 'maxInputChannels': 2},",
+    "  {'id': 'asio:0', 'name': 'Onboard ASIO', 'deviceCategory': 'onboard_asio', 'backend': 'asio_com', 'isExclusive': True, 'isAsio': True, 'maxInputChannels': 2},",
+    "]",
+    "res_standby = b.resolve_device_index(devs_onboard_only, '', allow_onboard_fallback=False)",
+    "res_manual = b.resolve_device_index(devs_onboard_only, 'wasapi_excl:0', allow_onboard_fallback=False)",
+    "res_none = b.resolve_device_index(devs_onboard_only, 'none', allow_onboard_fallback=True)",
+    "devs_with_usb = devs_onboard_only + [{'id': 'wasapi_excl:1', 'name': 'USB Audio Interface', 'deviceCategory': 'external_interface', 'backend': 'wasapi_exclusive', 'isExclusive': True, 'isAsio': False, 'maxInputChannels': 2}]",
+    "res_ext = b.resolve_device_index(devs_with_usb, '', allow_onboard_fallback=False)",
+    "ctrl = b._ActiveCaptureController(devs_onboard_only, None, 48000, 512, queue.Queue(maxsize=8), {'xruns':0,'droppedFrames':0,'disconnected':False,'warning':None}, {'ch1':'none','ch2':'none'})",
+    "ctrl.start()",
+    "sw_none = ctrl.switch_device('none')",
+    "pkt = b.pack_bpmc_packet([[0.25, -0.5], [0.1, -0.2], [0.0, 0.5]], 2)",
+    "magic, n_ch, nf = struct.unpack('<4sHH', pkt[:8])",
+    "ch2_f0 = struct.unpack('<f', pkt[24:28])[0]",
+    "tr = b._RawPinLevelTracker(2)",
+    "noise = [0.0063 if (i % 2 == 0) else -0.0063 for i in range(64)]",
+    "for _ in range(4):",
+    "  tr.update([noise, noise], 64)",
+    "  fl_idle = tr.flush()",
+    "loud = [0.125 if (i % 2 == 0) else -0.125 for i in range(64)]",
+    "tr.update([loud, noise], 64)",
+    "fl_sig = tr.flush()",
+    "tr.update([loud, loud], 64)",
+    "fl_dup = tr.flush()",
+    "print(json.dumps({",
+    "  'standby_is_none': res_standby is None,",
+    "  'manual_id': res_manual['id'] if res_manual else None,",
+    "  'none_cmd_is_none': res_none is None,",
+    "  'ext_id': res_ext['id'] if res_ext else None,",
+    "  'ctrl_standby_ok': ctrl.selected is None and sw_none,",
+    "  'bpmc': {'magic': magic.decode('ascii'), 'n_ch': n_ch, 'nf': nf, 'len': len(pkt), 'ch2_f0': round(ch2_f0, 3)},",
+    "  'idle_active': fl_idle['activePins'],",
+    "  'sig_active': fl_sig['activePins'],",
+    "  'dup_mono': fl_dup['duplicatedMono'],",
+    "  'dup_corr': fl_dup['corr01'],",
+    "}))"
+  ].join("\n");
+  const unitRaw = execFileSync("python", ["-c", unitPy], { cwd: ROOT, encoding: "utf8" });
+  const unitJsonLine = unitRaw.trim().split(/\r?\n/).filter((l) => l.trim().startsWith("{")).pop();
+  const unitOut = JSON.parse(unitJsonLine);
+  assert.equal(unitOut.standby_is_none, true, "Bridge must enter Standby when only onboard devices exist");
+  assert.equal(unitOut.manual_id, "wasapi_excl:0", "Bridge must allow manual selection of onboard device");
+  assert.equal(unitOut.none_cmd_is_none, true, "Bridge must treat 'none' as Standby");
+  assert.equal(unitOut.ext_id, "wasapi_excl:1", "Bridge must auto-select external_interface over onboard");
+  assert.equal(unitOut.ctrl_standby_ok, true, "Controller must start cleanly in Standby");
+  assert.deepEqual(unitOut.bpmc, { magic: "BPMC", n_ch: 3, nf: 2, len: 32, ch2_f0: 0.0 });
+  assert.deepEqual(unitOut.idle_active, [], "Stationary -44 dBFS ambient noise must NOT be marked active");
+  assert.deepEqual(unitOut.sig_active, [0], "Loud vocal/instrument signal above noise floor must activate pin 0");
+  assert.equal(unitOut.dup_mono, true, "Identical dual channels must flag duplicatedMono");
+  assert.ok(unitOut.dup_corr > 0.99);
+
+  // 3. DAW Engine track I/O state persistence
+  const dawSt = Engine.createInitialState();
+  assert.equal(dawSt.tracks[0].role, "ch1");
+  assert.equal(dawSt.tracks[1].role, "ch2");
+  assert.equal(dawSt.tracks[0].inputSource, "none");
+  assert.equal(dawSt.tracks[0].recordArmed, false);
+  assert.equal(dawSt.tracks[0].inputMonitor, false);
+  assert.equal(dawSt.tracks[0].polarity, false);
+  Engine.updateTrackProps(dawSt, dawSt.tracks[0].id, {
+    inputSource: "0",
+    recordArmed: true,
+    inputMonitor: true,
+    polarity: true
+  });
+  const tr0 = dawSt.tracks[0];
+  assert.equal(tr0.inputSource, "0");
+  assert.equal(tr0.recordArmed, true);
+  assert.equal(tr0.inputMonitor, true);
+  assert.equal(tr0.polarity, true);
+  const manifest = Engine.exportProjectManifest(dawSt, {});
+  const dawSt2 = Engine.createInitialState();
+  Engine.importProjectManifest(dawSt2, manifest);
+  assert.equal(dawSt2.tracks[0].inputSource, "0");
+  assert.equal(dawSt2.tracks[0].recordArmed, true);
+  assert.equal(dawSt2.tracks[0].inputMonitor, true);
+  assert.equal(dawSt2.tracks[0].polarity, true);
+
+  // 4. UI / CSS / Studio Bridge hooks & parity
+  assert.ok(ejsSrc.includes('id="lsDawRecordBtn"'), "DAW toolbar must include #lsDawRecordBtn");
+  assert.ok(studioSrc.includes("subscribeRawMultiChannel") && studioSrc.includes("startTrackAutoDetect") && studioSrc.includes("isBridgeStandby"));
+  assert.ok(dawUiSrc.includes("startDawMultitrackRecording") && dawUiSrc.includes("ls-daw-track-detect-btn") && dawUiSrc.includes("ls-daw-track-meter-fill"));
+  assert.equal(cssSrc.includes("!important"), false, "CSS must keep zero !important");
+  assert.ok(cssSrc.includes(".ls-daw-rec-btn") && cssSrc.includes(".ls-btn-mini.is-rec-armed") && cssSrc.includes(".ls-btn-mini.is-mon-active") && cssSrc.includes(".ls-daw-track-meter-fill"));
+});
+
+test("Phase 10: Adobe Audition CC Multitrack Workstation engine, UI, tools & theme parity", () => {
+  const cssSrc = fs.readFileSync(path.join(ROOT, "public/css/live-stream-studio.css"), "utf8");
+  const ejsSrc = fs.readFileSync(path.join(ROOT, "views/admin-live-stream.ejs"), "utf8");
+  const dawUiSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-daw-ui.js"), "utf8");
+
+  // 1. Engine: moveClip (coalesced recordUndo: false + cross-track move), splitAllAt + single undo, deleteClipNonRipple vs rippleDeleteClip, updateClipProps recordUndo: false
+  const st = Engine.createInitialState();
+  const srcA = Engine.addSource(st, { name: "Vocals Stem", duration: 10, sampleRate: 48000 });
+  const srcB = Engine.addSource(st, { name: "Inst Stem", duration: 10, sampleRate: 48000 });
+  const clipA1 = Engine.appendClip(st, { sourceId: srcA, trackId: "track-1", timelineOffsetSec: 0, label: "V1", duration: 10 });
+  const clipA2 = Engine.appendClip(st, { sourceId: srcA, trackId: "track-1", timelineOffsetSec: 12, label: "V2", duration: 8 });
+  const clipB1 = Engine.appendClip(st, { sourceId: srcB, trackId: "track-2", timelineOffsetSec: 0, label: "I1", duration: 10 });
+
+  // Coalesced move + cross-track move
+  const undoBeforeMove = st.undoStack.length;
+  assert.equal(Engine.moveClip(st, clipA1.id, 1.5, null, { recordUndo: true }), true);
+  assert.equal(st.undoStack.length, undoBeforeMove + 1);
+  assert.equal(Engine.moveClip(st, clipA1.id, 2.0, "track-2", { recordUndo: false }), true);
+  assert.equal(st.undoStack.length, undoBeforeMove + 1, "recordUndo: false must coalesce continuous drag moves");
+  assert.equal(st.clips.find((c) => c.id === clipA1.id).trackId, "track-2");
+  assert.ok(Math.abs(st.clips.find((c) => c.id === clipA1.id).timelineOffsetSec - 2.0) < 0.001);
+  // Move back to track-1 @ 0s for splitAllAt test
+  assert.equal(Engine.moveClip(st, clipA1.id, 0, "track-1", { recordUndo: false }), true);
+
+  // updateClipProps coalesced
+  const undoBeforeProp = st.undoStack.length;
+  Engine.updateClipProps(st, clipA1.id, { fadeInSec: 1.5 }, { recordUndo: false });
+  assert.equal(st.undoStack.length, undoBeforeProp, "updateClipProps recordUndo: false must not push undo");
+  assert.equal(st.clips.find((c) => c.id === clipA1.id).fadeInSec, 1.5);
+
+  // splitAllAt splits overlapping multi-track clips with 1 undo entry
+  const countBeforeSplit = st.clips.length; // 3 clips
+  const undoBeforeSplit = st.undoStack.length;
+  const splitMatches = Engine.splitAllAt(st, 5.0);
+  assert.equal(splitMatches, 2, "splitAllAt(5.0) should split both track-1 and track-2 clips");
+  assert.equal(st.clips.length, countBeforeSplit + 2);
+  assert.equal(st.undoStack.length, undoBeforeSplit + 1, "splitAllAt must create a single Undo step");
+  assert.equal(Engine.undo(st), true);
+  assert.equal(st.clips.length, countBeforeSplit, "Single undo must restore pre-split clip count");
+
+  // deleteClipNonRipple leaves later clip timestamps untouched; rippleDeleteClip shifts them earlier
+  const a2Before = st.clips.find((c) => c.id === clipA2.id).timelineOffsetSec;
+  assert.equal(Engine.deleteClipNonRipple(st, clipA1.id), true);
+  assert.equal(st.clips.find((c) => c.id === clipA1.id), undefined);
+  assert.ok(Math.abs(st.clips.find((c) => c.id === clipA2.id).timelineOffsetSec - a2Before) < 0.001, "Non-ripple delete must not shift later clips");
+  assert.equal(Engine.undo(st), true);
+  assert.equal(Engine.rippleDeleteClip(st, clipA1.id, { joinCrossfadeSec: 0 }), true);
+  assert.ok(Math.abs(st.clips.find((c) => c.id === clipA2.id).timelineOffsetSec - 2.0) < 0.001, "Ripple delete must close gap on track");
+  assert.ok(st.clips.find((c) => c.id === clipB1.id), "Other tracks remain intact");
+
+  // 2. Audition CC Workstation DOM IDs in views/admin-live-stream.ejs
+  [
+    "lsDawModeMultitrackBtn",
+    "lsDawModeMixerBtn",
+    "lsDawToolMoveBtn",
+    "lsDawToolRazorBtn",
+    "lsDawToolSlipBtn",
+    "lsDawToolTimeBtn",
+    "lsDawNavigatorCanvas",
+    "lsDawMixerView",
+    "lsDawContextMenu",
+    "lsDawShortcutsDialog",
+    "lsDawShuttleRevBtn",
+    "lsDawShuttleFwdBtn",
+    "lsDawTransportMeterL",
+    "lsDawTransportMeterR",
+    "lsDawZoomSelBtn"
+  ].forEach((id) => {
+    assert.ok(ejsSrc.includes(`id="${id}"`), `Missing Audition DOM element #${id}`);
+  });
+
+  // 3. Audition CC UI helpers in live-stream-daw-ui.js
+  [
+    "setAuditionTool",
+    "setAuditionLeftTab",
+    "setAuditionCenterMode",
+    "stepShuttle",
+    "drawNavigatorCanvas",
+    "renderMixerConsole"
+  ].forEach((fn) => {
+    assert.ok(dawUiSrc.includes(fn), `Missing Audition DAW UI helper ${fn}`);
+  });
+
+  // 4. Zero !important and 1:1 Light/Dark --studio-* token parity
+  assert.equal((cssSrc.match(/!important/g) || []).length, 0, "CSS must contain zero !important");
+  const lightStart = cssSrc.indexOf(".ls-studio-wrap {");
+  const darkStart = cssSrc.indexOf('[data-theme="dark"] .ls-studio-wrap');
+  const postDark = cssSrc.indexOf(".ls-studio-wrap *,");
+  const extractDefs = (block) => new Set([...block.matchAll(/(--studio-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+  const lightDefs = extractDefs(cssSrc.slice(lightStart, darkStart));
+  const darkDefs = extractDefs(cssSrc.slice(darkStart, postDark));
+  assert.deepEqual([...lightDefs].sort(), [...darkDefs].sort(), "Light & Dark --studio-* tokens must have 1:1 parity");
+});
+
 
 
 

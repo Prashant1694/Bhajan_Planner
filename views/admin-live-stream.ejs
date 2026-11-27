@@ -111,13 +111,15 @@
         <div class="ls-field">
           <label for="lsAudioInputSelect">Capture Driver &amp; Audio Interface</label>
           <div class="ls-inline-ctrl">
-            <select class="ls-select" id="lsCaptureBackendSelect" style="max-width:148px;" title="Capture Backend">
-              <option value="wasapi" selected>Browser WASAPI</option>
-              <option value="asio">ASIO Bridge (17940)</option>
+            <select class="ls-select" id="lsCaptureBackendSelect" style="max-width:168px;" title="Capture Backend">
+              <option value="wasapi" selected>Browser WASAPI (Shared)</option>
+              <option value="asio">Audio Bridge · Exclusive / ASIO (17940)</option>
             </select>
             <select class="ls-select" id="lsAudioInputSelect" aria-label="Audio Input Device"></select>
             <button type="button" class="ls-btn" id="lsRefreshDevicesBtn"
               title="Detect or refresh devices">Refresh</button>
+            <button type="button" class="ls-btn ls-is-hidden" id="lsOpenAsioPanelBtn"
+              title="Open native ASIO Driver Control Panel">ASIO Panel</button>
             <button type="button" class="ls-btn ls-btn-primary" id="lsSoundcheckBtn"
               title="Engage audio engine for live monitoring &amp; meters">Start Audio Soundcheck</button>
           </div>
@@ -348,10 +350,14 @@
             <span class="ls-channel-tag">Select any strip to inspect EQ &amp; dynamics</span>
           </div>
 
+          <div class="ls-live-pins-bar" id="lsLiveDetectedPinsBar" role="status" aria-live="polite">
+            <span class="ls-live-pins-empty">Live Hardware Inputs: Not probed yet — click Start Audio Soundcheck, Refresh, or Detect</span>
+          </div>
+
           <div class="ls-console-mixer-row">
-            <!-- LEFT: VERTICAL CHANNEL STRIPS (IN 1 VOCALS · IN 2 INSTRUMENTS · FX RET) -->
+            <!-- LEFT: VERTICAL CHANNEL STRIPS -->
             <div class="ls-vstrips-deck" id="lsChannelsGrid">
-              <!-- CH 1: VOCALS (PHYSICAL INPUT 1) -->
+              <!-- CH 1: VOCALS -->
               <div class="ls-vstrip ls-strip-vocal is-active-strip" data-proc-tab="vocal">
                 <div class="ls-vstrip-head">
                   <span class="ls-vstrip-icon" aria-hidden="true">
@@ -360,10 +366,20 @@
                       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     </svg>
                   </span>
-                  <span class="ls-vstrip-num">IN 1 · CH 1</span>
+                  <span class="ls-vstrip-num" id="lsVocalStripPinTag">CH 1 · UNPROBED</span>
                   <div class="ls-channel-name">Vocals</div>
                   <div class="ls-channel-tag">Lead · Chorus</div>
                 </div>
+
+                <div class="ls-vstrip-input-route" title="Select Hardware Input Channel for Vocals">
+                  <span class="ls-route-arrow" aria-hidden="true">&#8594;</span>
+                  <select class="ls-select ls-vstrip-route-select" id="lsVocalInputChannelSelect" aria-label="Vocals Hardware Input Channel">
+                    <option value="none" selected>None (Probing...)</option>
+                  </select>
+                  <button type="button" class="ls-vstrip-detect-btn" id="lsVocalDetectInputBtn"
+                    title="Speak into your microphone to auto-detect and select its physical channel">Detect</button>
+                </div>
+                <div class="ls-vstrip-route-live" id="lsVocalRouteLiveBadge">&#9675; Not probed</div>
 
                 <span class="ls-clip-pill" id="lsVocalClip">CLIP</span>
 
@@ -411,7 +427,7 @@
                 </div>
               </div>
 
-              <!-- CH 2: INSTRUMENTS (PHYSICAL INPUT 2) -->
+              <!-- CH 2: INSTRUMENTS -->
               <div class="ls-vstrip ls-strip-inst" data-proc-tab="inst">
                 <div class="ls-vstrip-head">
                   <span class="ls-vstrip-icon" aria-hidden="true">
@@ -421,10 +437,20 @@
                       <circle cx="18" cy="16" r="3" />
                     </svg>
                   </span>
-                  <span class="ls-vstrip-num">IN 2 · CH 2</span>
+                  <span class="ls-vstrip-num" id="lsInstStripPinTag">CH 2 · UNPROBED</span>
                   <div class="ls-channel-name">Instruments</div>
                   <div class="ls-channel-tag">Harmonium · Tabla</div>
                 </div>
+
+                <div class="ls-vstrip-input-route" title="Select Hardware Input Channel for Instruments">
+                  <span class="ls-route-arrow" aria-hidden="true">&#8594;</span>
+                  <select class="ls-select ls-vstrip-route-select" id="lsInstInputChannelSelect" aria-label="Instruments Hardware Input Channel">
+                    <option value="none" selected>None (Probing...)</option>
+                  </select>
+                  <button type="button" class="ls-vstrip-detect-btn" id="lsInstDetectInputBtn"
+                    title="Play your instrument to auto-detect and select its physical channel">Detect</button>
+                </div>
+                <div class="ls-vstrip-route-live" id="lsInstRouteLiveBadge">&#9675; Not probed</div>
 
                 <span class="ls-clip-pill" id="lsInstClip">CLIP</span>
 
@@ -986,7 +1012,7 @@
               style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
               <div>
                 <div class="ls-channel-name">Direct-to-SSD Capture</div>
-                <div class="ls-channel-tag" id="lsRecFolderLabel">No SSD folder chosen (downloads on stop)</div>
+                <div class="ls-channel-tag" id="lsRecFolderLabel">Default SSD Vault active (BhajanPlanner/Recordings) — or Choose Folder</div>
               </div>
               <span class="ls-rec-pill" id="lsRecStatusPill" style="display:none;">
                 <span class="ls-rec-dot"></span>
@@ -1022,6 +1048,19 @@
             <div class="ls-inline-checks">
               <label class="ls-checkbox-line"><input type="checkbox" id="lsAutoOpenDawCheck" checked> Auto-open DAW on Stop</label>
               <label class="ls-checkbox-line"><input type="checkbox" id="lsAutoUploadRefCheck"> Auto-upload Live Ref</label>
+              <label class="ls-checkbox-line"><input type="checkbox" id="lsAutoExportDownloadsCheck" checked> Auto-save copy to Downloads if no folder chosen</label>
+            </div>
+
+            <div id="lsVaultRecoveryBanner" class="ls-vault-recovery-banner ls-is-hidden" role="status">
+              <div class="ls-vault-recovery-head">
+                <strong>SSD Vault Recording Found</strong>
+                <span id="lsVaultRecoveryText"></span>
+              </div>
+              <div class="ls-vault-recovery-actions">
+                <button type="button" class="ls-btn ls-btn-mini ls-btn-primary" id="lsVaultRecoverDawBtn">Open in DAW</button>
+                <button type="button" class="ls-btn ls-btn-mini" id="lsVaultDownloadBtn">Save Stems</button>
+                <button type="button" class="ls-btn ls-btn-mini" id="lsVaultDeleteBtn" title="Remove cached stems from Default SSD Vault">Clear Vault</button>
+              </div>
             </div>
 
             <div class="ls-ssd-btn-grid">
@@ -1096,298 +1135,365 @@
   </div><!-- /#lsTabLivePane -->
 
   <!-- ======================================================================
-       TAB 2: MULTITRACK DAW WORKSTATION
+       TAB 2: ADOBE AUDITION CC MULTITRACK WORKSTATION
        ====================================================================== -->
   <div id="lsTabDawPane" style="display:none;">
-    <div class="ls-daw-shell">
-      <!-- ZONE 1: COMPACT PRO TRANSPORT & EDITING TOOLBAR -->
-      <div class="ls-daw-transport-bar" role="toolbar" aria-label="DAW Transport and Editing Tools">
-        <div class="ls-daw-deck-primary">
-          <div class="ls-btn-row">
-            <button type="button" class="ls-btn ls-btn-primary ls-daw-play-circle" id="lsDawPlayBtn"
-              title="Play / Pause (Space)" aria-label="Play or Pause">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="6 4 20 12 6 20 6 4" />
-              </svg>
-              <span class="ls-play-label ls-is-hidden">Play</span>
+    <div class="ls-daw-shell ls-au-workstation">
+      <!-- ZONE 1: AUDITION CC COMMAND & TOOL BAR -->
+      <div class="ls-au-command-bar" role="toolbar" aria-label="Audition Multitrack Tools and Commands">
+        <div class="ls-au-cmd-left">
+          <div class="ls-seg-switch ls-au-mode-switch" role="tablist" aria-label="Workspace View Mode">
+            <button type="button" class="ls-seg-btn is-active" id="lsDawModeMultitrackBtn" title="Multitrack Editor (Alt+1)">Multitrack</button>
+            <button type="button" class="ls-seg-btn" id="lsDawModeMixerBtn" title="Console Mixer View (Alt+2)">Mixer</button>
+          </div>
+          <button type="button" class="ls-btn-mini ls-au-bay-toggle" id="lsAuToggleLeftBayBtn" title="Show/Hide Left Files &amp; Rack Panel">Panels</button>
+
+          <div class="ls-au-tool-palette" role="group" aria-label="Editing Tools">
+            <button type="button" class="ls-au-tool-btn" id="lsDawToolMoveBtn" data-daw-tool="move" title="Move Tool (V) · Drag clips, edges &amp; fades">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3l14 9-6.5 1.7L9 20z" /></svg>
+              <span class="ls-au-key-cap">V</span>
             </button>
-            <button type="button" class="ls-btn" id="lsDawStopBtn" title="Stop and return playhead to start">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="5" y="5" width="14" height="14" rx="1.5" />
-              </svg>
-              <span>Stop</span>
+            <button type="button" class="ls-au-tool-btn" id="lsDawToolRazorBtn" data-daw-tool="razor" title="Razor Selected Clips Tool (R) · Shift+Click All Tracks">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true"><rect x="4" y="6" width="16" height="10" rx="1.5" /><line x1="12" y1="2" x2="12" y2="22" /></svg>
+              <span class="ls-au-key-cap">R</span>
             </button>
-            <span class="ls-daw-timecode" id="lsDawTimecode">00:00.0 / 00:00</span>
-            <select class="ls-select ls-select-sm" id="lsDawRulerModeSelect" aria-label="Ruler Display Mode" title="Timeline Ruler & Timecode Display">
-              <option value="time" selected>Time</option>
-              <option value="bars">Bars:Beats</option>
-              <option value="samples">Samples</option>
-            </select>
-            <input type="number" id="lsDawBpmInput" class="ls-input" min="30" max="240" value="96"
-              style="width:58px;height:27px;padding:2px 6px;" title="Project Tempo (BPM)" aria-label="Project Tempo BPM">
-          </div>
-
-          <div class="ls-btn-row ls-tool-cluster">
-            <button type="button" class="ls-btn-mini" id="lsDawPrevMarkerBtn"
-              title="Previous Bhajan Marker ([)">◀ Mrk</button>
-            <button type="button" class="ls-btn-mini" id="lsDawAddMarkerBtn"
-              title="Add bhajan timestamp marker at playhead">+ Marker</button>
-            <button type="button" class="ls-btn-mini" id="lsDawNextMarkerBtn"
-              title="Next Bhajan Marker (])">Mrk ▶</button>
-            <button type="button" class="ls-btn-mini" id="lsDawUndoBtn" disabled title="Undo (Ctrl+Z)">Undo</button>
-            <button type="button" class="ls-btn-mini" id="lsDawRedoBtn" disabled title="Redo (Ctrl+Y)">Redo</button>
-            <div class="ls-daw-history-wrap">
-              <button type="button" class="ls-btn-mini" id="lsDawHistoryBtn"
-                title="Browse non-destructive edit history">History</button>
-              <div class="ls-daw-history-popover ls-is-hidden" id="lsDawHistoryMenu"></div>
-            </div>
-            <button type="button" class="ls-btn-mini" id="lsDawZoomOutBtn" title="Zoom out timeline">-</button>
-            <button type="button" class="ls-btn-mini" id="lsDawZoomInBtn" title="Zoom in timeline">+</button>
-            <button type="button" class="ls-btn-mini" id="lsDawZoomFitBtn"
-              title="Fit entire project to timeline width">Fit</button>
-            <button type="button" class="ls-btn-mini" id="lsDawTrackHeightBtn"
-              title="Cycle track lane height (Compact / Normal / Tall)">Lane H</button>
-            <button type="button" class="ls-btn-mini" id="lsDawWaveScaleBtn"
-              title="Cycle visual waveform vertical scale (1x / 2x / 4x)">Wave ×1</button>
-          </div>
-
-          <div class="ls-btn-row">
-            <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAutoLoadRecBtn" disabled
-              title="Load last SSD/stream recording stems">Load Recording</button>
-            <button type="button" class="ls-btn-mini" id="lsDawSaveProjectBtn"
-              title="Save DAW project manifest locally & to Bhajan Planner DB">Save Proj</button>
-            <button type="button" class="ls-btn-mini" id="lsDawLoadProjectBtn"
-              title="Reload saved DAW project for selected session date">Load Proj</button>
-            <label class="ls-btn-mini" style="cursor:pointer;" title="Import offline project.json file">
-              <span>Open .json</span>
-              <input type="file" id="lsDawImportProjectInput" accept="application/json,.json" style="display:none;">
-            </label>
-            <label class="ls-btn-mini" style="cursor:pointer;" title="Replace project with an audio file">
-              <span>Open File</span>
-              <input type="file" id="lsDawSingleFileInput" accept="audio/*" style="display:none;">
-            </label>
-            <label class="ls-btn-mini" style="cursor:pointer;" title="Append an audio clip onto the timeline">
-              <span>+ Join Clip</span>
-              <input type="file" id="lsDawAppendFileInput" accept="audio/*" style="display:none;">
-            </label>
-          </div>
-        </div>
-
-        <div class="ls-daw-deck-tools">
-          <div class="ls-btn-row">
-            <button type="button" class="ls-btn-mini" id="lsDawSplitBtn" title="Split clip at playhead (S)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <line x1="12" y1="3" x2="12" y2="21" />
-                <polyline points="8 7 4 12 8 17" />
-                <polyline points="16 7 20 12 16 17" />
-              </svg>
-              <span>Split</span>
+            <button type="button" class="ls-au-tool-btn" id="lsDawToolSlipBtn" data-daw-tool="slip" title="Slip Tool (Y) · Slide audio content inside clip">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true"><polyline points="7 8 3 12 7 16" /><polyline points="17 8 21 12 17 16" /><line x1="3" y1="12" x2="21" y2="12" /></svg>
+              <span class="ls-au-key-cap">Y</span>
             </button>
-            <button type="button" class="ls-btn-mini" id="lsDawJoinClipsBtn"
-              title="Join contiguous/split clips (J)">Join</button>
-            <button type="button" class="ls-btn-mini" id="lsDawSetInBtn"
-              title="Set selection In point at playhead (I)">In</button>
-            <button type="button" class="ls-btn-mini" id="lsDawSetOutBtn"
-              title="Set selection Out point at playhead (O)">Out</button>
-            <button type="button" class="ls-btn-mini" id="lsDawLoopBtn"
-              title="Loop selection or project (L)">Loop</button>
-            <button type="button" class="ls-btn-mini is-toggled" id="lsDawSnapBtn"
-              title="Snap playhead/nudges to markers & grid">Snap</button>
-            <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawRippleCutBtn"
-              title="Ripple delete selected range with crossfade">Ripple Cut</button>
-            <button type="button" class="ls-btn-mini" id="lsDawRangeNormBtn"
-              title="Normalize selected time range to -1.0 dBTP">Norm Range</button>
-            <button type="button" class="ls-btn-mini" id="lsDawCutClipBtn"
-              title="Cut selected clip(s) (Ctrl+X)">Cut</button>
-            <button type="button" class="ls-btn-mini" id="lsDawCopyClipBtn"
-              title="Copy selected clip(s) (Ctrl+C)">Copy</button>
-            <button type="button" class="ls-btn-mini" id="lsDawPasteClipBtn"
-              title="Paste clipboard at playhead (Ctrl+V)">Paste</button>
-            <button type="button" class="ls-btn-mini" id="lsDawDupClipBtn"
-              title="Duplicate selected clip (Ctrl+D)">Dup</button>
-            <button type="button" class="ls-btn-mini" id="lsDawDeleteClipBtn"
-              title="Delete selected clip and close gap">Del Clip</button>
+            <button type="button" class="ls-au-tool-btn is-active" id="lsDawToolTimeBtn" data-daw-tool="time" title="Time Selection Tool (T) · Header acts as Move Tool">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true"><path d="M8 4h8M8 20h8M12 4v16" /></svg>
+              <span class="ls-au-key-cap">T</span>
+            </button>
+            <button type="button" class="ls-btn-mini is-toggled" id="lsDawSnapBtn" title="Toggle Snapping (S)">Snap</button>
           </div>
+        </div>
 
-          <div class="ls-btn-row ls-tool-cluster">
-            <button type="button" class="ls-btn-mini" id="lsDawAddTrackBtn" title="Add a new audio track">+ Track</button>
-            <button type="button" class="ls-btn-mini" id="lsDawDeleteTrackBtn" title="Delete selected track">Del
-              Track</button>
-            <button type="button" class="ls-btn-mini" id="lsDawSelectMasterBtn" title="Inspect Master Bus FX rack">Master
-              FX</button>
-            <button type="button" class="ls-btn-mini" id="lsDawAutoToggleBtn" title="Show/edit track automation lane">Auto</button>
-            <select class="ls-select ls-select-sm" id="lsDawAutoLaneSelect" style="display:none;max-width:140px;" aria-label="Automation Lane">
-              <option value="gain" selected>Track Volume (%)</option>
-              <option value="pan">Stereo Pan</option>
-              <option value="clipGain">Clip Gain (dB)</option>
-              <option value="eqPresenceDb">EQ Presence (dB)</option>
-              <option value="compThreshold">Comp Threshold (dB)</option>
-              <option value="reverbSend">Reverb Send (%)</option>
-              <option value="fxWetDry">Plugin Rack Mix (%)</option>
-            </select>
-            <button type="button" class="ls-btn-mini" id="lsDawAutoClearBtn" style="display:none;"
-              title="Clear active automation lane on selected track">Clear Auto</button>
+        <div class="ls-au-edit-cluster">
+          <button type="button" class="ls-btn-mini" id="lsDawSplitBtn" title="Split Clip at Playhead (Ctrl+K)">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="3" x2="12" y2="21" /><polyline points="8 7 4 12 8 17" /><polyline points="16 7 20 12 16 17" /></svg>
+            <span>Split</span>
+          </button>
+          <button type="button" class="ls-btn-mini" id="lsDawJoinClipsBtn" title="Merge / Join Selected Clips (Ctrl+J)">Join</button>
+          <button type="button" class="ls-btn-mini" id="lsDawSetInBtn" title="Set Time Selection In Point (I)">In</button>
+          <button type="button" class="ls-btn-mini" id="lsDawSetOutBtn" title="Set Time Selection Out Point (O)">Out</button>
+          <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawRippleCutBtn" title="Ripple Delete Selection (Shift+Backspace)">Ripple Cut</button>
+          <button type="button" class="ls-btn-mini" id="lsDawRangeNormBtn" title="Normalize selected range to -1.0 dBTP">Norm Range</button>
+          <button type="button" class="ls-btn-mini" id="lsDawCutClipBtn" title="Cut selected clip(s) (Ctrl+X)">Cut</button>
+          <button type="button" class="ls-btn-mini" id="lsDawCopyClipBtn" title="Copy selected clip(s) (Ctrl+C)">Copy</button>
+          <button type="button" class="ls-btn-mini" id="lsDawPasteClipBtn" title="Paste clipboard at playhead (Ctrl+V)">Paste</button>
+          <button type="button" class="ls-btn-mini" id="lsDawDupClipBtn" title="Duplicate selected clip (Ctrl+D)">Dup</button>
+          <button type="button" class="ls-btn-mini" id="lsDawDeleteClipBtn" title="Ripple Delete Clip (Shift+Delete)">Del Clip</button>
+        </div>
+
+        <div class="ls-au-cmd-right">
+          <button type="button" class="ls-btn-mini" id="lsDawUndoBtn" disabled title="Undo (Ctrl+Z)">Undo</button>
+          <button type="button" class="ls-btn-mini" id="lsDawRedoBtn" disabled title="Redo (Ctrl+Y)">Redo</button>
+          <div class="ls-daw-history-wrap">
+            <button type="button" class="ls-btn-mini" id="lsDawHistoryBtn" title="Edit History Timeline">History</button>
+            <div class="ls-daw-history-popover ls-is-hidden" id="lsDawHistoryMenu"></div>
           </div>
+          <button type="button" class="ls-btn-mini" id="lsDawAddTrackBtn" title="Add Audio Track">+ Track</button>
+          <button type="button" class="ls-btn-mini" id="lsDawDeleteTrackBtn" title="Delete Selected Track">Del Trk</button>
+          <button type="button" class="ls-btn-mini" id="lsDawSelectMasterBtn" title="Inspect Master Bus Rack">Master</button>
+          <button type="button" class="ls-btn-mini" id="lsDawAutoToggleBtn" title="Toggle Track Keyframe Automation">Auto</button>
+          <select class="ls-select ls-select-sm" id="lsDawAutoLaneSelect" style="display:none;max-width:130px;" aria-label="Automation Lane">
+            <option value="gain" selected>Track Volume (%)</option>
+            <option value="pan">Stereo Pan</option>
+            <option value="clipGain">Clip Gain (dB)</option>
+            <option value="eqPresenceDb">EQ Presence (dB)</option>
+            <option value="compThreshold">Comp Threshold (dB)</option>
+            <option value="reverbSend">Reverb Send (%)</option>
+            <option value="fxWetDry">Plugin Rack Mix (%)</option>
+          </select>
+          <button type="button" class="ls-btn-mini" id="lsDawAutoClearBtn" style="display:none;" title="Clear active automation lane">Clear</button>
+          <button type="button" class="ls-btn-mini" id="lsDawShortcutsBtn" title="Adobe Audition CC Keyboard Shortcuts (Ctrl+Alt+K)">⌨ Keys</button>
         </div>
       </div>
 
-      <details class="ls-daw-stems-drawer">
-        <summary>
-          <span>Import Dual Dry Stems (Ch 1 Vocals + Ch 2 Instruments WAV)</span>
-          <span class="ls-channel-tag">Multitrack Stem Pair</span>
-        </summary>
-        <div class="ls-daw-stems-row">
-          <div class="ls-field">
-            <label for="lsDawFileCh1Input">Track 1 · Ch 1 Vocals Dry WAV</label>
-            <input type="file" id="lsDawFileCh1Input" accept="audio/*" class="ls-input">
+      <!-- ZONE 2: DOCKED UPPER SPLIT (LEFT FILES/RACK/PROPS BAY + CENTER TIMELINE/MIXER) -->
+      <div class="ls-au-main-split" id="lsAuMainSplit">
+        <aside class="ls-au-left-bay" id="lsAuLeftBay" aria-label="Audition Workspace Panels">
+          <div class="ls-au-panel-tabs" role="tablist">
+            <button type="button" class="ls-au-panel-tab is-active" data-au-left-tab="files">Files</button>
+            <button type="button" class="ls-au-panel-tab" data-au-left-tab="fx">Effects Rack</button>
+            <button type="button" class="ls-au-panel-tab" data-au-left-tab="props">Properties</button>
           </div>
-          <div class="ls-field">
-            <label for="lsDawFileCh2Input">Track 2 · Ch 2 Instruments Dry WAV</label>
-            <input type="file" id="lsDawFileCh2Input" accept="audio/*" class="ls-input">
-          </div>
-          <button type="button" class="ls-btn ls-btn-primary" id="lsDawLoadStemsBtn">Load 2-Track Stems</button>
-        </div>
-      </details>
 
-      <input type="file" id="lsDawTrackFileInput" accept="audio/*" style="display:none;">
-
-      <!-- Timeline Status Bar -->
-      <div class="ls-daw-infobar">
-        <span id="lsDawStatusText">Load recorded stems or any audio file to edit, mix &amp; master.</span>
-        <strong id="lsDawSelectionLabel">Drag waveform to select cut range</strong>
-      </div>
-
-      <!-- ZONE 2: ARRANGEMENT TIMELINE -->
-      <div class="ls-daw-workspace">
-        <div class="ls-daw-track-headers" id="lsDawTrackHeaders">
-          <div class="ls-daw-tracks-corner"><span>TRACKS · MIX</span><span>2 TRK</span></div>
-          <div class="ls-daw-track-box is-selected">
-            <div class="ls-channel-name">Track 1 · Vocals</div>
-            <input type="range" class="ls-range" id="lsDawTrack1Gain" min="0" max="180" value="100">
-            <div class="ls-btn-row">
-              <button type="button" class="ls-btn-mini" id="lsDawTrack1Mute">M</button>
-              <button type="button" class="ls-btn-mini" id="lsDawTrack1Solo">S</button>
+          <!-- PANEL A: FILES / MEDIA BIN & PROJECT IO -->
+          <div class="ls-au-left-pane" id="lsAuFilesPane" data-au-left-pane="files">
+            <div class="ls-au-io-actions">
+              <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAutoLoadRecBtn" disabled title="Load last SSD/stream recording stems">Load Recording</button>
+              <label class="ls-btn-mini ls-btn-upload" style="cursor:pointer;" title="Replace project with an audio file">
+                <span>Open File</span>
+                <input type="file" id="lsDawSingleFileInput" accept="audio/*" style="display:none;">
+              </label>
+              <label class="ls-btn-mini ls-btn-upload" style="cursor:pointer;" title="Append an audio clip onto timeline">
+                <span>+ Join</span>
+                <input type="file" id="lsDawAppendFileInput" accept="audio/*" style="display:none;">
+              </label>
             </div>
-          </div>
-          <div class="ls-daw-track-box">
-            <div class="ls-channel-name">Track 2 · Instruments</div>
-            <input type="range" class="ls-range" id="lsDawTrack2Gain" min="0" max="180" value="100">
-            <div class="ls-btn-row">
-              <button type="button" class="ls-btn-mini" id="lsDawTrack2Mute">M</button>
-              <button type="button" class="ls-btn-mini" id="lsDawTrack2Solo">S</button>
+            <div class="ls-au-proj-actions">
+              <button type="button" class="ls-btn-mini" id="lsDawSaveProjectBtn" title="Save DAW Project (Ctrl+S)">Save Proj</button>
+              <button type="button" class="ls-btn-mini" id="lsDawLoadProjectBtn" title="Reload saved session project">Load Proj</button>
+              <label class="ls-btn-mini" style="cursor:pointer;" title="Import offline project.json">
+                <span>Open .json</span>
+                <input type="file" id="lsDawImportProjectInput" accept="application/json,.json" style="display:none;">
+              </label>
             </div>
-          </div>
-        </div>
-        <div class="ls-daw-canvas-scroll" id="lsDawCanvasWrap">
-          <canvas id="lsDawCanvas"></canvas>
-        </div>
-      </div>
 
-      <!-- CONTEXTUAL WORKSPACE SWITCHER FOR LOWER BAY -->
-      <div class="ls-daw-view-bar" id="lsDawWorkspaceViewBar" role="tablist" aria-label="DAW Lower Workspace">
-        <span class="ls-daw-view-label">Inspector &amp; Processing Focus</span>
-        <div class="ls-seg-switch">
-          <button type="button" class="ls-seg-btn is-active" data-daw-view-btn="all">All Panels</button>
-          <button type="button" class="ls-seg-btn" data-daw-view-btn="fx">FX &amp; Plugin Rack</button>
-          <button type="button" class="ls-seg-btn" data-daw-view-btn="master">Clip &amp; Mastering</button>
-        </div>
-      </div>
+            <div class="ls-au-bin-head">
+              <span>Session Media Bin</span>
+              <span class="ls-channel-tag">Drag or Insert</span>
+            </div>
+            <div class="ls-au-media-list" id="lsDawMediaBinList">
+              <div class="ls-au-empty-note">No audio files loaded yet. Open a recording or drop audio onto any track.</div>
+            </div>
 
-      <!-- ZONE 3: MODULAR PER-TRACK & MASTER PLUGIN RACK -->
-      <div class="ls-fx-rack-panel" id="lsDawFxRackPanel">
-        <div class="ls-fx-rack-header">
-          <div class="ls-fx-rack-title-wrap">
-            <h3 class="ls-card-title">
-              <span>Track Effects &amp; Mastering Rack</span>
-              <span class="ls-badge-pill" id="lsDawFxActiveTrackLabel">Track 1 · Vocals</span>
-            </h3>
-            <span class="ls-channel-tag">Per-track modular insert chain · Real-time live preview &amp; offline
-              mixdown</span>
+            <details class="ls-daw-stems-drawer">
+              <summary>
+                <span>Import Dual Dry Stems (Ch1+Ch2)</span>
+                <span class="ls-channel-tag">WAV Pair</span>
+              </summary>
+              <div class="ls-daw-stems-row">
+                <div class="ls-field">
+                  <label for="lsDawFileCh1Input">Track 1 · Ch 1 Vocals</label>
+                  <input type="file" id="lsDawFileCh1Input" accept="audio/*" class="ls-input">
+                </div>
+                <div class="ls-field">
+                  <label for="lsDawFileCh2Input">Track 2 · Ch 2 Instruments</label>
+                  <input type="file" id="lsDawFileCh2Input" accept="audio/*" class="ls-input">
+                </div>
+                <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawLoadStemsBtn">Load Stems</button>
+              </div>
+            </details>
           </div>
-          <div class="ls-btn-row">
-            <select class="ls-select ls-select-sm" id="lsDawFxTrackSelect" aria-label="Select track FX rack"></select>
-            <select class="ls-select ls-select-sm" id="lsDawChainPresetSelect" aria-label="DAW Chain Presets" title="Load a Part 12 Mandir DAW Preset Chain"></select>
-            <button type="button" class="ls-btn ls-btn-sm" id="lsDawApplyChainPresetBtn">Apply Preset</button>
-            <button type="button" class="ls-btn-mini" id="lsDawSaveChainPresetBtn" title="Save current rack as custom preset">Save</button>
-            <button type="button" class="ls-btn-mini" id="lsDawExportChainBtn" title="Export FX rack JSON">Exp</button>
-            <label class="ls-btn-mini" style="cursor:pointer;margin:0;" title="Import FX rack JSON">
-              Imp
-              <input type="file" id="lsDawImportChainInput" accept="application/json,.json" style="display:none;">
-            </label>
-            <select class="ls-select ls-select-sm" id="lsDawAddFxSelect" aria-label="Choose plugin to insert">
-              <option value="eq">+ 5-Band Parametric EQ</option>
-              <option value="filter">+ HPF / LPF Filter</option>
-              <option value="compressor">+ Dynamics Compressor</option>
-              <option value="gate">+ Hysteresis Gate / Expander</option>
-              <option value="deesser">+ Vocal De-Esser</option>
-              <option value="reverb">+ Mandir Hall Reverb</option>
-              <option value="delay">+ Stereo Echo / Delay</option>
-              <option value="saturation">+ Tape / Tube Warmth</option>
-              <option value="stereo_width">+ Stereo M/S Imaging</option>
-              <option value="limiter">+ True-Peak Brickwall Limiter</option>
-            </select>
-            <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAddFxBtn">+ Add Effect</button>
-            <button type="button" class="ls-btn ls-btn-sm" id="lsDawImportLiveFxBtn">Import Live Mixer FX</button>
-          </div>
-        </div>
 
-        <div class="ls-fx-rack-grid">
-          <div class="ls-fx-slot-list" id="lsDawFxSlotList"></div>
-          <div class="ls-fx-editor" id="lsDawFxEditorPane">
-            <div class="ls-hero-sub">Select an effect slot or click <strong>+ Add Effect</strong> to shape this track's
-              sound.</div>
+          <!-- PANEL B: AUDITION TRACK / MASTER EFFECTS RACK SLOTS -->
+          <div class="ls-au-left-pane ls-is-hidden" id="lsDawFxRackPanel" data-au-left-pane="fx">
+            <div class="ls-au-rack-controls">
+              <div class="ls-au-rack-head-row">
+                <span class="ls-badge-pill" id="lsDawFxActiveTrackLabel">Track 1 · Vocals</span>
+                <select class="ls-select ls-select-sm" id="lsDawFxTrackSelect" aria-label="Select track FX rack"></select>
+              </div>
+              <div class="ls-au-rack-head-row">
+                <select class="ls-select ls-select-sm" id="lsDawChainPresetSelect" aria-label="DAW Chain Presets" title="Load a Mandir DAW Preset Chain"></select>
+                <button type="button" class="ls-btn-mini" id="lsDawApplyChainPresetBtn">Apply</button>
+                <button type="button" class="ls-btn-mini" id="lsDawSaveChainPresetBtn" title="Save rack preset">Save</button>
+                <button type="button" class="ls-btn-mini" id="lsDawExportChainBtn" title="Export FX rack JSON">Exp</button>
+                <label class="ls-btn-mini" style="cursor:pointer;margin:0;" title="Import FX rack JSON">
+                  Imp
+                  <input type="file" id="lsDawImportChainInput" accept="application/json,.json" style="display:none;">
+                </label>
+              </div>
+              <div class="ls-au-rack-head-row">
+                <select class="ls-select ls-select-sm" id="lsDawAddFxSelect" aria-label="Choose plugin to insert">
+                  <option value="eq">+ 5-Band Parametric EQ</option>
+                  <option value="filter">+ HPF / LPF Filter</option>
+                  <option value="compressor">+ Dynamics Compressor</option>
+                  <option value="gate">+ Hysteresis Gate / Expander</option>
+                  <option value="deesser">+ Vocal De-Esser</option>
+                  <option value="reverb">+ Mandir Hall Reverb</option>
+                  <option value="delay">+ Stereo Echo / Delay</option>
+                  <option value="saturation">+ Tape / Tube Warmth</option>
+                  <option value="stereo_width">+ Stereo M/S Imaging</option>
+                  <option value="limiter">+ True-Peak Brickwall Limiter</option>
+                </select>
+                <button type="button" class="ls-btn ls-btn-primary ls-btn-sm" id="lsDawAddFxBtn">+ Add FX</button>
+              </div>
+              <button type="button" class="ls-btn-mini" id="lsDawImportLiveFxBtn" style="width:100%;">Import Live Console DSP</button>
+            </div>
+            <div class="ls-fx-slot-list" id="lsDawFxSlotList"></div>
           </div>
-        </div>
-      </div>
 
-      <!-- ZONE 4: CLIP INSPECTOR & MASTER EXPORT DOCK -->
-      <div class="ls-daw-bottom-dock">
-        <div class="ls-daw-dock-pane" id="lsDawInspectorBox">
-          <div class="ls-card-header" style="margin-bottom:8px;padding-bottom:6px;">
-            <span class="ls-card-title">Clip Inspector: <span id="lsDawSelectedClipLabel"
-                style="color:var(--studio-accent);">None</span></span>
-            <div class="ls-btn-row">
-              <button type="button" class="ls-btn-mini" id="lsDawSlipBackBtn" title="Slip audio inside clip -50ms (Shift -250ms)">Slip ◀</button>
-              <button type="button" class="ls-btn-mini" id="lsDawSlipFwdBtn" title="Slip audio inside clip +50ms (Shift +250ms)">Slip ▶</button>
+          <!-- PANEL C: CLIP & SESSION PROPERTIES INSPECTOR -->
+          <div class="ls-au-left-pane ls-is-hidden" id="lsDawInspectorBox" data-au-left-pane="props">
+            <div class="ls-au-props-head">
+              <span class="ls-card-title">Clip: <span id="lsDawSelectedClipLabel" style="color:var(--studio-accent);">None</span></span>
+            </div>
+            <div class="ls-btn-row" style="margin-bottom:8px;">
+              <button type="button" class="ls-btn-mini" id="lsDawSlipBackBtn" title="Slip audio -50ms (Shift -250ms)">Slip ◀</button>
+              <button type="button" class="ls-btn-mini" id="lsDawSlipFwdBtn" title="Slip audio +50ms (Shift +250ms)">Slip ▶</button>
               <button type="button" class="ls-btn-mini" id="lsDawNudgeBackBtn" title="Nudge clip -25ms (Shift -250ms)">◀ Nudge</button>
               <button type="button" class="ls-btn-mini" id="lsDawNudgeFwdBtn" title="Nudge clip +25ms (Shift +250ms)">Nudge ▶</button>
-              <button type="button" class="ls-btn-mini" id="lsDawNormClipBtn" title="Normalize clip gain to -1 dBTP">Normalize</button>
+              <button type="button" class="ls-btn-mini" id="lsDawNormClipBtn" title="Normalize clip gain to -1 dBTP">Norm</button>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Clip Gain</span>
+              <input type="range" class="ls-range" id="lsDawClipGain" min="-18" max="12" step="0.5" value="0">
+              <span class="ls-slider-val" id="lsDawClipGainVal">0 dB</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Fade In</span>
+              <input type="range" class="ls-range" id="lsDawClipFadeIn" min="0" max="8" step="0.1" value="0">
+              <span class="ls-slider-val" id="lsDawClipFadeInVal">0s</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Fade Out</span>
+              <input type="range" class="ls-range" id="lsDawClipFadeOut" min="0" max="8" step="0.1" value="0">
+              <span class="ls-slider-val" id="lsDawClipFadeOutVal">0s</span>
+            </div>
+            <div class="ls-slider-row">
+              <span class="ls-slider-label">Crossfade</span>
+              <input type="range" class="ls-range" id="lsDawClipCrossfade" min="0" max="2" step="0.05" value="0">
+              <span class="ls-slider-val" id="lsDawClipCrossfadeVal">0s</span>
+            </div>
+            <div class="ls-trim-row">
+              <div class="ls-field">
+                <label for="lsDawTrimStart">Start (s)</label>
+                <input type="number" step="0.1" min="0" class="ls-input" id="lsDawTrimStart" value="0">
+              </div>
+              <div class="ls-field">
+                <label for="lsDawTrimEnd">End (s)</label>
+                <input type="number" step="0.1" min="0" class="ls-input" id="lsDawTrimEnd" value="0">
+              </div>
+              <button type="button" class="ls-btn ls-btn-sm" id="lsDawApplyTrimBtn">Trim</button>
+            </div>
+            <div class="ls-au-session-timing">
+              <div class="ls-field">
+                <label for="lsDawRulerModeSelect">Time Format</label>
+                <select class="ls-select ls-select-sm" id="lsDawRulerModeSelect" aria-label="Ruler Display Mode">
+                  <option value="time" selected>Decimal (mm:ss.t)</option>
+                  <option value="bars">Bars : Beats</option>
+                  <option value="samples">Samples (48k)</option>
+                </select>
+              </div>
+              <div class="ls-field">
+                <label for="lsDawBpmInput">Tempo (BPM)</label>
+                <input type="number" id="lsDawBpmInput" class="ls-input" min="30" max="240" value="96" aria-label="Project Tempo BPM">
+              </div>
             </div>
           </div>
-          <div class="ls-slider-row">
-            <span class="ls-slider-label">Clip Gain</span>
-            <input type="range" class="ls-range" id="lsDawClipGain" min="-18" max="12" step="0.5" value="0">
-            <span class="ls-slider-val" id="lsDawClipGainVal">0 dB</span>
-          </div>
-          <div class="ls-slider-row">
-            <span class="ls-slider-label">Fade In</span>
-            <input type="range" class="ls-range" id="lsDawClipFadeIn" min="0" max="8" step="0.1" value="0">
-            <span class="ls-slider-val" id="lsDawClipFadeInVal">0s</span>
-          </div>
-          <div class="ls-slider-row">
-            <span class="ls-slider-label">Fade Out</span>
-            <input type="range" class="ls-range" id="lsDawClipFadeOut" min="0" max="8" step="0.1" value="0">
-            <span class="ls-slider-val" id="lsDawClipFadeOutVal">0s</span>
-          </div>
-          <div class="ls-slider-row">
-            <span class="ls-slider-label">Crossfade</span>
-            <input type="range" class="ls-range" id="lsDawClipCrossfade" min="0" max="2" step="0.05" value="0">
-            <span class="ls-slider-val" id="lsDawClipCrossfadeVal">0s</span>
-          </div>
-          <div class="ls-trim-row">
-            <div class="ls-field">
-              <label for="lsDawTrimStart">Start (s)</label>
-              <input type="number" step="0.1" min="0" class="ls-input" id="lsDawTrimStart" value="0">
+        </aside>
+
+        <div class="ls-au-editor-column">
+          <input type="file" id="lsDawTrackFileInput" accept="audio/*" style="display:none;">
+
+          <!-- Editor Info Strip -->
+          <div class="ls-daw-infobar">
+            <div class="ls-au-infobar-left">
+              <span class="ls-au-tool-badge" id="lsDawActiveToolBadge">TIME SELECTION (T)</span>
+              <span id="lsDawStatusText">Audition Multitrack Ready — use V Move, R Razor, Y Slip, T Time, J/K/L Shuttle.</span>
             </div>
-            <div class="ls-field">
-              <label for="lsDawTrimEnd">End (s)</label>
-              <input type="number" step="0.1" min="0" class="ls-input" id="lsDawTrimEnd" value="0">
+            <strong id="lsDawSelectionLabel">Drag waveform to select cut range</strong>
+          </div>
+
+          <!-- Audition CC Top Zoom Navigator Overview -->
+          <div class="ls-au-navigator-wrap" title="Zoom Navigator — Click or drag viewport to scrub across session">
+            <canvas id="lsDawNavigatorCanvas" height="24"></canvas>
+          </div>
+
+          <!-- Multitrack Arrangement View (Alt+1) -->
+          <div class="ls-daw-workspace" id="lsDawMultitrackView">
+            <div class="ls-daw-track-headers" id="lsDawTrackHeaders">
+              <div class="ls-daw-tracks-corner"><span>TRACKS · MIX</span><span>2 TRK</span></div>
+              <div class="ls-daw-track-box is-selected">
+                <div class="ls-au-track-main">
+                  <div class="ls-channel-name">Track 1 · Vocals</div>
+                  <input type="range" class="ls-range" id="lsDawTrack1Gain" min="0" max="180" value="100">
+                  <div class="ls-btn-row">
+                    <button type="button" class="ls-btn-mini" id="lsDawTrack1Mute">M</button>
+                    <button type="button" class="ls-btn-mini" id="lsDawTrack1Solo">S</button>
+                  </div>
+                </div>
+                <div class="ls-daw-track-meter"><div class="ls-daw-track-meter-fill"></div></div>
+              </div>
+              <div class="ls-daw-track-box">
+                <div class="ls-au-track-main">
+                  <div class="ls-channel-name">Track 2 · Instruments</div>
+                  <input type="range" class="ls-range" id="lsDawTrack2Gain" min="0" max="180" value="100">
+                  <div class="ls-btn-row">
+                    <button type="button" class="ls-btn-mini" id="lsDawTrack2Mute">M</button>
+                    <button type="button" class="ls-btn-mini" id="lsDawTrack2Solo">S</button>
+                  </div>
+                </div>
+                <div class="ls-daw-track-meter"><div class="ls-daw-track-meter-fill"></div></div>
+              </div>
             </div>
-            <button type="button" class="ls-btn" id="lsDawApplyTrimBtn">Apply Trim</button>
+            <div class="ls-daw-canvas-scroll" id="lsDawCanvasWrap">
+              <canvas id="lsDawCanvas"></canvas>
+            </div>
+            <div id="lsDawContextMenu" class="ls-au-context-menu ls-is-hidden" role="menu"></div>
+          </div>
+
+          <!-- Audition Console Mixer View (Alt+2) -->
+          <div class="ls-au-mixer-view ls-is-hidden" id="lsDawMixerView" aria-label="Multitrack Mixer Console">
+            <div class="ls-au-mixer-strips" id="lsDawMixerStrips"></div>
+          </div>
+
+          <!-- Docked Audition CC Transport, J-K-L Shuttle & Master Stereo Meter -->
+          <div class="ls-au-transport-dock">
+            <div class="ls-au-transport-btns">
+              <button type="button" class="ls-btn-mini" id="lsDawGoStartBtn" title="Move Playhead to Start (Home)">|◀</button>
+              <button type="button" class="ls-btn-mini" id="lsDawPrevMarkerBtn" title="Previous Marker ([)">◀ Mrk</button>
+              <button type="button" class="ls-btn-mini" id="lsDawShuttleRevBtn" title="Shuttle Rewind (J — tap to accelerate)">◀◀ J</button>
+              <button type="button" class="ls-btn" id="lsDawStopBtn" title="Stop (K)">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="1.5" /></svg>
+                <span>Stop</span>
+              </button>
+              <button type="button" class="ls-btn ls-btn-primary ls-daw-play-circle" id="lsDawPlayBtn" title="Play / Pause (Space)" aria-label="Play or Pause">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4" /></svg>
+                <span class="ls-play-label ls-is-hidden">Play</span>
+              </button>
+              <button type="button" class="ls-btn-mini" id="lsDawShuttleFwdBtn" title="Shuttle Fast-Forward (L — tap to accelerate)">L ▶▶</button>
+              <button type="button" class="ls-btn-mini" id="lsDawNextMarkerBtn" title="Next Marker (])">Mrk ▶</button>
+              <button type="button" class="ls-btn-mini" id="lsDawGoEndBtn" title="Move Playhead to End (End)">▶|</button>
+              <button type="button" class="ls-btn-mini" id="lsDawLoopBtn" title="Toggle Loop Playback (Ctrl+L)">Loop</button>
+              <button type="button" class="ls-btn ls-daw-rec-btn" id="lsDawRecordBtn" title="Record Armed Tracks (Shift+Space / Ctrl+R)" aria-label="Record Armed Tracks">
+                <span class="ls-rec-dot" aria-hidden="true"></span>
+                <span>Rec</span>
+              </button>
+              <button type="button" class="ls-btn-mini" id="lsDawAddMarkerBtn" title="Add Cue Marker at Playhead (M / *)">+ Mrk</button>
+              <span class="ls-au-shuttle-pill" id="lsDawShuttleBadge" title="Current Shuttle Speed">1.0×</span>
+            </div>
+
+            <div class="ls-au-timecode-cluster">
+              <span class="ls-daw-timecode" id="lsDawTimecode">00:00.0 / 00:00</span>
+              <span class="ls-au-range-digits" id="lsDawRangeDigits">In --:-- · Out --:--</span>
+            </div>
+
+            <div class="ls-au-zoom-cluster">
+              <button type="button" class="ls-btn-mini" id="lsDawZoomOutBtn" title="Zoom Out Horizontal (-)">-</button>
+              <button type="button" class="ls-btn-mini" id="lsDawZoomInBtn" title="Zoom In Horizontal (=)">+</button>
+              <button type="button" class="ls-btn-mini" id="lsDawZoomSelBtn" title="Zoom to Selection (;)">Sel</button>
+              <button type="button" class="ls-btn-mini" id="lsDawZoomFitBtn" title="Zoom Out Full Session (\)">Fit</button>
+              <button type="button" class="ls-btn-mini" id="lsDawTrackHeightBtn" title="Track Height (Alt+= / Alt+-)">Lane H</button>
+              <button type="button" class="ls-btn-mini" id="lsDawWaveScaleBtn" title="Visual Waveform Scale">Wave ×1</button>
+            </div>
+
+            <div class="ls-au-master-strip-meter" title="DAW Master Output L / R Level">
+              <div class="ls-au-lr-bars">
+                <div class="ls-au-lr-track"><div class="ls-au-lr-fill" id="lsDawTransportMeterL"></div></div>
+                <div class="ls-au-lr-track"><div class="ls-au-lr-fill" id="lsDawTransportMeterR"></div></div>
+              </div>
+              <span class="ls-au-peak-db" id="lsDawTransportPeakDb">-∞ dB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZONE 3: CONTEXTUAL LOWER WORKSPACE SWITCHER -->
+      <div class="ls-daw-view-bar" id="lsDawWorkspaceViewBar" role="tablist" aria-label="DAW Lower Workspace">
+        <span class="ls-daw-view-label">Plugin Visualizer &amp; Mastering Export Dock</span>
+        <div class="ls-btn-row">
+          <div class="ls-seg-switch">
+            <button type="button" class="ls-seg-btn is-active" data-daw-view-btn="all">Split View</button>
+            <button type="button" class="ls-seg-btn" data-daw-view-btn="fx">FX Graph Only</button>
+            <button type="button" class="ls-seg-btn" data-daw-view-btn="master">Master &amp; R2 Only</button>
+          </div>
+          <button type="button" class="ls-btn-mini" id="lsDawCollapseLowerBtn" title="Collapse/Expand Lower Dock">▼</button>
+        </div>
+      </div>
+
+      <!-- ZONE 4: PLUGIN VISUALIZER + MASTER EXPORT DOCK -->
+      <div class="ls-daw-bottom-dock" id="lsDawLowerDock">
+        <div class="ls-daw-dock-pane" id="lsDawFxEditorDockWrap">
+          <div class="ls-fx-editor" id="lsDawFxEditorPane">
+            <div class="ls-hero-sub">Select an effect slot in <strong>Effects Rack</strong> or add an effect to shape this track's sound.</div>
           </div>
         </div>
 
-        <div class="ls-daw-dock-pane">
+        <div class="ls-daw-dock-pane" id="lsDawMasterExportDockWrap">
           <div class="ls-card-header" style="margin-bottom:8px;padding-bottom:6px;">
             <span class="ls-card-title">Master Export &amp; Cloudflare R2 Delivery</span>
             <div class="ls-btn-row" style="gap:6px;">
@@ -1454,7 +1560,7 @@
 
           <div class="ls-btn-row" style="margin-top:10px;">
             <button type="button" class="ls-btn ls-btn-sm" id="lsDawAnalyzeMixBtn" disabled
-              title="Measure ITU-R BS.1770-4 Loudness & True-Peak headroom before rendering">Measure Loudness</button>
+              title="Measure ITU-R BS.1770-4 Loudness &amp; True-Peak headroom before rendering">Measure Loudness</button>
             <button type="button" class="ls-btn ls-btn-primary" id="lsDawRenderBtn" disabled>Render Master Mix</button>
             <button type="button" class="ls-btn ls-btn-go-live ls-btn-sm" id="lsDawRenderPublishBtn" disabled>Render
               &amp; Upload R2</button>
@@ -1463,13 +1569,89 @@
           </div>
 
           <div class="ls-kbd-hints">
-            <strong>Space</strong> Play/Pause · <strong>S</strong> Split · <strong>I</strong>/<strong>O</strong> In/Out
-            · <strong>L</strong> Loop · <strong>Ctrl+Z</strong>/<strong>Y</strong> Undo/Redo · <strong>Ctrl+D</strong> Dup · <strong>Ctrl+S</strong> Save Proj
+            <strong>V</strong> Move · <strong>R</strong> Razor · <strong>Y</strong> Slip · <strong>T</strong> Time ·
+            <strong>J</strong>/<strong>K</strong>/<strong>L</strong> Shuttle · <strong>Ctrl+K</strong> Split ·
+            <strong>M</strong> Marker · <strong>=</strong>/<strong>-</strong>/<strong>\</strong>/<strong>;</strong> Zoom ·
+            <strong>Ctrl+Alt+K</strong> All Shortcuts
           </div>
         </div>
       </div>
     </div>
+
+    <!-- AUDITION CC KEYBOARD SHORTCUTS REFERENCE DIALOG -->
+    <dialog id="lsDawShortcutsDialog" class="ls-au-shortcuts-dialog" aria-labelledby="lsAuShortcutsTitle">
+      <div class="ls-au-shortcuts-card">
+        <div class="ls-au-shortcuts-head">
+          <h3 id="lsAuShortcutsTitle" class="ls-card-title">Adobe Audition CC Multitrack Shortcuts</h3>
+          <button type="button" class="ls-btn-mini" id="lsDawCloseShortcutsBtn" aria-label="Close Shortcuts">✕</button>
+        </div>
+        <div class="ls-au-shortcuts-grid">
+          <div class="ls-au-shortcut-col">
+            <h4>Tools &amp; Views</h4>
+            <ul>
+              <li><strong>V</strong><span>Move Tool (Clips, Trims, Fades)</span></li>
+              <li><strong>R</strong><span>Razor Tool (Shift+Click All Tracks)</span></li>
+              <li><strong>Y</strong><span>Slip Tool (Slide Content Inside Clip)</span></li>
+              <li><strong>T</strong><span>Time Selection Tool (Top Edge Moves)</span></li>
+              <li><strong>S</strong><span>Toggle Snapping</span></li>
+              <li><strong>Alt+1 / Alt+2</strong><span>Multitrack / Console Mixer</span></li>
+              <li><strong>Ctrl+Alt+K / ?</strong><span>Open Shortcuts Cheat-Sheet</span></li>
+            </ul>
+          </div>
+          <div class="ls-au-shortcut-col">
+            <h4>Transport &amp; Shuttle</h4>
+            <ul>
+              <li><strong>Space</strong><span>Play / Pause</span></li>
+              <li><strong>Shift+Space / Ctrl+R</strong><span>Record Armed Tracks</span></li>
+              <li><strong>J</strong><span>Shuttle Rewind (-1×, -2×, -4×)</span></li>
+              <li><strong>K</strong><span>Shuttle Stop / Pause</span></li>
+              <li><strong>L</strong><span>Shuttle Forward (1×, 1.5×, 2×, 3×)</span></li>
+              <li><strong>Home / End</strong><span>Jump Playhead Start / End</span></li>
+              <li><strong>Ctrl+L</strong><span>Toggle Loop Region</span></li>
+            </ul>
+          </div>
+          <div class="ls-au-shortcut-col">
+            <h4>Editing, Markers &amp; Zoom</h4>
+            <ul>
+              <li><strong>Ctrl+K / Ctrl+Shift+K</strong><span>Split Selected / All Tracks</span></li>
+              <li><strong>Del / Shift+Bksp</strong><span>Delete Clip / Ripple Delete</span></li>
+              <li><strong>M / [ / ]</strong><span>Add Marker · Prev / Next Marker</span></li>
+              <li><strong>I / O / G</strong><span>Set In · Set Out · Clear Selection</span></li>
+              <li><strong>= / - / \ / ;</strong><span>Zoom In · Out · Full · Selection</span></li>
+              <li><strong>Alt+= / Alt+-</strong><span>Expand / Shrink Track Height</span></li>
+              <li><strong>Ctrl+Z / Ctrl+Y</strong><span>Undo / Redo Edit History</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </dialog>
   </div>
+
+  <!-- ======================================================================
+       SCREEN-FREEZING REFRESH / LEAVE PROTECTION DIALOG
+       ====================================================================== -->
+  <dialog id="lsRefreshGuardDialog" class="ls-refresh-guard-dialog" aria-modal="true"
+    aria-labelledby="lsRefreshGuardTitle" aria-describedby="lsRefreshGuardDesc">
+    <div class="ls-refresh-guard-card">
+      <div class="ls-refresh-guard-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+      <h2 id="lsRefreshGuardTitle" class="ls-refresh-guard-title">Recording / Session Work Is Active</h2>
+      <p id="lsRefreshGuardDesc" class="ls-refresh-guard-desc">
+        Refreshing or leaving this page will interrupt the live audio engine. The workspace is frozen until you choose an action below.
+      </p>
+      <div id="lsRefreshGuardMeta" class="ls-refresh-guard-meta"></div>
+      <div id="lsRefreshGuardActions" class="ls-refresh-guard-actions">
+        <button type="button" class="ls-btn ls-btn-primary" id="lsGuardStayBtn">Stay in Studio (Keep Recording Safe)</button>
+        <button type="button" class="ls-btn ls-btn-go-live" id="lsGuardSaveStemsBtn">Save Stems to Downloads &amp; Stay</button>
+        <button type="button" class="ls-btn ls-btn-stop" id="lsGuardConfirmLeaveBtn">Discard &amp; Refresh Anyway</button>
+      </div>
+    </div>
+  </dialog>
 </div>
 
 <script>

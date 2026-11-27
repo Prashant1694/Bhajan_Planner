@@ -22,8 +22,17 @@
   let previewRaf = null;
 
   let zoomLevel = 1;
-  let laneHeightPx = 96;
+  let laneHeightPx = 116;
   let waveScale = 1;
+  let activeTool = "time"; // "move" | "razor" | "slip" | "time"
+  let activeLeftTab = "files"; // "files" | "fx" | "props"
+  let activeCenterMode = "multitrack"; // "multitrack" | "mixer"
+  let shuttleSpeed = 1.0;
+  let razorHoverSec = null;
+  let razorHoverAll = false;
+  let clipDragState = null;
+  let isNavDragging = false;
+  let shuttleReverseRaf = 0;
   let selectedClipId = null;
   const selectedClipIds = new Set();
   let selectedFxSlotId = null;
@@ -40,6 +49,8 @@
 
   let lastRenderedMp3Url = null;
   let lastRenderedFile = null;
+  let dawExportedClean = false;
+  let lastCleanUndoLen = 0;
   let isRendering = false;
   let isDraggingSelection = false;
   let isScrubbingPlayhead = false;
@@ -47,6 +58,413 @@
   let draggingAutoPoint = null;
   let dragAnchorSec = 0;
   let slipAccumSec = 0;
+  let isRecording = false;
+  let recSession = null;
+  let learningTrackId = null;
+  const dawTrackMetersDb = {};
+  let dawMeterRaf = 0;
+  let dawRawFeedActive = false;
+  let dawFallbackStream = null;
+  let dawFallbackCtx = null;
+  let dawFallbackNode = null;
+  let dawMonitorCtx = null;
+  const dawMonitorTrackChains = new Map();
+  const dawAnalyserScratch = new Float32Array(256);
+
+  function setAuditionTool(toolName) {
+    const allowed = ["move", "razor", "slip", "time"];
+    activeTool = allowed.includes(toolName) ? toolName : "time";
+    const labels = {
+      move: "MOVE TOOL (V)",
+      razor: "RAZOR TOOL (R) · Shift=All",
+      slip: "SLIP TOOL (Y)",
+      time: "TIME SELECTION (T)"
+    };
+    const badge = $("lsDawActiveToolBadge");
+    if (badge) badge.textContent = labels[activeTool];
+    const btnMap = {
+      move: $("lsDawToolMoveBtn"),
+      razor: $("lsDawToolRazorBtn"),
+      slip: $("lsDawToolSlipBtn"),
+      time: $("lsDawToolTimeBtn")
+    };
+    Object.keys(btnMap).forEach((k) => {
+      if (btnMap[k]) btnMap[k].classList.toggle("is-active", k === activeTool);
+    });
+    const canvas = $("lsDawCanvas");
+    if (canvas) {
+      canvas.style.cursor = activeTool === "razor" ? "col-resize" : (activeTool === "slip" ? "ew-resize" : (activeTool === "move" ? "grab" : "crosshair"));
+    }
+    if (activeTool !== "razor") {
+      razorHoverSec = null;
+      drawCanvas();
+    }
+  }
+
+  function setAuditionLeftTab(tabName) {
+    const valid = ["files", "fx", "props"];
+    activeLeftTab = valid.includes(tabName) ? tabName : "files";
+    document.querySelectorAll("[data-au-left-tab]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.auLeftTab === activeLeftTab);
+    });
+    document.querySelectorAll("[data-au-left-pane]").forEach((pane) => {
+      pane.classList.toggle("ls-is-hidden", pane.dataset.auLeftPane !== activeLeftTab);
+    });
+  }
+
+  function setAuditionCenterMode(modeName) {
+    activeCenterMode = modeName === "mixer" ? "mixer" : "multitrack";
+    if ($("lsDawModeMultitrackBtn")) $("lsDawModeMultitrackBtn").classList.toggle("is-active", activeCenterMode === "multitrack");
+    if ($("lsDawModeMixerBtn")) $("lsDawModeMixerBtn").classList.toggle("is-active", activeCenterMode === "mixer");
+    if ($("lsDawMultitrackView")) $("lsDawMultitrackView").classList.toggle("ls-is-hidden", activeCenterMode === "mixer");
+    if ($("lsDawMixerView")) $("lsDawMixerView").classList.toggle("ls-is-hidden", activeCenterMode !== "mixer");
+    if (activeCenterMode === "mixer") renderMixerConsole();
+  }
+
+  function formatGainDb(pctVal) {
+    const g = Number(pctVal ?? 100);
+    if (g <= 0.5) return "-∞ dB";
+    const db = 20 * Math.log10(g / 100);
+    return `${db >= 0 ? "+" : ""}${db.toFixed(1)}dB`;
+  }
+
+  function syncRangeDigits() {
+    const el = $("lsDawRangeDigits");
+    if (!el) return;
+    if (selectionStart != null && selectionEnd != null && Math.abs(selectionEnd - selectionStart) >= 0.05) {
+      const a = Math.min(selectionStart, selectionEnd);
+      const b = Math.max(selectionStart, selectionEnd);
+      el.textContent = `In ${formatTimecode(a, false)} · Out ${formatTimecode(b, false)} · Δ ${(b - a).toFixed(1)}s`;
+    } else {
+      el.textContent = `In --:-- · Out --:--`;
+    }
+  }
+
+  function renderMediaBin() {
+    const list = $("lsDawMediaBinList");
+    if (!list || !state) return;
+    const sources = Object.values(state.sources || {});
+    if (sources.length === 0) {
+      list.innerHTML = `<div class="ls-au-empty-note">No audio files loaded yet. Open a recording or drop audio onto any track.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    sources.forEach((src) => {
+      const row = document.createElement("div");
+      row.className = "ls-au-media-item";
+      const info = document.createElement("div");
+      info.style.minWidth = "0";
+      const nm = document.createElement("div");
+      nm.className = "ls-au-media-name";
+      nm.textContent = src.name || src.id;
+      nm.title = src.name || src.id;
+      const meta = document.createElement("div");
+      meta.className = "ls-au-media-meta";
+      meta.textContent = `${formatTimecode(src.duration || 0, false)} · ${Math.round((src.sampleRate || 48000) / 1000)}kHz${src.hasTwoTracks ? " · Dual" : ""}`;
+      info.appendChild(nm);
+      info.appendChild(meta);
+
+      const insBtn = document.createElement("button");
+      insBtn.type = "button";
+      insBtn.className = "ls-btn-mini";
+      insBtn.textContent = "+ Insert";
+      insBtn.title = `Insert ${src.name} onto selected track at playhead`;
+      insBtn.onclick = () => {
+        const targetTr = state.selectedTrackId && state.selectedTrackId !== "master"
+          ? state.selectedTrackId
+          : (state.tracks[0] && state.tracks[0].id);
+        const clip = Engine.appendClip(state, {
+          sourceId: src.id,
+          trackId: targetTr,
+          timelineOffsetSec: playheadSec,
+          label: src.name || "Clip",
+          duration: src.duration
+        });
+        syncClipSelection(clip.id);
+        updateAllDawUi();
+      };
+      row.appendChild(info);
+      row.appendChild(insBtn);
+      list.appendChild(row);
+    });
+  }
+
+  function renderMixerConsole() {
+    const host = $("lsDawMixerStrips");
+    if (!host || !state) return;
+    host.innerHTML = "";
+    const catalog = window.LiveStudioBridge && typeof window.LiveStudioBridge.getInputChannelCatalog === "function"
+      ? window.LiveStudioBridge.getInputChannelCatalog()
+      : [];
+
+    state.tracks.forEach((tr, idx) => {
+      const strip = document.createElement("div");
+      strip.className = `ls-au-mixer-strip${state.selectedTrackId === tr.id ? " is-selected" : ""}`;
+      strip.style.borderTopColor = resolveProTrackColor(tr, idx);
+      strip.onclick = (ev) => {
+        if (ev.target.closest("button,input,select")) return;
+        Engine.selectTrack(state, tr.id);
+        renderTrackHeaders();
+        renderMixerConsole();
+        renderFxRack();
+      };
+
+      const title = document.createElement("div");
+      title.className = "ls-daw-track-title";
+      title.style.textAlign = "center";
+      title.textContent = tr.name;
+
+      const inpSel = document.createElement("select");
+      inpSel.className = "ls-daw-track-input-select";
+      const nOpt = document.createElement("option");
+      nOpt.value = "none";
+      nOpt.textContent = "In: None";
+      inpSel.appendChild(nOpt);
+      catalog.forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.id;
+        o.textContent = c.label;
+        inpSel.appendChild(o);
+      });
+      inpSel.value = catalog.some((c) => String(c.id) === String(tr.inputSource)) ? String(tr.inputSource) : "none";
+      inpSel.onchange = () => {
+        Engine.updateTrackProps(state, tr.id, { inputSource: inpSel.value });
+        renderTrackHeaders();
+        syncDawHardwareFeedState();
+      };
+
+      const badgeRow = document.createElement("div");
+      badgeRow.className = "ls-btn-row";
+      badgeRow.style.justifyContent = "center";
+      [
+        { lbl: "M", cls: tr.mute ? " is-muted-active" : "", prop: "mute", val: !tr.mute },
+        { lbl: "S", cls: tr.solo ? " is-solo-active" : "", prop: "solo", val: !tr.solo },
+        { lbl: "R", cls: tr.recordArmed ? " is-rec-armed" : "", prop: "recordArmed", val: !tr.recordArmed },
+        { lbl: "I", cls: tr.inputMonitor ? " is-mon-active" : "", prop: "inputMonitor", val: !tr.inputMonitor }
+      ].forEach((b) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `ls-btn-mini ls-au-trk-badge${b.cls}`;
+        btn.textContent = b.lbl;
+        btn.onclick = () => {
+          Engine.updateTrackProps(state, tr.id, { [b.prop]: b.val });
+          renderTrackHeaders();
+          renderMixerConsole();
+          syncLivePreviewTracks();
+          syncDawHardwareFeedState();
+        };
+        badgeRow.appendChild(btn);
+      });
+
+      const faderWrap = document.createElement("div");
+      faderWrap.className = "ls-au-mixer-fader-wrap";
+      const volSlider = document.createElement("input");
+      volSlider.type = "range";
+      volSlider.className = "ls-range";
+      volSlider.style.width = "96px";
+      volSlider.style.transform = "rotate(-90deg)";
+      volSlider.min = "0";
+      volSlider.max = "180";
+      volSlider.value = String(tr.gain ?? 100);
+      const dbRead = document.createElement("div");
+      dbRead.className = "ls-daw-track-val";
+      dbRead.style.textAlign = "center";
+      dbRead.textContent = formatGainDb(tr.gain ?? 100);
+      volSlider.oninput = () => {
+        Engine.updateTrackProps(state, tr.id, { gain: Number(volSlider.value) });
+        dbRead.textContent = formatGainDb(tr.gain);
+        renderTrackHeaders();
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+      faderWrap.appendChild(volSlider);
+
+      const fxBtn = document.createElement("button");
+      fxBtn.type = "button";
+      fxBtn.className = "ls-btn-mini";
+      fxBtn.textContent = `FX (${(tr.fxRack || []).length})`;
+      fxBtn.onclick = () => {
+        Engine.selectTrack(state, tr.id);
+        setAuditionLeftTab("fx");
+        renderFxRack();
+      };
+
+      strip.appendChild(title);
+      strip.appendChild(inpSel);
+      strip.appendChild(badgeRow);
+      strip.appendChild(faderWrap);
+      strip.appendChild(dbRead);
+      strip.appendChild(fxBtn);
+      host.appendChild(strip);
+    });
+
+    if (state.masterTrack) {
+      const m = state.masterTrack;
+      const mStrip = document.createElement("div");
+      mStrip.className = `ls-au-mixer-strip is-master${state.selectedTrackId === "master" ? " is-selected" : ""}`;
+      mStrip.onclick = () => {
+        Engine.selectTrack(state, "master");
+        setAuditionLeftTab("fx");
+        renderFxRack();
+        renderMixerConsole();
+      };
+      const mTitle = document.createElement("div");
+      mTitle.className = "ls-daw-track-title";
+      mTitle.style.textAlign = "center";
+      mTitle.textContent = "Master Bus";
+      const mSliderWrap = document.createElement("div");
+      mSliderWrap.className = "ls-au-mixer-fader-wrap";
+      const mFader = document.createElement("input");
+      mFader.type = "range";
+      mFader.className = "ls-range";
+      mFader.style.width = "96px";
+      mFader.style.transform = "rotate(-90deg)";
+      mFader.min = "0";
+      mFader.max = "180";
+      mFader.value = String(m.gain ?? 100);
+      const mDb = document.createElement("div");
+      mDb.className = "ls-daw-track-val";
+      mDb.style.textAlign = "center";
+      mDb.textContent = formatGainDb(m.gain ?? 100);
+      mFader.oninput = () => {
+        Engine.updateTrackProps(state, "master", { gain: Number(mFader.value) });
+        mDb.textContent = formatGainDb(m.gain);
+        syncLivePreviewTracks();
+      };
+      mSliderWrap.appendChild(mFader);
+      const mFx = document.createElement("button");
+      mFx.type = "button";
+      mFx.className = "ls-btn-mini";
+      mFx.textContent = `Master FX (${(m.fxRack || []).length})`;
+      mStrip.appendChild(mTitle);
+      mStrip.appendChild(mSliderWrap);
+      mStrip.appendChild(mDb);
+      mStrip.appendChild(mFx);
+      host.appendChild(mStrip);
+    }
+  }
+
+  function drawNavigatorCanvas() {
+    const nav = $("lsDawNavigatorCanvas");
+    const wrap = $("lsDawCanvasWrap");
+    if (!nav || !state || !Engine) return;
+    const w = Math.max(200, nav.parentElement ? nav.parentElement.clientWidth : 600);
+    const h = 24;
+    const dpr = window.devicePixelRatio || 1;
+    nav.style.width = `${w}px`;
+    nav.style.height = `${h}px`;
+    if (nav.width !== Math.floor(w * dpr) || nav.height !== Math.floor(h * dpr)) {
+      nav.width = Math.floor(w * dpr);
+      nav.height = Math.floor(h * dpr);
+    }
+    const ctx = nav.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pal = getStudioPalette();
+    ctx.fillStyle = pal.canvasBg;
+    ctx.fillRect(0, 0, w, h);
+
+    const layout = Engine.computeTimelineLayout(state.clips);
+    const totalDur = Math.max(10, layout.totalDuration);
+    layout.items.forEach((it) => {
+      const x0 = (it.timelineStart / totalDur) * w;
+      const cw = Math.max(2, (it.duration / totalDur) * w);
+      ctx.fillStyle = colorWithAlpha(pal.accentSecondary, 0.45);
+      ctx.fillRect(x0, 5, cw, h - 10);
+    });
+    (state.markers || []).forEach((m) => {
+      const mx = (m.start_seconds / totalDur) * w;
+      ctx.fillStyle = pal.success;
+      ctx.fillRect(mx - 1, 1, 2, h - 2);
+    });
+    if (wrap && wrap.scrollWidth > 0) {
+      const viewStart = (wrap.scrollLeft / wrap.scrollWidth) * w;
+      const viewW = Math.max(16, (wrap.clientWidth / wrap.scrollWidth) * w);
+      ctx.fillStyle = colorWithAlpha(pal.accent, 0.16);
+      ctx.fillRect(viewStart, 1, Math.min(w - viewStart, viewW), h - 2);
+      ctx.strokeStyle = pal.accent;
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(viewStart + 0.5, 1.5, Math.min(w - viewStart - 1, Math.max(10, viewW - 1)), h - 3);
+    }
+    const px = Math.min(w - 1, Math.max(0, (playheadSec / totalDur) * w));
+    ctx.fillStyle = pal.danger;
+    ctx.fillRect(px, 0, 1.5, h);
+  }
+
+  function stopShuttleReverse() {
+    if (shuttleReverseRaf) {
+      window.cancelAnimationFrame(shuttleReverseRaf);
+      shuttleReverseRaf = 0;
+    }
+  }
+
+  function syncShuttleBadge() {
+    const b = $("lsDawShuttleBadge");
+    if (!b) return;
+    if (!isPlaying && !shuttleReverseRaf) {
+      b.textContent = "1.0×";
+      return;
+    }
+    b.textContent = shuttleSpeed < 0 ? `${shuttleSpeed.toFixed(1)}× ◀◀` : `${shuttleSpeed.toFixed(1)}×`;
+  }
+
+  function stepShuttle(dir) {
+    if (!state) return;
+    if (dir < 0) {
+      const prevSpeed = shuttleSpeed;
+      stopPreviewPlayback(false);
+      const revs = [-1, -2, -4];
+      const nextIdx = revs.indexOf(prevSpeed);
+      shuttleSpeed = nextIdx >= 0 ? revs[Math.min(revs.length - 1, nextIdx + 1)] : -1;
+      let lastMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const stepRev = () => {
+        if (shuttleSpeed >= 0) {
+          stopShuttleReverse();
+          syncShuttleBadge();
+          return;
+        }
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        const dt = Math.min(0.1, Math.max(0, (now - lastMs) / 1000));
+        lastMs = now;
+        playheadSec = Math.max(0, playheadSec - dt * Math.abs(shuttleSpeed));
+        const layout = Engine.computeTimelineLayout(state.clips);
+        updateTransportReadout(layout.totalDuration);
+        drawCanvas();
+        if (playheadSec <= 0) {
+          shuttleSpeed = 1.0;
+          stopShuttleReverse();
+          syncShuttleBadge();
+          return;
+        }
+        shuttleReverseRaf = window.requestAnimationFrame(stepRev);
+      };
+      syncShuttleBadge();
+      shuttleReverseRaf = window.requestAnimationFrame(stepRev);
+      return;
+    }
+    stopShuttleReverse();
+    const fwds = [1, 1.5, 2, 3];
+    if (!isPlaying || shuttleSpeed <= 0) {
+      shuttleSpeed = 1.0;
+    } else {
+      const idx = fwds.indexOf(shuttleSpeed);
+      shuttleSpeed = idx >= 0 ? fwds[Math.min(fwds.length - 1, idx + 1)] : 1.5;
+    }
+    startPreviewPlayback();
+    syncShuttleBadge();
+  }
+
+  function resolveTrackPinRoute(spec) {
+    const s = String(spec == null ? "none" : spec).trim().toLowerCase();
+    if (!s || s === "none" || s === "off" || s === "-1") return { mode: "none", pins: [] };
+    if (s === "stereo") return { mode: "stereo", pins: [0, 1] };
+    if (s.startsWith("stereo:")) {
+      const p = s.split(":").slice(1);
+      return { mode: "stereo", pins: [Number(p[0]) || 0, Number(p[1]) || 1] };
+    }
+    const idx = Number(s);
+    if (Number.isInteger(idx) && idx >= 0) return { mode: "mono", pins: [idx] };
+    return { mode: "none", pins: [] };
+  }
 
   function syncClipSelection(primaryId, additive = false) {
     if (!additive) selectedClipIds.clear();
@@ -505,6 +923,9 @@
       if (!bus) return;
       const g = getTrackGainValue(tr, anySolo);
       const pan = Math.max(-1, Math.min(1, Number(tr.pan || 0) / 100));
+      if (bus.inNode && bus.inNode.gain) {
+        bus.inNode.gain.setTargetAtTime(tr.polarity ? -1 : 1, activePreviewGraph.ctx.currentTime, 0.015);
+      }
       bus.gainNode.gain.setTargetAtTime(g, activePreviewGraph.ctx.currentTime, 0.015);
       if (bus.pannerNode && bus.pannerNode.pan) {
         bus.pannerNode.pan.setTargetAtTime(pan, activePreviewGraph.ctx.currentTime, 0.015);
@@ -512,9 +933,512 @@
     });
   }
 
-  function stopPreviewPlayback() {
+  function syncDawMonitorParams() {
+    if (!dawMonitorCtx || !state || dawMonitorTrackChains.size === 0) return;
+    const anySolo = state.tracks.some((t) => Boolean(t.solo));
+    const now = dawMonitorCtx.currentTime;
+    state.tracks.forEach((tr) => {
+      const m = dawMonitorTrackChains.get(tr.id);
+      if (!m) return;
+      if (m.inGain && m.inGain.gain) m.inGain.gain.setTargetAtTime(tr.polarity ? -1 : 1, now, 0.015);
+      if (m.gainNode && m.gainNode.gain) m.gainNode.gain.setTargetAtTime(getTrackGainValue(tr, anySolo), now, 0.015);
+      if (m.pannerNode && m.pannerNode.pan) {
+        m.pannerNode.pan.setTargetAtTime(Math.max(-1, Math.min(1, Number(tr.pan || 0) / 100)), now, 0.015);
+      }
+    });
+  }
+
+  function teardownDawMonitors() {
+    dawMonitorTrackChains.forEach((m) => {
+      try {
+        if (m.procNode) {
+          m.procNode.onaudioprocess = null;
+          m.procNode.disconnect();
+        }
+        if (m.inGain) m.inGain.disconnect();
+        if (m.gainNode) m.gainNode.disconnect();
+        if (m.pannerNode) m.pannerNode.disconnect();
+      } catch (_) { }
+    });
+    dawMonitorTrackChains.clear();
+  }
+
+  function rebuildDawMonitors() {
+    if (!state) return;
+    const monitored = state.tracks.filter(
+      (tr) => tr.role !== "master" && tr.inputMonitor && tr.inputSource && tr.inputSource !== "none"
+    );
+    if (monitored.length === 0) {
+      teardownDawMonitors();
+      return;
+    }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!dawMonitorCtx || dawMonitorCtx.state === "closed") {
+      dawMonitorCtx = new Ctx({ sampleRate: 48000, latencyHint: "interactive" });
+    }
+    if (dawMonitorCtx.state === "suspended") {
+      dawMonitorCtx.resume().catch(() => {});
+    }
+    teardownDawMonitors();
+    const anySolo = state.tracks.some((t) => Boolean(t.solo));
+    monitored.forEach((tr) => {
+      const cap = 16384;
+      const ringL = new Float32Array(cap);
+      const ringR = new Float32Array(cap);
+      const monObj = {
+        trackId: tr.id,
+        routeSpec: tr.inputSource,
+        ringL,
+        ringR,
+        cap,
+        writePos: 0,
+        readPos: 0,
+        buffered: 0,
+        procNode: null,
+        inGain: dawMonitorCtx.createGain(),
+        gainNode: dawMonitorCtx.createGain(),
+        pannerNode: typeof dawMonitorCtx.createStereoPanner === "function" ? dawMonitorCtx.createStereoPanner() : null
+      };
+      monObj.inGain.gain.value = tr.polarity ? -1 : 1;
+      monObj.gainNode.gain.value = getTrackGainValue(tr, anySolo);
+      if (monObj.pannerNode) monObj.pannerNode.pan.value = Math.max(-1, Math.min(1, Number(tr.pan || 0) / 100));
+
+      const proc = dawMonitorCtx.createScriptProcessor(512, 0, 2);
+      proc.onaudioprocess = (ev) => {
+        const outL = ev.outputBuffer.getChannelData(0);
+        const outR = ev.outputBuffer.getChannelData(1);
+        const n = outL.length;
+        for (let i = 0; i < n; i++) {
+          if (monObj.buffered > 0) {
+            outL[i] = monObj.ringL[monObj.readPos];
+            outR[i] = monObj.ringR[monObj.readPos];
+            monObj.readPos = (monObj.readPos + 1) % monObj.cap;
+            monObj.buffered -= 1;
+          } else {
+            outL[i] = 0;
+            outR[i] = 0;
+          }
+        }
+      };
+      monObj.procNode = proc;
+      let cursor = proc.connect(monObj.inGain).connect(monObj.gainNode);
+      if (monObj.pannerNode) cursor = cursor.connect(monObj.pannerNode);
+      if (Dsp && typeof Dsp.buildModularFxChain === "function") {
+        const fx = Dsp.buildModularFxChain(dawMonitorCtx, tr.fxRack || []);
+        cursor.connect(fx.input);
+        fx.output.connect(dawMonitorCtx.destination);
+      } else {
+        cursor.connect(dawMonitorCtx.destination);
+      }
+      dawMonitorTrackChains.set(tr.id, monObj);
+    });
+  }
+
+  function ensureFallbackMicFeed(enable) {
+    if (!enable) {
+      if (dawFallbackNode) {
+        try {
+          dawFallbackNode.onaudioprocess = null;
+          dawFallbackNode.disconnect();
+        } catch (_) { }
+        dawFallbackNode = null;
+      }
+      if (dawFallbackStream) {
+        dawFallbackStream.getTracks().forEach((t) => {
+          try { t.stop(); } catch (_) { }
+        });
+        dawFallbackStream = null;
+      }
+      return Promise.resolve(false);
+    }
+    if (dawFallbackStream) return Promise.resolve(true);
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      return Promise.resolve(false);
+    }
+    return navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: { ideal: 2 },
+        sampleRate: { ideal: 48000 },
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    }).then((stream) => {
+      dawFallbackStream = stream;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!dawFallbackCtx || dawFallbackCtx.state === "closed") {
+        dawFallbackCtx = new Ctx({ sampleRate: 48000 });
+      }
+      const src = dawFallbackCtx.createMediaStreamSource(stream);
+      const proc = dawFallbackCtx.createScriptProcessor(2048, 2, 2);
+      const muteOut = dawFallbackCtx.createGain();
+      muteOut.gain.value = 0;
+      proc.onaudioprocess = (ev) => {
+        const ch0 = new Float32Array(ev.inputBuffer.getChannelData(0));
+        const ch1 = ev.inputBuffer.numberOfChannels > 1
+          ? new Float32Array(ev.inputBuffer.getChannelData(1))
+          : new Float32Array(ch0);
+        onDawRawMultiChannelPacket({
+          channels: [ch0, ch1],
+          frames: ch0.length,
+          sampleRate: dawFallbackCtx.sampleRate || 48000
+        });
+      };
+      src.connect(proc).connect(muteOut).connect(dawFallbackCtx.destination);
+      dawFallbackNode = proc;
+      return true;
+    }).catch(() => false);
+  }
+
+  function onDawRawMultiChannelPacket(pkt) {
+    if (!pkt || !Array.isArray(pkt.channels) || pkt.channels.length === 0 || !state) return;
+    const chList = pkt.channels;
+    const nf = pkt.frames || chList[0].length;
+    if (nf <= 0) return;
+
+    state.tracks.forEach((tr) => {
+      if (tr.role === "master") return;
+      const rt = resolveTrackPinRoute(tr.inputSource);
+      if (rt.mode === "none") return;
+      let pk = 0;
+      rt.pins.forEach((p) => {
+        const arr = chList[p];
+        if (!arr) return;
+        for (let i = 0; i < nf; i++) {
+          const a = arr[i] < 0 ? -arr[i] : arr[i];
+          if (a > pk) pk = a;
+        }
+      });
+      dawTrackMetersDb[tr.id] = pk > 1e-5 ? 20 * Math.log10(pk) : -96;
+
+      const mon = dawMonitorTrackChains.get(tr.id);
+      if (mon) {
+        const aL = chList[rt.pins[0]] || null;
+        const aR = rt.mode === "stereo" ? (chList[rt.pins[1]] || aL) : aL;
+        if (aL) {
+          for (let i = 0; i < nf; i++) {
+            mon.ringL[mon.writePos] = aL[i];
+            mon.ringR[mon.writePos] = aR ? aR[i] : aL[i];
+            mon.writePos = (mon.writePos + 1) % mon.cap;
+            if (mon.buffered < mon.cap) mon.buffered += 1;
+            else mon.readPos = (mon.readPos + 1) % mon.cap;
+          }
+        }
+      }
+    });
+
+    if (isRecording && recSession) {
+      recSession.sampleRate = pkt.sampleRate || recSession.sampleRate || 48000;
+      recSession.tracks.forEach((rec) => {
+        const rt = rec.route;
+        const srcL = chList[rt.pins[0]];
+        if (!srcL) return;
+        const copyL = new Float32Array(nf);
+        copyL.set(srcL.subarray(0, nf));
+        rec.chunksL.push(copyL);
+        let copyR = null;
+        if (rt.mode === "stereo" && chList[rt.pins[1]]) {
+          copyR = new Float32Array(nf);
+          copyR.set(chList[rt.pins[1]].subarray(0, nf));
+          rec.chunksR.push(copyR);
+        }
+        rec.totalFrames += nf;
+        let blkPk = 0;
+        for (let i = 0; i < nf; i++) {
+          const v = copyL[i] < 0 ? -copyL[i] : copyL[i];
+          if (v > blkPk) blkPk = v;
+        }
+        rec.peakAcc = Math.max(rec.peakAcc || 0, blkPk);
+        rec.peakFrames = (rec.peakFrames || 0) + nf;
+        if (rec.peakFrames >= 1024) {
+          rec.livePeaks.push(Math.min(1, rec.peakAcc));
+          rec.peakAcc = 0;
+          rec.peakFrames = 0;
+        }
+      });
+    }
+  }
+
+  function startDawTrackMeterRaf() {
+    if (dawMeterRaf) return;
+    const step = () => {
+      const needRun = isPlaying || isRecording || dawRawFeedActive || dawMonitorTrackChains.size > 0;
+      const mL = $("lsDawTransportMeterL");
+      const mR = $("lsDawTransportMeterR");
+      const mDb = $("lsDawTransportPeakDb");
+      if (!needRun || !state) {
+        dawMeterRaf = 0;
+        document.querySelectorAll("[data-daw-meter-id]").forEach((el) => {
+          el.style.height = "0%";
+        });
+        if (mL) mL.style.width = "0%";
+        if (mR) mR.style.width = "0%";
+        if (mDb) mDb.textContent = "-∞ dB";
+        return;
+      }
+      state.tracks.forEach((tr) => {
+        const fillEl = document.querySelector(`[data-daw-meter-id="${tr.id}"]`);
+        if (!fillEl) return;
+        let db = -96;
+        const bus = activePreviewGraph && activePreviewGraph.trackBuses
+          ? activePreviewGraph.trackBuses.get(tr.id)
+          : null;
+        if (isPlaying && bus && bus.analyserNode && typeof bus.analyserNode.getFloatTimeDomainData === "function") {
+          bus.analyserNode.getFloatTimeDomainData(dawAnalyserScratch);
+          let pk = 0;
+          for (let i = 0; i < dawAnalyserScratch.length; i++) {
+            const a = dawAnalyserScratch[i] < 0 ? -dawAnalyserScratch[i] : dawAnalyserScratch[i];
+            if (a > pk) pk = a;
+          }
+          if (pk > 1e-5) db = 20 * Math.log10(pk);
+        }
+        if ((tr.recordArmed || tr.inputMonitor || isRecording) && dawTrackMetersDb[tr.id] != null) {
+          db = Math.max(db, dawTrackMetersDb[tr.id]);
+        }
+        const pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+        fillEl.style.height = `${pct.toFixed(1)}%`;
+        if (dawTrackMetersDb[tr.id] != null) {
+          dawTrackMetersDb[tr.id] = Math.max(-96, dawTrackMetersDb[tr.id] - 2.2);
+        }
+      });
+
+      let masterDb = -96;
+      const mAn = activePreviewGraph && activePreviewGraph.masterAnalyser;
+      if (isPlaying && mAn && typeof mAn.getFloatTimeDomainData === "function") {
+        mAn.getFloatTimeDomainData(dawAnalyserScratch);
+        let pk = 0;
+        for (let i = 0; i < dawAnalyserScratch.length; i++) {
+          const a = dawAnalyserScratch[i] < 0 ? -dawAnalyserScratch[i] : dawAnalyserScratch[i];
+          if (a > pk) pk = a;
+        }
+        if (pk > 1e-5) masterDb = 20 * Math.log10(pk);
+      } else {
+        Object.keys(dawTrackMetersDb).forEach((tid) => {
+          if (dawTrackMetersDb[tid] > masterDb) masterDb = dawTrackMetersDb[tid];
+        });
+      }
+      const mPct = Math.max(0, Math.min(100, ((masterDb + 60) / 60) * 100));
+      if (mL) mL.style.width = `${mPct.toFixed(1)}%`;
+      if (mR) mR.style.width = `${Math.max(0, mPct * 0.98).toFixed(1)}%`;
+      if (mDb) mDb.textContent = masterDb <= -59.5 ? "-∞ dB" : `${masterDb.toFixed(1)} dB`;
+
+      dawMeterRaf = window.requestAnimationFrame(step);
+    };
+    dawMeterRaf = window.requestAnimationFrame(step);
+  }
+
+  function syncDawHardwareFeedState() {
+    if (!state) return;
+    const needFeed = isRecording || state.tracks.some(
+      (tr) => tr.role !== "master" && (tr.recordArmed || tr.inputMonitor) && tr.inputSource && tr.inputSource !== "none"
+    );
+    const bridgeStandby = Boolean(
+      window.LiveStudioBridge &&
+      typeof window.LiveStudioBridge.isBridgeStandby === "function" &&
+      window.LiveStudioBridge.isBridgeStandby()
+    );
+
+    if (needFeed && !dawRawFeedActive) {
+      dawRawFeedActive = true;
+      if (!bridgeStandby && window.LiveStudioBridge && typeof window.LiveStudioBridge.subscribeRawMultiChannel === "function") {
+        window.LiveStudioBridge.subscribeRawMultiChannel(onDawRawMultiChannelPacket);
+      } else {
+        ensureFallbackMicFeed(true);
+      }
+    } else if (!needFeed && dawRawFeedActive) {
+      dawRawFeedActive = false;
+      if (window.LiveStudioBridge && typeof window.LiveStudioBridge.unsubscribeRawMultiChannel === "function") {
+        window.LiveStudioBridge.unsubscribeRawMultiChannel(onDawRawMultiChannelPacket);
+      }
+      ensureFallbackMicFeed(false);
+    }
+
+    rebuildDawMonitors();
+    if (needFeed) startDawTrackMeterRaf();
+  }
+
+  function concatFloat32Chunks(chunks, totalFrames) {
+    const out = new Float32Array(totalFrames);
+    let offset = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      out.set(chunks[i], offset);
+      offset += chunks[i].length;
+    }
+    return out;
+  }
+
+  async function startDawMultitrackRecording() {
+    if (!state || !Engine || isRecording) return;
+    let armed = state.tracks.filter(
+      (tr) => tr.role !== "master" && tr.recordArmed && tr.inputSource && tr.inputSource !== "none"
+    );
+    if (armed.length === 0) {
+      const sel = Engine.getTrackById(state, state.selectedTrackId);
+      if (sel && sel.role !== "master" && sel.inputSource && sel.inputSource !== "none") {
+        Engine.updateTrackProps(state, sel.id, { recordArmed: true });
+        armed = [sel];
+        renderTrackHeaders();
+      } else {
+        setStatusNotice("Assign a hardware Input channel and arm a track ('R') before recording.", true);
+        return;
+      }
+    }
+
+    const isStandby = Boolean(
+      window.LiveStudioBridge &&
+      typeof window.LiveStudioBridge.isBridgeStandby === "function" &&
+      window.LiveStudioBridge.isBridgeStandby()
+    );
+    if (isStandby) {
+      const okMic = await ensureFallbackMicFeed(true);
+      if (!okMic) {
+        setStatusNotice("Audio Bridge is in Standby and no browser microphone is authorized. Connect an interface or grant mic permission.", true);
+        return;
+      }
+    }
+
+    const recStartSec = playheadSec;
+    const trackMap = new Map();
+    armed.forEach((tr) => {
+      trackMap.set(tr.id, {
+        track: tr,
+        route: resolveTrackPinRoute(tr.inputSource),
+        chunksL: [],
+        chunksR: [],
+        totalFrames: 0,
+        livePeaks: [],
+        peakAcc: 0,
+        peakFrames: 0
+      });
+    });
+
+    recSession = {
+      startTimelineSec: recStartSec,
+      startedPerfMs: typeof performance !== "undefined" ? performance.now() : Date.now(),
+      sampleRate: 48000,
+      tracks: trackMap,
+      rafId: 0
+    };
+    isRecording = true;
+    const recBtn = $("lsDawRecordBtn");
+    if (recBtn) recBtn.classList.add("is-recording");
+
+    syncDawHardwareFeedState();
+
+    if (state.clips.length > 0) {
+      await startPreviewPlayback();
+    }
+
+    const tickRec = () => {
+      if (!isRecording || !recSession) return;
+      const nowMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const elapsed = Math.max(0, (nowMs - recSession.startedPerfMs) / 1000);
+      playheadSec = recSession.startTimelineSec + elapsed;
+      const layout = Engine.computeTimelineLayout(state.clips);
+      updateTransportReadout(Math.max(layout.totalDuration || 0, playheadSec));
+      drawCanvas();
+      recSession.rafId = window.requestAnimationFrame(tickRec);
+    };
+    recSession.rafId = window.requestAnimationFrame(tickRec);
+    setStatusNotice(`Recording ${armed.length} armed track(s) at ${formatTimecode(recStartSec)}... Click Rec or Stop to finish.`, false);
+  }
+
+  async function stopDawMultitrackRecording() {
+    if (!isRecording || !recSession) return;
+    isRecording = false;
+    window.cancelAnimationFrame(recSession.rafId);
+    const session = recSession;
+    recSession = null;
+    const recBtn = $("lsDawRecordBtn");
+    if (recBtn) recBtn.classList.remove("is-recording");
+    if (isPlaying) stopPreviewPlayback();
+    syncDawHardwareFeedState();
+
+    const sr = session.sampleRate || 48000;
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const tmpCtx = OfflineCtx ? new OfflineCtx(1, 1, sr) : null;
+    let addedClips = 0;
+
+    for (const [, rec] of session.tracks.entries()) {
+      if (!rec.totalFrames) continue;
+      const tr = rec.track;
+      const isStereo = rec.route.mode === "stereo" && rec.chunksR.length > 0;
+      const left = concatFloat32Chunks(rec.chunksL, rec.totalFrames);
+      const right = isStereo ? concatFloat32Chunks(rec.chunksR, rec.totalFrames) : null;
+      const durSec = rec.totalFrames / sr;
+      const clipLabel = `${tr.name.replace(/\s+/g, " ")} Take`;
+
+      if (window.LiveStreamWavUtils && typeof window.LiveStreamWavUtils.encodeStereoWavBuffer === "function") {
+        try {
+          const wavBytes = window.LiveStreamWavUtils.encodeStereoWavBuffer({
+            left,
+            right,
+            sampleRate: sr,
+            bitDepth: 24,
+            dither: false
+          });
+          if (window.LiveStudioRecorder && typeof window.LiveStudioRecorder.saveArtifactFile === "function") {
+            const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            const fname = `${tr.id}-${stamp}.wav`;
+            await window.LiveStudioRecorder.saveArtifactFile(fname, new Blob([wavBytes], { type: "audio/wav" }));
+          }
+        } catch (_) { }
+      }
+
+      if (tmpCtx) {
+        const audioBuf = tmpCtx.createBuffer(isStereo ? 2 : 1, rec.totalFrames, sr);
+        audioBuf.getChannelData(0).set(left);
+        if (isStereo && right) audioBuf.getChannelData(1).set(right);
+        const [pyr1, pyr2] = await Promise.all([
+          getOrBuildPyramid(left, `${tr.id}_${Date.now()}_L`),
+          getOrBuildPyramid(right || left, `${tr.id}_${Date.now()}_R`)
+        ]);
+        const srcId = Engine.addSource(state, {
+          name: clipLabel,
+          duration: durSec,
+          sampleRate: sr,
+          hasTwoTracks: false
+        });
+        sourceBuffers[srcId] = {
+          hasTwoTracks: false,
+          ch1: null,
+          ch2: null,
+          stereo: audioBuf,
+          duration: durSec,
+          sampleRate: sr,
+          peaks1: pyr1.medium,
+          peaks2: pyr2.medium,
+          pyramid1: pyr1,
+          pyramid2: pyr2
+        };
+        const clip = Engine.appendClip(state, {
+          sourceId: srcId,
+          trackId: tr.id,
+          timelineOffsetSec: session.startTimelineSec,
+          label: clipLabel,
+          duration: durSec,
+          crossfadePrevSec: 0
+        });
+        syncClipSelection(clip.id);
+        addedClips += 1;
+      }
+    }
+
+    updateAllDawUi();
+    setStatusNotice(
+      addedClips > 0
+        ? `Recorded ${addedClips} track clip(s) onto the DAW timeline.`
+        : "Recording stopped (no audio frames received — check active input or Bridge connection).",
+      addedClips === 0
+    );
+  }
+
+  function stopPreviewPlayback(resetShuttle = true) {
     isPlaying = false;
     window.cancelAnimationFrame(previewRaf);
+    stopShuttleReverse();
+    if (resetShuttle) shuttleSpeed = 1.0;
     activePreviewNodes.forEach((n) => {
       try {
         n.stop();
@@ -530,6 +1454,7 @@
       else playBtn.textContent = "Play";
       playBtn.classList.remove("is-toggled");
     }
+    syncShuttleBadge();
     drawCanvas();
   }
 
@@ -542,6 +1467,7 @@
     const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     const offline = new OfflineCtx(2, totalFrames, sampleRate);
     const trackIn = offline.createGain();
+    trackIn.gain.value = track && track.polarity ? -1 : 1;
     trackIn.connect(offline.destination);
 
     const layout = Engine.computeTimelineLayout(state.clips);
@@ -735,6 +1661,11 @@
 
     const masterOut = ctx.createGain();
     masterOut.gain.value = Math.max(0, Number(state.masterTrack?.gain ?? 100) / 100);
+    const masterAnalyser = typeof ctx.createAnalyser === "function" ? ctx.createAnalyser() : null;
+    if (masterAnalyser) {
+      masterAnalyser.fftSize = 256;
+      masterOut.connect(masterAnalyser);
+    }
 
     if (studioDsp && masterChain) {
       studioDsp.output.connect(masterInTrim);
@@ -769,6 +1700,7 @@
     state.tracks.forEach((tr) => {
       const meta = trackLatencies.get(tr.id) || { preRendered: false, lat: 0 };
       const inNode = ctx.createGain();
+      inNode.gain.value = tr.polarity ? -1 : 1;
       const gainNode = ctx.createGain();
       gainNode.gain.value = getTrackGainValue(tr, anySolo);
 
@@ -778,6 +1710,8 @@
       }
 
       const fxChain = !meta.preRendered && Dsp ? Dsp.buildModularFxChain(ctx, tr.fxRack || []) : null;
+      const analyserNode = typeof ctx.createAnalyser === "function" ? ctx.createAnalyser() : null;
+      if (analyserNode) analyserNode.fftSize = 256;
 
       let destTarget;
       if (studioDsp) {
@@ -802,13 +1736,14 @@
         cursor.connect(fxChain.input);
         cursor = fxChain.output;
       }
+      if (analyserNode) cursor.connect(analyserNode);
       if (latencyCompNode) {
         cursor.connect(latencyCompNode).connect(destTarget);
       } else {
         cursor.connect(destTarget);
       }
 
-      const bus = { id: tr.id, inNode, gainNode, pannerNode, fxChain, preRendered: meta.preRendered };
+      const bus = { id: tr.id, inNode, gainNode, pannerNode, fxChain, analyserNode, preRendered: meta.preRendered };
       trackBuses.set(tr.id, bus);
       if (tr.role && !roleTrackMap[tr.role]) {
         roleTrackMap[tr.role] = bus;
@@ -824,7 +1759,8 @@
       masterChain,
       studioDsp,
       masterInTrim,
-      masterOut
+      masterOut,
+      masterAnalyser
     };
   }
 
@@ -919,32 +1855,33 @@
     return [s];
   }
 
-  function scheduleClipIntoContext(ctx, graph, item, prevItem, nextItem, startAtTimelineSec, ctxStartTime) {
+  function scheduleClipIntoContext(ctx, graph, item, prevItem, nextItem, startAtTimelineSec, ctxStartTime, playbackRate = 1.0) {
     const c = item.clip;
     const srcBufObj = sourceBuffers[c.sourceId];
     if (!srcBufObj) return [];
 
+    const rate = Math.max(0.25, Math.min(4.0, Number(playbackRate) || 1.0));
     const created = [];
     const clipStart = item.timelineStart;
     const clipEnd = item.timelineEnd;
     if (clipEnd <= startAtTimelineSec) return created;
 
     const overlapStart = Math.max(clipStart, startAtTimelineSec);
-    const when = ctxStartTime + (overlapStart - startAtTimelineSec);
+    const when = ctxStartTime + (overlapStart - startAtTimelineSec) / rate;
     const clipSkipOffset = overlapStart - clipStart;
     const srcOffset = c.sourceStart + clipSkipOffset;
     const playDur = clipEnd - overlapStart;
     if (playDur <= 0.01) return created;
 
     const clipLinearGain = Math.pow(10, (Number(c.gainDb) || 0) / 20);
-    const fadeIn = Math.max(Number(c.fadeInSec) || 0, item.effectiveCrossfade || 0);
+    const fadeIn = Math.max(Number(c.fadeInSec) || 0, item.effectiveCrossfade || 0) / rate;
     const fadeOut = Math.max(
       Number(c.fadeOutSec) || 0,
       nextItem && nextItem.effectiveCrossfade ? nextItem.effectiveCrossfade : 0
-    );
+    ) / rate;
 
-    const absClipStart = ctxStartTime + (clipStart - startAtTimelineSec);
-    const absClipEnd = ctxStartTime + (clipEnd - startAtTimelineSec);
+    const absClipStart = ctxStartTime + (clipStart - startAtTimelineSec) / rate;
+    const absClipEnd = ctxStartTime + (clipEnd - startAtTimelineSec) / rate;
 
     function createEnvelopeGain(targetNode) {
       const gainNode = ctx.createGain();
@@ -972,7 +1909,7 @@
           curve[i] = Math.pow(10, Engine.evaluateAutomation(clipAutoPts, t, 0) / 20);
         }
         try {
-          autoNode.gain.setValueCurveAtTime(curve, when, Math.max(0.05, playDur));
+          autoNode.gain.setValueCurveAtTime(curve, when, Math.max(0.05, playDur / rate));
         } catch (_) {
           autoNode.gain.setValueAtTime(curve[0], when);
         }
@@ -990,6 +1927,7 @@
       if (!buf) return created;
       const s = ctx.createBufferSource();
       s.buffer = buf;
+      if (s.playbackRate) s.playbackRate.value = rate;
       const env = createEnvelopeGain(targetBus.inNode);
       s.connect(env);
       s.start(when, srcOffset, playDur);
@@ -1001,6 +1939,7 @@
       if (srcBufObj.ch1 && graph.ch1Bus && !graph.ch1Bus.preRendered) {
         const s1 = ctx.createBufferSource();
         s1.buffer = srcBufObj.ch1;
+        if (s1.playbackRate) s1.playbackRate.value = rate;
         const merger1 = ctx.createChannelMerger(2);
         const env1 = createEnvelopeGain(graph.ch1Bus.inNode);
         s1.connect(merger1, 0, 0);
@@ -1012,6 +1951,7 @@
       if (srcBufObj.ch2 && graph.ch2Bus && !graph.ch2Bus.preRendered) {
         const s2 = ctx.createBufferSource();
         s2.buffer = srcBufObj.ch2;
+        if (s2.playbackRate) s2.playbackRate.value = rate;
         const merger2 = ctx.createChannelMerger(2);
         const env2 = createEnvelopeGain(graph.ch2Bus.inNode);
         s2.connect(merger2, 0, 0);
@@ -1023,6 +1963,7 @@
     } else if (srcBufObj.stereo && graph.ch1Bus && !graph.ch1Bus.preRendered) {
       const s = ctx.createBufferSource();
       s.buffer = srcBufObj.stereo;
+      if (s.playbackRate) s.playbackRate.value = rate;
       const env = createEnvelopeGain(graph.ch1Bus.inNode);
       s.connect(env);
       s.start(when, srcOffset, playDur);
@@ -1034,7 +1975,7 @@
 
   async function startPreviewPlayback() {
     if (!state || state.clips.length === 0) return;
-    stopPreviewPlayback();
+    stopPreviewPlayback(false);
 
     const layout = Engine.computeTimelineLayout(state.clips);
     if (layout.totalDuration <= 0.05) return;
@@ -1046,6 +1987,7 @@
       playheadSec = 0;
     }
 
+    const rate = shuttleSpeed > 0 ? Math.max(0.25, Math.min(4.0, shuttleSpeed)) : 1.0;
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!previewCtx) {
       previewCtx = new Ctx({ sampleRate: 48000 });
@@ -1080,7 +2022,8 @@
         prevItem,
         nextItem,
         playStartTimelineSec,
-        playStartCtxTime
+        playStartCtxTime,
+        rate
       );
       activePreviewNodes.push(...nodesCreated);
     }
@@ -1093,10 +2036,11 @@
       else playBtn.textContent = "Pause";
       playBtn.classList.add("is-toggled");
     }
+    syncShuttleBadge();
 
     const tick = () => {
       if (!isPlaying || !previewCtx) return;
-      const elapsed = Math.max(0, previewCtx.currentTime - playStartCtxTime);
+      const elapsed = Math.max(0, previewCtx.currentTime - playStartCtxTime) * rate;
       playheadSec = Math.min(layout.totalDuration, playStartTimelineSec + elapsed);
       updateTransportReadout(layout.totalDuration);
       drawCanvas();
@@ -1128,12 +2072,13 @@
         }
       }
       if (playheadSec >= layout.totalDuration) {
-        stopPreviewPlayback();
+        stopPreviewPlayback(true);
         return;
       }
       previewRaf = window.requestAnimationFrame(tick);
     };
     previewRaf = window.requestAnimationFrame(tick);
+    startDawTrackMeterRaf();
   }
 
   function updateTransportReadout(totalDur) {
@@ -1171,7 +2116,7 @@
       box.style.height = `${laneHeightPx}px`;
       box.style.borderLeftColor = proColor;
       box.onclick = (ev) => {
-        if (ev.target.closest("button") || ev.target.closest("input")) return;
+        if (ev.target.closest("button") || ev.target.closest("input") || ev.target.closest("select")) return;
         Engine.selectTrack(state, tr.id);
         selectedFxSlotId = null;
         renderTrackHeaders();
@@ -1179,6 +2124,10 @@
         drawCanvas();
       };
 
+      const mainCol = document.createElement("div");
+      mainCol.className = "ls-au-track-main";
+
+      // ROW 1: Track Title + M / S / R / I status badges
       const top = document.createElement("div");
       top.className = "ls-daw-track-top";
 
@@ -1195,29 +2144,201 @@
         }
       };
 
-      const fxBadge = document.createElement("span");
-      fxBadge.className = "ls-daw-fx-pill";
-      const activeCount = (tr.fxRack || []).filter((f) => f.enabled !== false).length;
-      fxBadge.textContent = activeCount > 0 ? `FX ${activeCount}` : "FX";
-      fxBadge.title = "Open FX Rack for this track";
-      fxBadge.onclick = (ev) => {
+      const badgeRow = document.createElement("div");
+      badgeRow.className = "ls-au-badge-row";
+
+      const muteBtn = document.createElement("button");
+      muteBtn.type = "button";
+      muteBtn.className = `ls-btn-mini ls-au-trk-badge${tr.mute ? " is-muted-active" : ""}`;
+      if (idx === 0) muteBtn.id = "lsDawTrack1Mute";
+      else if (idx === 1) muteBtn.id = "lsDawTrack2Mute";
+      muteBtn.textContent = "M";
+      muteBtn.title = "Mute Track (Shift+M)";
+      muteBtn.onclick = (ev) => {
         ev.stopPropagation();
-        Engine.selectTrack(state, tr.id);
-        renderTrackHeaders();
-        renderFxRack();
-        $("lsDawFxRackPanel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        Engine.updateTrackProps(state, tr.id, { mute: !tr.mute });
+        if (tr.groupId) renderTrackHeaders();
+        else muteBtn.classList.toggle("is-muted-active", tr.mute);
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
       };
 
-      top.appendChild(titleEl);
-      top.appendChild(fxBadge);
-      box.appendChild(top);
+      const soloBtn = document.createElement("button");
+      soloBtn.type = "button";
+      soloBtn.className = `ls-btn-mini ls-au-trk-badge${tr.solo ? " is-solo-active" : ""}`;
+      if (idx === 0) soloBtn.id = "lsDawTrack1Solo";
+      else if (idx === 1) soloBtn.id = "lsDawTrack2Solo";
+      soloBtn.textContent = "S";
+      soloBtn.title = "Solo Track (Shift+S)";
+      soloBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        Engine.updateTrackProps(state, tr.id, { solo: !tr.solo });
+        if (tr.groupId) renderTrackHeaders();
+        else soloBtn.classList.toggle("is-solo-active", tr.solo);
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
 
-      const sliders = document.createElement("div");
-      sliders.className = "ls-daw-track-sliders";
+      badgeRow.appendChild(muteBtn);
+      badgeRow.appendChild(soloBtn);
+
+      if (tr.role !== "master") {
+        const armBtn = document.createElement("button");
+        armBtn.type = "button";
+        armBtn.className = `ls-btn-mini ls-au-trk-badge${tr.recordArmed ? " is-rec-armed" : ""}`;
+        if (idx === 0) armBtn.id = "lsDawTrack1Arm";
+        else if (idx === 1) armBtn.id = "lsDawTrack2Arm";
+        armBtn.textContent = "R";
+        armBtn.title = "Record Arm Track (Shift+R)";
+        armBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          Engine.updateTrackProps(state, tr.id, { recordArmed: !tr.recordArmed });
+          armBtn.classList.toggle("is-rec-armed", tr.recordArmed);
+          syncDawHardwareFeedState();
+        };
+
+        const monBtn = document.createElement("button");
+        monBtn.type = "button";
+        monBtn.className = `ls-btn-mini ls-au-trk-badge${tr.inputMonitor ? " is-mon-active" : ""}`;
+        monBtn.textContent = "I";
+        monBtn.title = "Live Input Monitor through Track FX Rack";
+        monBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          Engine.updateTrackProps(state, tr.id, { inputMonitor: !tr.inputMonitor });
+          monBtn.classList.toggle("is-mon-active", tr.inputMonitor);
+          syncDawHardwareFeedState();
+        };
+
+        badgeRow.appendChild(armBtn);
+        badgeRow.appendChild(monBtn);
+      }
+
+      top.appendChild(titleEl);
+      top.appendChild(badgeRow);
+      mainCol.appendChild(top);
+
+      // ROW 2: Hardware Input Route + Detect + Ø Polarity
+      if (tr.role !== "master") {
+        const routeRow = document.createElement("div");
+        routeRow.className = "ls-daw-track-route-row";
+        const arrow = document.createElement("span");
+        arrow.className = "ls-route-arrow";
+        arrow.textContent = "→";
+        const inpSel = document.createElement("select");
+        inpSel.className = "ls-daw-track-input-select";
+        inpSel.title = "Assign Hardware Input Channel to Track";
+        inpSel.setAttribute("aria-label", `${tr.name} Hardware Input Channel`);
+
+        const catalog =
+          window.LiveStudioBridge && typeof window.LiveStudioBridge.getInputChannelCatalog === "function"
+            ? window.LiveStudioBridge.getInputChannelCatalog()
+            : [];
+        const isStandby = Boolean(
+          window.LiveStudioBridge &&
+          typeof window.LiveStudioBridge.isBridgeStandby === "function" &&
+          window.LiveStudioBridge.isBridgeStandby()
+        );
+        const monos = catalog.filter((c) => c.group === "Mono");
+        const stereos = catalog.filter((c) => c.group === "Stereo");
+        const noneOpt = document.createElement("option");
+        noneOpt.value = "none";
+        noneOpt.textContent = catalog.length === 0
+          ? (isStandby ? "None (Standby)" : "None (Not probed)")
+          : "None";
+        inpSel.appendChild(noneOpt);
+        if (monos.length > 0) {
+          const gm = document.createElement("optgroup");
+          gm.label = `Mono (${monos.length} Detected)`;
+          monos.forEach((c) => {
+            const o = document.createElement("option");
+            o.value = c.id;
+            o.textContent = c.label;
+            gm.appendChild(o);
+          });
+          inpSel.appendChild(gm);
+        }
+        if (stereos.length > 0) {
+          const gs = document.createElement("optgroup");
+          gs.label = "Stereo";
+          stereos.forEach((c) => {
+            const o = document.createElement("option");
+            o.value = c.id;
+            o.textContent = c.label;
+            gs.appendChild(o);
+          });
+          inpSel.appendChild(gs);
+        }
+        if (tr.inputSource == null) {
+          tr.inputSource = "none";
+        }
+        if (Array.from(inpSel.options).some((o) => o.value === String(tr.inputSource))) {
+          inpSel.value = String(tr.inputSource);
+        } else {
+          inpSel.value = "none";
+        }
+        inpSel.onchange = function (ev) {
+          ev.stopPropagation();
+          Engine.updateTrackProps(state, tr.id, { inputSource: this.value });
+          syncDawHardwareFeedState();
+        };
+
+        const detectBtn = document.createElement("button");
+        detectBtn.type = "button";
+        detectBtn.className = `ls-daw-track-detect-btn${learningTrackId === tr.id ? " is-learning" : ""}`;
+        detectBtn.textContent = learningTrackId === tr.id ? "Speak..." : "Detect";
+        detectBtn.title = `Auto-detect live hardware pin for ${tr.name}`;
+        detectBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          if (learningTrackId === tr.id) {
+            learningTrackId = null;
+            if (window.LiveStudioBridge && typeof window.LiveStudioBridge.stopTrackAutoDetect === "function") {
+              window.LiveStudioBridge.stopTrackAutoDetect();
+            }
+            renderTrackHeaders();
+            return;
+          }
+          if (!window.LiveStudioBridge || typeof window.LiveStudioBridge.startTrackAutoDetect !== "function") {
+            setStatusNotice("Hardware auto-detect bridge is unavailable.", true);
+            return;
+          }
+          learningTrackId = tr.id;
+          renderTrackHeaders();
+          window.LiveStudioBridge.startTrackAutoDetect((valStr, label) => {
+            learningTrackId = null;
+            Engine.updateTrackProps(state, tr.id, { inputSource: valStr });
+            syncDawHardwareFeedState();
+            renderTrackHeaders();
+            setStatusNotice(`Auto-detected ${label} → ${tr.name}`, false);
+          }, tr.name);
+        };
+
+        const polBtn = document.createElement("button");
+        polBtn.type = "button";
+        polBtn.className = `ls-btn-mini ls-au-trk-badge${tr.polarity ? " is-pol-inverted" : ""}`;
+        polBtn.textContent = "Ø";
+        polBtn.title = "Invert Track Polarity (180° Phase)";
+        polBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          Engine.updateTrackProps(state, tr.id, { polarity: !tr.polarity });
+          polBtn.classList.toggle("is-pol-inverted", tr.polarity);
+          syncLivePreviewTracks();
+          syncDawMonitorParams();
+        };
+
+        routeRow.appendChild(arrow);
+        routeRow.appendChild(inpSel);
+        routeRow.appendChild(detectBtn);
+        routeRow.appendChild(polBtn);
+        mainCol.appendChild(routeRow);
+      }
+
+      // ROW 3: Volume (dB) & Stereo Pan Sliders
+      const mixRow = document.createElement("div");
+      mixRow.className = "ls-au-track-mix-row";
 
       const gainValEl = document.createElement("span");
       gainValEl.className = "ls-daw-track-val";
-      gainValEl.textContent = `${tr.gain ?? 100}%`;
+      gainValEl.textContent = formatGainDb(tr.gain ?? 100);
 
       const gainInput = document.createElement("input");
       gainInput.type = "range";
@@ -1227,24 +2348,29 @@
       gainInput.min = "0";
       gainInput.max = "180";
       gainInput.value = String(tr.gain ?? 100);
-      gainInput.title = `${tr.name} Volume (${tr.gain ?? 100}%)`;
+      gainInput.title = `${tr.name} Volume (${formatGainDb(tr.gain ?? 100)}) — Double-click to reset 0 dB`;
       gainInput.dataset.trackGainId = tr.id;
       gainInput.oninput = function () {
         Engine.updateTrackProps(state, tr.id, { gain: Number(this.value) });
-        this.title = `${tr.name} Volume (${tr.gain}%)`;
-        gainValEl.textContent = `${tr.gain}%`;
+        this.title = `${tr.name} Volume (${formatGainDb(tr.gain)}) — Double-click to reset 0 dB`;
+        gainValEl.textContent = formatGainDb(tr.gain);
         if (tr.groupId) {
           state.tracks.forEach((peer) => {
             if (peer.id !== tr.id && peer.groupId === tr.groupId) {
               const pInp = container.querySelector(`input[data-track-gain-id="${peer.id}"]`);
               if (pInp) {
                 pInp.value = String(peer.gain ?? 100);
-                if (pInp.nextSibling) pInp.nextSibling.textContent = `${peer.gain ?? 100}%`;
+                if (pInp.nextSibling) pInp.nextSibling.textContent = formatGainDb(peer.gain ?? 100);
               }
             }
           });
         }
         syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+      gainInput.ondblclick = function () {
+        this.value = "100";
+        this.dispatchEvent(new Event("input"));
       };
 
       const fmtPan = (p) => (p === 0 ? "C" : p > 0 ? `${p}R` : `${Math.abs(p)}L`);
@@ -1258,11 +2384,11 @@
       panInput.min = "-100";
       panInput.max = "100";
       panInput.value = String(tr.pan ?? 0);
-      panInput.title = `Pan: ${tr.pan === 0 ? "Center" : tr.pan > 0 ? `${tr.pan}% R` : `${Math.abs(tr.pan)}% L`}`;
+      panInput.title = `Pan: ${fmtPan(tr.pan ?? 0)} — Double-click to center`;
       panInput.dataset.trackPanId = tr.id;
       panInput.oninput = function () {
         Engine.updateTrackProps(state, tr.id, { pan: Number(this.value) });
-        this.title = `Pan: ${tr.pan === 0 ? "Center" : tr.pan > 0 ? `${tr.pan}% R` : `${Math.abs(tr.pan)}% L`}`;
+        this.title = `Pan: ${fmtPan(tr.pan)} — Double-click to center`;
         panValEl.textContent = fmtPan(tr.pan);
         if (tr.groupId) {
           state.tracks.forEach((peer) => {
@@ -1276,56 +2402,45 @@
           });
         }
         syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+      panInput.ondblclick = function () {
+        this.value = "0";
+        this.dispatchEvent(new Event("input"));
       };
 
-      sliders.appendChild(gainInput);
-      sliders.appendChild(gainValEl);
-      sliders.appendChild(panInput);
-      sliders.appendChild(panValEl);
-      box.appendChild(sliders);
+      mixRow.appendChild(gainInput);
+      mixRow.appendChild(gainValEl);
+      mixRow.appendChild(panInput);
+      mixRow.appendChild(panValEl);
+      mainCol.appendChild(mixRow);
 
-      const ctrls = document.createElement("div");
-      ctrls.className = "ls-daw-track-controls";
+      // ROW 4: Compact Utilities (FX Pill, Frz, Bnc, Grp, +Wav, Delete) — zero wrapping
+      const utilRow = document.createElement("div");
+      utilRow.className = "ls-au-util-row";
 
-      const leftBtns = document.createElement("div");
-      leftBtns.className = "ls-btn-row";
-      leftBtns.style.gap = "4px";
+      const utilLeft = document.createElement("div");
+      utilLeft.className = "ls-au-util-left";
 
-      const muteBtn = document.createElement("button");
-      muteBtn.type = "button";
-      muteBtn.className = `ls-btn-mini${tr.mute ? " is-muted-active" : ""}`;
-      if (idx === 0) muteBtn.id = "lsDawTrack1Mute";
-      else if (idx === 1) muteBtn.id = "lsDawTrack2Mute";
-      muteBtn.textContent = "M";
-      muteBtn.title = "Mute Track";
-      muteBtn.onclick = (ev) => {
+      const fxBadge = document.createElement("button");
+      fxBadge.type = "button";
+      fxBadge.className = "ls-daw-fx-pill ls-au-util-btn";
+      const activeCount = (tr.fxRack || []).filter((f) => f.enabled !== false).length;
+      fxBadge.textContent = activeCount > 0 ? `FX ${activeCount}` : "FX";
+      fxBadge.title = "Open Effects Rack for this track";
+      fxBadge.onclick = (ev) => {
         ev.stopPropagation();
-        Engine.updateTrackProps(state, tr.id, { mute: !tr.mute });
-        if (tr.groupId) renderTrackHeaders();
-        else muteBtn.classList.toggle("is-muted-active", tr.mute);
-        syncLivePreviewTracks();
-      };
-
-      const soloBtn = document.createElement("button");
-      soloBtn.type = "button";
-      soloBtn.className = `ls-btn-mini${tr.solo ? " is-solo-active" : ""}`;
-      if (idx === 0) soloBtn.id = "lsDawTrack1Solo";
-      else if (idx === 1) soloBtn.id = "lsDawTrack2Solo";
-      soloBtn.textContent = "S";
-      soloBtn.title = "Solo Track";
-      soloBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        Engine.updateTrackProps(state, tr.id, { solo: !tr.solo });
-        if (tr.groupId) renderTrackHeaders();
-        else soloBtn.classList.toggle("is-solo-active", tr.solo);
-        syncLivePreviewTracks();
+        Engine.selectTrack(state, tr.id);
+        setAuditionLeftTab("fx");
+        renderTrackHeaders();
+        renderFxRack();
       };
 
       const frzBtn = document.createElement("button");
       frzBtn.type = "button";
-      frzBtn.className = `ls-btn-mini ls-daw-freeze-btn${tr.frozen ? " is-toggled" : ""}`;
+      frzBtn.className = `ls-btn-mini ls-au-util-btn ls-daw-freeze-btn${tr.frozen ? " is-toggled" : ""}`;
       frzBtn.textContent = "Frz";
-      frzBtn.title = tr.frozen ? "Unfreeze track (restore live FX editing)" : "Freeze track FX to RAM buffer";
+      frzBtn.title = tr.frozen ? "Unfreeze track FX" : "Freeze track FX to RAM";
       frzBtn.onclick = (ev) => {
         ev.stopPropagation();
         freezeOrUnfreezeTrack(tr);
@@ -1333,9 +2448,9 @@
 
       const bncBtn = document.createElement("button");
       bncBtn.type = "button";
-      bncBtn.className = "ls-btn-mini";
+      bncBtn.className = "ls-btn-mini ls-au-util-btn";
       bncBtn.textContent = "Bnc";
-      bncBtn.title = "Bounce track + FX to a new stem track";
+      bncBtn.title = "Bounce track + FX to new stem";
       bncBtn.onclick = (ev) => {
         ev.stopPropagation();
         bounceTrackToNewStem(tr);
@@ -1343,9 +2458,9 @@
 
       const grpBtn = document.createElement("button");
       grpBtn.type = "button";
-      grpBtn.className = `ls-btn-mini ls-daw-group-pill${tr.groupId ? " is-toggled" : ""}`;
+      grpBtn.className = `ls-btn-mini ls-au-util-btn ls-daw-group-pill${tr.groupId ? " is-toggled" : ""}`;
       grpBtn.textContent = tr.groupId || "Grp";
-      grpBtn.title = "Cycle Track Link Group (None / A / B)";
+      grpBtn.title = "Link Group (None / A / B)";
       grpBtn.onclick = (ev) => {
         ev.stopPropagation();
         const nextGrp = tr.groupId === "A" ? "B" : (tr.groupId === "B" ? null : "A");
@@ -1355,25 +2470,24 @@
 
       const loadBtn = document.createElement("button");
       loadBtn.type = "button";
-      loadBtn.className = "ls-btn-mini";
-      loadBtn.textContent = "+Audio";
-      loadBtn.title = `Load an audio clip onto ${tr.name}`;
+      loadBtn.className = "ls-btn-mini ls-au-util-btn";
+      loadBtn.textContent = "+Wav";
+      loadBtn.title = `Load audio file onto ${tr.name}`;
       loadBtn.onclick = (ev) => {
         ev.stopPropagation();
         pendingLoadTrackId = tr.id;
         $("lsDawTrackFileInput")?.click();
       };
 
-      leftBtns.appendChild(muteBtn);
-      leftBtns.appendChild(soloBtn);
-      leftBtns.appendChild(frzBtn);
-      leftBtns.appendChild(bncBtn);
-      leftBtns.appendChild(grpBtn);
-      leftBtns.appendChild(loadBtn);
+      utilLeft.appendChild(fxBadge);
+      utilLeft.appendChild(frzBtn);
+      utilLeft.appendChild(bncBtn);
+      utilLeft.appendChild(grpBtn);
+      utilLeft.appendChild(loadBtn);
 
       const delBtn = document.createElement("button");
       delBtn.type = "button";
-      delBtn.className = "ls-btn-mini";
+      delBtn.className = "ls-btn-mini ls-au-util-btn";
       delBtn.textContent = "×";
       delBtn.title = state.tracks.length <= 1 ? "Cannot delete last track" : `Delete ${tr.name}`;
       delBtn.disabled = state.tracks.length <= 1;
@@ -1385,10 +2499,21 @@
         }
       };
 
-      ctrls.appendChild(leftBtns);
-      ctrls.appendChild(delBtn);
-      box.appendChild(ctrls);
+      utilRow.appendChild(utilLeft);
+      utilRow.appendChild(delBtn);
+      mainCol.appendChild(utilRow);
 
+      // Right-edge Vertical Peak Meter
+      const meterEl = document.createElement("div");
+      meterEl.className = "ls-daw-track-meter";
+      meterEl.title = "Live Track Signal Meter";
+      const meterFillEl = document.createElement("div");
+      meterFillEl.className = "ls-daw-track-meter-fill";
+      meterFillEl.dataset.dawMeterId = tr.id;
+      meterEl.appendChild(meterFillEl);
+
+      box.appendChild(mainCol);
+      box.appendChild(meterEl);
       container.appendChild(box);
     });
   }
@@ -2743,17 +3868,20 @@
       const x = it.timelineStart * pxPerSec;
       const w = Math.max(4, it.duration * pxPerSec);
       const isSel = c.id === selectedClipId || selectedClipIds.has(c.id);
+      const hdrH = 18;
 
-      ctx.fillStyle = colorWithAlpha(colorHex, isSel ? 0.2 : 0.11);
+      ctx.fillStyle = colorWithAlpha(colorHex, isSel ? 0.22 : 0.12);
       ctx.fillRect(x, laneY, w, laneH);
+      ctx.fillStyle = colorWithAlpha(colorHex, isSel ? 0.34 : 0.20);
+      ctx.fillRect(x, laneY, w, hdrH);
       ctx.fillStyle = colorWithAlpha(colorHex, isSel ? 1 : 0.88);
-      ctx.fillRect(x, laneY, w, 3);
+      ctx.fillRect(x, laneY, w, 2.5);
       ctx.strokeStyle = isSel ? pal.accent : pal.border;
       ctx.lineWidth = isSel ? 1.8 : 1;
       ctx.strokeRect(x + 0.5, laneY + 0.5, w - 1, laneH - 1);
 
       if (src && peaks) {
-        drawWaveformChannel(ctx, peaks, c, src.duration, x, laneY, w, laneH, colorHex);
+        drawWaveformChannel(ctx, peaks, c, src.duration, x, laneY + hdrH, w, Math.max(18, laneH - hdrH), colorHex);
       }
 
       const fadeOverlay = colorWithAlpha(pal.canvasBg, 0.52);
@@ -2761,8 +3889,8 @@
       if (fiPx > 2) {
         ctx.fillStyle = fadeOverlay;
         ctx.beginPath();
-        ctx.moveTo(x, laneY);
-        ctx.lineTo(x + fiPx, laneY);
+        ctx.moveTo(x, laneY + hdrH);
+        ctx.lineTo(x + fiPx, laneY + hdrH);
         ctx.lineTo(x, laneY + laneH);
         ctx.closePath();
         ctx.fill();
@@ -2770,37 +3898,39 @@
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(x, laneY + laneH);
-        ctx.lineTo(x + fiPx, laneY);
+        ctx.lineTo(x + fiPx, laneY + hdrH);
         ctx.stroke();
       }
       const foPx = (Number(c.fadeOutSec) || 0) * pxPerSec;
       if (foPx > 2) {
         ctx.fillStyle = fadeOverlay;
         ctx.beginPath();
-        ctx.moveTo(x + w - foPx, laneY);
-        ctx.lineTo(x + w, laneY);
+        ctx.moveTo(x + w - foPx, laneY + hdrH);
+        ctx.lineTo(x + w, laneY + hdrH);
         ctx.lineTo(x + w, laneY + laneH);
         ctx.closePath();
         ctx.fill();
         ctx.strokeStyle = pal.textSecondary;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.moveTo(x + w - foPx, laneY);
+        ctx.moveTo(x + w - foPx, laneY + hdrH);
         ctx.lineTo(x + w, laneY + laneH);
         ctx.stroke();
       }
 
-      // Clip edge trim handles when wide enough
+      // Audition corner fade squares & edge trim handles
       if (w >= 16) {
         ctx.fillStyle = isSel ? pal.accent : pal.textMuted;
         ctx.fillRect(x + 1, laneY + laneH - 13, 3, 11);
         ctx.fillRect(x + w - 4, laneY + laneH - 13, 3, 11);
+        ctx.fillRect(x + Math.min(w - 8, Math.max(2, fiPx)), laneY + hdrH - 6, 6, 6);
+        ctx.fillRect(x + Math.max(2, w - foPx - 6), laneY + hdrH - 6, 6, 6);
       }
 
       ctx.fillStyle = pal.text;
       ctx.font = "600 11px Inter, system-ui, sans-serif";
       const tag = c.gainDb ? `${c.label} (${c.gainDb > 0 ? "+" : ""}${c.gainDb}dB)` : c.label;
-      ctx.fillText(tag.slice(0, 34), x + 7, laneY + 15);
+      ctx.fillText(tag.slice(0, 34), x + 7, laneY + 13);
     }
 
     layout.items.forEach((it) => {
@@ -2908,7 +4038,51 @@
       ctx.fillText(m.bhajan_title.slice(0, 16), mx + 4, 13);
     });
 
-    // Playhead
+    // Live multitrack recording overlays on armed track lanes
+    if (isRecording && recSession && recSession.tracks) {
+      for (let ti = 0; ti < tracks.length; ti++) {
+        const rec = recSession.tracks.get(tracks[ti].id);
+        if (!rec) continue;
+        const laneY = rulerH + ti * (laneH + laneGap) + 4;
+        const laneInnerH = laneH - 8;
+        const rx0 = recSession.startTimelineSec * pxPerSec;
+        const rx1 = Math.max(rx0 + 4, playheadSec * pxPerSec);
+        const rw = rx1 - rx0;
+        ctx.fillStyle = colorWithAlpha(pal.danger, 0.24);
+        ctx.fillRect(rx0, laneY, rw, laneInnerH);
+        ctx.strokeStyle = pal.danger;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx0 + 0.5, laneY + 0.5, Math.max(1, rw - 1), laneInnerH - 1);
+
+        if (rec.livePeaks && rec.livePeaks.length > 0 && rw > 6) {
+          const midY = laneY + laneInnerH * 0.5;
+          const halfH = laneInnerH * 0.42;
+          ctx.fillStyle = pal.danger;
+          const pkLen = rec.livePeaks.length;
+          for (let px = 0; px < rw; px += 2) {
+            const pIdx = Math.min(pkLen - 1, Math.floor((px / rw) * pkLen));
+            const mag = Math.max(0.04, rec.livePeaks[pIdx]) * halfH;
+            ctx.fillRect(rx0 + px, midY - mag, 1.5, mag * 2);
+          }
+        }
+      }
+    }
+
+    // Razor tool hover guide line
+    if (activeTool === "razor" && razorHoverSec != null) {
+      const rx = razorHoverSec * pxPerSec;
+      ctx.save();
+      ctx.strokeStyle = razorHoverAll ? pal.warn : pal.accent;
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(rx, rulerH);
+      ctx.lineTo(rx, canvasH);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Playhead (CTI)
     const pxPlay = playheadSec * pxPerSec;
     ctx.strokeStyle = pal.danger;
     ctx.lineWidth = 1.8;
@@ -2924,6 +4098,8 @@
     ctx.lineTo(pxPlay, 10);
     ctx.closePath();
     ctx.fill();
+
+    drawNavigatorCanvas();
   }
 
   function updateAllDawUi() {
@@ -2931,7 +4107,10 @@
     const layout = Engine.computeTimelineLayout(state.clips);
     playheadSec = Math.min(playheadSec, layout.totalDuration || 0);
     updateTransportReadout(layout.totalDuration);
+    syncRangeDigits();
     renderTrackHeaders();
+    renderMediaBin();
+    if (activeCenterMode === "mixer") renderMixerConsole();
     renderFxRack();
     renderClipInspector();
     drawCanvas();
@@ -3358,6 +4537,8 @@
       }
 
       lastRenderedFile = outFile;
+      dawExportedClean = true;
+      lastCleanUndoLen = Array.isArray(state.undoStack) ? state.undoStack.length : 0;
       if (lastRenderedMp3Url) URL.revokeObjectURL(lastRenderedMp3Url);
       lastRenderedMp3Url = URL.createObjectURL(lastRenderedFile);
       const dlEl = $("lsDawDownloadRenderedBtn");
@@ -3577,6 +4758,9 @@
       $("lsDawSelectMasterBtn").onclick = () => {
         Engine.selectTrack(state, "master");
         selectedFxSlotId = null;
+        $("lsAuLeftBay")?.classList.remove("is-collapsed");
+        $("lsAuToggleLeftBayBtn")?.classList.remove("is-toggled");
+        setAuditionLeftTab("fx");
         updateAllDawUi();
         $("lsDawFxRackPanel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       };
@@ -3729,8 +4913,13 @@
       };
     }
 
-    // Canvas mouse interactions
+    // Canvas & Zoom Navigator mouse interactions
     const canvas = $("lsDawCanvas");
+    const ctxMenu = $("lsDawContextMenu");
+    function hideContextMenu() {
+      if (ctxMenu) ctxMenu.classList.add("ls-is-hidden");
+    }
+
     if (canvas) {
       function clientXToSec(clientX) {
         const rect = canvas.getBoundingClientRect();
@@ -3756,7 +4945,116 @@
         return Engine.snapTime(state, sec, { gridEnabled: true, markersEnabled: true, toleranceSec: 0.3 });
       }
 
+      function hitTestClipOnCanvas(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (y <= 28) return null;
+        const step = laneHeightPx + 4;
+        const trIdx = Math.floor((y - 28) / step);
+        const tr = state.tracks[trIdx];
+        if (!tr) return null;
+        const laneY = 28 + trIdx * step + 2;
+        if (y < laneY || y > laneY + laneHeightPx) return null;
+
+        const layout = Engine.computeTimelineLayout(state.clips);
+        const totalDur = Math.max(10, layout.totalDuration);
+        const pxPerSec = canvas.clientWidth / totalDur;
+        const items = layout.items.filter((it) => {
+          if (it.clip.trackId) return it.clip.trackId === tr.id;
+          return (tr.role === "ch1" && trIdx === 0) || (tr.role === "ch2" && trIdx === 1) || trIdx === 0;
+        });
+
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i];
+          const cx = it.timelineStart * pxPerSec;
+          const cw = Math.max(4, it.duration * pxPerSec);
+          if (x < cx - 3 || x > cx + cw + 3) continue;
+          const hdrH = 18;
+          const fiPx = (Number(it.clip.fadeInSec) || 0) * pxPerSec;
+          const foPx = (Number(it.clip.fadeOutSec) || 0) * pxPerSec;
+          if (x >= cx + Math.min(cw - 10, fiPx) - 2 && x <= cx + Math.min(cw - 4, fiPx + 10) && y >= laneY + hdrH - 8 && y <= laneY + hdrH + 5) {
+            return { part: "fade-in", item: it, pxPerSec };
+          }
+          if (x >= cx + Math.max(2, cw - foPx - 10) && x <= cx + cw - foPx + 4 && y >= laneY + hdrH - 8 && y <= laneY + hdrH + 5) {
+            return { part: "fade-out", item: it, pxPerSec };
+          }
+          if (x <= cx + 6) return { part: "trim-left", item: it, pxPerSec };
+          if (x >= cx + cw - 6) return { part: "trim-right", item: it, pxPerSec };
+          if (y <= laneY + hdrH) return { part: "header", item: it, pxPerSec };
+          return { part: "body", item: it, pxPerSec };
+        }
+        return null;
+      }
+
+      canvas.addEventListener("contextmenu", (ev) => {
+        ev.preventDefault();
+        if (!ctxMenu) return;
+        const clickSec = maybeSnap(clientXToSec(ev.clientX));
+        const clipHit = hitTestClipOnCanvas(ev.clientX, ev.clientY);
+        if (clipHit) {
+          syncClipSelection(clipHit.item.clip.id, false);
+          renderClipInspector();
+          drawCanvas();
+        }
+        playheadSec = clickSec;
+        const items = [
+          { label: "Split Clip at Cursor", kbd: "Ctrl+K", fn: () => $("lsDawSplitBtn")?.click() },
+          {
+            label: "Razor All Tracks Here",
+            kbd: "Ctrl+Shift+K",
+            fn: () => {
+              if (typeof Engine.splitAllAt === "function" && Engine.splitAllAt(state, clickSec) > 0) updateAllDawUi();
+            }
+          },
+          { label: "Ripple Delete", kbd: "Shift+Bksp", fn: () => (selectionStart != null && selectionEnd != null && Math.abs(selectionEnd - selectionStart) >= 0.1 ? $("lsDawRippleCutBtn")?.click() : $("lsDawDeleteClipBtn")?.click()) },
+          {
+            label: "Delete Selected Clip",
+            kbd: "Del",
+            fn: () => {
+              if (selectedClipId && typeof Engine.deleteClipNonRipple === "function" && Engine.deleteClipNonRipple(state, selectedClipId)) {
+                selectedClipId = state.clips[0] ? state.clips[0].id : null;
+                updateAllDawUi();
+              }
+            }
+          },
+          { label: "Duplicate Clip", kbd: "Ctrl+D", fn: () => $("lsDawDupClipBtn")?.click() },
+          { label: "Normalize Clip (-1 dBTP)", kbd: "", fn: () => $("lsDawNormClipBtn")?.click() },
+          { label: "Add Marker Here", kbd: "M", fn: () => $("lsDawAddMarkerBtn")?.click() },
+          { label: "Zoom to Selection", kbd: ";", fn: () => $("lsDawZoomSelBtn")?.click() },
+          { label: "Zoom Out Full Session", kbd: "\\", fn: () => $("lsDawZoomFitBtn")?.click() }
+        ];
+        ctxMenu.innerHTML = "";
+        items.forEach((it) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "ls-au-ctx-item";
+          btn.innerHTML = `${it.label}<span>${it.kbd}</span>`;
+          btn.onclick = () => {
+            hideContextMenu();
+            it.fn();
+          };
+          ctxMenu.appendChild(btn);
+        });
+        ctxMenu.style.left = `${Math.min(window.innerWidth - 220, ev.clientX)}px`;
+        ctxMenu.style.top = `${Math.min(window.innerHeight - 280, ev.clientY)}px`;
+        ctxMenu.classList.remove("ls-is-hidden");
+      });
+
+      document.addEventListener("click", (ev) => {
+        if (ctxMenu && !ev.target.closest("#lsDawContextMenu")) hideContextMenu();
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        if (razorHoverSec != null) {
+          razorHoverSec = null;
+          drawCanvas();
+        }
+      });
+
       canvas.addEventListener("mousedown", (ev) => {
+        hideContextMenu();
+        if (ev.button === 2) return;
         const rect = canvas.getBoundingClientRect();
         const y = ev.clientY - rect.top;
         const clickSec = maybeSnap(clientXToSec(ev.clientX));
@@ -3792,6 +5090,18 @@
           renderFxRack();
         }
 
+        // Razor Tool (R): Click splits target clip, Shift+Click splits ALL tracks
+        if (activeTool === "razor") {
+          if (ev.shiftKey && typeof Engine.splitAllAt === "function") {
+            if (Engine.splitAllAt(state, clickSec) > 0) updateAllDawUi();
+          } else if (Engine.splitAt(state, clickSec, clickedTrack || state.selectedTrackId)) {
+            updateAllDawUi();
+          } else {
+            setStatusNotice("Click inside a clip body away from edges to cut with Razor.", true);
+          }
+          return;
+        }
+
         if (showAutomation && clickedTrack && typeof Engine.addAutomationPoint === "function") {
           const trIdx = state.tracks.findIndex((t) => t.id === clickedTrack);
           const laneTop = 28 + Math.max(0, trIdx) * (laneHeightPx + 4) + 2;
@@ -3815,11 +5125,33 @@
           return;
         }
 
-        // Alt + Shift + Drag slips audio inside selected clip
-        if (ev.altKey && ev.shiftKey && selectedClipId) {
+        const clipHit = hitTestClipOnCanvas(ev.clientX, ev.clientY);
+
+        // Slip Tool (Y) or Alt+Shift+Drag slips audio content inside clip
+        if ((activeTool === "slip" || (ev.altKey && ev.shiftKey)) && clipHit) {
+          syncClipSelection(clipHit.item.clip.id, ev.shiftKey);
           isSlipDragging = true;
           dragAnchorSec = clientXToSec(ev.clientX);
           slipAccumSec = 0;
+          return;
+        }
+
+        // Move Tool (V) or Audition Smart Header/Trim/Fade handles in Time Tool (T)
+        if (clipHit && (activeTool === "move" || clipHit.part !== "body")) {
+          const it = clipHit.item;
+          syncClipSelection(it.clip.id, ev.shiftKey);
+          clipDragState = {
+            mode: clipHit.part === "header" || clipHit.part === "body" ? "move" : clipHit.part,
+            clipId: it.clip.id,
+            grabOffsetSec: clientXToSec(ev.clientX) - it.timelineStart,
+            origStartSec: it.timelineStart,
+            origEndSec: it.timelineEnd,
+            origSourceStart: it.clip.sourceStart,
+            origSourceEnd: it.clip.sourceEnd,
+            didPushUndo: false
+          };
+          renderClipInspector();
+          drawCanvas();
           return;
         }
 
@@ -3830,6 +5162,49 @@
       });
 
       window.addEventListener("mousemove", (ev) => {
+        if (activeTool === "razor" && ev.target === canvas) {
+          razorHoverSec = maybeSnap(clientXToSec(ev.clientX));
+          razorHoverAll = Boolean(ev.shiftKey);
+          drawCanvas();
+        }
+        if (clipDragState) {
+          const c = state.clips.find((x) => x.id === clipDragState.clipId);
+          if (!c) { clipDragState = null; return; }
+          const curRawSec = clientXToSec(ev.clientX);
+          if (clipDragState.mode === "move" && typeof Engine.moveClip === "function") {
+            const targetStart = maybeSnap(Math.max(0, curRawSec - clipDragState.grabOffsetSec));
+            const targetTrack = clientYToTrackId(ev.clientY);
+            Engine.moveClip(state, c.id, targetStart, targetTrack, { recordUndo: !clipDragState.didPushUndo });
+            clipDragState.didPushUndo = true;
+            canvas.style.cursor = "grabbing";
+            drawCanvas();
+          } else if (clipDragState.mode === "fade-in") {
+            const nextFade = Math.max(0, Math.min(8, Math.round((curRawSec - clipDragState.origStartSec) * 10) / 10));
+            Engine.updateClipProps(state, c.id, { fadeInSec: nextFade }, { recordUndo: !clipDragState.didPushUndo });
+            clipDragState.didPushUndo = true;
+            renderClipInspector();
+            drawCanvas();
+          } else if (clipDragState.mode === "fade-out") {
+            const nextFade = Math.max(0, Math.min(8, Math.round((clipDragState.origEndSec - curRawSec) * 10) / 10));
+            Engine.updateClipProps(state, c.id, { fadeOutSec: nextFade }, { recordUndo: !clipDragState.didPushUndo });
+            clipDragState.didPushUndo = true;
+            renderClipInspector();
+            drawCanvas();
+          } else if (clipDragState.mode === "trim-left") {
+            const delta = curRawSec - clipDragState.origStartSec;
+            const ns = Math.max(0, Math.min(clipDragState.origSourceEnd - 0.15, clipDragState.origSourceStart + delta));
+            c.sourceStart = ns;
+            if (c.trackId) c.timelineOffsetSec = Math.max(0, clipDragState.origStartSec + (ns - clipDragState.origSourceStart));
+            drawCanvas();
+          } else if (clipDragState.mode === "trim-right") {
+            const src = state.sources[c.sourceId];
+            const maxEnd = src ? src.duration : clipDragState.origSourceEnd;
+            const delta = curRawSec - clipDragState.origEndSec;
+            c.sourceEnd = Math.min(maxEnd, Math.max(c.sourceStart + 0.15, clipDragState.origSourceEnd + delta));
+            drawCanvas();
+          }
+          return;
+        }
         if (isScrubbingPlayhead) {
           playheadSec = maybeSnap(clientXToSec(ev.clientX));
           const layout = Engine.computeTimelineLayout(state.clips);
@@ -3863,10 +5238,17 @@
         }
         if (!isDraggingSelection) return;
         selectionEnd = maybeSnap(clientXToSec(ev.clientX));
+        syncRangeDigits();
         drawCanvas();
       });
 
       window.addEventListener("mouseup", (ev) => {
+        if (clipDragState) {
+          clipDragState = null;
+          setAuditionTool(activeTool);
+          updateAllDawUi();
+          return;
+        }
         if (isScrubbingPlayhead) {
           isScrubbingPlayhead = false;
           if (isPlaying) startPreviewPlayback();
@@ -3916,18 +5298,95 @@
           zoomLevel = Math.max(1, Math.min(20, Math.round(zoomLevel * factor * 10) / 10));
           drawCanvas();
         }, { passive: false });
+        wrapEl.addEventListener("scroll", () => drawNavigatorCanvas());
+      }
+
+      const navCanvas = $("lsDawNavigatorCanvas");
+      if (navCanvas && wrapEl) {
+        const panNav = (clientX) => {
+          const rect = navCanvas.getBoundingClientRect();
+          const frac = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+          wrapEl.scrollLeft = Math.max(0, frac * wrapEl.scrollWidth - wrapEl.clientWidth * 0.5);
+          drawNavigatorCanvas();
+        };
+        navCanvas.addEventListener("mousedown", (ev) => { isNavDragging = true; panNav(ev.clientX); });
+        window.addEventListener("mousemove", (ev) => { if (isNavDragging) panNav(ev.clientX); });
+        window.addEventListener("mouseup", () => { isNavDragging = false; });
       }
     }
+
+    // Audition CC Mode, Panel Tabs & Tools
+    if ($("lsDawModeMultitrackBtn")) {
+      $("lsDawModeMultitrackBtn").onclick = () => setAuditionCenterMode("multitrack");
+    }
+    if ($("lsDawModeMixerBtn")) {
+      $("lsDawModeMixerBtn").onclick = () => setAuditionCenterMode("mixer");
+    }
+    if ($("lsAuToggleLeftBayBtn")) {
+      $("lsAuToggleLeftBayBtn").onclick = () => {
+        const bay = $("lsAuLeftBay");
+        const collapsed = bay ? bay.classList.toggle("is-collapsed") : false;
+        $("lsAuToggleLeftBayBtn")?.classList.toggle("is-toggled", collapsed);
+        window.requestAnimationFrame(() => drawCanvas());
+      };
+    }
+    document.querySelectorAll("[data-daw-tool]").forEach((btn) => {
+      btn.addEventListener("click", () => setAuditionTool(btn.dataset.dawTool));
+    });
+    document.querySelectorAll("[data-au-left-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $("lsAuLeftBay")?.classList.remove("is-collapsed");
+        $("lsAuToggleLeftBayBtn")?.classList.remove("is-toggled");
+        setAuditionLeftTab(btn.dataset.auLeftTab);
+      });
+    });
 
     // Toolbar buttons
     if ($("lsDawPlayBtn")) {
       $("lsDawPlayBtn").onclick = () => {
-        if (isPlaying) stopPreviewPlayback();
-        else startPreviewPlayback();
+        if (isPlaying || shuttleReverseRaf) {
+          stopPreviewPlayback();
+        } else {
+          shuttleSpeed = 1.0;
+          startPreviewPlayback();
+        }
+      };
+    }
+    if ($("lsDawGoStartBtn")) {
+      $("lsDawGoStartBtn").onclick = () => {
+        stopPreviewPlayback();
+        playheadSec = 0;
+        const wrap = $("lsDawCanvasWrap");
+        if (wrap) wrap.scrollLeft = 0;
+        updateAllDawUi();
+      };
+    }
+    if ($("lsDawGoEndBtn")) {
+      $("lsDawGoEndBtn").onclick = () => {
+        stopPreviewPlayback();
+        const layout = Engine.computeTimelineLayout(state.clips);
+        playheadSec = layout.totalDuration || 0;
+        updateAllDawUi();
+      };
+    }
+    if ($("lsDawShuttleRevBtn")) {
+      $("lsDawShuttleRevBtn").onclick = () => stepShuttle(-1);
+    }
+    if ($("lsDawShuttleFwdBtn")) {
+      $("lsDawShuttleFwdBtn").onclick = () => stepShuttle(1);
+    }
+    if ($("lsDawRecordBtn")) {
+      $("lsDawRecordBtn").onclick = () => {
+        if (isRecording) stopDawMultitrackRecording();
+        else startDawMultitrackRecording();
       };
     }
     if ($("lsDawStopBtn")) {
       $("lsDawStopBtn").onclick = () => {
+        if (isRecording) {
+          stopDawMultitrackRecording();
+          return;
+        }
         stopPreviewPlayback();
         playheadSec = 0;
         updateAllDawUi();
@@ -4174,7 +5633,7 @@
     }
     if ($("lsDawTrackHeightBtn")) {
       $("lsDawTrackHeightBtn").onclick = () => {
-        laneHeightPx = laneHeightPx === 96 ? 132 : (laneHeightPx === 132 ? 74 : 96);
+        laneHeightPx = laneHeightPx === 116 ? 148 : (laneHeightPx === 148 ? 98 : 116);
         updateAllDawUi();
       };
     }
@@ -4402,11 +5861,60 @@
         drawCanvas();
       };
     }
+    if ($("lsDawZoomSelBtn")) {
+      $("lsDawZoomSelBtn").onclick = () => {
+        if (selectionStart == null || selectionEnd == null || Math.abs(selectionEnd - selectionStart) < 0.1) {
+          setStatusNotice("Drag a time selection range first to Zoom to Selection (;).", true);
+          return;
+        }
+        const a = Math.min(selectionStart, selectionEnd);
+        const selDur = Math.abs(selectionEnd - selectionStart);
+        const totalDur = Math.max(10, Engine.computeTimelineLayout(state.clips).totalDuration);
+        zoomLevel = Math.max(1, Math.min(20, Math.round((totalDur / selDur) * 0.85 * 10) / 10));
+        drawCanvas();
+        const wrap = $("lsDawCanvasWrap");
+        if (wrap) {
+          wrap.scrollLeft = Math.max(0, (a / totalDur) * wrap.scrollWidth - 40);
+        }
+      };
+    }
     if ($("lsDawZoomFitBtn")) {
       $("lsDawZoomFitBtn").onclick = () => {
         zoomLevel = 1;
         drawCanvas();
       };
+    }
+    if ($("lsDawCollapseLowerBtn")) {
+      $("lsDawCollapseLowerBtn").onclick = () => {
+        const dock = $("lsDawLowerDock");
+        if (!dock) return;
+        const hidden = dock.classList.toggle("ls-is-hidden");
+        $("lsDawCollapseLowerBtn").textContent = hidden ? "▲" : "▼";
+      };
+    }
+    if ($("lsDawShortcutsBtn")) {
+      $("lsDawShortcutsBtn").onclick = () => {
+        const dlg = $("lsDawShortcutsDialog");
+        if (!dlg) return;
+        if (typeof dlg.showModal === "function") dlg.showModal();
+        else dlg.setAttribute("open", "");
+      };
+    }
+    if ($("lsDawCloseShortcutsBtn")) {
+      $("lsDawCloseShortcutsBtn").onclick = () => {
+        const dlg = $("lsDawShortcutsDialog");
+        if (!dlg) return;
+        if (typeof dlg.close === "function") dlg.close();
+        else dlg.removeAttribute("open");
+      };
+    }
+    if ($("lsDawShortcutsDialog")) {
+      $("lsDawShortcutsDialog").addEventListener("click", (ev) => {
+        if (ev.target === $("lsDawShortcutsDialog")) {
+          if (typeof ev.target.close === "function") ev.target.close();
+          else ev.target.removeAttribute("open");
+        }
+      });
     }
 
     // Clip inspector inputs
@@ -4473,6 +5981,8 @@
         switchStudioTab("daw");
         pullMarkersFromStudioBridge();
         state.clips = [];
+        dawExportedClean = false;
+        lastCleanUndoLen = 0;
         if (recResult && (recResult.dryCh1File || recResult.dryCh2File)) {
           await loadDualStemFiles(
             recResult.dryCh1File,
@@ -4487,6 +5997,16 @@
         pullMarkersFromStudioBridge();
         drawCanvas();
       },
+      hasUnsavedChanges: function () {
+        if (!state || !Array.isArray(state.clips) || state.clips.length === 0) return false;
+        const undoLen = Array.isArray(state.undoStack) ? state.undoStack.length : 0;
+        if (dawExportedClean && undoLen === lastCleanUndoLen) return false;
+        return undoLen > 0;
+      },
+      markExportedClean: function () {
+        dawExportedClean = true;
+        lastCleanUndoLen = state && Array.isArray(state.undoStack) ? state.undoStack.length : 0;
+      },
       switchTab: switchStudioTab
     };
 
@@ -4500,69 +6020,178 @@
 
       const key = String(ev.key || "").toLowerCase();
       const hasCtrl = Boolean(ev.ctrlKey || ev.metaKey);
+      const hasAlt = Boolean(ev.altKey);
 
-      if (hasCtrl && !ev.shiftKey && key === "z") {
+      // Ctrl+Alt+K or ? -> Adobe Audition Shortcuts Dialog
+      if ((hasCtrl && hasAlt && key === "k") || (!hasCtrl && !hasAlt && ev.key === "?")) {
         ev.preventDefault();
-        $("lsDawUndoBtn")?.click();
-      } else if ((hasCtrl && key === "y") || (hasCtrl && ev.shiftKey && key === "z")) {
+        const dlg = $("lsDawShortcutsDialog");
+        if (dlg && dlg.open) $("lsDawCloseShortcutsBtn")?.click();
+        else $("lsDawShortcutsBtn")?.click();
+        return;
+      }
+
+      // Alt+1 / Alt+2 -> Multitrack / Mixer Switch
+      if (!hasCtrl && hasAlt && (key === "1" || key === "2")) {
         ev.preventDefault();
-        $("lsDawRedoBtn")?.click();
-      } else if (hasCtrl && key === "d") {
+        setAuditionCenterMode(key === "2" ? "mixer" : "multitrack");
+        return;
+      }
+
+      // Alt+= / Alt+- -> Track Lane Height
+      if (!hasCtrl && hasAlt && (key === "=" || key === "+" || key === "-")) {
         ev.preventDefault();
-        $("lsDawDupClipBtn")?.click();
-      } else if (hasCtrl && key === "a") {
+        const heights = [98, 116, 148];
+        const idx = heights.indexOf(laneHeightPx);
+        if (key === "-") laneHeightPx = heights[Math.max(0, (idx < 0 ? 1 : idx) - 1)];
+        else laneHeightPx = heights[Math.min(heights.length - 1, (idx < 0 ? 1 : idx) + 1)];
+        updateAllDawUi();
+        return;
+      }
+
+      if (hasCtrl && !hasAlt) {
+        if (!ev.shiftKey && key === "z") {
+          ev.preventDefault();
+          $("lsDawUndoBtn")?.click();
+        } else if ((key === "y") || (ev.shiftKey && key === "z")) {
+          ev.preventDefault();
+          $("lsDawRedoBtn")?.click();
+        } else if (ev.shiftKey && key === "k") {
+          ev.preventDefault();
+          if (typeof Engine.splitAllAt === "function" && Engine.splitAllAt(state, playheadSec) > 0) {
+            updateAllDawUi();
+          }
+        } else if (!ev.shiftKey && key === "k") {
+          ev.preventDefault();
+          $("lsDawSplitBtn")?.click();
+        } else if (key === "j") {
+          ev.preventDefault();
+          $("lsDawJoinClipsBtn")?.click();
+        } else if (key === "l") {
+          ev.preventDefault();
+          $("lsDawLoopBtn")?.click();
+        } else if (key === "d") {
+          ev.preventDefault();
+          $("lsDawDupClipBtn")?.click();
+        } else if (key === "a") {
+          ev.preventDefault();
+          selectedClipIds.clear();
+          state.clips.forEach((c) => selectedClipIds.add(c.id));
+          if (state.clips[0]) selectedClipId = state.clips[0].id;
+          drawCanvas();
+        } else if (key === "x") {
+          ev.preventDefault();
+          $("lsDawCutClipBtn")?.click();
+        } else if (key === "c" && selectedClipId && typeof Engine.copyClips === "function") {
+          ev.preventDefault();
+          $("lsDawCopyClipBtn")?.click();
+        } else if (key === "v" && (clipboardClips.length > 0 || (state.clipboard && state.clipboard.length > 0)) && typeof Engine.pasteClips === "function") {
+          ev.preventDefault();
+          $("lsDawPasteClipBtn")?.click();
+        } else if (key === "s") {
+          ev.preventDefault();
+          $("lsDawSaveProjectBtn")?.click();
+        } else if (key === "r") {
+          ev.preventDefault();
+          $("lsDawRecordBtn")?.click();
+        }
+        return;
+      }
+
+      if (hasCtrl || hasAlt) return;
+
+      if (ev.code === "Space" && ev.shiftKey) {
         ev.preventDefault();
-        selectedClipIds.clear();
-        state.clips.forEach((c) => selectedClipIds.add(c.id));
-        if (state.clips[0]) selectedClipId = state.clips[0].id;
-        drawCanvas();
-      } else if (hasCtrl && key === "x") {
-        ev.preventDefault();
-        $("lsDawCutClipBtn")?.click();
-      } else if (hasCtrl && key === "c" && selectedClipId && typeof Engine.copyClips === "function") {
-        ev.preventDefault();
-        $("lsDawCopyClipBtn")?.click();
-      } else if (hasCtrl && key === "v" && (clipboardClips.length > 0 || (state.clipboard && state.clipboard.length > 0)) && typeof Engine.pasteClips === "function") {
-        ev.preventDefault();
-        $("lsDawPasteClipBtn")?.click();
-      } else if (hasCtrl && key === "s") {
-        ev.preventDefault();
-        $("lsDawSaveProjectBtn")?.click();
-      } else if (!hasCtrl && ev.code === "Space") {
+        $("lsDawRecordBtn")?.click();
+      } else if (ev.code === "Space") {
         ev.preventDefault();
         $("lsDawPlayBtn")?.click();
-      } else if (!hasCtrl && key === "s") {
+      } else if (key === "v") {
         ev.preventDefault();
-        $("lsDawSplitBtn")?.click();
-      } else if (!hasCtrl && key === "j") {
+        setAuditionTool("move");
+      } else if (key === "r") {
         ev.preventDefault();
-        $("lsDawJoinClipsBtn")?.click();
-      } else if (!hasCtrl && key === "l") {
+        setAuditionTool("razor");
+      } else if (key === "y") {
         ev.preventDefault();
-        $("lsDawLoopBtn")?.click();
-      } else if (!hasCtrl && key === "i") {
+        setAuditionTool("slip");
+      } else if (key === "t") {
+        ev.preventDefault();
+        setAuditionTool("time");
+      } else if (key === "s") {
+        ev.preventDefault();
+        $("lsDawSnapBtn")?.click();
+      } else if (key === "j") {
+        ev.preventDefault();
+        stepShuttle(-1);
+      } else if (key === "k") {
+        ev.preventDefault();
+        stopPreviewPlayback();
+        updateAllDawUi();
+      } else if (key === "l") {
+        ev.preventDefault();
+        stepShuttle(1);
+      } else if (key === "m" || ev.key === "*") {
+        ev.preventDefault();
+        $("lsDawAddMarkerBtn")?.click();
+      } else if (key === "i") {
         ev.preventDefault();
         $("lsDawSetInBtn")?.click();
-      } else if (!hasCtrl && key === "o") {
+      } else if (key === "o") {
         ev.preventDefault();
         $("lsDawSetOutBtn")?.click();
-      } else if (!hasCtrl && ev.key === "[") {
+      } else if (key === "g") {
+        ev.preventDefault();
+        selectionStart = null;
+        selectionEnd = null;
+        updateAllDawUi();
+      } else if (key === "=" || key === "+") {
+        ev.preventDefault();
+        $("lsDawZoomInBtn")?.click();
+      } else if (key === "-") {
+        ev.preventDefault();
+        $("lsDawZoomOutBtn")?.click();
+      } else if (ev.key === "\\") {
+        ev.preventDefault();
+        $("lsDawZoomFitBtn")?.click();
+      } else if (ev.key === ";") {
+        ev.preventDefault();
+        $("lsDawZoomSelBtn")?.click();
+      } else if (ev.key === "[") {
         ev.preventDefault();
         $("lsDawPrevMarkerBtn")?.click();
-      } else if (!hasCtrl && ev.key === "]") {
+      } else if (ev.key === "]") {
         ev.preventDefault();
         $("lsDawNextMarkerBtn")?.click();
-      } else if (!hasCtrl && (ev.key === "Delete" || ev.key === "Backspace")) {
+      } else if (ev.key === "Home") {
+        ev.preventDefault();
+        $("lsDawGoStartBtn")?.click();
+      } else if (ev.key === "End") {
+        ev.preventDefault();
+        $("lsDawGoEndBtn")?.click();
+      } else if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
+        ev.preventDefault();
+        const layout = Engine.computeTimelineLayout(state.clips);
+        const stepSec = ev.shiftKey ? 1.0 : 0.1;
+        playheadSec = Math.max(0, Math.min(layout.totalDuration || 60, playheadSec + (ev.key === "ArrowRight" ? stepSec : -stepSec)));
+        updateAllDawUi();
+      } else if (ev.shiftKey && (ev.key === "Backspace" || ev.key === "Delete")) {
         ev.preventDefault();
         if (selectionStart != null && selectionEnd != null && Math.abs(selectionEnd - selectionStart) >= 0.1) {
           $("lsDawRippleCutBtn")?.click();
         } else {
           $("lsDawDeleteClipBtn")?.click();
         }
-      } else if (!hasCtrl && key === "m") {
+      } else if (ev.key === "Delete" || ev.key === "Backspace") {
         ev.preventDefault();
-        $("lsDawTrack1Mute")?.click();
-        $("lsDawTrack2Mute")?.click();
+        if (selectionStart != null && selectionEnd != null && Math.abs(selectionEnd - selectionStart) >= 0.1) {
+          $("lsDawRippleCutBtn")?.click();
+        } else if (selectedClipId && typeof Engine.deleteClipNonRipple === "function") {
+          if (Engine.deleteClipNonRipple(state, selectedClipId)) {
+            selectedClipId = state.clips[0] ? state.clips[0].id : null;
+            updateAllDawUi();
+          }
+        }
       }
     });
 
@@ -4571,10 +6200,13 @@
       btn.addEventListener("click", () => {
         const view = btn.dataset.dawViewBtn || "all";
         viewBtns.forEach((b) => b.classList.toggle("is-active", b === btn));
-        const fxPanel = $("lsDawFxRackPanel");
-        const bottomDock = document.querySelector(".ls-daw-bottom-dock");
-        if (fxPanel) fxPanel.classList.toggle("ls-is-hidden", view === "master");
-        if (bottomDock) bottomDock.classList.toggle("ls-is-hidden", view === "fx");
+        const lowerDock = $("lsDawLowerDock") || document.querySelector(".ls-daw-bottom-dock");
+        const fxWrap = $("lsDawFxEditorDockWrap");
+        const masterWrap = $("lsDawMasterExportDockWrap");
+        if (lowerDock) lowerDock.classList.remove("ls-is-hidden");
+        if ($("lsDawCollapseLowerBtn")) $("lsDawCollapseLowerBtn").textContent = "▼";
+        if (fxWrap) fxWrap.classList.toggle("ls-is-hidden", view === "master");
+        if (masterWrap) masterWrap.classList.toggle("ls-is-hidden", view === "fx");
         if (view !== "master") renderFxRack();
       });
     });
@@ -4584,10 +6216,23 @@
         renderTrackHeaders();
         renderFxRack();
         drawCanvas();
+        if (activeCenterMode === "mixer") renderMixerConsole();
       });
     };
     window.addEventListener("themechange", refreshDawTheme);
     window.addEventListener("resize", refreshDawTheme);
+    window.addEventListener("ls-hardware-catalog-changed", () => {
+      if (state) {
+        renderTrackHeaders();
+        syncDawHardwareFeedState();
+      }
+    });
+    window.addEventListener("ls-input-detect-ended", () => {
+      if (learningTrackId) {
+        learningTrackId = null;
+        if (state) renderTrackHeaders();
+      }
+    });
     if (typeof MutationObserver === "function") {
       const themeObs = new MutationObserver(refreshDawTheme);
       themeObs.observe(document.documentElement, {
@@ -4602,6 +6247,9 @@
       }
     }
 
+    setAuditionTool("time");
+    setAuditionLeftTab("files");
+    setAuditionCenterMode("multitrack");
     updateAllDawUi();
   }
 

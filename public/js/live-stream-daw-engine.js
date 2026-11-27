@@ -83,7 +83,10 @@
         name: "Track 1 · Vocals",
         color: "#9333ea",
         role: "ch1",
-        inputChannel: 1,
+        inputSource: "none",
+        recordArmed: false,
+        inputMonitor: false,
+        polarity: false,
         gain: 100,
         pan: 0,
         mute: false,
@@ -98,7 +101,10 @@
         name: "Track 2 · Instruments",
         color: "#2563eb",
         role: "ch2",
-        inputChannel: 2,
+        inputSource: "none",
+        recordArmed: false,
+        inputMonitor: false,
+        polarity: false,
         gain: 100,
         pan: 0,
         mute: false,
@@ -176,6 +182,10 @@
       });
       if (!Array.isArray(tr.fxRack)) tr.fxRack = [];
       if (tr.groupId === undefined) tr.groupId = null;
+      if (tr.inputSource === undefined) tr.inputSource = "none";
+      if (tr.recordArmed === undefined) tr.recordArmed = false;
+      if (tr.inputMonitor === undefined) tr.inputMonitor = false;
+      if (tr.polarity === undefined) tr.polarity = false;
     });
     if (!state.masterTrack) {
       state.masterTrack = createDefaultMasterTrack();
@@ -374,6 +384,82 @@
     };
     state.clips.push(clip);
     return clip;
+  }
+
+  function splitAllAt(state, timeSec) {
+    ensureTrackState(state);
+    const t = quantizeToSample(Number(timeSec), state);
+    if (!Number.isFinite(t)) return 0;
+
+    const { items } = computeTimelineLayout(state.clips);
+    const matches = items.filter(
+      (it) => t > it.timelineStart + 0.08 && t < it.timelineEnd - 0.08
+    );
+    if (matches.length === 0) return 0;
+
+    pushUndo(state, "Split All Tracks");
+    const nextClips = [];
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i];
+      const orig = it.clip;
+      if (t > it.timelineStart + 0.08 && t < it.timelineEnd - 0.08) {
+        const offsetInClip = t - it.timelineStart;
+        const splitSourceTime = quantizeToSample(orig.sourceStart + offsetInClip, state);
+        const firstClip = {
+          ...cloneData(orig),
+          sourceEnd: splitSourceTime,
+          fadeOutSec: 0
+        };
+        const secondClip = {
+          ...cloneData(orig),
+          id: genClipId(),
+          sourceStart: splitSourceTime,
+          timelineOffsetSec: orig.trackId ? t : orig.timelineOffsetSec,
+          fadeInSec: 0,
+          crossfadePrevSec: 0
+        };
+        nextClips.push(firstClip, secondClip);
+      } else {
+        nextClips.push(cloneData(orig));
+      }
+    }
+    state.clips = nextClips;
+    return matches.length;
+  }
+
+  function moveClip(state, clipId, newTimelineOffsetSec, newTrackId = null, opts = {}) {
+    ensureTrackState(state);
+    const { items } = computeTimelineLayout(state.clips);
+    const target = items.find((it) => it.clip.id === clipId);
+    if (!target) return false;
+
+    const nextStart = quantizeToSample(Math.max(0, Number(newTimelineOffsetSec) || 0), state);
+    if (opts.recordUndo !== false) {
+      pushUndo(state, "Move Clip");
+    }
+    const c = state.clips[target.index];
+    if (newTrackId && newTrackId !== "master" && state.tracks.some((t) => t.id === newTrackId)) {
+      c.trackId = newTrackId;
+    } else if (!c.trackId) {
+      c.trackId = state.selectedTrackId && state.selectedTrackId !== "master"
+        ? state.selectedTrackId
+        : (state.tracks[0] && state.tracks[0].id) || "track-1";
+    }
+    c.timelineOffsetSec = nextStart;
+    c.crossfadePrevSec = 0;
+    return true;
+  }
+
+  function deleteClipNonRipple(state, clipId) {
+    ensureTrackState(state);
+    const ids = new Set(Array.isArray(clipId) ? clipId : [clipId]);
+    const before = state.clips.length;
+    if (!state.clips.some((c) => ids.has(c.id))) return false;
+    pushUndo(state, "Delete Clip");
+    state.clips = state.clips.filter((c) => !ids.has(c.id));
+    const firstSpine = state.clips.find((c) => !c.trackId);
+    if (firstSpine) firstSpine.crossfadePrevSec = 0;
+    return state.clips.length < before;
   }
 
   function splitAt(state, timeSec, targetTrackId) {
@@ -741,6 +827,17 @@
           return m;
         })
         .sort((a, b) => a.start_seconds - b.start_seconds);
+    } else {
+      const targetTrackId = target.clip.trackId;
+      const gapDur = Math.max(0, delEnd - delStart);
+      state.clips.forEach((c) => {
+        if (c.trackId === targetTrackId) {
+          const curStart = Number(c.timelineOffsetSec || 0);
+          if (curStart >= delEnd - 0.001) {
+            c.timelineOffsetSec = Math.max(delStart, quantizeToSample(curStart - gapDur, state));
+          }
+        }
+      });
     }
 
     return true;
@@ -846,10 +943,12 @@
     return true;
   }
 
-  function updateClipProps(state, clipId, props = {}) {
+  function updateClipProps(state, clipId, props = {}, opts = {}) {
     const idx = state.clips.findIndex((c) => c.id === clipId);
     if (idx === -1) return false;
-    pushUndo(state);
+    if (opts.recordUndo !== false) {
+      pushUndo(state, "Clip Edit");
+    }
     const c = state.clips[idx];
     if (props.label != null) c.label = String(props.label).trim() || c.label;
     if (props.gainDb != null) c.gainDb = Math.max(-24, Math.min(18, Number(props.gainDb) || 0));
@@ -878,6 +977,10 @@
       name: String(name || `Track ${idx + 1} · Audio`).trim().slice(0, 48),
       color: color || TRACK_COLORS[idx % TRACK_COLORS.length],
       role,
+      inputSource: "none",
+      recordArmed: false,
+      inputMonitor: false,
+      polarity: false,
       gain: 100,
       pan: 0,
       mute: false,
@@ -944,6 +1047,10 @@
     if (props.mute != null) tr.mute = Boolean(props.mute);
     if (props.solo != null) tr.solo = Boolean(props.solo);
     if (props.frozen != null) tr.frozen = Boolean(props.frozen);
+    if (props.inputSource !== undefined) tr.inputSource = String(props.inputSource);
+    if (props.recordArmed != null) tr.recordArmed = Boolean(props.recordArmed);
+    if (props.inputMonitor != null) tr.inputMonitor = Boolean(props.inputMonitor);
+    if (props.polarity != null) tr.polarity = Boolean(props.polarity);
     if (props.groupId !== undefined && trackId !== "master") tr.groupId = props.groupId || null;
 
     if (tr.groupId && trackId !== "master" && !opts.skipGroup) {
@@ -1303,9 +1410,11 @@
     addSource,
     appendClip,
     splitAt,
+    splitAllAt,
     trimClip,
     slipClip,
     nudgeClip,
+    moveClip,
     duplicateClip,
     copyClips,
     pasteClips,
@@ -1314,6 +1423,7 @@
     applyRangeGain,
     normalizeClip,
     rippleDeleteClip,
+    deleteClipNonRipple,
     rippleDeleteRange,
     updateClipProps,
     getTrackById,
