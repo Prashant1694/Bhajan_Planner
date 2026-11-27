@@ -277,24 +277,29 @@
 
   function getStudioPalette() {
     const host = document.querySelector(".ls-studio-wrap") || document.documentElement;
-    const cs = window.getComputedStyle(host);
+    const cs =
+      typeof window !== "undefined" && typeof window.getComputedStyle === "function" && host
+        ? window.getComputedStyle(host)
+        : { getPropertyValue: () => "" };
     const v = (name, fb) => (cs.getPropertyValue(name) || "").trim() || fb;
     const rootDark =
       document.documentElement.getAttribute("data-theme") === "dark" ||
       document.documentElement.classList.contains("dark") ||
       Boolean(document.body && (document.body.getAttribute("data-theme") === "dark" || document.body.classList.contains("dark")));
     return {
-      isDark: rootDark,
-      panel: v("--studio-panel", "#ffffff"),
-      border: v("--studio-border", "#dde2ea"),
-      canvasBg: v("--studio-canvas-bg", "#0b0d13"),
-      grid: v("--studio-grid", "rgba(255, 255, 255, 0.06)"),
-      gridZero: v("--studio-grid-zero", "rgba(255, 255, 255, 0.18)"),
-      text: v("--studio-text", "#f0f2f7"),
-      textSecondary: v("--studio-text-secondary", "#9ba4b8"),
-      textMuted: v("--studio-text-muted", "#677185"),
+      isDark: Boolean(host && host.hasAttribute && host.hasAttribute("data-studio-cosmic")) || rootDark,
+      panel: v("--studio-panel", "#10142a"),
+      border: v("--studio-border", "rgba(145, 130, 224, 0.24)"),
+      canvasBg: v("--studio-canvas-bg", "#070a18"),
+      grid: v("--studio-grid", "rgba(186, 200, 255, 0.08)"),
+      gridZero: v("--studio-grid-zero", "rgba(251, 191, 36, 0.25)"),
+      text: v("--studio-text", "#f3f5f8"),
+      textSecondary: v("--studio-text-secondary", "#b6c2da"),
+      textMuted: v("--studio-text-muted", "#7885a6"),
       accent: v("--studio-accent", "#a855f7"),
-      accentSecondary: v("--studio-accent-secondary", "#529bff"),
+      accentSecondary: v("--studio-accent-secondary", "#38bdf8"),
+      cyan: v("--studio-cyan", "#38bdf8"),
+      gold: v("--studio-gold", "#fbbf24"),
       warn: v("--studio-warn", "#f59e0b"),
       danger: v("--studio-danger", "#f05252"),
       success: v("--studio-success", "#22c55e")
@@ -1686,7 +1691,7 @@
     const canvas = $("lsEqSpectrumCanvas");
     if (!canvas) return;
     const pal = getStudioPalette();
-    const { ctx, w, h } = prepareHiDpiCanvas(canvas, 720, 164);
+    const { ctx, w, h } = prepareHiDpiCanvas(canvas, 820, 174);
 
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = pal.canvasBg;
@@ -1694,11 +1699,14 @@
 
     const minF = 20;
     const maxF = 18000;
+    const padL = 6;
+    const padR = 18;
+    const plotW = Math.max(80, w - padL - padR);
     const logRange = Math.log10(maxF / minF);
-    const freqToX = (f) => (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * w;
+    const freqToX = (f) => padL + (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * plotW;
 
-    // Horizontal dB gridlines (+12, +6, 0, -6, -12 dB)
-    ctx.font = "600 9.5px ui-monospace, SFMono-Regular, Menlo, monospace";
+    // Subtle Studio Gain Gridlines (+12, +6, 0, -6, -12 dB)
+    ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, monospace";
     [
       { db: 12, label: "+12" },
       { db: 6, label: "+6" },
@@ -1706,30 +1714,32 @@
       { db: -6, label: "-6" },
       { db: -12, label: "-12" }
     ].forEach((row) => {
-      const y = Math.round(h * 0.5 - (row.db / 15) * (h * 0.38)) + 0.5;
+      const y = Math.round(h * 0.5 - (row.db / 15) * (h * 0.39)) + 0.5;
       ctx.strokeStyle = row.db === 0 ? pal.gridZero : pal.grid;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = row.db === 0 ? 1.15 : 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
       ctx.stroke();
       ctx.fillStyle = row.db === 0 ? pal.textSecondary : pal.textMuted;
-      ctx.fillText(row.label, 5, y - 3);
+      ctx.fillText(row.label, 6, y - 5);
     });
 
-    // Frequency octave gridlines & labels
-    [50, 100, 250, 500, 1000, 2000, 5000, 10000].forEach((f) => {
+    // Full Decade & Octave Frequency Markers (30 Hz - 12 kHz)
+    [30, 60, 125, 250, 500, 1000, 2000, 4000, 8000, 14000].forEach((f) => {
       const x = Math.round(freqToX(f)) + 0.5;
       ctx.strokeStyle = pal.grid;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, h);
       ctx.stroke();
-      ctx.fillStyle = pal.textMuted;
-      ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 5);
+      if (x < w - 26) {
+        ctx.fillStyle = pal.textMuted;
+        ctx.fillText(f >= 1000 ? `${f / 1000}k` : `${f}`, x + 3, h - 5);
+      }
     });
 
-    // Live FFT spectrum from masterAnalyser when engine is running
+    // Live FFT Spectrum Analyzer (Smooth Cyan Fill + Trace)
     if (nodes && nodes.masterAnalyser && audioCtx) {
       const analyser = nodes.masterAnalyser;
       const binCount = analyser.frequencyBinCount;
@@ -1737,13 +1747,9 @@
       analyser.getByteFrequencyData(freqBins);
       const nyquist = (audioCtx.sampleRate || 48000) / 2;
 
-      const rtaGrad = ctx.createLinearGradient(0, h, 0, 12);
-      rtaGrad.addColorStop(0, colorWithAlpha(pal.accentSecondary, 0.16));
-      rtaGrad.addColorStop(0.65, colorWithAlpha(pal.accentSecondary, 0.32));
-      rtaGrad.addColorStop(1, colorWithAlpha(pal.accent, 0.48));
-      ctx.fillStyle = rtaGrad;
-      const bars = 72;
-      for (let b = 0; b < bars; b += 1) {
+      const bars = 88;
+      const specPts = [];
+      for (let b = 0; b <= bars; b += 1) {
         const f0 = minF * Math.pow(maxF / minF, b / bars);
         const f1 = minF * Math.pow(maxF / minF, (b + 1) / bars);
         const idx0 = Math.max(0, Math.floor((f0 / nyquist) * binCount));
@@ -1752,28 +1758,51 @@
         for (let k = idx0; k <= idx1; k += 1) {
           if (freqBins[k] > maxVal) maxVal = freqBins[k];
         }
-        const barH = (maxVal / 255) * (h - 18);
-        const x0 = (b / bars) * w;
-        const bw = Math.max(2, w / bars - 2);
-        ctx.fillRect(x0, h - barH, bw, barH);
+        const y = h - 14 - (maxVal / 255) * (h - 24);
+        specPts.push({ x: (b / bars) * w, y });
+      }
+      if (specPts.length > 1) {
+        const specColor = pal.cyan || pal.accentSecondary || "#22d3ee";
+        const rtaGrad = ctx.createLinearGradient(0, h, 0, 12);
+        rtaGrad.addColorStop(0, colorWithAlpha(specColor, 0.04));
+        rtaGrad.addColorStop(0.6, colorWithAlpha(specColor, 0.16));
+        rtaGrad.addColorStop(1, colorWithAlpha(specColor, 0.34));
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        specPts.forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = rtaGrad;
+        ctx.fill();
+
+        ctx.beginPath();
+        specPts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.strokeStyle = colorWithAlpha(specColor, 0.6);
+        ctx.lineWidth = 1.25;
+        ctx.stroke();
       }
     }
 
-    // Parametric 5-Band EQ Curve + Band Nodes
+    // Parametric 5-Band EQ Curve (Violet-to-Cyan Gradient Stroke + Halo Nodes)
     if (window.LiveStreamDsp && typeof window.LiveStreamDsp.computeEqCurvePoints === "function") {
       const pts = window.LiveStreamDsp.computeEqCurvePoints(activeConfig.master);
       const isBypassed = Boolean(activeConfig.master && activeConfig.master.bypass);
       const xy = pts.map((pt) => {
         const x = freqToX(pt.freq);
         const clampedDb = Math.max(-15, Math.min(15, pt.db));
-        const y = h * 0.5 - (clampedDb / 15) * (h * 0.38);
+        const y = h * 0.5 - (clampedDb / 15) * (h * 0.39);
         return { x, y };
       });
 
+      const strokeGrad = ctx.createLinearGradient(0, 0, w, 0);
+      strokeGrad.addColorStop(0, pal.accent || "#8b5cf6");
+      strokeGrad.addColorStop(0.65, pal.accent || "#a855f7");
+      strokeGrad.addColorStop(1, pal.cyan || "#22d3ee");
+
       if (xy.length > 0 && !isBypassed) {
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, colorWithAlpha(pal.accent, 0.3));
-        grad.addColorStop(0.55, colorWithAlpha(pal.accent, 0.1));
+        grad.addColorStop(0, colorWithAlpha(pal.accent, 0.28));
+        grad.addColorStop(0.55, colorWithAlpha(pal.cyan || pal.accent, 0.09));
         grad.addColorStop(1, colorWithAlpha(pal.accent, 0.01));
         ctx.save();
         ctx.beginPath();
@@ -1796,11 +1825,11 @@
         ctx.setLineDash([4, 4]);
         ctx.strokeStyle = pal.textMuted;
       } else {
-        ctx.strokeStyle = pal.accent;
-        ctx.shadowColor = colorWithAlpha(pal.accent, 0.38);
-        ctx.shadowBlur = 7;
+        ctx.strokeStyle = strokeGrad;
+        ctx.shadowColor = colorWithAlpha(pal.accent, 0.42);
+        ctx.shadowBlur = 8;
       }
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.4;
       ctx.stroke();
       ctx.restore();
 
@@ -1813,22 +1842,118 @@
         { freq: 10000, val: isBypassed ? 0 : Number(m.b10k) || 0 }
       ].forEach((b) => {
         const x = freqToX(b.freq);
-        const y = h * 0.5 - (Math.max(-15, Math.min(15, b.val)) / 15) * (h * 0.38);
+        const y = h * 0.5 - (Math.max(-15, Math.min(15, b.val)) / 15) * (h * 0.39);
         ctx.beginPath();
-        ctx.arc(x, y, 4.2, 0, Math.PI * 2);
-        ctx.fillStyle = isBypassed ? pal.textMuted : pal.accent;
+        ctx.arc(x, y, 6.8, 0, Math.PI * 2);
+        ctx.fillStyle = isBypassed ? "transparent" : colorWithAlpha(pal.accent, 0.2);
         ctx.fill();
-        ctx.strokeStyle = pal.canvasBg;
-        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 4.1, 0, Math.PI * 2);
+        ctx.fillStyle = isBypassed ? pal.textMuted : "#ffffff";
+        ctx.fill();
+        ctx.strokeStyle = isBypassed ? pal.canvasBg : (pal.accent || "#8b5cf6");
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       });
     }
   }
 
-  function drawChannelProcCanvas() {
-    const canvas = $("lsChannelProcCanvas");
-    if (!canvas) return;
+  function drawMiniChannelCurve(canvas, isVocal, strokeColor) {
+    if (!canvas || typeof canvas.getContext !== "function") return;
     const pal = getStudioPalette();
+    const { ctx, w, h } = prepareHiDpiCanvas(canvas, 180, 72);
+    if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = pal.canvasBg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle reference grid
+    ctx.strokeStyle = pal.grid;
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach((f) => {
+      const y = Math.round(h * f) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    });
+    const zeroY = Math.round(h * 0.52) + 0.5;
+    ctx.strokeStyle = pal.gridZero;
+    ctx.beginPath();
+    ctx.moveTo(0, zeroY);
+    ctx.lineTo(w, zeroY);
+    ctx.stroke();
+
+    const chCfg = isVocal ? activeConfig.vocal || {} : activeConfig.inst || {};
+    const minF = 30;
+    const maxF = 16000;
+    const logRange = Math.log10(maxF / minF);
+    const freqToX = (f) => (Math.log10(Math.max(minF, Math.min(maxF, f)) / minF) / logRange) * w;
+    const freqs = [];
+    for (let i = 0; i <= 40; i++) {
+      freqs.push(minF * Math.pow(maxF / minF, i / 40));
+    }
+    const curvePts =
+      window.LiveStreamDsp && typeof window.LiveStreamDsp.computeChannelEqCurvePoints === "function"
+        ? window.LiveStreamDsp.computeChannelEqCurvePoints(chCfg, { isVocal, freqs, dynamicDeessGrDb: 0 })
+        : freqs.map((f) => ({ freq: f, db: 0 }));
+
+    const pts = curvePts.map((pt) => {
+      const clampedDb = Math.max(-14, Math.min(12, pt.db));
+      return {
+        freq: pt.freq,
+        x: freqToX(pt.freq),
+        y: zeroY - (clampedDb / 15) * (h * 0.36)
+      };
+    });
+
+    const isEqBypass = Boolean(chCfg.eqBypass);
+    if (!isEqBypass && pts.length > 1) {
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, colorWithAlpha(strokeColor, 0.32));
+      grad.addColorStop(1, colorWithAlpha(strokeColor, 0.02));
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, h);
+      pts.forEach((p) => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(pts[pts.length - 1].x, h);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.strokeStyle = isEqBypass ? pal.textMuted : strokeColor;
+    ctx.lineWidth = 1.9;
+    ctx.stroke();
+
+    const lowFreq = Number(chCfg.lowFreq) || (isVocal ? 220 : 90);
+    const midFreq = Number(chCfg.midFreq) || (isVocal ? 3200 : 450);
+    const highFreq = Number(chCfg.highFreq) || (isVocal ? 9000 : 4500);
+    [lowFreq, midFreq, highFreq].forEach((bf) => {
+      const nearest = pts.reduce((best, p) => (Math.abs(p.freq - bf) < Math.abs(best.freq - bf) ? p : best), pts[0]);
+      ctx.beginPath();
+      ctx.arc(nearest.x, nearest.y, 2.7, 0, Math.PI * 2);
+      ctx.fillStyle = isEqBypass ? pal.textMuted : "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawChannelProcCanvas() {
+    const vMini = $("lsVocalMiniCurveCanvas");
+    const iMini = $("lsInstMiniCurveCanvas");
+    const canvas = $("lsChannelProcCanvas");
+    if (!vMini && !iMini && !canvas) return;
+    const pal = getStudioPalette();
+    drawMiniChannelCurve(vMini, true, pal.gold || "#f5b942");
+    drawMiniChannelCurve(iMini, false, pal.cyan || "#22d3ee");
+
+    if (!canvas || typeof canvas.getContext !== "function") return;
     const { ctx, w, h } = prepareHiDpiCanvas(canvas, 420, 116);
 
     ctx.clearRect(0, 0, w, h);
@@ -2213,6 +2338,11 @@
       if ($("lsMasterClip")) {
         $("lsMasterClip").classList.toggle("is-clipping", tpDb >= -0.2);
       }
+      if ($("lsConsoleMasterMeterL")) $("lsConsoleMasterMeterL").style.width = `${pctL.toFixed(1)}%`;
+      if ($("lsConsoleMasterMeterR")) $("lsConsoleMasterMeterR").style.width = `${pctR.toFixed(1)}%`;
+      if ($("lsConsoleMasterDbVal")) {
+        $("lsConsoleMasterDbVal").textContent = tpDb <= -59.5 ? "-∞ dB" : `${tpDb.toFixed(1)} dB`;
+      }
     } else {
       measurePeakRms(
         nodes.masterAnalyser,
@@ -2223,6 +2353,12 @@
       );
       if ($("lsMasterMeterFillR") && $("lsMasterMeterFill")) {
         $("lsMasterMeterFillR").style.height = $("lsMasterMeterFill").style.height;
+      }
+      if ($("lsConsoleMasterMeterL") && $("lsMasterMeterFill")) {
+        $("lsConsoleMasterMeterL").style.width = $("lsMasterMeterFill").style.height;
+      }
+      if ($("lsConsoleMasterMeterR") && $("lsMasterMeterFillR")) {
+        $("lsConsoleMasterMeterR").style.width = $("lsMasterMeterFillR").style.height;
       }
     }
 
@@ -5269,8 +5405,48 @@
       btn.addEventListener("click", () => setProcTab(btn.dataset.procTabBtn));
     });
     document.querySelectorAll(".ls-vstrip[data-proc-tab]").forEach((strip) => {
-      strip.addEventListener("click", () => setProcTab(strip.dataset.procTab));
+      strip.addEventListener("click", (ev) => {
+        if (ev && ev.target && ev.target.closest("button, select, input, label, a")) return;
+        setProcTab(strip.dataset.procTab);
+      });
     });
+
+    function openDeepDspDrawer(spec) {
+      const mod = $("lsChannelProcModule");
+      if (mod) mod.classList.remove("ls-is-hidden");
+      const raw = String(spec || activeProcTab || "vocal");
+      const parts = raw.split(":");
+      setProcTab(parts[0] || "vocal");
+      if (parts.length === 2 && (parts[0] === "vocal" || parts[0] === "inst")) {
+        setChSubTab(raw);
+      }
+      window.requestAnimationFrame(() => drawChannelProcCanvas());
+    }
+
+    document.querySelectorAll("[data-open-dsp]").forEach((el) => {
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        openDeepDspDrawer(el.dataset.openDsp);
+      });
+    });
+
+    if ($("lsToggleDeepDspBtn")) {
+      $("lsToggleDeepDspBtn").addEventListener("click", () => {
+        const mod = $("lsChannelProcModule");
+        if (!mod) return;
+        const willOpen = mod.classList.contains("ls-is-hidden");
+        mod.classList.toggle("ls-is-hidden", !willOpen);
+        $("lsToggleDeepDspBtn").classList.toggle("is-toggled", willOpen);
+        if (willOpen) window.requestAnimationFrame(() => drawChannelProcCanvas());
+      });
+    }
+    if ($("lsCloseDeepDspBtn")) {
+      $("lsCloseDeepDspBtn").addEventListener("click", () => {
+        const mod = $("lsChannelProcModule");
+        if (mod) mod.classList.add("ls-is-hidden");
+        $("lsToggleDeepDspBtn")?.classList.remove("is-toggled");
+      });
+    }
 
     function setChSubTab(pair) {
       const parts = String(pair || "").split(":");
@@ -5292,6 +5468,28 @@
         ev.stopPropagation();
         setChSubTab(btn.dataset.chSubtab);
       });
+    });
+
+    function setLiveWorkspaceFocus(sectionName) {
+      const target = sectionName || "all";
+      document.querySelectorAll("[data-live-ws-btn]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.liveWsBtn === target);
+      });
+      document.querySelectorAll("[data-live-section]").forEach((el) => {
+        el.classList.toggle("ls-ws-hidden", target !== "all" && el.dataset.liveSection !== target);
+      });
+      window.requestAnimationFrame(() => {
+        drawEqAndSpectrum();
+        drawChannelProcCanvas();
+        if (typeof syncRotaryVisuals === "function") syncRotaryVisuals();
+      });
+    }
+
+    document.querySelectorAll("[data-live-ws-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => setLiveWorkspaceFocus(btn.dataset.liveWsBtn));
+    });
+    window.addEventListener("ls-select-live-ws", (ev) => {
+      setLiveWorkspaceFocus((ev && ev.detail && ev.detail.section) || "all");
     });
 
     function wireEqCanvasInteraction() {
@@ -5434,6 +5632,11 @@
       if ($("lsReverbDecayChip") && $("lsReverbDecay")) {
         $("lsReverbDecayChip").textContent = `Decay ${Number($("lsReverbDecay").value || 1.4).toFixed(1)}s`;
       }
+      if ($("lsConsoleMasterDbVal") && $("lsMasterGain") && (!nodes || !masterTelem.kwRing.length)) {
+        const gRatio = Math.max(0.001, Number($("lsMasterGain").value || 100) / 100);
+        const gDb = 20 * Math.log10(gRatio);
+        $("lsConsoleMasterDbVal").textContent = `${gDb >= 0 ? "+" : ""}${gDb.toFixed(1)} dB`;
+      }
     }
 
     function wireRotaryKnobs() {
@@ -5475,7 +5678,14 @@
         });
         svg.addEventListener("dblclick", (ev) => {
           ev.stopPropagation();
-          const defVal = input.id === "lsReverbDecay" ? 1.4 : 0;
+          const defVal =
+            input.id === "lsReverbDecay"
+              ? 1.4
+              : input.id === "lsVocalGain"
+                ? 112
+                : input.id === "lsInstGain" || input.id === "lsMasterGain"
+                  ? 100
+                  : 0;
           input.value = String(defVal);
           input.dispatchEvent(new Event("input", { bubbles: true }));
         });
@@ -5491,6 +5701,23 @@
       });
     };
     window.addEventListener("themechange", redrawOnThemeChange);
+
+    // Subtle pointer parallax depth inside atmospheric header
+    const cosmicHeader = $("lsCosmicHeader");
+    if (cosmicHeader) {
+      cosmicHeader.addEventListener("pointermove", (ev) => {
+        const rect = cosmicHeader.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const px = (((ev.clientX - rect.left) / rect.width) - 0.5) * 2;
+        const py = (((ev.clientY - rect.top) / rect.height) - 0.5) * 2;
+        cosmicHeader.style.setProperty("--px", px.toFixed(3));
+        cosmicHeader.style.setProperty("--py", py.toFixed(3));
+      });
+      cosmicHeader.addEventListener("pointerleave", () => {
+        cosmicHeader.style.setProperty("--px", "0");
+        cosmicHeader.style.setProperty("--py", "0");
+      });
+    }
     window.addEventListener("resize", redrawOnThemeChange);
     if (typeof MutationObserver === "function") {
       const themeObs = new MutationObserver(redrawOnThemeChange);

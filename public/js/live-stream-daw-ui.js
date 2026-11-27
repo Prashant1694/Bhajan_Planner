@@ -22,11 +22,13 @@
   let previewRaf = null;
 
   let zoomLevel = 1;
-  let laneHeightPx = 116;
+  let laneHeightPx = 156;
   let waveScale = 1;
   let activeTool = "time"; // "move" | "razor" | "slip" | "time"
   let activeLeftTab = "files"; // "files" | "fx" | "props"
   let activeCenterMode = "multitrack"; // "multitrack" | "mixer"
+  let activeDawWorkspace = "arrange"; // "arrange" | "recording" | "mixing" | "mastering"
+  let activeInspTab = "track"; // "track" | "fx" | "sends"
   let shuttleSpeed = 1.0;
   let razorHoverSec = null;
   let razorHoverAll = false;
@@ -128,6 +130,11 @@
     return `${db >= 0 ? "+" : ""}${db.toFixed(1)}dB`;
   }
 
+  function formatPanLabel(panVal) {
+    const p = Math.round(Number(panVal) || 0);
+    return p === 0 ? "C" : (p > 0 ? `R${p}` : `L${Math.abs(p)}`);
+  }
+
   function syncRangeDigits() {
     const el = $("lsDawRangeDigits");
     if (!el) return;
@@ -198,8 +205,9 @@
       : [];
 
     state.tracks.forEach((tr, idx) => {
+      const roleClass = idx === 0 || tr.role === "ch1" ? " is-ch1-vocal" : " is-ch2-inst";
       const strip = document.createElement("div");
-      strip.className = `ls-au-mixer-strip${state.selectedTrackId === tr.id ? " is-selected" : ""}`;
+      strip.className = `ls-au-mixer-strip${roleClass}${state.selectedTrackId === tr.id ? " is-selected" : ""}`;
       strip.style.borderTopColor = resolveProTrackColor(tr, idx);
       strip.onclick = (ev) => {
         if (ev.target.closest("button,input,select")) return;
@@ -207,6 +215,7 @@
         renderTrackHeaders();
         renderMixerConsole();
         renderFxRack();
+        renderRightTrackInspector();
       };
 
       const title = document.createElement("div");
@@ -230,6 +239,7 @@
       inpSel.onchange = () => {
         Engine.updateTrackProps(state, tr.id, { inputSource: inpSel.value });
         renderTrackHeaders();
+        renderRightTrackInspector();
         syncDawHardwareFeedState();
       };
 
@@ -250,18 +260,48 @@
           Engine.updateTrackProps(state, tr.id, { [b.prop]: b.val });
           renderTrackHeaders();
           renderMixerConsole();
+          renderRightTrackInspector();
           syncLivePreviewTracks();
           syncDawHardwareFeedState();
         };
         badgeRow.appendChild(btn);
       });
 
+      // Pan Control Row
+      const panWrap = document.createElement("div");
+      panWrap.className = "ls-au-mixer-pan-row";
+      const panLabel = document.createElement("span");
+      panLabel.className = "ls-slider-label";
+      panLabel.textContent = "Pan";
+      const panSlider = document.createElement("input");
+      panSlider.type = "range";
+      panSlider.className = "ls-range";
+      panSlider.min = "-100";
+      panSlider.max = "100";
+      panSlider.value = String(tr.pan ?? 0);
+      const panValEl = document.createElement("span");
+      panValEl.className = "ls-daw-track-val";
+      panValEl.textContent = formatPanLabel(tr.pan ?? 0);
+      panSlider.oninput = () => {
+        Engine.updateTrackProps(state, tr.id, { pan: Number(panSlider.value) });
+        panValEl.textContent = formatPanLabel(tr.pan);
+        renderTrackHeaders();
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+      panWrap.appendChild(panLabel);
+      panWrap.appendChild(panSlider);
+      panWrap.appendChild(panValEl);
+
+      // Fader + Live Track Meter Cluster
+      const faderBay = document.createElement("div");
+      faderBay.className = "ls-au-mixer-fader-bay";
       const faderWrap = document.createElement("div");
       faderWrap.className = "ls-au-mixer-fader-wrap";
       const volSlider = document.createElement("input");
       volSlider.type = "range";
       volSlider.className = "ls-range";
-      volSlider.style.width = "96px";
+      volSlider.style.width = "104px";
       volSlider.style.transform = "rotate(-90deg)";
       volSlider.min = "0";
       volSlider.max = "180";
@@ -279,6 +319,15 @@
       };
       faderWrap.appendChild(volSlider);
 
+      const meterTrack = document.createElement("div");
+      meterTrack.className = "ls-daw-track-meter ls-au-mixer-meter";
+      const meterFill = document.createElement("div");
+      meterFill.className = "ls-daw-track-meter-fill";
+      meterTrack.appendChild(meterFill);
+
+      faderBay.appendChild(faderWrap);
+      faderBay.appendChild(meterTrack);
+
       const fxBtn = document.createElement("button");
       fxBtn.type = "button";
       fxBtn.className = "ls-btn-mini";
@@ -292,7 +341,8 @@
       strip.appendChild(title);
       strip.appendChild(inpSel);
       strip.appendChild(badgeRow);
-      strip.appendChild(faderWrap);
+      strip.appendChild(panWrap);
+      strip.appendChild(faderBay);
       strip.appendChild(dbRead);
       strip.appendChild(fxBtn);
       host.appendChild(strip);
@@ -317,7 +367,7 @@
       const mFader = document.createElement("input");
       mFader.type = "range";
       mFader.className = "ls-range";
-      mFader.style.width = "96px";
+      mFader.style.width = "104px";
       mFader.style.transform = "rotate(-90deg)";
       mFader.min = "0";
       mFader.max = "180";
@@ -368,8 +418,9 @@
     layout.items.forEach((it) => {
       const x0 = (it.timelineStart / totalDur) * w;
       const cw = Math.max(2, (it.duration / totalDur) * w);
-      ctx.fillStyle = colorWithAlpha(pal.accentSecondary, 0.45);
-      ctx.fillRect(x0, 5, cw, h - 10);
+      const isCh2 = it.clip && it.clip.trackId === "track-2";
+      ctx.fillStyle = colorWithAlpha(isCh2 ? pal.instWave : pal.vocalWave, 0.55);
+      ctx.fillRect(x0, isCh2 ? Math.round(h * 0.5) : 4, cw, Math.max(4, Math.round(h * 0.34)));
     });
     (state.markers || []).forEach((m) => {
       const mx = (m.start_seconds / totalDur) * w;
@@ -379,15 +430,15 @@
     if (wrap && wrap.scrollWidth > 0) {
       const viewStart = (wrap.scrollLeft / wrap.scrollWidth) * w;
       const viewW = Math.max(16, (wrap.clientWidth / wrap.scrollWidth) * w);
-      ctx.fillStyle = colorWithAlpha(pal.accent, 0.16);
+      ctx.fillStyle = colorWithAlpha(pal.gold, 0.16);
       ctx.fillRect(viewStart, 1, Math.min(w - viewStart, viewW), h - 2);
-      ctx.strokeStyle = pal.accent;
+      ctx.strokeStyle = pal.gold;
       ctx.lineWidth = 1.4;
       ctx.strokeRect(viewStart + 0.5, 1.5, Math.min(w - viewStart - 1, Math.max(10, viewW - 1)), h - 3);
     }
     const px = Math.min(w - 1, Math.max(0, (playheadSec / totalDur) * w));
-    ctx.fillStyle = pal.danger;
-    ctx.fillRect(px, 0, 1.5, h);
+    ctx.fillStyle = pal.playhead;
+    ctx.fillRect(px, 0, 1.8, h);
   }
 
   function stopShuttleReverse() {
@@ -506,30 +557,39 @@
 
   function getStudioPalette() {
     const host = document.querySelector(".ls-studio-wrap") || document.documentElement;
-    const cs = window.getComputedStyle(host);
+    const cs =
+      typeof window !== "undefined" && typeof window.getComputedStyle === "function" && host
+        ? window.getComputedStyle(host)
+        : { getPropertyValue: () => "" };
     const v = (name, fb) => (cs.getPropertyValue(name) || "").trim() || fb;
+    const isCosmic = Boolean(host && host.hasAttribute && host.hasAttribute("data-studio-cosmic"));
     const rootDark =
+      isCosmic ||
       document.documentElement.getAttribute("data-theme") === "dark" ||
       document.documentElement.classList.contains("dark") ||
       Boolean(document.body && (document.body.getAttribute("data-theme") === "dark" || document.body.classList.contains("dark")));
     return {
       isDark: rootDark,
-      panel: v("--studio-panel", "#ffffff"),
-      canvasBg: v("--studio-canvas-bg", "#0b0d13"),
-      rulerBg: v("--studio-ruler-bg", "#141824"),
-      laneA: v("--studio-lane-a", "#0f131c"),
-      laneB: v("--studio-lane-b", "#121622"),
-      laneSelected: v("--studio-lane-selected", "#191c2e"),
-      border: v("--studio-border", "#2c3244"),
+      panel: v("--studio-panel", "#101521"),
+      canvasBg: v("--studio-canvas-bg", "#060810"),
+      rulerBg: v("--studio-ruler-bg", "#0e1320"),
+      laneA: v("--studio-lane-a", "#0a0e18"),
+      laneB: v("--studio-lane-b", "#0d121f"),
+      laneSelected: v("--studio-lane-selected", "#141a2e"),
+      border: v("--studio-border", "rgba(255, 255, 255, 0.06)"),
       grid: v("--studio-grid", "rgba(255, 255, 255, 0.06)"),
-      gridZero: v("--studio-grid-zero", "rgba(255, 255, 255, 0.18)"),
-      text: v("--studio-text", "#f0f2f7"),
-      textSecondary: v("--studio-text-secondary", "#9ba4b8"),
-      textMuted: v("--studio-text-muted", "#677185"),
-      accent: v("--studio-accent", "#a855f7"),
-      accentSecondary: v("--studio-accent-secondary", "#529bff"),
+      gridZero: v("--studio-grid-zero", "rgba(245, 185, 66, 0.24)"),
+      text: v("--studio-text", "#f3f5f8"),
+      textSecondary: v("--studio-text-secondary", "#b6c2da"),
+      textMuted: v("--studio-text-muted", "#7885a6"),
+      accent: v("--studio-accent", "#8b5cf6"),
+      accentSecondary: v("--studio-accent-secondary", "#22d3ee"),
+      vocalWave: v("--studio-vocal-wave", "#f5b942"),
+      instWave: v("--studio-inst-wave", "#22d3ee"),
+      gold: v("--studio-gold", "#f5b942"),
+      playhead: v("--studio-playhead", "#f5b942"),
       warn: v("--studio-warn", "#f59e0b"),
-      danger: v("--studio-danger", "#f05252"),
+      danger: v("--studio-danger", "#ef4444"),
       success: v("--studio-success", "#22c55e")
     };
   }
@@ -2092,10 +2152,10 @@
 
   function resolveProTrackColor(tr, idx) {
     const pal = getStudioPalette();
-    if (!tr || !tr.color || tr.color === "#d97706") return pal.accent;
-    if (tr.color === "#2563eb") return pal.accentSecondary;
-    if (idx === 0 && tr.role === "ch1") return pal.accent;
-    if (idx === 1 && tr.role === "ch2") return pal.accentSecondary;
+    if (!tr || !tr.color || tr.color === "#d97706") return pal.vocalWave;
+    if (tr.color === "#2563eb") return pal.instWave;
+    if (idx === 0 && tr.role === "ch1") return pal.vocalWave;
+    if (idx === 1 && tr.role === "ch2") return pal.instWave;
     return tr.color;
   }
 
@@ -2106,13 +2166,14 @@
 
     const corner = document.createElement("div");
     corner.className = "ls-daw-tracks-corner";
-    corner.innerHTML = `<span>TRACKS · MIX</span><span>${state.tracks.length} TRK</span>`;
+    corner.innerHTML = `<span>TRACKS · 2-CH MIX</span><span>${state.tracks.length} TRK</span>`;
     container.appendChild(corner);
 
     state.tracks.forEach((tr, idx) => {
       const proColor = resolveProTrackColor(tr, idx);
+      const roleClass = idx === 0 || tr.role === "ch1" ? " is-ch1-vocal" : " is-ch2-inst";
       const box = document.createElement("div");
-      box.className = `ls-daw-track-box${state.selectedTrackId === tr.id ? " is-selected" : ""}${tr.frozen ? " is-frozen" : ""}`;
+      box.className = `ls-daw-track-box${roleClass}${state.selectedTrackId === tr.id ? " is-selected" : ""}${tr.frozen ? " is-frozen" : ""}`;
       box.style.height = `${laneHeightPx}px`;
       box.style.borderLeftColor = proColor;
       box.onclick = (ev) => {
@@ -2121,20 +2182,32 @@
         selectedFxSlotId = null;
         renderTrackHeaders();
         renderFxRack();
+        renderRightTrackInspector();
         drawCanvas();
       };
 
       const mainCol = document.createElement("div");
       mainCol.className = "ls-au-track-main";
 
-      // ROW 1: Track Title + M / S / R / I status badges
+      // ROW 1: Track Index + Title + M / S / R / I status badges
       const top = document.createElement("div");
       top.className = "ls-daw-track-top";
 
       const titleEl = document.createElement("div");
       titleEl.className = "ls-daw-track-title";
-      titleEl.textContent = tr.name;
-      titleEl.title = "Double-click to rename track";
+      titleEl.style.display = "flex";
+      titleEl.style.alignItems = "center";
+      titleEl.style.gap = "5px";
+      const badgeNum = document.createElement("span");
+      badgeNum.className = "ls-daw-track-badge-num";
+      badgeNum.textContent = String(idx + 1);
+      const titleTxt = document.createElement("span");
+      titleTxt.textContent = tr.name;
+      titleEl.appendChild(badgeNum);
+      titleEl.appendChild(titleTxt);
+      titleEl.title = idx === 0
+        ? "CH 1 Vocals (Lead & Chorus) — Double-click to rename"
+        : "CH 2 Instruments (Harmonium, Tabla & All Instruments) — Double-click to rename";
       titleEl.ondblclick = (ev) => {
         ev.stopPropagation();
         const nextName = window.prompt("Rename Track:", tr.name);
@@ -2485,22 +2558,7 @@
       utilLeft.appendChild(grpBtn);
       utilLeft.appendChild(loadBtn);
 
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "ls-btn-mini ls-au-util-btn";
-      delBtn.textContent = "×";
-      delBtn.title = state.tracks.length <= 1 ? "Cannot delete last track" : `Delete ${tr.name}`;
-      delBtn.disabled = state.tracks.length <= 1;
-      delBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        if (Engine.deleteTrack(state, tr.id)) {
-          selectedFxSlotId = null;
-          updateAllDawUi();
-        }
-      };
-
       utilRow.appendChild(utilLeft);
-      utilRow.appendChild(delBtn);
       mainCol.appendChild(utilRow);
 
       // Right-edge Vertical Peak Meter
@@ -4084,14 +4142,14 @@
 
     // Playhead (CTI)
     const pxPlay = playheadSec * pxPerSec;
-    ctx.strokeStyle = pal.danger;
-    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = pal.playhead;
+    ctx.lineWidth = 2.0;
     ctx.beginPath();
     ctx.moveTo(pxPlay, 0);
     ctx.lineTo(pxPlay, canvasH);
     ctx.stroke();
 
-    ctx.fillStyle = pal.danger;
+    ctx.fillStyle = pal.playhead;
     ctx.beginPath();
     ctx.moveTo(pxPlay - 6, 0);
     ctx.lineTo(pxPlay + 6, 0);
@@ -4100,6 +4158,138 @@
     ctx.fill();
 
     drawNavigatorCanvas();
+  }
+
+  function renderRightTrackInspector() {
+    const insp = $("lsDawRightInspector");
+    if (!insp || !state || !Engine) return;
+    const tr = Engine.getTrackById(state, state.selectedTrackId) || state.tracks[0];
+    if (!tr) return;
+    const isMaster = tr.role === "master" || tr.id === "master";
+
+    document.querySelectorAll("[data-daw-sel-trk]").forEach((btn) => {
+      btn.classList.toggle("is-toggled", btn.dataset.dawSelTrk === tr.id);
+    });
+    document.querySelectorAll("[data-daw-insp-tab]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.dawInspTab === activeInspTab);
+    });
+
+    const badge = $("lsDawInspChannelBadge");
+    const title = $("lsDawInspChannelTitle");
+    if (badge) {
+      badge.textContent = isMaster ? "MASTER" : (tr.role === "ch2" ? "CH 2" : "CH 1");
+    }
+    if (title) {
+      title.textContent = tr.name || (isMaster ? "Master Bus" : "Channel");
+    }
+
+    const inputRow = $("lsDawInspInputRow");
+    const monRow = $("lsDawInspMonitorRow");
+    const panRow = $("lsDawInspPanRow");
+    if (inputRow) inputRow.classList.toggle("ls-is-hidden", isMaster || activeInspTab === "fx");
+    if (monRow) monRow.classList.toggle("ls-is-hidden", isMaster || activeInspTab === "fx");
+    if (panRow) panRow.classList.toggle("ls-is-hidden", isMaster || activeInspTab === "fx");
+
+    const inpSel = $("lsDawInspInputSelect");
+    if (inpSel && !isMaster) {
+      const catalog =
+        window.LiveStudioBridge && typeof window.LiveStudioBridge.getInputChannelCatalog === "function"
+          ? window.LiveStudioBridge.getInputChannelCatalog()
+          : [];
+      inpSel.innerHTML = "";
+      const nOpt = document.createElement("option");
+      nOpt.value = "none";
+      nOpt.textContent = catalog.length === 0 ? "None (Standby)" : "None";
+      inpSel.appendChild(nOpt);
+      catalog.forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.id;
+        o.textContent = c.label;
+        inpSel.appendChild(o);
+      });
+      inpSel.value = catalog.some((c) => String(c.id) === String(tr.inputSource)) ? String(tr.inputSource) : "none";
+      inpSel.onchange = function () {
+        Engine.updateTrackProps(state, tr.id, { inputSource: this.value });
+        renderTrackHeaders();
+        syncDawHardwareFeedState();
+      };
+    }
+
+    const monOffBtn = $("lsDawInspMonOffBtn");
+    const monInBtn = $("lsDawInspMonInBtn");
+    if (monOffBtn && monInBtn && !isMaster) {
+      monOffBtn.classList.toggle("is-active", !tr.inputMonitor);
+      monInBtn.classList.toggle("is-active", Boolean(tr.inputMonitor));
+      monOffBtn.onclick = () => {
+        Engine.updateTrackProps(state, tr.id, { inputMonitor: false });
+        renderTrackHeaders();
+        renderRightTrackInspector();
+        syncDawHardwareFeedState();
+      };
+      monInBtn.onclick = () => {
+        Engine.updateTrackProps(state, tr.id, { inputMonitor: true });
+        renderTrackHeaders();
+        renderRightTrackInspector();
+        syncDawHardwareFeedState();
+      };
+    }
+
+    const gainSlider = $("lsDawInspGainRange");
+    const gainVal = $("lsDawInspGainVal");
+    if (gainSlider) {
+      gainSlider.value = String(tr.gain ?? 100);
+      if (gainVal) gainVal.textContent = formatGainDb(tr.gain ?? 100);
+      gainSlider.oninput = function () {
+        Engine.updateTrackProps(state, tr.id, { gain: Number(this.value) });
+        if (gainVal) gainVal.textContent = formatGainDb(tr.gain);
+        renderTrackHeaders();
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+    }
+
+    const panSlider = $("lsDawInspPanRange");
+    const panVal = $("lsDawInspPanVal");
+    if (panSlider && !isMaster) {
+      const fmtPan = (p) => (p === 0 ? "C" : p > 0 ? `${p}R` : `${Math.abs(p)}L`);
+      panSlider.value = String(tr.pan ?? 0);
+      if (panVal) panVal.textContent = fmtPan(Number(tr.pan || 0));
+      panSlider.oninput = function () {
+        Engine.updateTrackProps(state, tr.id, { pan: Number(this.value) });
+        if (panVal) panVal.textContent = fmtPan(tr.pan);
+        renderTrackHeaders();
+        syncLivePreviewTracks();
+        syncDawMonitorParams();
+      };
+    }
+
+    const fxList = $("lsDawInspFxSummaryList");
+    if (fxList) {
+      fxList.innerHTML = "";
+      const rack = tr.fxRack || [];
+      if (rack.length === 0) {
+        fxList.innerHTML = `<div class="ls-au-empty-note">No FX inserted on ${tr.name}.</div>`;
+      } else {
+        rack.forEach((slot) => {
+          const isOn = slot.enabled !== false;
+          const row = document.createElement("div");
+          row.className = `ls-insp-fx-row${isOn ? "" : " is-bypassed"}`;
+          const lbl = document.createElement("span");
+          lbl.textContent = slot.label || slot.type;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `ls-btn-mini${isOn ? " is-toggled" : ""}`;
+          btn.textContent = isOn ? "ON" : "OFF";
+          btn.onclick = () => {
+            Engine.toggleTrackFx(state, tr.id, slot.id);
+            updateAllDawUi();
+          };
+          row.appendChild(lbl);
+          row.appendChild(btn);
+          fxList.appendChild(row);
+        });
+      }
+    }
   }
 
   function updateAllDawUi() {
@@ -4113,6 +4303,7 @@
     if (activeCenterMode === "mixer") renderMixerConsole();
     renderFxRack();
     renderClipInspector();
+    renderRightTrackInspector();
     drawCanvas();
 
     const selLabel = $("lsDawSelectionLabel");
@@ -4677,7 +4868,60 @@
     const livePane = $("lsTabLivePane");
     const dawPane = $("lsTabDawPane");
 
-    function switchStudioTab(which) {
+    function syncWorkspacePills(activeKey) {
+      document.querySelectorAll("[data-studio-ws]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.studioWs === activeKey);
+      });
+    }
+
+    function setDawWorkspace(wsName) {
+      const valid = ["arrange", "recording", "mixing", "mastering"];
+      activeDawWorkspace = valid.includes(wsName) ? wsName : "arrange";
+      syncWorkspacePills(`daw:${activeDawWorkspace}`);
+      if (dawPane) dawPane.setAttribute("data-daw-page", activeDawWorkspace);
+
+      const splitEl = $("lsAuMainSplit");
+      const lowerDock = $("lsDawLowerDock");
+      const viewBar = $("lsDawWorkspaceViewBar");
+      const fxWrap = $("lsDawFxEditorDockWrap");
+      const masterWrap = $("lsDawMasterExportDockWrap");
+      const collapseBtn = $("lsDawCollapseLowerBtn");
+      if (splitEl) splitEl.classList.remove("is-left-collapsed");
+      $("lsAuToggleLeftBayBtn")?.classList.remove("is-toggled");
+
+      if (activeDawWorkspace === "arrange") {
+        setAuditionCenterMode("multitrack");
+        if (viewBar) viewBar.classList.add("ls-is-hidden");
+        if (lowerDock) lowerDock.classList.add("ls-is-hidden");
+        if (collapseBtn) collapseBtn.textContent = "Show Dock";
+      } else if (activeDawWorkspace === "recording") {
+        setAuditionCenterMode("multitrack");
+        setAuditionLeftTab("files");
+        if (viewBar) viewBar.classList.add("ls-is-hidden");
+        if (lowerDock) lowerDock.classList.add("ls-is-hidden");
+        if (collapseBtn) collapseBtn.textContent = "Show Dock";
+      } else if (activeDawWorkspace === "mixing") {
+        setAuditionCenterMode("mixer");
+        setAuditionLeftTab("fx");
+        if (viewBar) viewBar.classList.remove("ls-is-hidden");
+        if (lowerDock) lowerDock.classList.remove("ls-is-hidden");
+        if (fxWrap) fxWrap.classList.remove("ls-is-hidden");
+        if (masterWrap) masterWrap.classList.add("ls-is-hidden");
+        if (collapseBtn) collapseBtn.textContent = "Hide Dock";
+      } else if (activeDawWorkspace === "mastering") {
+        Engine.selectTrack(state, "master");
+        setAuditionCenterMode("multitrack");
+        setAuditionLeftTab("fx");
+        if (viewBar) viewBar.classList.remove("ls-is-hidden");
+        if (lowerDock) lowerDock.classList.remove("ls-is-hidden");
+        if (fxWrap) fxWrap.classList.remove("ls-is-hidden");
+        if (masterWrap) masterWrap.classList.remove("ls-is-hidden");
+        if (collapseBtn) collapseBtn.textContent = "Hide Dock";
+      }
+      updateAllDawUi();
+    }
+
+    function switchStudioTab(which, preserveWs) {
       const isDaw = which === "daw";
       if (tabLiveBtn) tabLiveBtn.classList.toggle("is-active", !isDaw);
       if (tabDawBtn) tabDawBtn.classList.toggle("is-active", isDaw);
@@ -4685,12 +4929,71 @@
       if (dawPane) dawPane.style.display = isDaw ? "block" : "none";
       if (isDaw) {
         pullMarkersFromStudioBridge();
-        updateAllDawUi();
+        if (!preserveWs) setDawWorkspace(activeDawWorkspace || "arrange");
+        else updateAllDawUi();
+      } else {
+        syncWorkspacePills("live:all");
       }
     }
 
     if (tabLiveBtn) tabLiveBtn.onclick = () => switchStudioTab("live");
     if (tabDawBtn) tabDawBtn.onclick = () => switchStudioTab("daw");
+
+    document.querySelectorAll("[data-studio-ws]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const spec = String(btn.dataset.studioWs || "live:all");
+        const parts = spec.split(":");
+        if (parts[0] === "daw") {
+          switchStudioTab("daw", true);
+          setDawWorkspace(parts[1] || "arrange");
+        } else {
+          switchStudioTab("live");
+          window.dispatchEvent(new CustomEvent("ls-select-live-ws", { detail: { section: parts[1] || "all" } }));
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-daw-insp-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeInspTab = btn.dataset.dawInspTab || "track";
+        if (activeInspTab === "sends") Engine.selectTrack(state, "master");
+        renderRightTrackInspector();
+        renderTrackHeaders();
+        renderFxRack();
+      });
+    });
+    document.querySelectorAll("[data-daw-sel-trk]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        Engine.selectTrack(state, btn.dataset.dawSelTrk);
+        selectedFxSlotId = null;
+        updateAllDawUi();
+      });
+    });
+    if ($("lsDawInspOpenFxRackBtn")) {
+      $("lsDawInspOpenFxRackBtn").onclick = () => {
+        setAuditionLeftTab("fx");
+        const lowerDock = $("lsDawLowerDock");
+        const fxWrap = $("lsDawFxEditorDockWrap");
+        if (lowerDock) lowerDock.classList.remove("ls-is-hidden");
+        if (fxWrap) fxWrap.classList.remove("ls-is-hidden");
+        if ($("lsDawCollapseLowerBtn")) $("lsDawCollapseLowerBtn").textContent = "Hide Dock";
+        renderFxRack();
+      };
+    }
+    if ($("lsDawInspDetectBtn")) {
+      $("lsDawInspDetectBtn").onclick = () => {
+        const tr = Engine.getTrackById(state, state.selectedTrackId);
+        if (!tr || tr.role === "master") return;
+        if (window.LiveStudioBridge && typeof window.LiveStudioBridge.startTrackAutoDetect === "function") {
+          window.LiveStudioBridge.startTrackAutoDetect((valStr, label) => {
+            Engine.updateTrackProps(state, tr.id, { inputSource: valStr });
+            syncDawHardwareFeedState();
+            updateAllDawUi();
+            setStatusNotice(`Auto-detected ${label} → ${tr.name}`, false);
+          }, tr.name);
+        }
+      };
+    }
 
     // File loaders
     if ($("lsDawLoadStemsBtn")) {
@@ -4734,23 +5037,16 @@
       };
     }
 
-    // Track management & FX Rack events
+    // 2-Track Studio Lock (CH1 Vocals + CH2 Instruments)
     if ($("lsDawAddTrackBtn")) {
       $("lsDawAddTrackBtn").onclick = () => {
-        const tr = Engine.addTrack(state);
-        selectedFxSlotId = null;
-        updateAllDawUi();
-        setStatusNotice(`Added "${tr.name}". Click "+ Audio" to load a stem or "+ Add Effect" below.`, false);
+        setStatusNotice("Studio DAW uses strictly 2 channels: Track 1 (Vocals) and Track 2 (Instruments).", false);
       };
     }
 
     if ($("lsDawDeleteTrackBtn")) {
       $("lsDawDeleteTrackBtn").onclick = () => {
-        if (Engine.deleteTrack(state, state.selectedTrackId)) {
-          selectedFxSlotId = null;
-          if (isPlaying) startPreviewPlayback();
-          updateAllDawUi();
-        }
+        setStatusNotice("Track 1 (Vocals) and Track 2 (Instruments) are permanent Studio buses.", false);
       };
     }
 
@@ -5324,8 +5620,8 @@
     }
     if ($("lsAuToggleLeftBayBtn")) {
       $("lsAuToggleLeftBayBtn").onclick = () => {
-        const bay = $("lsAuLeftBay");
-        const collapsed = bay ? bay.classList.toggle("is-collapsed") : false;
+        const split = $("lsAuMainSplit");
+        const collapsed = split ? split.classList.toggle("is-left-collapsed") : false;
         $("lsAuToggleLeftBayBtn")?.classList.toggle("is-toggled", collapsed);
         window.requestAnimationFrame(() => drawCanvas());
       };
@@ -5335,7 +5631,7 @@
     });
     document.querySelectorAll("[data-au-left-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        $("lsAuLeftBay")?.classList.remove("is-collapsed");
+        $("lsAuMainSplit")?.classList.remove("is-left-collapsed");
         $("lsAuToggleLeftBayBtn")?.classList.remove("is-toggled");
         setAuditionLeftTab(btn.dataset.auLeftTab);
       });
@@ -5633,7 +5929,7 @@
     }
     if ($("lsDawTrackHeightBtn")) {
       $("lsDawTrackHeightBtn").onclick = () => {
-        laneHeightPx = laneHeightPx === 116 ? 148 : (laneHeightPx === 148 ? 98 : 116);
+        laneHeightPx = laneHeightPx === 128 ? 156 : (laneHeightPx === 156 ? 188 : 128);
         updateAllDawUi();
       };
     }
@@ -5889,7 +6185,7 @@
         const dock = $("lsDawLowerDock");
         if (!dock) return;
         const hidden = dock.classList.toggle("ls-is-hidden");
-        $("lsDawCollapseLowerBtn").textContent = hidden ? "▲" : "▼";
+        $("lsDawCollapseLowerBtn").textContent = hidden ? "Show Dock" : "Hide Dock";
       };
     }
     if ($("lsDawShortcutsBtn")) {
@@ -6204,7 +6500,7 @@
         const fxWrap = $("lsDawFxEditorDockWrap");
         const masterWrap = $("lsDawMasterExportDockWrap");
         if (lowerDock) lowerDock.classList.remove("ls-is-hidden");
-        if ($("lsDawCollapseLowerBtn")) $("lsDawCollapseLowerBtn").textContent = "▼";
+        if ($("lsDawCollapseLowerBtn")) $("lsDawCollapseLowerBtn").textContent = "Hide Dock";
         if (fxWrap) fxWrap.classList.toggle("ls-is-hidden", view === "master");
         if (masterWrap) masterWrap.classList.toggle("ls-is-hidden", view === "fx");
         if (view !== "master") renderFxRack();
@@ -6250,6 +6546,8 @@
     setAuditionTool("time");
     setAuditionLeftTab("files");
     setAuditionCenterMode("multitrack");
+    if ($("lsDawLowerDock")) $("lsDawLowerDock").classList.add("ls-is-hidden");
+    if ($("lsDawCollapseLowerBtn")) $("lsDawCollapseLowerBtn").textContent = "Show Dock";
     updateAllDawUi();
   }
 

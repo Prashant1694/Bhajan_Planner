@@ -2215,6 +2215,80 @@ test("Phase 10: Adobe Audition CC Multitrack Workstation engine, UI, tools & the
   assert.deepEqual([...lightDefs].sort(), [...darkDefs].sort(), "Light & Dark --studio-* tokens must have 1:1 parity");
 });
 
+test("Phase 11: Cosmic Devotional Studio UI — authentic Swami & Mandir assets, 2-track Gold/Violet DAW, 5 workspaces & zero regression", () => {
+  const cssSrc = fs.readFileSync(path.join(ROOT, "public/css/live-stream-studio.css"), "utf8");
+  const ejsSrc = fs.readFileSync(path.join(ROOT, "views/admin-live-stream.ejs"), "utf8");
+  const studioSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-studio.js"), "utf8");
+  const dawUiSrc = fs.readFileSync(path.join(ROOT, "public/js/live-stream-daw-ui.js"), "utf8");
+
+  // 1. Authentic Swami JPG & Mandir PNG images copied intact
+  const swamiPath = path.join(ROOT, "public/images/studio-swami-authentic.jpg");
+  const mandirPath = path.join(ROOT, "public/images/studio-mandir-authentic.png");
+  assert.equal(fs.existsSync(swamiPath), true, "Authentic Swami photo must exist in public/images");
+  assert.equal(fs.existsSync(mandirPath), true, "Authentic Mandir PNG must exist in public/images");
+  const swamiBytes = fs.readFileSync(swamiPath);
+  const mandirBytes = fs.readFileSync(mandirPath);
+  assert.ok(swamiBytes.length > 10000 && swamiBytes[0] === 0xff && swamiBytes[1] === 0xd8 && swamiBytes[2] === 0xff);
+  assert.ok(mandirBytes.length > 10000 && mandirBytes[0] === 0x89 && mandirBytes[1] === 0x50 && mandirBytes[2] === 0x4e && mandirBytes[3] === 0x47);
+
+  // 2. Immersive devotional header (website nav removed), authentic image tags, 3-column desk & 5 workspaces
+  [
+    "lsCosmicHeader",
+    "lsMandirGoldenOutline",
+    "lsAuthenticSwamiImg",
+    "lsAuthenticMandirImg",
+    "lsWsArrangeBtn",
+    "lsWsRecordingBtn",
+    "lsWsMixingBtn",
+    "lsWsMasteringBtn",
+    "lsWsBroadcastBtn",
+    "lsVocalMiniCurveCanvas",
+    "lsInstMiniCurveCanvas",
+    "lsConsoleMasterMeterL",
+    "lsConsoleMasterMeterR",
+    "lsConsoleMasterDbVal",
+    "lsToggleDeepDspBtn",
+    "lsDawRightInspector",
+    "lsDawInspInputSelect",
+    "lsDawInspGainRange",
+    "lsDawInspPanRange",
+    "lsDawInspFxSummaryList"
+  ].forEach((id) => {
+    assert.ok(ejsSrc.includes(`id="${id}"`), `Missing Cosmic Studio element #${id}`);
+  });
+  assert.equal(ejsSrc.includes("ls-cosmic-appnav"), false, "Website top navigation bar must be removed from Studio header");
+  assert.equal(ejsSrc.includes('href="/master-bank"'), false, "Website nav links must not appear in Studio header");
+  assert.ok(ejsSrc.includes('/images/studio-swami-authentic.jpg'));
+  assert.ok(ejsSrc.includes('/images/studio-mandir-authentic.png'));
+  assert.ok(ejsSrc.includes('data-live-ws-btn="broadcast"') && ejsSrc.includes('data-live-ws-btn="channels"') && ejsSrc.includes('data-live-ws-btn="vault"'));
+  assert.ok(ejsSrc.includes('class="ls-lc-studio-desk"') && ejsSrc.includes('class="ls-hstrips-deck"') && ejsSrc.includes("ls-lc-bottom-bar"));
+
+  // 3. Strictly 2-track default workstation + workspace / mini-curve / deep-DSP / inspector JS functions
+  const st = Engine.createInitialState();
+  assert.equal(st.tracks.length, 2);
+  assert.equal(st.tracks[0].role, "ch1");
+  assert.equal(st.tracks[1].role, "ch2");
+  assert.ok(dawUiSrc.includes("setDawWorkspace") && dawUiSrc.includes("renderRightTrackInspector") && dawUiSrc.includes('setAttribute("data-daw-page"'));
+  assert.ok(studioSrc.includes("setLiveWorkspaceFocus") && studioSrc.includes("drawMiniChannelCurve") && studioSrc.includes("openDeepDspDrawer"));
+  assert.equal(studioSrc.includes("syncCosmicDaylightState"), false, "Cosmic dark mode must be unconditional (no daylight override)");
+
+  // 4. Zero !important, full-viewport chrome suppression, tonal desk CSS, and 1:1 token parity
+  assert.equal((cssSrc.match(/!important/g) || []).length, 0);
+  assert.equal(cssSrc.includes("ls-studio-daylight"), false, "CSS must not gate cosmic surface behind daylight attribute");
+  assert.ok(cssSrc.includes(".admin-layout:has(.ls-studio-wrap) > .sidebar"));
+  assert.ok(cssSrc.includes(".ls-lc-studio-desk") && cssSrc.includes(".ls-lc-bottom-bar") && cssSrc.includes(".ls-hstrips-deck"));
+  const lightStart = cssSrc.indexOf(".ls-studio-wrap {");
+  const darkStart = cssSrc.indexOf('[data-theme="dark"] .ls-studio-wrap');
+  const postDark = cssSrc.indexOf(".ls-studio-wrap *,");
+  const extractDefs = (block) => new Set([...block.matchAll(/(--studio-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+  const lightDefs = extractDefs(cssSrc.slice(lightStart, darkStart));
+  const darkDefs = extractDefs(cssSrc.slice(darkStart, postDark));
+  ["--studio-vocal-wave", "--studio-inst-wave", "--studio-gold", "--studio-cyan", "--studio-playhead"].forEach((tok) => {
+    assert.ok(lightDefs.has(tok) && darkDefs.has(tok), `Missing cosmic token ${tok} in Light/Dark pair`);
+  });
+  assert.deepEqual([...lightDefs].sort(), [...darkDefs].sort());
+});
+
 
 
 
